@@ -77,6 +77,12 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [retireMetric](#retiremetric) (metrics) | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retire_metric`](tools.md#retire_metric) |
 | [unretireMetric](#unretiremetric) (metrics) | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retire_metric`](tools.md#retire_metric) |
 | [mergeMetrics](#mergemetrics) (metrics) | Merge one metric into another in the same unit (MT3) | Admins | [`merge_metrics`](tools.md#merge_metrics) |
+| [addField](#addfield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
+| [changeField](#changefield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
+| [moveField](#movefield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
+| [retireField](#retirefield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
+| [bringBackField](#bringbackfield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
+| [setGoalFields](#setgoalfields) (tags) | Set a goal’s value for a field (TG1) | The goal’s owner, or an admin | [`set_goal_fields`](tools.md#set_goal_fields) |
 
 ## planChanges
 
@@ -1738,9 +1744,161 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **AI tools that do the same:** [`merge_metrics`](tools.md#merge_metrics)
 
+## addField
+
+From the [tags](../modules/tags/README.md) module.
+
+**Does:** Add, rename, reorder, retire or bring back a workspace’s field (TG1).
+
+**Input** (`FieldInput`):
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `name` | `string` | yes |  |
+| `kind` | `'text' \| 'list'` | yes |  |
+| `options` | `string[]` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Admins.
+
+**The rule:** `addField`, in `src/modules/tags/fields.ts`.
+
+**Refuses with:** nothing of its own beyond who may and the shared refusals above.
+
+**AI tools that do the same:** [`save_field`](tools.md#save_field)
+
+## changeField
+
+From the [tags](../modules/tags/README.md) module.
+
+**Does:** Add, rename, reorder, retire or bring back a workspace’s field (TG1).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `fieldId` | `string` | yes |  |
+| `name` | `string` | yes |  |
+| `options` | `string[]` | yes |  |
+
+**Result:** `Commit \| null`
+
+**Who may:** Admins.
+
+**The rule:** `changeField`, in `src/modules/tags/fields.ts`.
+
+**Refuses with:**
+
+- “That field no longer exists. Reload to see the latest.”
+
+**AI tools that do the same:** [`save_field`](tools.md#save_field)
+
+## moveField
+
+From the [tags](../modules/tags/README.md) module.
+
+**Does:** Add, rename, reorder, retire or bring back a workspace’s field (TG1).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `fieldId` | `string` | yes |  |
+| `by` | `1 \| -1` | yes |  |
+
+**Result:** `Commit \| null`
+
+**Who may:** Admins.
+
+**The rule:** `moveField`, in `src/modules/tags/fields.ts`.
+
+**Refuses with:**
+
+- “That field is retired or no longer exists. Reload to see the latest.”
+
+**AI tools that do the same:** [`save_field`](tools.md#save_field)
+
+## retireField
+
+From the [tags](../modules/tags/README.md) module.
+
+**Does:** Add, rename, reorder, retire or bring back a workspace’s field (TG1).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `fieldId` | `string` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Admins.
+
+**The rule:** `retireField`, in `src/modules/tags/fields.ts`.
+
+**Refuses with:**
+
+- “That field no longer exists. Reload to see the latest.”
+- “… is already retired.”
+
+**AI tools that do the same:** [`save_field`](tools.md#save_field)
+
+## bringBackField
+
+From the [tags](../modules/tags/README.md) module.
+
+**Does:** Add, rename, reorder, retire or bring back a workspace’s field (TG1).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `fieldId` | `string` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Admins.
+
+**The rule:** `bringBackField`, in `src/modules/tags/fields.ts`.
+
+**Refuses with:**
+
+- “That field no longer exists. Reload to see the latest.”
+- “… isn’t retired.”
+
+**AI tools that do the same:** [`save_field`](tools.md#save_field)
+
+## setGoalFields
+
+From the [tags](../modules/tags/README.md) module.
+
+**Does:** Set a goal’s value for a field (TG1).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `goalId` | `string` | yes |  |
+| `values` | `Record<string, string>` | yes |  |
+
+**Result:** `Commit \| null`
+
+**Who may:** The goal’s owner, or an admin.
+
+**The rule:** `setGoalFields`, in `src/modules/tags/fields.ts`.
+
+**Refuses with:**
+
+- “Only the goal’s owner or an admin can change its fields.”
+- “That field no longer exists. Reload to see the latest.”
+- “… is retired. An admin can bring it back in Workspace, Fields.”
+
+**AI tools that do the same:** [`set_goal_fields`](tools.md#set_goal_fields)
+
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 41 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 42 types.
 
 ### Answers
 
@@ -1924,6 +2082,14 @@ export interface Expectations {
   /** For each check-in written: the check-in that was there for that goal and week (null: none). */
   checkIns: { goalId: string; week: number; id: string | null }[];
 }
+```
+
+### FieldInput
+
+In `src/modules/tags/fields.ts`.
+
+```ts
+export interface FieldInput { name: string; kind: GoalField['kind']; options: string[] }
 ```
 
 ### GoalAnswers

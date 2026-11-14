@@ -2052,7 +2052,7 @@ var init_proposed = __esmMin((() => {
 	};
 }));
 // src/domain/levels.ts
-var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
+var DEFAULT_LEVELS, all$1, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
 	DEFAULT_LEVELS = [
 		{
@@ -2071,10 +2071,10 @@ var init_levels = __esmMin((() => {
 			hint: "Most goals. Flag SVP or North star only for goals reported at major reviews."
 		}
 	];
-	all = (c) => c?.levels?.length ? c.levels : DEFAULT_LEVELS;
-	levelsOf$1 = (c) => all(c).filter((l) => !l.removedAt);
+	all$1 = (c) => c?.levels?.length ? c.levels : DEFAULT_LEVELS;
+	levelsOf$1 = (c) => all$1(c).filter((l) => !l.removedAt);
 	levelIds = (c) => levelsOf$1(c).map((l) => l.id);
-	levelDef = (c, id) => all(c).find((l) => l.id === id) ?? null;
+	levelDef = (c, id) => all$1(c).find((l) => l.id === id) ?? null;
 	isLevel = (c, id) => levelsOf$1(c).some((l) => l.id === id);
 	levelName = (c, id) => levelDef(c, id)?.name ?? id;
 	everydayLevel = (c) => levelIds(c).at(-1) ?? "team";
@@ -2637,7 +2637,7 @@ function unchangedStory(draft, reason, path) {
 	return out;
 }
 /** Why a typed value can't be used, or a check worth making before posting it. */
-function valueProblem(raw, last, unit, goal) {
+function valueProblem$1(raw, last, unit, goal) {
 	if (!raw.trim()) return {
 		block: true,
 		text: "Type this week’s number."
@@ -2727,7 +2727,7 @@ function evaluate(goal, cycle, week, draft, all, breaches = []) {
 	const codes = [];
 	if (goal.kind !== "milestone" && value == null) codes.push(draft.value.trim() ? "value-not-number" : "value");
 	else if (goal.kind !== "milestone" && precisionProblem(draft.value, value, goal.decimals)) codes.push("value-precision");
-	else if (goal.kind !== "milestone" && valueProblem(draft.value, null, goal.unit, goal)?.block) codes.push("value-impossible");
+	else if (goal.kind !== "milestone" && valueProblem$1(draft.value, null, goal.unit, goal)?.block) codes.push("value-impossible");
 	if (greener && draft.greenerWhy.trim().length < 10) codes.push("greener-why");
 	if (reason && (!draft.cause || draft.why.trim().length < 10)) codes.push(reason === "ahead" ? "reason-ahead" : "reason-behind");
 	const planned = (draft.ptgState ?? "plan") === "plan";
@@ -2794,7 +2794,7 @@ function checkInLevels(goal, week, draft, own) {
 	const mustFix = [];
 	const checks = [];
 	const last = previousFor(own, week).number;
-	const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
+	const p = valueProblem$1(draft.value, last?.value ?? null, goal.unit, goal);
 	const n = parseNumber(draft.value);
 	const u = (v) => fmt(v, goal);
 	if (p?.block) mustFix.push({
@@ -5151,7 +5151,7 @@ function fieldTable(kind) {
 		role: WEEK_COLUMN.role,
 		means: WEEK_COLUMN.means
 	}] : []].map((c) => {
-		const f = FIELDS$1[kind][c.header];
+		const f = FIELDS$2[kind][c.header];
 		return f ? {
 			...c,
 			...f
@@ -5191,7 +5191,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -5728,7 +5728,7 @@ var init_columns = __esmMin((() => {
 	];
 	wordList = (w) => oneOf(Object.values(w.word));
 	causeWords = [...new Set(Object.values(CAUSE_WORDS.word))];
-	FIELDS$1 = {
+	FIELDS$2 = {
 		goals: {
 			Key: {
 				required: "leave-empty",
@@ -7059,7 +7059,7 @@ var init_tableLayout = __esmMin((() => {
 /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it isn't an ask: it asks nothing of anyone. */
 function addNote(x, goal, text) {
 	const t = text.trim();
-	if (t.length < 2) no$3("Write the comment.");
+	if (t.length < 2) no$4("Write the comment.");
 	return { changes: [{
 		id: x.newId("chg"),
 		at: x.now,
@@ -7078,7 +7078,7 @@ function addNote(x, goal, text) {
 }
 /** Ask a goal's owner for an update: open on their Home until they check in (or answer it), or it's withdrawn. Null when it's already asked. */
 function askForUpdate(x, goal) {
-	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: post a check-in instead.");
+	if (goal.ownerId === x.actor.id) no$4("It’s your own goal: post a check-in instead.");
 	if (openUpdateAsk(goal.id, x.snapshot)) return null;
 	const latest = latestOf(x, goal);
 	const { ask, change } = raiseAsk({
@@ -7098,7 +7098,7 @@ function askForUpdate(x, goal) {
 function undoUpdateAsk(x, goal) {
 	const ask = openUpdateAsk(goal.id, x.snapshot);
 	if (!ask) return null;
-	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$3("Only whoever asked, or an admin, can undo the ask.");
+	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$4("Only whoever asked, or an admin, can undo the ask.");
 	const w = withdrawAsk(ask, goal.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [w.request],
@@ -7108,8 +7108,8 @@ function undoUpdateAsk(x, goal) {
 /** Ask a goal's owner a question, outside a review (a review's questions come through reviewCall). Open until they answer it. */
 function askQuestion(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no$3("Write the question.");
-	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: there’s no one to ask. Comment instead.");
+	if (t.length < 2) no$4("Write the question.");
+	if (goal.ownerId === x.actor.id) no$4("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
@@ -7130,10 +7130,10 @@ function askQuestion(x, goal, text, opts = {}) {
 /** Agree an action on a goal: someone (the owner, unless named) does it, by a week if one is given. */
 function addAction(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no$3("Write the action.");
+	if (t.length < 2) no$4("Write the action.");
 	const who = opts.assigneeId ?? goal.ownerId;
-	if (!x.snapshot.people.some((p) => p.id === who)) no$3("The person for the action isn’t in this workspace.");
-	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$3(`The due week is between 1 and ${x.cycle.weeks}.`);
+	if (!x.snapshot.people.some((p) => p.id === who)) no$4("The person for the action isn’t in this workspace.");
+	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$4(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
@@ -7159,10 +7159,10 @@ function addAction(x, goal, text, opts = {}) {
 }
 /** Answer a decision or help, an ask for an update or a question: the person asked, or an admin (anyone, for an ask to no one in particular). */
 function answerRequest(x, r, answer) {
-	if (r.status !== "open") no$3("That ask isn’t open any more.");
-	if (r.kind === "action") no$3("An action is marked done, not answered.");
-	if (!canAnswer(r, x.actor)) no$3(`Only ${nameOf$1(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
-	if (answer.trim().length < 2) no$3("Write the answer.");
+	if (r.status !== "open") no$4("That ask isn’t open any more.");
+	if (r.kind === "action") no$4("An action is marked done, not answered.");
+	if (!canAnswer(r, x.actor)) no$4(`Only ${nameOf$1(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
+	if (answer.trim().length < 2) no$4("Write the answer.");
 	const { request, changes } = answerAsk(r, answer, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -7171,9 +7171,9 @@ function answerRequest(x, r, answer) {
 }
 /** Mark an action done, with an optional note: whoever does it, whoever asked for it, or an admin. */
 function markActionDone(x, r, note = "") {
-	if (r.status !== "open") no$3("That action isn’t open any more.");
-	if (r.kind !== "action") no$3("Only an action is marked done; answer the others.");
-	if (!canMarkDone(r, x.actor)) no$3(`Only ${nameOf$1(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
+	if (r.status !== "open") no$4("That action isn’t open any more.");
+	if (r.kind !== "action") no$4("Only an action is marked done; answer the others.");
+	if (!canMarkDone(r, x.actor)) no$4(`Only ${nameOf$1(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
 	const { request, changes } = markDone(r, note, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -7182,10 +7182,10 @@ function markActionDone(x, r, note = "") {
 }
 /** A goal's owner (or an admin) says the goal waits on a decision or help raised for another goal. */
 function linkRequest(x, r, goal) {
-	if (r.status !== "open") no$3("That request isn’t open any more.");
-	if (r.kind !== "decision") no$3("Only a decision or help can be shared by several goals.");
-	if (!ownsOrAdmin$2(x, goal)) no$3("Only the goal’s owner or an admin can link it to a request.");
-	if (r.goalIds.includes(goal.id)) no$3("That goal is already waiting on this request.");
+	if (r.status !== "open") no$4("That request isn’t open any more.");
+	if (r.kind !== "decision") no$4("Only a decision or help can be shared by several goals.");
+	if (!ownsOrAdmin$2(x, goal)) no$4("Only the goal’s owner or an admin can link it to a request.");
+	if (r.goalIds.includes(goal.id)) no$4("That goal is already waiting on this request.");
 	const { requests, changes } = linkRequest$1(r, goal, x.snapshot, x.actor.id, x.now, x.newId);
 	return {
 		requests,
@@ -7197,10 +7197,10 @@ function linkRequest(x, r, goal) {
 * goal linked to someone else's decision or help, its owner stops waiting on it (the ask stays open for the others).
 */
 function withdrawRequest(x, r, goal) {
-	if (r.status !== "open") no$3("That ask isn’t open any more.");
+	if (r.status !== "open") no$4("That ask isn’t open any more.");
 	const g = goal ?? x.snapshot.goals.find((v) => v.id === r.goalIds[0]);
-	if (!g || !r.goalIds.includes(g.id)) no$3("That goal isn’t waiting on this ask.");
-	if (!canWithdraw(r, x.actor, g)) no$3(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
+	if (!g || !r.goalIds.includes(g.id)) no$4("That goal isn’t waiting on this ask.");
+	if (!canWithdraw(r, x.actor, g)) no$4(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
 	const { request, changes } = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -7212,8 +7212,8 @@ function withdrawRequest(x, r, goal) {
 * goals, trees and levels (build review of #322). Throws the refusal.
 */
 function maySpeak(x, review, goal) {
-	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
-	if (!goalsIn(review.scope, x.snapshot.goals).some((g) => g.id === goal.id)) no$3(scopeRefusal(review, goal));
+	if (!canSpeakFor(review, x.actor)) no$4(speakRefusal(review));
+	if (!goalsIn(review.scope, x.snapshot.goals).some((g) => g.id === goal.id)) no$4(scopeRefusal(review, goal));
 }
 /**
 * What someone says about a goal in a review: seen, a note, a question for the owner, or an action. Seen and a note are
@@ -7225,7 +7225,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
-		if (goal.ownerId === x.actor.id) no$3("It’s your own goal: add a note instead.");
+		if (goal.ownerId === x.actor.id) no$4("It’s your own goal: add a note instead.");
 		return askQuestion(x, goal, text, {
 			reviewId: review.id,
 			week
@@ -7237,7 +7237,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 		reviewId: review.id,
 		week
 	});
-	if (kind === "note" && text.length < 2) no$3("Write the note.");
+	if (kind === "note" && text.length < 2) no$4("Write the note.");
 	const d = {
 		id: x.newId("dec"),
 		goalId: goal.id,
@@ -7273,7 +7273,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 * as a note whose words start "We accept the risk:" (decide.ts reads it back). Someone in the review, or an admin (RV7).
 */
 function acceptRisk(x, goal, review, reason, week) {
-	if (reason.trim().length < 5) no$3("Say why the review accepts the risk.");
+	if (reason.trim().length < 5) no$4("Say why the review accepts the risk.");
 	return reviewCall(x, goal, review, "note", acceptNote(reason), { week });
 }
 /**
@@ -7283,10 +7283,10 @@ function acceptRisk(x, goal, review, reason, week) {
 function editCall(x, d, note, extra) {
 	const ask = "goalIds" in d ? d : askById(x, d.id);
 	if (ask) {
-		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$3("Only whoever asked, or an admin, can correct it.");
-		if (ask.status !== "open") no$3("It’s been answered or closed: comment instead.");
-		if (note.trim().length < 2) no$3("Write the new wording.");
-		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$3("The person for the action isn’t in this workspace.");
+		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$4("Only whoever asked, or an admin, can correct it.");
+		if (ask.status !== "open") no$4("It’s been answered or closed: comment instead.");
+		if (note.trim().length < 2) no$4("Write the new wording.");
+		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$4("The person for the action isn’t in this workspace.");
 		const out = editAsk(ask, {
 			ask: note,
 			...ask.kind === "action" && extra ? {
@@ -7300,8 +7300,8 @@ function editCall(x, d, note, extra) {
 		};
 	}
 	const dec = d;
-	if (dec.byId !== x.actor.id && !x.actor.admin) no$3("Only whoever said it, or an admin, can correct it.");
-	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$3("Write the new wording.");
+	if (dec.byId !== x.actor.id && !x.actor.admin) no$4("Only whoever said it, or an admin, can correct it.");
+	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$4("Write the new wording.");
 	const after = {
 		...dec,
 		note: note.trim(),
@@ -7329,14 +7329,14 @@ function editCall(x, d, note, extra) {
 }
 /** Set up a review (anyone), or change one (someone in it, whoever set it up, or an admin). */
 function saveReview(x, review, before) {
-	if (!review.name.trim()) no$3("Give the review a name.");
-	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$3("Hold it every 1 to 13 weeks.");
-	if (!(review.weekday >= 0 && review.weekday <= 4)) no$3("Pick a weekday, Monday to Friday.");
-	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$3("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
+	if (!review.name.trim()) no$4("Give the review a name.");
+	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$4("Hold it every 1 to 13 weeks.");
+	if (!(review.weekday >= 0 && review.weekday <= 4)) no$4("Pick a weekday, Monday to Friday.");
+	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$4("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
 	const ids = new Set(x.snapshot.goals.map((g) => g.id));
-	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$3("One of the goals isn’t in this cycle.");
-	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$3("One of the people isn’t in this workspace.");
-	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$3("Only someone in the review, whoever set it up, or an admin can change it.");
+	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$4("One of the goals isn’t in this cycle.");
+	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$4("One of the people isn’t in this workspace.");
+	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$4("Only someone in the review, whoever set it up, or an admin can change it.");
 	const diffs = before ? [
 		...before.name !== review.name ? [{
 			field: "Name",
@@ -7398,7 +7398,7 @@ function newReview(x, v) {
 /** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
 you stopped watching brings the same watch back (one watch per person and thing). */
 function watch(x, kind, ref) {
-	if (kind === "level" ? !isLevel(x.cycle, ref) : !withProposed(x.snapshot).some((g) => g.id === ref)) no$3(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
+	if (kind === "level" ? !isLevel(x.cycle, ref) : !withProposed(x.snapshot).some((g) => g.id === ref)) no$4(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
 	if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
 	const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
 	return {
@@ -7418,8 +7418,8 @@ function watch(x, kind, ref) {
 /** Stop watching: your own watches only. Kept, and logged, so it can be undone. */
 function unwatch(x, watchId) {
 	const w = x.snapshot.watches.find((v) => v.id === watchId);
-	if (!w) no$3("There’s no watch with that ID.");
-	if (w.personId !== x.actor.id) no$3("That’s someone else’s watch.");
+	if (!w) no$4("There’s no watch with that ID.");
+	if (w.personId !== x.actor.id) no$4("That’s someone else’s watch.");
 	return {
 		watches: [{
 			...w,
@@ -7445,10 +7445,10 @@ function unwatch(x, watchId) {
 }
 /** Admins: add someone, or change their name, job title, team or admin rights. Null when nothing changed. */
 function savePerson(x, p, before) {
-	if (!x.actor.admin) no$3("Only admins can add people or change them.");
-	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$3("There’s no team with that ID.");
+	if (!x.actor.admin) no$4("Only admins can add people or change them.");
+	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$4("There’s no team with that ID.");
 	const problems = personProblems(p, x.snapshot.people, before);
-	if (problems.length) no$3(problems.join(" "));
+	if (problems.length) no$4(problems.join(" "));
 	const ch = personChange(before, p, lookupOf(x.snapshot).teamName, x.actor.id, x.now, x.newId("chg"));
 	if (before && !ch) return null;
 	return {
@@ -7458,14 +7458,14 @@ function savePerson(x, p, before) {
 }
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
-	if (!ownsOrAdmin$2(x, goal)) no$3("Only the goal’s owner or an admin can wrap it up.");
+	if (!ownsOrAdmin$2(x, goal)) no$4("Only the goal’s owner or an admin can wrap it up.");
 	const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
 	const today = new Date(x.now);
 	if (!wrapUpOpenOn(cycle, today)) {
 		const d = cycleDates(cycle);
-		no$3(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+		no$4(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
 	}
-	if (v.learned.trim().length < 10) no$3("Say what was learned, in a sentence (10 characters or more).");
+	if (v.learned.trim().length < 10) no$4("Say what was learned, in a sentence (10 characters or more).");
 	const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
 	const retro = {
 		id: before?.id ?? x.newId("retro"),
@@ -7512,7 +7512,7 @@ function saveRetro(x, goal, v) {
 	if (!full) return own;
 	const later = laterCycle(full.cycles, cycle);
 	const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : void 0;
-	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$3(`It already has check-ins in ${later.name}. Stop it there instead.`);
+	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$4(`It already has check-ins in ${later.name}. Stop it there instead.`);
 	return own;
 }
 /** Two commits as one save: their records and changes side by side. */
@@ -7529,16 +7529,16 @@ function mergeCommits(a, b) {
 * it early moves nobody. Its change keeps what it added, so it can be undone until someone uses it (removal undoStart).
 */
 function startNextCycle(x) {
-	if (!x.actor.admin) no$3("Only admins can start the next cycle.");
+	if (!x.actor.admin) no$4("Only admins can start the next cycle.");
 	const today = new Date(x.now);
 	const full = x.full ?? x.snapshot;
 	const state = cycleState(x.cycle, today);
-	if (state === "before" || state === "running") no$3(startFromLine(x.cycle));
+	if (state === "before" || state === "running") no$4(startFromLine(x.cycle));
 	const later = laterCycle(full.cycles ?? [], x.cycle);
 	if (later) {
 		const made = full.changes.find((c) => c.entity === "cycle" && c.entityId === later.id && c.action === "created");
 		const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
-		no$3(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
+		no$4(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
 	}
 	const map = /* @__PURE__ */ new Map();
 	const next = nextCycle(x.cycle, withProposed(x.snapshot), x.snapshot.checkIns, x.snapshot.retros ?? [], {
@@ -7615,15 +7615,15 @@ function startNextCycle(x) {
 /** Save a view of the goals: a new one, or one of yours (an admin: any) renamed or changed. */
 function saveView(x, v) {
 	const clean = v.name.trim().slice(0, 80);
-	if (!clean) no$3("Give the view a name.");
+	if (!clean) no$4("Give the view a name.");
 	const old = v.id ? liveView(x, v.id) : void 0;
-	if (v.id && !old) no$3("There’s no view with that ID.");
+	if (v.id && !old) no$4("There’s no view with that ID.");
 	if (isTableView(v)) {
 		const problems = layoutProblems(parseLayout(v.params));
-		if (problems.length) no$3(problems.join(" "));
+		if (problems.length) no$4(problems.join(" "));
 	}
-	if (old && isTableView(old) !== isTableView(v)) no$3(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
-	if (old && old.personId !== x.actor.id && !x.actor.admin) no$3("Only its owner or an admin can change this view.");
+	if (old && isTableView(old) !== isTableView(v)) no$4(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
+	if (old && old.personId !== x.actor.id && !x.actor.admin) no$4("Only its owner or an admin can change this view.");
 	const view = old ? {
 		...old,
 		name: clean,
@@ -7668,8 +7668,8 @@ function saveView(x, v) {
 */
 function saveTableView(x, v, head) {
 	const problems = layoutProblems(v.layout, head);
-	if (problems.length) no$3(problems.join(" "));
-	if (v.layout.cols && !v.layout.cols.length) no$3("Show at least one column.");
+	if (problems.length) no$4(problems.join(" "));
+	if (v.layout.cols && !v.layout.cols.length) no$4("Show at least one column.");
 	const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
 	return saveView(x, {
 		id: v.id,
@@ -7684,7 +7684,7 @@ function saveTableView(x, v, head) {
 function deleteView(x, id) {
 	const v = liveView(x, id);
 	if (!v) return null;
-	if (v.personId !== x.actor.id && !x.actor.admin) no$3("Only its owner, or an admin, can delete this view.");
+	if (v.personId !== x.actor.id && !x.actor.admin) no$4("Only its owner, or an admin, can delete this view.");
 	const what = isTableView(v) ? "saved layout" : v.pinned ? "pinned view" : "view";
 	return {
 		views: [{
@@ -7712,9 +7712,9 @@ function deleteView(x, id) {
 }
 /** Admins: show a view to everyone in the workspace, or stop. Null when it already is. */
 function pinView(x, id, pinned) {
-	if (!x.actor.admin) no$3("Only admins can pin a view for everyone.");
+	if (!x.actor.admin) no$4("Only admins can pin a view for everyone.");
 	const v = liveView(x, id);
-	if (!v) no$3("There’s no view with that ID.");
+	if (!v) no$4("There’s no view with that ID.");
 	if (v.pinned === pinned) return null;
 	return {
 		views: [{
@@ -7742,11 +7742,11 @@ function pinView(x, id, pinned) {
 /** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
 (Store.issueToken): in the shared database, the database does. */
 function createToken(x, personId, name) {
-	if (!x.actor.admin) no$3("Only admins can make tokens.");
+	if (!x.actor.admin) no$4("Only admins can make tokens.");
 	const who = x.snapshot.people.find((p) => p.id === personId);
-	if (!who) no$3("There’s no one with that ID in this workspace.");
-	if (!name.trim()) no$3("Say what the token is for, e.g. “Claude on my laptop”.");
-	if (name.trim().length > 120) no$3("Keep what it’s for to 120 characters.");
+	if (!who) no$4("There’s no one with that ID in this workspace.");
+	if (!name.trim()) no$4("Say what the token is for, e.g. “Claude on my laptop”.");
+	if (name.trim().length > 120) no$4("Keep what it’s for to 120 characters.");
 	const t = {
 		id: x.newId("tok"),
 		personId,
@@ -7778,9 +7778,9 @@ function createToken(x, personId, name) {
 /** Stop a token working: an admin, or the token's person. Null when it's already revoked. */
 function revokeToken(x, id) {
 	const t = (x.snapshot.tokens ?? []).find((v) => v.id === id);
-	if (!t) no$3("There’s no token with that ID.");
+	if (!t) no$4("There’s no token with that ID.");
 	if (t.revokedAt) return null;
-	if (!x.actor.admin && t.personId !== x.actor.id) no$3("Only an admin or the token’s person can revoke it.");
+	if (!x.actor.admin && t.personId !== x.actor.id) no$4("Only an admin or the token’s person can revoke it.");
 	return {
 		tokens: [{
 			...t,
@@ -7808,7 +7808,7 @@ function sendFeedback(x, mood, text, path) {
 		"good",
 		"meh",
 		"bad"
-	].includes(mood)) no$3("Mood is good, meh or bad.");
+	].includes(mood)) no$4("Mood is good, meh or bad.");
 	return {
 		feedback: [{
 			id: x.newId("fb"),
@@ -7823,10 +7823,10 @@ function sendFeedback(x, mood, text, path) {
 }
 /** Admins: give the workspace a new name. Null when it already has that name. */
 function renameWorkspace(x, ws, name) {
-	if (!x.actor.admin) no$3("Only admins can rename the workspace.");
+	if (!x.actor.admin) no$4("Only admins can rename the workspace.");
 	const clean = name.trim().replace(/\s+/g, " ");
 	const named = nameProblem(clean, "workspace");
-	if (named) no$3(named);
+	if (named) no$4(named);
 	if (clean === ws.name) return null;
 	return {
 		workspace: { name: clean },
@@ -7852,8 +7852,8 @@ function renameWorkspace(x, ws, name) {
 * guide's "What the app records"). Off, nothing is recorded or sent for the workspace. Null when it already is.
 */
 function setRecording(x, ws, on) {
-	if (!x.actor.admin) no$3("Only admins can turn recording on or off.");
-	if (typeof on !== "boolean") no$3("Say whether to record: on or off.");
+	if (!x.actor.admin) no$4("Only admins can turn recording on or off.");
+	if (typeof on !== "boolean") no$4("Say whether to record: on or off.");
 	const was = ws.recording !== false;
 	if (was === on) return null;
 	return {
@@ -7880,9 +7880,9 @@ function setRecording(x, ws, on) {
 * build has, so a module that needs this one can be named in the log as going off with it. Null when it already is.
 */
 function setModule(x, ws, modules, id, on) {
-	if (!x.actor.admin) no$3("Only admins can switch features on or off.");
+	if (!x.actor.admin) no$4("Only admins can switch features on or off.");
 	const m = modules.find((k) => k.id === id);
-	if (!m) no$3(`There’s no feature called ${id}.`);
+	if (!m) no$4(`There’s no feature called ${id}.`);
 	const was = ws.modulesOff ?? [];
 	if (was.includes(id) === !on) return null;
 	const off = on ? was.filter((k) => k !== id) : [...was, id].sort();
@@ -7910,18 +7910,18 @@ function setModule(x, ws, modules, id, on) {
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
 function saveTeam(x, t) {
-	if (!x.actor.admin) no$3("Only admins can add or change teams.");
+	if (!x.actor.admin) no$4("Only admins can add or change teams.");
 	const clean = t.name.trim().replace(/\s+/g, " ");
-	if (!clean) no$3("Give the team a name.");
-	if (clean.length > 60) no$3("Keep the team’s name to 60 characters or fewer.");
+	if (!clean) no$4("Give the team a name.");
+	if (clean.length > 60) no$4("Keep the team’s name to 60 characters or fewer.");
 	const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : void 0;
-	if (t.id && !before) no$3("There’s no team with that ID.");
+	if (t.id && !before) no$4("There’s no team with that ID.");
 	const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
-	if (same) no$3(`There’s already a team called ${same.name}.`);
+	if (same) no$4(`There’s already a team called ${same.name}.`);
 	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
-	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$3("The team lead isn’t in this workspace.");
+	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$4("The team lead isn’t in this workspace.");
 	const objective = t.objective === void 0 ? before?.objective ?? "" : t.objective.trim().replace(/\s+/g, " ");
-	if (objective.length > 280) no$3("Keep what the team is here to do to 280 characters or fewer.");
+	if (objective.length > 280) no$4("Keep what the team is here to do to 280 characters or fewer.");
 	const team = {
 		id: before?.id ?? x.newId("team"),
 		name: clean,
@@ -7988,15 +7988,15 @@ function teamMembers(x, teamId) {
 }
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
 function removeTeam(x, id, moveTo) {
-	if (!x.actor.admin) no$3("Only admins can remove teams.");
+	if (!x.actor.admin) no$4("Only admins can remove teams.");
 	const team = x.snapshot.teams.find((t) => t.id === id);
-	if (!team) no$3("There’s no team with that ID.");
+	if (!team) no$4("There’s no team with that ID.");
 	const { people, goals, named } = teamMembers(x, id);
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
 	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
-	if (moveTo && (!to || moveTo === id)) no$3("Move them to another team that’s in this workspace.");
-	if (what && !to) no$3(`${team.name} still has ${what}. Move them to another team first.`);
+	if (moveTo && (!to || moveTo === id)) no$4("Move them to another team that’s in this workspace.");
+	if (what && !to) no$4(`${team.name} still has ${what}. Move them to another team first.`);
 	const movedPeople = people.map((p) => ({
 		...p,
 		teamId: to.id
@@ -8052,11 +8052,11 @@ function removeTeam(x, id, moveTo) {
 }
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
 function canDeleteWorkspace(actor, kind, name, confirmName) {
-	if (!actor.admin) no$3("Only admins can delete the workspace.");
-	if (kind === "example") no$3("Examples can be reset, not deleted.");
-	if (confirmName.trim() !== name) no$3(`To confirm, give the workspace’s name exactly: “${name}”.`);
+	if (!actor.admin) no$4("Only admins can delete the workspace.");
+	if (kind === "example") no$4("Examples can be reset, not deleted.");
+	if (confirmName.trim() !== name) no$4(`To confirm, give the workspace’s name exactly: “${name}”.`);
 }
-var NotAllowed, no$3, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$1, watchWhat, initialsOf$1, liveView;
+var NotAllowed, no$4, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$1, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -8075,7 +8075,7 @@ var init_actions = __esmMin((() => {
 	init_status();
 	init_tableLayout();
 	NotAllowed = class extends Error {};
-	no$3 = (msg) => {
+	no$4 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	lookupOf = (s) => ({
@@ -8776,21 +8776,21 @@ function activated(goal, fromWeek) {
 * which puts the goal back as it was (domain/removal undoRemoval).
 */
 function activate(x, i) {
-	const g = goalIn(x, i.goalId) ?? no$2("That goal no longer exists. Reload to see the latest.");
-	if (!isProposed(g)) no$2(`“${g.title}” is already active.`);
-	if (!mayActivate(x.actor, g)) no$2(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
+	const g = goalIn(x, i.goalId) ?? no$3("That goal no longer exists. Reload to see the latest.");
+	if (!isProposed(g)) no$3(`“${g.title}” is already active.`);
+	if (!mayActivate(x.actor, g)) no$3(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
 	const from = i.fromWeek ?? Math.max(0, x.week);
 	const to = g.kind === "metric" ? planEnd(g.plan, x.cycle.weeks) : 0;
-	if (g.kind === "metric" && (!Number.isInteger(from) || from < 0 || from >= to)) no$2(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
+	if (g.kind === "metric" && (!Number.isInteger(from) || from < 0 || from >= to)) no$3(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
 	const asked = g.kind === "metric" && from < x.week ? fromPastQuestion(g, from, x) : null;
-	if (asked && !i.confirm) no$2(`Not saved. Check with the person first: ${asked}`);
+	if (asked && !i.confirm) no$3(`Not saved. Check with the person first: ${asked}`);
 	const missing = readyToActivate(g, {
 		cycleWeeks: x.cycle.weeks,
 		week: x.week,
 		startDate: x.cycle.startDate,
 		fromWeek: from
 	});
-	if (missing.length) no$2(`“${g.title}” can’t be made active yet: ${missing.map((f) => f.text).join(" ")}`);
+	if (missing.length) no$3(`“${g.title}” can’t be made active yet: ${missing.map((f) => f.text).join(" ")}`);
 	const goal = activated(g, from);
 	const words = g.kind === "metric" ? `Made it active, from week ${from}` : "Made it active";
 	return {
@@ -8824,12 +8824,12 @@ function fromPastQuestion(g, from, x) {
 }
 /** Make an active goal with no check-ins proposed again: its owner or an admin. */
 function backToProposed(x, i) {
-	const g = goalIn(x, i.goalId) ?? no$2("That goal no longer exists. Reload to see the latest.");
-	if (isProposed(g)) no$2(`“${g.title}” is already proposed.`);
-	if (g.stoppedAt) no$2(`“${g.title}” is stopped.`);
-	if (!mayChangeGoal(x.actor, g)) no$2(`Only ${nameOf(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
-	if (g.cycleId !== x.cycle.id) no$2(`“${g.title}” is in another year, so it can’t go back to proposed.`);
-	if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no$2(HAS_CHECK_INS);
+	const g = goalIn(x, i.goalId) ?? no$3("That goal no longer exists. Reload to see the latest.");
+	if (isProposed(g)) no$3(`“${g.title}” is already proposed.`);
+	if (g.stoppedAt) no$3(`“${g.title}” is stopped.`);
+	if (!mayChangeGoal(x.actor, g)) no$3(`Only ${nameOf(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
+	if (g.cycleId !== x.cycle.id) no$3(`“${g.title}” is in another year, so it can’t go back to proposed.`);
+	if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no$3(HAS_CHECK_INS);
 	const goal = {
 		...g,
 		proposedAt: x.now,
@@ -8848,7 +8848,7 @@ function backToProposed(x, i) {
 		goal
 	};
 }
-var NOTHING_TO_CHECK_IN, mayActivate, no$2, goalIn, nameOf, change$1, HAS_CHECK_INS;
+var NOTHING_TO_CHECK_IN, mayActivate, no$3, goalIn, nameOf, change$1, HAS_CHECK_INS;
 var init_proposedActions = __esmMin((() => {
 	init_actions();
 	init_goalRights();
@@ -8858,7 +8858,7 @@ var init_proposedActions = __esmMin((() => {
 	init_goalEntry();
 	NOTHING_TO_CHECK_IN = "This goal is proposed, so there is nothing to check in. Make it active first.";
 	mayActivate = (actor, goal) => !!actor.admin || goal.ownerId === actor.id;
-	no$2 = (msg) => {
+	no$3 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	goalIn = (x, ref) => withProposed(x.snapshot).find((g) => g.id === ref || g.key === ref) ?? (x.allGoals ?? []).find((g) => !g.removedAt && (g.id === ref || g.key === ref));
@@ -8938,12 +8938,12 @@ function commentsOf(changes) {
 /** Correct a comment: only whoever wrote it. It then shows as edited. Null when the words are the same. */
 function editComment(x, id, text) {
 	const k = commentOf(x, id);
-	if (k.removedAt) no$1("That comment has been removed.");
-	if (k.authorId !== x.actor.id) no$1("Only whoever wrote a comment can edit it.");
+	if (k.removedAt) no$2("That comment has been removed.");
+	if (k.authorId !== x.actor.id) no$2("Only whoever wrote a comment can edit it.");
 	const t = text.trim();
-	if (t.length < 2) no$1("Write the comment.");
+	if (t.length < 2) no$2("Write the comment.");
 	if (t === k.text) return null;
-	return { changes: [log$1(x, {
+	return { changes: [log$2(x, {
 		entity: "note",
 		entityId: k.id,
 		goalId: k.goalId,
@@ -8959,9 +8959,9 @@ function editComment(x, id, text) {
 /** Remove a comment: whoever wrote it, or an admin. Its place in the thread says "Comment removed". */
 function deleteComment(x, id) {
 	const k = commentOf(x, id);
-	if (k.removedAt) no$1("That comment has already been removed.");
-	if (k.authorId !== x.actor.id && !x.actor.admin) no$1("Only whoever wrote a comment, or an admin, can remove it.");
-	return { changes: [log$1(x, {
+	if (k.removedAt) no$2("That comment has already been removed.");
+	if (k.authorId !== x.actor.id && !x.actor.admin) no$2("Only whoever wrote a comment, or an admin, can remove it.");
+	return { changes: [log$2(x, {
 		entity: "note",
 		entityId: k.id,
 		goalId: k.goalId,
@@ -8972,16 +8972,16 @@ function deleteComment(x, id) {
 /** Remove a note said in a review: whoever said it, or an admin. The review's record says "Note removed" in its place. */
 function deleteNote(x, id) {
 	const d = x.snapshot.decisions.find((v) => v.id === id) ?? fullOf(x).decisions.find((v) => v.id === id && !v.removedAt);
-	if (!d || d.removedAt) no$1("There’s no note with that ID.");
-	if (d.kind !== "note") no$1("Only a note can be removed; a question or an action is withdrawn.");
-	if (d.byId !== x.actor.id && !x.actor.admin) no$1("Only whoever said it, or an admin, can remove it.");
+	if (!d || d.removedAt) no$2("There’s no note with that ID.");
+	if (d.kind !== "note") no$2("Only a note can be removed; a question or an action is withdrawn.");
+	if (d.byId !== x.actor.id && !x.actor.admin) no$2("Only whoever said it, or an admin, can remove it.");
 	return {
 		decisions: [{
 			...d,
 			removedAt: x.now,
 			removedBy: x.actor.id
 		}],
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "decision",
 			entityId: d.id,
 			goalId: d.goalId,
@@ -9001,8 +9001,8 @@ function deleteNote(x, id) {
 */
 function unmarkReviewed(x, made) {
 	const marks = made.filter((d) => d.kind === "acknowledge" && !d.removedAt);
-	if (!marks.length) no$1("Those goals are no longer marked reviewed.");
-	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$1("Only whoever marked them, or an admin, can undo it.");
+	if (!marks.length) no$2("Those goals are no longer marked reviewed.");
+	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$2("Only whoever marked them, or an admin, can undo it.");
 	const after = marks.map((d) => ({
 		...d,
 		removedAt: x.now,
@@ -9010,7 +9010,7 @@ function unmarkReviewed(x, made) {
 	}));
 	return {
 		decisions: after,
-		changes: after.map((d) => log$1(x, {
+		changes: after.map((d) => log$2(x, {
 			entity: "decision",
 			entityId: d.id,
 			goalId: d.goalId,
@@ -9052,7 +9052,7 @@ function leaving(x, id) {
 * They're gone from pickers, counts, reviews and Home; history keeps their name, as "Name (left)".
 */
 function markPersonLeft(x, id, to = {}) {
-	if (!x.actor.admin) no$1("Only admins can mark someone as left.");
+	if (!x.actor.admin) no$2("Only admins can mark someone as left.");
 	const p = livePerson(x, id);
 	notSelfOrLastAdmin(x, p, "mark");
 	return departs(x, p, to, `Marked ${p.name} as left`);
@@ -9063,13 +9063,13 @@ function departs(x, p, to, summary) {
 	const l = leaving(x, id);
 	const handTo = (ref, what) => {
 		if (!ref) return null;
-		if (ref === id) no$1(`Choose someone else to take over their ${what}.`);
+		if (ref === id) no$2(`Choose someone else to take over their ${what}.`);
 		return livePerson(x, ref);
 	};
 	const goalsTo = handTo(to.goalsTo, "goals");
 	const asksTo = handTo(to.asksTo, "asks");
-	if (l.goals.length && !goalsTo) no$1(`${p.name} owns ${plural$3(l.goals.length, "goal", "goals")}: choose who takes them over.`);
-	if ((l.asked.length || l.asking.length) && !asksTo) no$1(`${p.name} has ${plural$3((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
+	if (l.goals.length && !goalsTo) no$2(`${p.name} owns ${plural$3(l.goals.length, "goal", "goals")}: choose who takes them over.`);
+	if ((l.asked.length || l.asking.length) && !asksTo) no$2(`${p.name} has ${plural$3((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
 	const goals = l.goals.map((g) => ({
 		...g,
 		ownerId: goalsTo.id
@@ -9096,7 +9096,7 @@ function departs(x, p, to, summary) {
 		leadId: goalsTo?.id ?? ""
 	}));
 	const changes = [
-		log$1(x, {
+		log$2(x, {
 			entity: "person",
 			entityId: id,
 			action: "left",
@@ -9129,7 +9129,7 @@ function departs(x, p, to, summary) {
 				}] : []
 			]
 		}),
-		...l.goals.map((g) => log$1(x, {
+		...l.goals.map((g) => log$2(x, {
 			entity: "goal",
 			entityId: g.id,
 			goalId: g.id,
@@ -9141,7 +9141,7 @@ function departs(x, p, to, summary) {
 				to: goalsTo.name
 			}]
 		})),
-		...[...asks.values()].map((r) => log$1(x, {
+		...[...asks.values()].map((r) => log$2(x, {
 			entity: "request",
 			entityId: r.id,
 			goalId: r.goalIds[0] ?? null,
@@ -9169,10 +9169,10 @@ function departs(x, p, to, summary) {
 }
 /** Admins: delete someone with no history at all (no goals, check-ins, notes or asks), say someone added by mistake. */
 function deletePerson(x, id) {
-	if (!x.actor.admin) no$1("Only admins can delete people.");
+	if (!x.actor.admin) no$2("Only admins can delete people.");
 	const p = livePerson(x, id);
 	notSelfOrLastAdmin(x, p, "delete");
-	if (hasHistory(personHistory(fullOf(x), id))) no$1(`${p.name} has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.`);
+	if (hasHistory(personHistory(fullOf(x), id))) no$2(`${p.name} has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.`);
 	const reviews = x.snapshot.reviews.filter((r) => r.people.includes(id)).map((r) => ({
 		...r,
 		people: r.people.filter((v) => v !== id).length ? r.people.filter((v) => v !== id) : [x.actor.id]
@@ -9189,7 +9189,7 @@ function deletePerson(x, id) {
 		}],
 		...reviews.length ? { reviews } : {},
 		...teams.length ? { teams } : {},
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "person",
 			entityId: id,
 			action: "removed",
@@ -9223,7 +9223,7 @@ function detach(x, g, how) {
 		if (helps) next.alsoHelps = c.alsoHelps.filter((v) => v !== g.id);
 		if (next.alsoHelps && !next.alsoHelps.length) delete next.alsoHelps;
 		goals.push(next);
-		changes.push(log$1(x, {
+		changes.push(log$2(x, {
 			entity: "goal",
 			entityId: c.id,
 			goalId: c.id,
@@ -9259,10 +9259,10 @@ function detach(x, g, how) {
 */
 function stopGoal(x, goalId, reason) {
 	const g = liveGoal(x, goalId);
-	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can stop it.");
-	if (!goalHasCheckIns(fullOf(x), g.id)) no$1("It has no check-ins yet: delete it instead.");
+	if (!ownsOrAdmin$1(x, g)) no$2("Only the goal’s owner or an admin can stop it.");
+	if (!goalHasCheckIns(fullOf(x), g.id)) no$2("It has no check-ins yet: delete it instead.");
 	const why = reason.trim();
-	if (why.length < 10) no$1(`Say why it’s stopping, in a sentence (10 characters or more).`);
+	if (why.length < 10) no$2(`Say why it’s stopping, in a sentence (10 characters or more).`);
 	const d = detach(x, g, "stopped");
 	return {
 		goals: [{
@@ -9272,7 +9272,7 @@ function stopGoal(x, goalId, reason) {
 			stopReason: why
 		}, ...d.goals],
 		...d.requests.length ? { requests: d.requests } : {},
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "goal",
 			entityId: g.id,
 			goalId: g.id,
@@ -9293,8 +9293,8 @@ function stopGoal(x, goalId, reason) {
 /** Delete a goal with no check-ins (set up by mistake): its owner or an admin. What fed it moves up; its open asks are withdrawn. */
 function deleteGoal(x, goalId) {
 	const g = liveGoal(x, goalId);
-	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can delete it.");
-	if (goalHasCheckIns(fullOf(x), g.id)) no$1("It has check-ins: stop it instead, with a reason, so its history stays.");
+	if (!ownsOrAdmin$1(x, g)) no$2("Only the goal’s owner or an admin can delete it.");
+	if (goalHasCheckIns(fullOf(x), g.id)) no$2("It has check-ins: stop it instead, with a reason, so its history stays.");
 	const d = detach(x, g, "deleted");
 	return {
 		goals: [{
@@ -9303,7 +9303,7 @@ function deleteGoal(x, goalId) {
 			removedBy: x.actor.id
 		}, ...d.goals],
 		...d.requests.length ? { requests: d.requests } : {},
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "goal",
 			entityId: g.id,
 			goalId: g.id,
@@ -9323,13 +9323,13 @@ function deleteGoal(x, goalId) {
 */
 function deleteCheckIn(x, id) {
 	const c = x.snapshot.checkIns.find((v) => v.id === id);
-	if (!c) no$1("There’s no check-in with that ID in this cycle.");
+	if (!c) no$2("There’s no check-in with that ID in this cycle.");
 	const g = x.snapshot.goals.find((v) => v.id === c.goalId);
-	if (!g) no$1("That check-in’s goal isn’t live in this cycle.");
-	if (!mayPostCheckIn(x.actor, g, "form")) no$1(ownersCheckIns(x, g, "delete"));
-	if (checkInsFor(g, x.snapshot.checkIns).at(-1)?.id !== c.id) no$1("A newer check-in has been posted since, so this one can only be corrected.");
+	if (!g) no$2("That check-in’s goal isn’t live in this cycle.");
+	if (!mayPostCheckIn(x.actor, g, "form")) no$2(ownersCheckIns(x, g, "delete"));
+	if (checkInsFor(g, x.snapshot.checkIns).at(-1)?.id !== c.id) no$2("A newer check-in has been posted since, so this one can only be corrected.");
 	const requests = [];
-	const changes = [log$1(x, {
+	const changes = [log$2(x, {
 		entity: "check-in",
 		entityId: c.id,
 		goalId: g.id,
@@ -9378,7 +9378,7 @@ function endReview(x, id) {
 				endedAt: x.now,
 				endedBy: x.actor.id
 			}],
-			changes: [log$1(x, {
+			changes: [log$2(x, {
 				entity: "review",
 				entityId: r.id,
 				action: "ended",
@@ -9395,14 +9395,14 @@ function endReview(x, id) {
 /** Delete a review that was never held: whoever set it up, or an admin. One that has been held is ended instead. */
 function deleteReview(x, id) {
 	const r = liveReview(x, id);
-	if (reviewHeld(fullOf(x), r.id)) no$1("It’s been held: end it instead, so its notes and actions stay.");
+	if (reviewHeld(fullOf(x), r.id)) no$2("It’s been held: end it instead, so its notes and actions stay.");
 	return {
 		reviews: [{
 			...r,
 			removedAt: x.now,
 			removedBy: x.actor.id
 		}],
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "review",
 			entityId: r.id,
 			action: "removed",
@@ -9446,20 +9446,20 @@ function cycleStanding(s, cycleId) {
 }
 /** Admins: delete a cycle no one has checked in to yet (started by mistake, say). Its goals go with it, and come back with it. */
 function deleteCycle(x, id) {
-	if (!x.actor.admin) no$1("Only admins can delete a cycle.");
+	if (!x.actor.admin) no$2("Only admins can delete a cycle.");
 	const full = fullOf(x);
 	const c = full.cycles.find((v) => v.id === id && !v.removedAt);
-	if (!c) no$1("There’s no cycle with that ID.");
-	if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no$1("It’s the only cycle, so it stays.");
-	if (startOf(full, id)) no$1("Use Undo on Cycles: it also puts back what moved with the goals.");
-	if (!cycleDeletable(full, id)) no$1("Check-ins have been posted in it, so it stays.");
+	if (!c) no$2("There’s no cycle with that ID.");
+	if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no$2("It’s the only cycle, so it stays.");
+	if (startOf(full, id)) no$2("Use Undo on Cycles: it also puts back what moved with the goals.");
+	if (!cycleDeletable(full, id)) no$2("Check-ins have been posted in it, so it stays.");
 	return {
 		cycles: [{
 			...c,
 			removedAt: x.now,
 			removedBy: x.actor.id
 		}],
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "cycle",
 			entityId: c.id,
 			action: "removed",
@@ -9513,12 +9513,12 @@ function canUndoStart(full, cycleId) {
 * can never come back (restore refuses a second cycle with the same start).
 */
 function undoStart(x, cycleId) {
-	if (!x.actor.admin) no$1("Only admins can undo the start of a cycle.");
+	if (!x.actor.admin) no$2("Only admins can undo the start of a cycle.");
 	const full = fullOf(x);
 	const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
-	if (!c) no$1("There’s no cycle with that ID.");
+	if (!c) no$2("There’s no cycle with that ID.");
 	const can = canUndoStart(full, cycleId);
-	if (!can.ok) no$1(`${c.name} can’t be undone now: ${can.why}.`);
+	if (!can.ok) no$2(`${c.name} can’t be undone now: ${can.why}.`);
 	const u = startOf(full, cycleId).undo;
 	const gone = {
 		removedAt: x.now,
@@ -9560,7 +9560,7 @@ function undoStart(x, cycleId) {
 		...hasModuleRows(modules) ? { modules } : {},
 		requests,
 		reviews,
-		changes: [log$1(x, {
+		changes: [log$2(x, {
 			entity: "cycle",
 			entityId: c.id,
 			action: "undone",
@@ -9589,11 +9589,11 @@ function keptReason(rows, c, of) {
 function undoPlan(x, importId) {
 	const full = fullOf(x);
 	const entry = importEntry(full, importId);
-	if (!entry) no$1("There’s no import with that ID.");
-	if (!entry.undo) no$1("That import was saved before imports could be undone.");
-	if (importUndone(full, importId)) no$1("That import has already been undone.");
-	if (changesLeftOut(full, entry.at)) no$1(IMPORT_TOO_OLD);
-	if (entry.actorId !== x.actor.id && !x.actor.admin) no$1("Only whoever made the import, or an admin, can undo it.");
+	if (!entry) no$2("There’s no import with that ID.");
+	if (!entry.undo) no$2("That import was saved before imports could be undone.");
+	if (importUndone(full, importId)) no$2("That import has already been undone.");
+	if (changesLeftOut(full, entry.at)) no$2(IMPORT_TOO_OLD);
+	if (entry.actorId !== x.actor.id && !x.actor.admin) no$2("Only whoever made the import, or an admin, can undo it.");
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
 	const undoneImports = new Set(full.changes.filter((c) => c.action === "undone" && c.entity === "workspace").map((c) => c.entityId));
@@ -9627,7 +9627,7 @@ function undoPlan(x, importId) {
 			removedAt: x.now,
 			removedBy: x.actor.id
 		});
-		changes.push(log$1(x, {
+		changes.push(log$2(x, {
 			entity: "goal",
 			entityId: id,
 			goalId: id,
@@ -9656,7 +9656,7 @@ function undoPlan(x, importId) {
 			removedAt: x.now,
 			removedBy: x.actor.id
 		});
-		changes.push(log$1(x, {
+		changes.push(log$2(x, {
 			entity: "check-in",
 			entityId: id,
 			goalId: cur.goalId,
@@ -9692,7 +9692,7 @@ function undoPlan(x, importId) {
 		const i = goals.findIndex((v) => v.id === g.id);
 		if (i >= 0) goals[i] = next;
 		else goals.push(next);
-		if (fed) changes.push(log$1(x, {
+		if (fed) changes.push(log$2(x, {
 			entity: "goal",
 			entityId: g.id,
 			goalId: g.id,
@@ -9705,7 +9705,7 @@ function undoPlan(x, importId) {
 			}],
 			importId
 		}));
-		for (const id of helps) changes.push(log$1(x, {
+		for (const id of helps) changes.push(log$2(x, {
 			entity: "goal",
 			entityId: g.id,
 			goalId: g.id,
@@ -9760,7 +9760,7 @@ function undoPlan(x, importId) {
 			continue;
 		}
 		people.push(asBefore(cur, before));
-		changes.push(log$1(x, {
+		changes.push(log$2(x, {
 			entity: "person",
 			entityId: id,
 			action: "edited",
@@ -9805,7 +9805,7 @@ function undoPlan(x, importId) {
 			removedAt: x.now,
 			removedBy: x.actor.id
 		});
-		changes.push(log$1(x, {
+		changes.push(log$2(x, {
 			entity: "person",
 			entityId: p.id,
 			action: "removed",
@@ -9813,7 +9813,7 @@ function undoPlan(x, importId) {
 			importId
 		}));
 	}
-	for (const id of removeTeams) changes.push(log$1(x, {
+	for (const id of removeTeams) changes.push(log$2(x, {
 		entity: "workspace",
 		entityId: id,
 		action: "removed",
@@ -9851,7 +9851,7 @@ function undoPlan(x, importId) {
 		if (back) requests.push(back);
 	}
 	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + requests.filter((r) => ownAsks.has(r.id)).length;
-	changes.unshift(log$1(x, {
+	changes.unshift(log$2(x, {
 		entity: "workspace",
 		entityId: importId,
 		action: "undone",
@@ -9889,7 +9889,7 @@ function undoPlan(x, importId) {
 */
 function undoImport(x, importId) {
 	const out = undoPlan(x, importId);
-	if (!out.restored) no$1(nothingToUndo(out.skipped.length));
+	if (!out.restored) no$2(nothingToUndo(out.skipped.length));
 	return out;
 }
 /** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
@@ -9968,9 +9968,9 @@ function recentlyRemoved(full, now, days = 30, records = [], show = {}) {
 function restoreRemoved(x, kind, id, records = []) {
 	const full = fullOf(x);
 	const item = recentlyRemoved(full, new Date(x.now), Number.POSITIVE_INFINITY, records).find((r) => r.kind === kind && r.id === id);
-	if (!item) no$1("There’s nothing removed with that ID.");
-	if (!canRestore(x.actor, item)) no$1("Only an admin, or whoever removed it, can restore it.");
-	const restored = (entity, summary, goalId = null, diffs = []) => log$1(x, {
+	if (!item) no$2("There’s nothing removed with that ID.");
+	if (!canRestore(x.actor, item)) no$2("Only an admin, or whoever removed it, can restore it.");
+	const restored = (entity, summary, goalId = null, diffs = []) => log$2(x, {
 		entity,
 		entityId: id,
 		goalId,
@@ -9983,7 +9983,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		case "left":
 		case "person": {
 			const p = full.people.find((v) => v.id === id);
-			if (x.snapshot.people.some((v) => v.id !== id && v.name.trim().toLowerCase() === p.name.trim().toLowerCase())) no$1(`Someone called ${p.name} is already here. Rename them first.`);
+			if (x.snapshot.people.some((v) => v.id !== id && v.name.trim().toLowerCase() === p.name.trim().toLowerCase())) no$2(`Someone called ${p.name} is already here. Rename them first.`);
 			return {
 				people: [{
 					...p,
@@ -10072,7 +10072,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 		case "watch": {
 			const w = (full.watches ?? []).find((y) => y.id === id);
-			if ((full.watches ?? []).some((y) => y.id !== id && !y.removedAt && y.personId === w.personId && y.kind === w.kind && y.ref === w.ref)) no$1("They already watch it again.");
+			if ((full.watches ?? []).some((y) => y.id !== id && !y.removedAt && y.personId === w.personId && y.kind === w.kind && y.ref === w.ref)) no$2("They already watch it again.");
 			return {
 				watches: [{
 					...w,
@@ -10084,7 +10084,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 		case "cycle": {
 			const c = full.cycles.find((v) => v.id === id);
-			if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no$1(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
+			if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no$2(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
 			return {
 				cycles: [{
 					...c,
@@ -10100,7 +10100,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$2, fullOf, plural$3, ownsOrAdmin$1, log$2, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -10113,13 +10113,13 @@ var init_removal = __esmMin((() => {
 	init_vocabulary();
 	init_records();
 	init_leftOut();
-	no$1 = (msg) => {
+	no$2 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	fullOf = (x) => x.full ?? x.snapshot;
 	plural$3 = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	ownsOrAdmin$1 = (x, g) => mayChangeGoal(x.actor, g);
-	log$1 = (x, v) => ({
+	log$2 = (x, v) => ({
 		id: x.newId("chg"),
 		at: x.now,
 		actorId: x.actor.id,
@@ -10130,31 +10130,31 @@ var init_removal = __esmMin((() => {
 	nameIn = (s, id) => s.people.find((p) => p.id === id)?.name ?? "—";
 	commentOf = (x, id) => {
 		const k = commentsOf(fullOf(x).changes).get(id);
-		if (!k) no$1("There’s no comment with that ID.");
+		if (!k) no$2("There’s no comment with that ID.");
 		return k;
 	};
 	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
 	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
-		if (!p) no$1("There’s no one with that ID in this workspace.");
+		if (!p) no$2("There’s no one with that ID in this workspace.");
 		return p;
 	};
 	notSelfOrLastAdmin = (x, p, what) => {
-		if (p.id === x.actor.id) no$1(`You can’t ${what} yourself. Ask another admin.`);
-		if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no$1("They’re the only admin: make someone else an admin first.");
+		if (p.id === x.actor.id) no$2(`You can’t ${what} yourself. Ask another admin.`);
+		if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no$2("They’re the only admin: make someone else an admin first.");
 	};
 	liveGoal = (x, id) => {
 		const g = withProposed(x.snapshot).find((v) => v.id === id || v.key === id);
-		if (!g) no$1("There’s no goal with that ID in this cycle.");
+		if (!g) no$2("There’s no goal with that ID in this cycle.");
 		return g;
 	};
 	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt) || checkInsLeftOut(s, s.goals.find((g) => g.id === goalId)?.cycleId ?? "");
 	ownersCheckIns = (x, g, what) => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? "its owner"} (its owner) can ${what} its check-ins.`;
 	liveReview = (x, id) => {
 		const r = x.snapshot.reviews.find((v) => v.id === id);
-		if (!r) no$1("There’s no review with that ID.");
-		if (r.createdBy !== x.actor.id && !x.actor.admin) no$1("Only whoever set up the review, or an admin, can end it.");
+		if (!r) no$2("There’s no review with that ID.");
+		if (r.createdBy !== x.actor.id && !x.actor.admin) no$2("Only whoever set up the review, or an admin, can end it.");
 		return r;
 	};
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
@@ -12541,7 +12541,7 @@ function* planChangesInChunks(input) {
 				target: MISSING_TEXT.target
 			};
 			const first = e.codes[0];
-			const typedValue = g.kind !== "milestone" && first && first !== "value" && VALUE_CODES.includes(first) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
+			const typedValue = g.kind !== "milestone" && first && first !== "value" && VALUE_CODES.includes(first) ? valueProblem$1(draft.value, null, g.unit, g)?.text ?? null : null;
 			if (typedValue) {
 				const k = first === "value-precision" ? "precision" : first === "value-not-number" ? "not-a-number" : "impossible-number";
 				raise(k, "Check-ins", row, g.title, `Week ${w}: ${typedValue}`, {
@@ -12553,7 +12553,7 @@ function* planChangesInChunks(input) {
 			return;
 		}
 		if (!post && !create && g.kind !== "milestone" && ASKS_NUMBERS.includes(via)) {
-			const soft = valueProblem(draft.value, prev?.value ?? null, g.unit, g);
+			const soft = valueProblem$1(draft.value, prev?.value ?? null, g.unit, g);
 			if (soft && !soft.block && ask("odd-number", "Check-ins", row, g.title, `Week ${w}: ${soft.text}`, {
 				column: "Value",
 				found: oddKind(soft.text),
@@ -13753,14 +13753,14 @@ function metricChangeQuestion(before, next, goals, links) {
 * nothing changed.
 */
 function saveMetric(x, input) {
-	const before = input.id ? live$1(x, input.id) : null;
-	if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
-	if (before?.retiredAt) no(`“${before.name}” is retired. Bring it back before changing it.`);
+	const before = input.id ? live$2(x, input.id) : null;
+	if (before && !ownsOrAdmin(x, before)) no$1(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
+	if (before?.retiredAt) no$1(`“${before.name}” is retired. Bring it back before changing it.`);
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
-	if (problems.length) no(problems.join(" "));
+	if (problems.length) no$1(problems.join(" "));
 	const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
-	if (ask && !input.confirm) no(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
+	if (ask && !input.confirm) no$1(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
 	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
 	if (before && !diffs.length) return {
 		commit: null,
@@ -13771,7 +13771,7 @@ function saveMetric(x, input) {
 		metric: m,
 		commit: {
 			...metricRows({ metrics: [m] }),
-			changes: [log(x, {
+			changes: [log$1(x, {
 				entityId: m.id,
 				action: before ? "edited" : "created",
 				summary,
@@ -13785,9 +13785,9 @@ function saveMetric(x, input) {
 * (rule 5, rulesChange.ts). It keeps its row and comes back with Undo or from Recently removed.
 */
 function removeMetric(x, id) {
-	const m = live$1(x, id);
-	if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
-	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
+	const m = live$2(x, id);
+	if (!ownsOrAdmin(x, m)) no$1(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
+	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no$1(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
 	const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
 	const n = links.length;
 	return {
@@ -13804,7 +13804,7 @@ function removeMetric(x, id) {
 				removedBy: x.actor.id
 			}))
 		}),
-		changes: [log(x, {
+		changes: [log$1(x, {
 			entityId: m.id,
 			action: "removed",
 			summary: `Removed the metric “${m.name}”${n ? `, unlinking ${n} ${n === 1 ? "goal" : "goals"}` : ""}`,
@@ -13813,7 +13813,7 @@ function removeMetric(x, id) {
 				from: m.name,
 				to: "—"
 			}]
-		}), ...links.map((l) => log(x, {
+		}), ...links.map((l) => log$1(x, {
 			entityId: m.id,
 			goalId: l.goalId,
 			action: "edited",
@@ -13849,7 +13849,7 @@ function linkProblems(goal, m) {
 }
 /** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
 function unlinkGoalMetric(x, goal) {
-	if (!canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
+	if (!canLinkGoal(x.actor, goal)) no$1("Only the goal’s owner or an admin can choose what measures it.");
 	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
 	if (!l) return null;
 	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
@@ -13861,7 +13861,7 @@ function unlinkGoalMetric(x, goal) {
 			removedBy: x.actor.id
 		}] }),
 		...hold ? { goals: [hold.goal] } : {},
-		changes: [log(x, {
+		changes: [log$1(x, {
 			entityId: l.metricId,
 			goalId: goal.id,
 			action: "removed",
@@ -13874,7 +13874,7 @@ function unlinkGoalMetric(x, goal) {
 		}), ...hold ? [hold.change] : []]
 	};
 }
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var MODULE$1, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$1, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log$1, live$2, ownsOrAdmin, canEditMetric, canLinkGoal;
 var init_rules = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -13882,16 +13882,16 @@ var init_rules = __esmMin((() => {
 	init_numbers();
 	init_records();
 	init_rulesMeasured();
-	MODULE = "metrics";
+	MODULE$1 = "metrics";
 	METRICS_KEY = "metrics";
 	LINKS_KEY = "metricLinks";
-	metricsOf = (s) => moduleRows(s, MODULE, METRICS_KEY);
-	linksOf = (s) => moduleRows(s, MODULE, LINKS_KEY);
-	metricRows = (rows) => withModuleRows(MODULE, {
+	metricsOf = (s) => moduleRows(s, MODULE$1, METRICS_KEY);
+	linksOf = (s) => moduleRows(s, MODULE$1, LINKS_KEY);
+	metricRows = (rows) => withModuleRows(MODULE$1, {
 		[METRICS_KEY]: rows.metrics,
 		[LINKS_KEY]: rows.metricLinks
 	});
-	no = (msg) => {
+	no$1 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	DIRECTION_LABEL = {
@@ -13934,7 +13934,7 @@ var init_rules = __esmMin((() => {
 		measurementNote: (note ?? "").trim()
 	} : {};
 	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
-	log = (x, v) => ({
+	log$1 = (x, v) => ({
 		id: x.newId("chg"),
 		at: x.now,
 		actorId: x.actor.id,
@@ -13943,9 +13943,9 @@ var init_rules = __esmMin((() => {
 		diffs: [],
 		...v
 	});
-	live$1 = (x, id) => {
+	live$2 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id);
-		if (!m || m.removedAt) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		if (!m || m.removedAt) no$1("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
 		return m;
 	};
 	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
@@ -14451,11 +14451,11 @@ function saveMetricChange(x, input) {
 	const kinds = changeKinds(before, after, linked, { relabel });
 	const why = (reason ?? "").trim();
 	const n = linked.length;
-	if (kinds.includes("scale")) no(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
-	if (kinds.includes("meaning") && comparable === void 0) no("Say whether it is still the same number.");
+	if (kinds.includes("scale")) no$1(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
+	if (kinds.includes("meaning") && comparable === void 0) no$1("Say whether it is still the same number.");
 	const marked = [...kinds.includes("meaning") && comparable === false ? ["definition"] : [], ...kinds.includes("direction") ? ["direction"] : []];
-	if (marked.length && !why) no(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
-	if (why.length > 300) no("Keep the reason to 300 characters or fewer.");
+	if (marked.length && !why) no$1(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
+	if (why.length > 300) no$1("Keep the reason to 300 characters or fewer.");
 	const words = (m) => (before.meaning.trim() !== after.meaning.trim() ? m.meaning : m.source) || m.meaning || m.source;
 	const marks = marked.map((kind) => ({
 		week: x.week,
@@ -14476,7 +14476,7 @@ function saveMetricChange(x, input) {
 	}) : [];
 	const head = dry.commit.changes[0];
 	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord(n)}` : head.summary;
-	const perGoal = (marks.length ? linked.filter((g) => g.cycleId === x.cycle.id) : goals.length ? linked : []).map((g) => log(x, {
+	const perGoal = (marks.length ? linked.filter((g) => g.cycleId === x.cycle.id) : goals.length ? linked : []).map((g) => log$1(x, {
 		entityId: after.id,
 		goalId: g.id,
 		action: "edited",
@@ -14515,13 +14515,13 @@ function saveMetricChange(x, input) {
 function retireMetric(x, id, why, replacedBy = null) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
-	if (m.retiredAt) no(`“${m.name}” is already retired.`);
+	if (m.retiredAt) no$1(`“${m.name}” is already retired.`);
 	const w = why.trim();
-	if (!w) no("Say why it is retired, in a line. Its goals will show this.");
-	if (w.length > 300) no("Keep the reason to 300 characters or fewer.");
+	if (!w) no$1("Say why it is retired, in a line. Its goals will show this.");
+	if (w.length > 300) no$1("Keep the reason to 300 characters or fewer.");
 	const other = replacedBy ? liveMetrics(x.snapshot).find((v) => v.id === replacedBy) : null;
-	if (replacedBy && (!other || other.id === m.id)) no("The metric it is replaced by must be one in use.");
-	if (other && !same$1(other.unit, m.unit)) no(`${m.name} is in ${m.unit} and ${other.name} is in ${other.unit}. It can only be replaced by a metric in the same unit.`);
+	if (replacedBy && (!other || other.id === m.id)) no$1("The metric it is replaced by must be one in use.");
+	if (other && !same$1(other.unit, m.unit)) no$1(`${m.name} is in ${m.unit} and ${other.name} is in ${other.unit}. It can only be replaced by a metric in the same unit.`);
 	const linked = linkedGoals(x.full ?? x.snapshot, m.id);
 	const next = {
 		...m,
@@ -14533,7 +14533,7 @@ function retireMetric(x, id, why, replacedBy = null) {
 	};
 	return {
 		...metricRows({ metrics: [next] }),
-		changes: [log(x, {
+		changes: [log$1(x, {
 			entityId: m.id,
 			action: "stopped",
 			summary: `Retired the metric “${m.name}”: ${w}`,
@@ -14542,7 +14542,7 @@ function retireMetric(x, id, why, replacedBy = null) {
 				from: "—",
 				to: w
 			}]
-		}), ...linked.map((g) => log(x, {
+		}), ...linked.map((g) => log$1(x, {
 			entityId: m.id,
 			goalId: g.id,
 			action: "edited",
@@ -14555,7 +14555,7 @@ function retireMetric(x, id, why, replacedBy = null) {
 function unretireMetric(x, id) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
-	if (!m.retiredAt) no(`“${m.name}” isn’t retired.`);
+	if (!m.retiredAt) no$1(`“${m.name}” isn’t retired.`);
 	return {
 		...metricRows({ metrics: [{
 			...m,
@@ -14565,7 +14565,7 @@ function unretireMetric(x, id) {
 			replacedBy: null,
 			updatedAt: x.now
 		}] }),
-		changes: [log(x, {
+		changes: [log$1(x, {
 			entityId: m.id,
 			action: "restored",
 			summary: `Brought back the metric “${m.name}”`,
@@ -14582,15 +14582,15 @@ function unretireMetric(x, id) {
 * link of `from` moves to `into` (same slice and part), and `from` is retired pointing to it; all in one save.
 */
 function mergeMetrics(x, fromId, intoId, why = "") {
-	if (!x.actor.admin) no("Only admins can merge metrics: it changes what other people’s goals are measured by.");
+	if (!x.actor.admin) no$1("Only admins can merge metrics: it changes what other people’s goals are measured by.");
 	const from = metricOf$1(x, fromId);
 	const into = metricOf$1(x, intoId);
-	if (from.id === into.id) no("Choose another metric to merge it into.");
-	if (into.retiredAt) no(`“${into.name}” is retired. Bring it back first, or merge into another.`);
-	if (from.retiredAt) no(`“${from.name}” is already retired.`);
-	if (!same$1(from.unit, into.unit)) no(`${from.name} is in ${from.unit} and ${into.name} is in ${into.unit}. Only metrics in the same unit can be merged.`);
+	if (from.id === into.id) no$1("Choose another metric to merge it into.");
+	if (into.retiredAt) no$1(`“${into.name}” is retired. Bring it back first, or merge into another.`);
+	if (from.retiredAt) no$1(`“${from.name}” is already retired.`);
+	if (!same$1(from.unit, into.unit)) no$1(`${from.name} is in ${from.unit} and ${into.name} is in ${into.unit}. Only metrics in the same unit can be merged.`);
 	const w = why.trim() || `The same number as ${into.name}.`;
-	if (w.length > 300) no("Keep the reason to 300 characters or fewer.");
+	if (w.length > 300) no$1("Keep the reason to 300 characters or fewer.");
 	const moved = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === from.id && !l.removedAt).map((l) => ({
 		...l,
 		metricId: into.id,
@@ -14610,7 +14610,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 			metricLinks: moved
 		}),
 		changes: [
-			log(x, {
+			log$1(x, {
 				entityId: into.id,
 				action: "edited",
 				summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord(moved.length)}: ${w}`,
@@ -14620,7 +14620,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 					to: from.name
 				}]
 			}),
-			log(x, {
+			log$1(x, {
 				entityId: from.id,
 				action: "stopped",
 				summary: `Retired the metric “${from.name}”: merged into “${into.name}”`,
@@ -14630,7 +14630,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 					to: w
 				}]
 			}),
-			...moved.map((l) => log(x, {
+			...moved.map((l) => log$1(x, {
 				entityId: into.id,
 				goalId: l.goalId,
 				action: "edited",
@@ -14657,11 +14657,11 @@ var init_rulesChange = __esmMin((() => {
 	goalsWord = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
 	metricOf$1 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id && !v.removedAt);
-		if (!m) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		if (!m) no$1("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
 		return m;
 	};
 	mayChange = (x, m) => {
-		if (!canEditMetric(x.actor, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can retire or bring back this metric.`);
+		if (!canEditMetric(x.actor, m)) no$1(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can retire or bring back this metric.`);
 	};
 	retiredWords = (m) => `“${m.name}” was retired on ${onDay(m.retiredAt)}. Choose another, or bring it back.`;
 }));
@@ -14671,7 +14671,7 @@ var init_rulesChange = __esmMin((() => {
 * the metric is refused before being asked anything). A unit answered “use” takes the spelling in use.
 */
 function openChecks(x, input) {
-	const before = input.id ? live$1(x, input.id) : null;
+	const before = input.id ? live$2(x, input.id) : null;
 	if (before && !canEditMetric(x.actor, before)) saveMetric(x, input);
 	const answers = input.answers ?? {};
 	const r = checkReads(x.snapshot);
@@ -14695,9 +14695,9 @@ function openChecks(x, input) {
 }
 /** Add or change a metric once every Check is answered; refused, with the questions in words, while one is open. */
 function saveMetricAsked(x, input) {
-	if (input.answers?.name?.startsWith("use:")) no("Nothing saved: use that metric instead.");
+	if (input.answers?.name?.startsWith("use:")) no$1("Nothing saved: use that metric instead.");
 	const { input: next, open } = openChecks(x, input);
-	if (open.length) no(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
+	if (open.length) no$1(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
 	const { answers: _, ...rest } = next;
 	return saveMetricChange(x, rest);
 }
@@ -14716,16 +14716,16 @@ var init_rulesSave = __esmMin((() => {
 * metric, slice and part changes nothing (null); with another, it's changed and logged.
 */
 function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = "") {
-	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
-	const m = live$1(x, metricId);
-	if (m.retiredAt && linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id && !l.removedAt)?.metricId !== m.id) no(retiredWords(m));
-	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no("There’s no team with that ID. Leave the slice empty for the whole company.");
+	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no$1("Only the goal’s owner or an admin can choose what measures it.");
+	const m = live$2(x, metricId);
+	if (m.retiredAt && linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id && !l.removedAt)?.metricId !== m.id) no$1(retiredWords(m));
+	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no$1("There’s no team with that ID. Leave the slice empty for the whole company.");
 	const p = part.trim();
 	const fix = linkChecks(goal, m, {
 		teamId,
 		part: p
 	}, linkProblems(goal, m), linkReads(x, goal, m.id), reason).filter((c) => c.kind === "fix");
-	if (fix.length) no(fix.map((c) => c.words).join(" "));
+	if (fix.length) no$1(fix.map((c) => c.words).join(" "));
 	const old = linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id);
 	const current = old && !old.removedAt ? old : void 0;
 	if (current && current.metricId === m.id && current.teamId === teamId && (current.part ?? "").trim() === p) return null;
@@ -14766,7 +14766,7 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 	return {
 		...metricRows({ metricLinks: [link] }),
 		...hold ? { goals: [hold.goal] } : {},
-		changes: [log(x, {
+		changes: [log$1(x, {
 			entityId: m.id,
 			goalId: goal.id,
 			action: current ? "edited" : "linked",
@@ -15194,8 +15194,8 @@ init_actions();
 init_rules();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
 var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
-var iso$3 = (v) => new Date(String(v)).toISOString();
-var when$2 = (k, v) => v ? { [k]: iso$3(v) } : {};
+var iso$4 = (v) => new Date(String(v)).toISOString();
+var when$2 = (k, v) => v ? { [k]: iso$4(v) } : {};
 var who$1 = (k, v) => v ? { [k]: String(v) } : {};
 var metricToRow = (ws, m) => ({
 	workspace_id: ws,
@@ -15238,12 +15238,12 @@ var metricFromRow = (r) => ({
 	ownerId: String(r.owner_id),
 	caveats: String(r.caveats ?? ""),
 	createdBy: String(r.created_by),
-	createdAt: iso$3(r.created_at),
-	updatedAt: iso$3(r.updated_at),
+	createdAt: iso$4(r.created_at),
+	updatedAt: iso$4(r.updated_at),
 	...when$2("removedAt", r.removed_at),
 	...who$1("removedBy", r.removed_by),
 	...r.retired_at ? {
-		retiredAt: iso$3(r.retired_at),
+		retiredAt: iso$4(r.retired_at),
 		retiredBy: r.retired_by ? String(r.retired_by) : null,
 		retiredWhy: String(r.retired_why ?? ""),
 		replacedBy: r.replaced_by ? String(r.replaced_by) : null
@@ -15275,108 +15275,181 @@ var metricLinkFromRow = (r) => ({
 	teamId: r.team_id ?? null,
 	...r.part ? { part: String(r.part) } : {},
 	linkedBy: String(r.linked_by),
-	linkedAt: iso$3(r.linked_at),
+	linkedAt: iso$4(r.linked_at),
 	...when$2("removedAt", r.removed_at),
 	...who$1("removedBy", r.removed_by)
+});
+var records$3 = {
+	records: [{
+		name: "metric",
+		key: METRICS_KEY,
+		table: "okr_metrics",
+		removable: true,
+		toRow: metricToRow,
+		fromRow: metricFromRow,
+		order: (a, b) => a.createdAt.localeCompare(b.createdAt),
+		carry: (rows) => rows.filter((m) => !m.removedAt),
+		removed: {
+			label: "Metric",
+			name: (m) => m.name,
+			restore(x, m) {
+				const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+				if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
+				const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
+				const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
+				return {
+					...metricRows({
+						metrics: [{
+							...m,
+							removedAt: null,
+							removedBy: null,
+							updatedAt: x.now
+						}],
+						...back.length ? { metricLinks: back.map((l) => ({
+							...l,
+							removedAt: null,
+							removedBy: null
+						})) } : {}
+					}),
+					changes: [{
+						id: x.newId("chg"),
+						at: x.now,
+						actorId: x.actor.id,
+						goalId: null,
+						entity: "metric",
+						entityId: m.id,
+						action: "restored",
+						summary: `Restored the metric “${m.name}”${back.length ? `, measuring ${back.length} ${back.length === 1 ? "goal" : "goals"} again` : ""}`,
+						diffs: [{
+							field: "Metric",
+							from: "—",
+							to: m.name
+						}]
+					}]
+				};
+			}
+		}
+	}, {
+		name: "metric link",
+		key: LINKS_KEY,
+		table: "okr_goal_metrics",
+		removable: false,
+		toRow: metricLinkToRow,
+		fromRow: metricLinkFromRow,
+		carry: (rows, scope) => {
+			const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
+			return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
+		},
+		follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({
+			...l,
+			id: copies.get(l.goalId),
+			goalId: copies.get(l.goalId),
+			removedAt: null,
+			removedBy: null
+		})),
+		goalOf: (l) => l.goalId
+	}],
+	sheets: [METRICS_SHEET],
+	measures: (s, goalId) => {
+		const l = linkOf(s, goalId);
+		const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
+		return m ? {
+			name: m.name,
+			direction: m.direction
+		} : null;
+	},
+	goalMarks: (s, goalId, since, until) => {
+		const l = linkOf(s, goalId);
+		const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
+		return m && l ? marksFor(m, l, since, until).map((k) => ({
+			week: k.week,
+			label: markLabel(k)
+		})) : [];
+	},
+	goalColumns: [{
+		param: "metric",
+		fill: (s) => {
+			const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
+			return (g) => by.get(g.id) ?? null;
+		}
+	}]
+};
+// src/modules/tags/records.ts
+var FIELDS$1 = "fields";
+var VALUES = "fieldValues";
+var iso$3 = (v) => new Date(String(v)).toISOString();
+var fieldToRow = (ws, f) => ({
+	workspace_id: ws,
+	id: f.id,
+	name: f.name,
+	kind: f.kind,
+	options: f.kind === "list" ? f.options : [],
+	position: f.position,
+	created_by: f.createdBy,
+	created_at: f.createdAt,
+	retired_at: f.retiredAt ?? null,
+	retired_by: f.retiredBy ?? null
+});
+var fieldFromRow = (r) => ({
+	id: r.id,
+	name: String(r.name),
+	kind: r.kind === "text" ? "text" : "list",
+	options: Array.isArray(r.options) ? r.options.map(String) : [],
+	position: Number(r.position ?? 0),
+	createdBy: String(r.created_by),
+	createdAt: iso$3(r.created_at),
+	retiredAt: r.retired_at ? iso$3(r.retired_at) : null,
+	retiredBy: r.retired_by ? String(r.retired_by) : null
+});
+var valueToRow = (ws, v) => ({
+	workspace_id: ws,
+	id: v.id,
+	goal_id: v.goalId,
+	field_id: v.fieldId,
+	value: v.removedAt ? "" : v.value,
+	set_by: v.removedAt ? v.removedBy ?? v.setBy : v.setBy,
+	set_at: v.removedAt ?? v.setAt
+});
+var valueFromRow = (r) => ({
+	id: r.id,
+	goalId: String(r.goal_id),
+	fieldId: String(r.field_id),
+	value: String(r.value ?? ""),
+	setBy: String(r.set_by),
+	setAt: iso$3(r.set_at)
 });
 // \0virtual:faro-modules/records
 var records_default = [{
 	id: "metrics",
-	part: {
-		records: [{
-			name: "metric",
-			key: METRICS_KEY,
-			table: "okr_metrics",
-			removable: true,
-			toRow: metricToRow,
-			fromRow: metricFromRow,
-			order: (a, b) => a.createdAt.localeCompare(b.createdAt),
-			carry: (rows) => rows.filter((m) => !m.removedAt),
-			removed: {
-				label: "Metric",
-				name: (m) => m.name,
-				restore(x, m) {
-					const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-					if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-					const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
-					const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
-					return {
-						...metricRows({
-							metrics: [{
-								...m,
-								removedAt: null,
-								removedBy: null,
-								updatedAt: x.now
-							}],
-							...back.length ? { metricLinks: back.map((l) => ({
-								...l,
-								removedAt: null,
-								removedBy: null
-							})) } : {}
-						}),
-						changes: [{
-							id: x.newId("chg"),
-							at: x.now,
-							actorId: x.actor.id,
-							goalId: null,
-							entity: "metric",
-							entityId: m.id,
-							action: "restored",
-							summary: `Restored the metric “${m.name}”${back.length ? `, measuring ${back.length} ${back.length === 1 ? "goal" : "goals"} again` : ""}`,
-							diffs: [{
-								field: "Metric",
-								from: "—",
-								to: m.name
-							}]
-						}]
-					};
-				}
-			}
-		}, {
-			name: "metric link",
-			key: LINKS_KEY,
-			table: "okr_goal_metrics",
-			removable: false,
-			toRow: metricLinkToRow,
-			fromRow: metricLinkFromRow,
-			carry: (rows, scope) => {
-				const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
-				return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
-			},
-			follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({
-				...l,
-				id: copies.get(l.goalId),
-				goalId: copies.get(l.goalId),
-				removedAt: null,
-				removedBy: null
-			})),
-			goalOf: (l) => l.goalId
-		}],
-		sheets: [METRICS_SHEET],
-		measures: (s, goalId) => {
-			const l = linkOf(s, goalId);
-			const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
-			return m ? {
-				name: m.name,
-				direction: m.direction
-			} : null;
-		},
-		goalMarks: (s, goalId, since, until) => {
-			const l = linkOf(s, goalId);
-			const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
-			return m && l ? marksFor(m, l, since, until).map((k) => ({
-				week: k.week,
-				label: markLabel(k)
-			})) : [];
-		},
-		goalColumns: [{
-			param: "metric",
-			fill: (s) => {
-				const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
-				return (g) => by.get(g.id) ?? null;
-			}
-		}]
-	}
+	part: records$3
+}, {
+	id: "tags",
+	part: { records: [{
+		name: "field",
+		key: FIELDS$1,
+		table: "goal_fields",
+		removable: false,
+		toRow: fieldToRow,
+		fromRow: fieldFromRow,
+		order: (a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt),
+		carry: (rows) => rows
+	}, {
+		name: "field value",
+		key: VALUES,
+		table: "goal_field_values",
+		removable: false,
+		toRow: valueToRow,
+		fromRow: valueFromRow,
+		carry: (rows) => rows.filter((v) => !v.removedAt),
+		follow: (rows, copies) => rows.filter((v) => copies.has(v.goalId) && v.value).map((v) => ({
+			...v,
+			id: `${copies.get(v.goalId)}:${v.fieldId}`,
+			goalId: copies.get(v.goalId),
+			removedAt: null,
+			removedBy: null
+		})),
+		goalOf: (v) => v.goalId
+	}] }
 }];
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [
@@ -15836,19 +15909,59 @@ var _virtual_faro_modules_default = [
 		routes: [],
 		redirects: [],
 		navigation: [],
-		places: [],
-		tables: [],
-		aiTools: [],
-		help: [],
-		requirements: [],
-		journeys: [],
+		places: ["goal.sections"],
+		tables: [{
+			"name": "goal_fields",
+			"migration": "0052_goal_fields.sql",
+			"purpose": "A workspace's own fields on goals: name, kind (list or text), a list's values, position; never deleted (retired_at when retired). 0054 holds that free text has no values."
+		}, {
+			"name": "goal_field_values",
+			"migration": "0052_goal_fields.sql",
+			"purpose": "A goal's value for one field: one row per goal and field (id {goal_id}:{field_id}); empty when cleared."
+		}],
+		aiTools: [
+			"list_fields",
+			"set_goal_fields",
+			"save_field"
+		],
+		help: ["fields"],
+		requirements: ["TAGS-FIELDS", "TAGS-OFF"],
+		journeys: ["U174", "N34"],
 		elsewhere: [],
 		rebuild: {
 			"status": "outline",
-			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text; a goal has at most one value per field. No rule reads a field. Today it holds its tables (migration 0052) and its rule (tags-fields); its screens, its goal block, its filters, its sheet columns and its AI tools come next (TG1, TG2).",
-			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule."],
-			"exit": ["fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts).", "The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, and a value over 80 characters (migration 0052's checks, src/spec/limits.ts)."],
-			"gaps": ["Its two tables, faro.goal_fields and faro.goal_field_values (migration 0052, on module_tables as module tags), are made one merge ahead of the code that uses them; records.ts claims them in TG1, and module.json lists them then.", "Nothing draws a field yet: Workspace → Fields, the goal's Fields block, the MCP tools list_fields and set_goal_fields, and the switch's off states are TG1; the filters, saved views, Data's column and the sheet's columns with the import's question are TG2 (docs/design/round-4/tags/spec.md, section 10). Until then switching Fields off changes nothing anyone can see."]
+			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block and no Fields in Workspace's menu, /workspace/fields says Fields is switched off and who can switch it on, and the three tools refuse; every field and value stays, and comes back when it is switched on.",
+			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.", "The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"exit": [
+				"fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.",
+				"The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a value over 80 characters (src/spec/limits.ts).",
+				"As an admin, Workspace → Fields with no field says “No fields yet” and “Add a field”; adding “Stage” with Discover, Build and Run lists it as “A list: Discover, Build, Run”; setting a goal's Stage on its page to Discover and then Build shows “Stage · Build”, and its History says “Stage: Discover → Build” (journey U174).",
+				"Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).",
+				"A retired field leaves goals' pages and list_fields' live fields, keeps every value, and brought back shows them again.",
+				"Starting the next year copies each goal's values to its copy; a copy that leaves, or a start undone, clears the copy's values (the tables have no removed_at: src/modules/tags/records.test.ts).",
+				"Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_fields, set_goal_fields and save_field refuse with the switched-off sentence; switched back on, every value is there (check N34)."
+			],
+			"gaps": [
+				"The filters (“Stage is Build” on Goals and in saved views), Data's Goals column, the Goals sheet's columns and the import's question about a value a list doesn't hold are TG2 (docs/design/round-4/tags/spec.md, section 10); find_goals' fields filter comes with them.",
+				"Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); the import's one question per value, offering an admin to add it, is TG2's.",
+				"A field's kind can't be changed once it is added: a list and free text hold values of different shapes."
+			]
+		},
+		sections: ["fields"],
+		records: [{
+			"name": "field",
+			"table": "goal_fields",
+			"key": "fields",
+			"removable": false
+		}, {
+			"name": "field value",
+			"table": "goal_field_values",
+			"key": "fieldValues",
+			"removable": false
+		}],
+		parity: {
+			"FieldsSection": ["list_fields", "save_field"],
+			"FieldsBlock": ["list_fields", "set_goal_fields"]
 		}
 	},
 	{
@@ -16381,7 +16494,7 @@ init_askHandover();
 init_progress();
 init_asks();
 init_attention();
-var live = (xs) => xs.filter((x) => !x.removedAt);
+var live$1 = (xs) => xs.filter((x) => !x.removedAt);
 /**
 * Whether Reviews is on (FT2): the one place that names the reviews module. Screens pass `useModules().on`, the MCP
 * server and the dispatcher `modulesOn(ws).on`; the rules in src/domain take the answer as `reviews: boolean`. A build
@@ -16412,7 +16525,7 @@ function registerMovedRule(rule) {
 /** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
 narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 function goalRows(s, cycle, today, week, columns, reviews = true) {
-	const goals = live(s.goals).filter((g) => !g.stoppedAt);
+	const goals = live$1(s.goals).filter((g) => !g.stoppedAt);
 	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
 	const rows = {
 		checkIns: s.checkIns,
@@ -16444,7 +16557,7 @@ function personRows(s) {
 	const here = new Set(s.people.map((p) => p.id));
 	return {
 		kind: "person",
-		people: live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
+		people: live$1([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
 		teamName: (id) => teams.get(id)?.name ?? "",
 		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
@@ -16453,7 +16566,7 @@ function teamRows(s) {
 	return {
 		kind: "team",
 		teams: s.teams,
-		people: live(s.people)
+		people: live$1(s.people)
 	};
 }
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
@@ -16479,7 +16592,7 @@ function searchRows(s, cycle, today, week, columns, reviews = true) {
 and the teams they lead, and the goals they watch. Goals' screen and find_goals read the same facts. */
 function scopeFacts(s, viewer) {
 	return {
-		goals: live(s.goals).filter((g) => !g.stoppedAt).map((g) => ({
+		goals: live$1(s.goals).filter((g) => !g.stoppedAt).map((g) => ({
 			id: g.id,
 			ownerId: g.ownerId,
 			teamId: g.teamId
@@ -18230,7 +18343,7 @@ function kindOf(c) {
 	if (VIA$3(c) === VIA_LABEL.mcp || VIA$3(c) === "AI assistant (MCP)") return "ai";
 	if (c.action === "imported" || c.action === "undone") return "imports";
 	if (c.entity === "check-in") return "checkins";
-	if (c.entity === "metric") return "goals";
+	if (c.entity === "metric" || c.entity === "field") return "goals";
 	if (c.entity === "goal") return c.action !== "created" && c.diffs.some((d) => PLAN_FIELDS.includes(d.field)) ? "plans" : "goals";
 	if (c.entity === "decision" || c.entity === "review") return "reviews";
 	if (c.entity === "note") return "comments";
@@ -18317,7 +18430,7 @@ function activityFilter(a, x) {
 	};
 }
 // src/modules/feedback/help.ts
-var help$6 = [{
+var help$7 = [{
 	id: "feedback",
 	title: "Send feedback, and marking up a screen",
 	summary: "Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.",
@@ -18463,7 +18576,7 @@ var help$6 = [{
 	]
 }];
 // src/modules/goal-map/help.ts
-var help$5 = [{
+var help$6 = [{
 	id: "goal-map",
 	title: "The goal map",
 	summary: "The map draws every goal and how they connect, so you can see what feeds what and where the risk runs.",
@@ -18507,7 +18620,7 @@ var help$5 = [{
 	related: ["goals", "goal-page"]
 }];
 // src/modules/metrics/help.ts
-var help$4 = [
+var help$5 = [
 	{
 		id: "metrics",
 		title: "Metrics: what each number means",
@@ -18824,7 +18937,7 @@ var help$4 = [
 	}
 ];
 // src/modules/reviews/help.ts
-var help$3 = [{
+var help$4 = [{
 	id: "reviews",
 	title: "Reviews",
 	summary: "A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.",
@@ -18919,7 +19032,7 @@ var help$3 = [{
 // src/modules/spreadsheets/help.ts
 init_columns();
 init_importLimits();
-var help$2 = [
+var help$3 = [
 	{
 		id: "import",
 		title: "Importing from a spreadsheet",
@@ -19192,26 +19305,138 @@ var help$2 = [
 		related: ["import", "export"]
 	}
 ];
+// src/modules/tags/rules.ts
+/** The limits: live fields per workspace (Lane, 1a), a name, a list's values and each value, and a goal's value. */
+var FIELD_LIMITS = {
+	fields: 6,
+	name: 40,
+	values: 20,
+	option: 40,
+	value: 80
+};
+var key$1 = (s) => s.trim().toLowerCase();
+var live = (f) => !f.retiredAt;
+/**
+* Rule 1. What stops a field being saved, or null: a name of 1 to 40 characters that no other live field has (whatever
+* the case); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
+* six live fields. `fields`
+* is the workspace's fields as they are now (the one being changed among them, by id, or not yet).
+*/
+function fieldProblem(field, fields) {
+	const name = field.name.trim();
+	if (!name) return "Give the field a name.";
+	if (name.length > FIELD_LIMITS.name) return `Keep the name to ${FIELD_LIMITS.name} characters.`;
+	const others = fields.filter((f) => f.id !== field.id && live(f));
+	if (live(field) && others.some((f) => key$1(f.name) === key$1(name))) return `There’s already a field called “${others.find((f) => key$1(f.name) === key$1(name)).name.trim()}”.`;
+	if (live(field) && !fields.some((f) => f.id === field.id && live(f)) && others.length >= FIELD_LIMITS.fields) return `A workspace has at most ${FIELD_LIMITS.fields} fields. Retire one first.`;
+	if (field.kind === "text") return field.options.length ? "A free-text field has no values: choose A list of values, or leave the values out." : null;
+	const values = field.options.map((v) => v.trim());
+	if (!values.filter(Boolean).length) return "A list needs at least one value.";
+	if (values.some((v) => !v)) return "Remove the empty value, or type one.";
+	if (values.length > FIELD_LIMITS.values) return `A list holds at most ${FIELD_LIMITS.values} values.`;
+	const long = values.find((v) => v.length > FIELD_LIMITS.option);
+	if (long) return `Keep each value to ${FIELD_LIMITS.option} characters: “${long.slice(0, 20)}…” is longer.`;
+	const twice = values.find((v, i) => values.findIndex((w) => key$1(w) === key$1(v)) !== i);
+	if (twice) return `“${twice}” is in the list twice.`;
+	return null;
+}
+/**
+* Rule 2. A goal's value for a field, as stored, or why not: empty clears it; a list's value must be one of its values
+* (whatever the case) and is kept as the list writes it; free text is at most 80 characters. Spaces at either end go.
+*/
+function valueProblem(field, typed) {
+	const v = typed.trim();
+	if (!v) return { value: "" };
+	if (field.kind === "text") return v.length > FIELD_LIMITS.value ? { problem: `Keep ${field.name.trim()} to ${FIELD_LIMITS.value} characters.` } : { value: v };
+	const hit = field.options.find((o) => key$1(o) === key$1(v));
+	if (hit) return { value: hit.trim() };
+	const list = field.options.map((o) => o.trim());
+	const said = list.length > 1 ? `${list.slice(0, -1).join(", ")} or ${list[list.length - 1]}` : list[0] ?? "";
+	return { problem: `“${v}” isn’t one of ${field.name.trim()}’s values: ${said}.` };
+}
+// src/modules/tags/help.ts
+var help$2 = [{
+	id: "fields",
+	title: "Fields: a workspace’s own columns on goals",
+	summary: `A workspace’s own fields on goals, such as a stage or a programme: up to ${FIELD_LIMITS.fields}, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.`,
+	group: "you",
+	after: "features",
+	sections: [
+		{
+			heading: "What it’s for",
+			text: ["Teams track things Faro has no column for: a lifecycle stage (Discover, Build, Run), a programme, a funding line. A field keeps them on the goal, out of its title, where nothing could find them. No status, flag or check-in rule reads a field."]
+		},
+		{
+			heading: "Workspace, Fields",
+			list: [
+				"Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.",
+				`An admin adds one with Add a field: a name of up to ${FIELD_LIMITS.name} characters, and for a list its values, one per line (1 to ${FIELD_LIMITS.values}, each up to ${FIELD_LIMITS.option} characters, none twice). Free text holds up to ${FIELD_LIMITS.value} characters on each goal. A workspace has at most ${FIELD_LIMITS.fields} fields.`,
+				"Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.",
+				"A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.",
+				"With no field yet, the page says “No fields yet” and offers Add a field to admins."
+			]
+		},
+		{
+			heading: "On a goal",
+			list: [
+				"A goal’s page has a Fields block in About, after its facts: one line per field, such as “Stage · Build”, or “Stage · Not set”.",
+				"The goal’s owner or an admin presses Change beside a line and picks a value from the list, or types the text and presses Save. Not set clears it. No reason is asked: a field isn’t the plan.",
+				"History says each change on the goal: “Stage: Discover → Build”. Adding, retiring and bringing back a field is in Activity."
+			]
+		},
+		{
+			heading: "With an AI assistant",
+			list: ["list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules."]
+		},
+		{
+			heading: "Who can",
+			text: ["Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again."]
+		}
+	],
+	routes: ["/workspace/fields"],
+	screens: ["FieldsSection", "FieldsBlock"],
+	reqs: ["TAGS-FIELDS", "TAGS-OFF"],
+	keywords: [
+		"field",
+		"fields",
+		"tag",
+		"tags",
+		"stage",
+		"programme",
+		"custom field",
+		"column",
+		"label"
+	],
+	related: [
+		"workspace",
+		"features",
+		"goal-page"
+	]
+}];
 // \0virtual:faro-modules/help
 var help_default = [
 	{
 		id: "feedback",
-		part: help$6
+		part: help$7
 	},
 	{
 		id: "goal-map",
-		part: help$5
+		part: help$6
 	},
 	{
 		id: "metrics",
-		part: help$4
+		part: help$5
 	},
 	{
 		id: "reviews",
-		part: help$3
+		part: help$4
 	},
 	{
 		id: "spreadsheets",
+		part: help$3
+	},
+	{
+		id: "tags",
 		part: help$2
 	},
 	{
@@ -21817,6 +22042,18 @@ var WHATS_NEW = [
 		articles: ["guardrails"]
 	},
 	{
+		id: "goal-fields",
+		date: "2026-11-14",
+		title: "Fields: your workspace’s own columns on goals",
+		points: [
+			"Admins can add up to six fields on goals in Workspace, Fields, such as a stage (Discover, Build, Run) or a programme: each a short list of values or free text.",
+			"A goal’s page shows them in About, one line each, such as “Stage · Build”. Its owner or an admin changes one in place, and History says the change.",
+			"A field that is no longer wanted is retired, never deleted: goals keep their values, and it can be brought back.",
+			"An AI assistant can list the fields and set a goal’s values. Admins can switch Fields off in Workspace, Features."
+		],
+		articles: ["fields"]
+	},
+	{
 		id: "home-one-team",
 		date: "2026-11-14",
 		title: "With one team, Home shows the team’s goals once",
@@ -23614,7 +23851,7 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-var str$10 = (description, extra = {}) => ({
+var str$11 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -23633,18 +23870,18 @@ var ids$2 = (description) => ({
 	description
 });
 var LEVELS$1 = levelIds(null);
-var READ$4 = {
+var READ$5 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-var WRITE$2 = {
+var WRITE$3 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
 	openWorldHint: false
 };
 var VIA$2 = VIA_MCP;
-var ax$2 = (ctx) => ({
+var ax$3 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -23656,7 +23893,7 @@ var ax$2 = (ctx) => ({
 	records: MODULE_RECORDS
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
-async function save$2(ctx, c, done, nothing) {
+async function save$3(ctx, c, done, nothing) {
 	if (!c) return { text: nothing };
 	await ctx.save({
 		...c,
@@ -23669,12 +23906,12 @@ async function save$2(ctx, c, done, nothing) {
 }
 var name$1 = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
 /** A goal by its ID or its key (G-12). */
-var goalOf$2 = (ctx, id) => {
+var goalOf$3 = (ctx, id) => {
 	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
 	if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
-var goalIds = (ctx, v) => v?.map((id) => goalOf$2(ctx, id).id);
+var goalIds = (ctx, v) => v?.map((id) => goalOf$3(ctx, id).id);
 var requestOf = (ctx, id) => {
 	const r = asksOf(ctx.snapshot).find((x) => x.id === id);
 	if (!r) throw new Error(`There’s no ask with ID ${String(id)}. Use list_requests to get IDs.`);
@@ -23794,7 +24031,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
@@ -23975,23 +24212,23 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$10(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$11(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$10("Only one kind.", { enum: [
+				kind: str$11("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$10("Only asks on a goal (its ID or key).")
+				goal_id: str$11("Only asks on a goal (its ID or key).")
 			}
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(a, ctx) {
 			const st = a.status == null || String(a.status).toLowerCase() === "all" ? a.status == null ? "open" : "all" : codeFrom(ASK_STATUS, a.status);
 			if (!st || st === "overdue") throw new Error(`“${String(a.status)}” isn’t where an ask can stand. Use one of: ${choices(ASK_STATUS, [
@@ -24000,7 +24237,7 @@ var WORK_TOOLS = [
 				"done",
 				"withdrawn"
 			])}, or all.`);
-			return listed({ requests: asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r)) });
+			return listed({ requests: asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$3(ctx, a.goal_id).id)).map((r) => requestData(ctx, r)) });
 		}
 	},
 	{
@@ -24012,7 +24249,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 			return listed({
@@ -24026,7 +24263,7 @@ var WORK_TOOLS = [
 					goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length
 				})),
 				teams: ctx.snapshot.teams.map((t) => {
-					const m = teamMembers(ax$2(ctx), t.id);
+					const m = teamMembers(ax$3(ctx), t.id);
 					return {
 						id: t.id,
 						name: t.name,
@@ -24046,14 +24283,14 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$10("An Activity link’s query string."),
+				query: str$11("An Activity link’s query string."),
 				limit: int$3("How many changes, newest first (default 50, at most 500).")
 			}
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
-			if (q.goal) q.goal = goalOf$2(ctx, q.goal).id;
+			if (q.goal) q.goal = goalOf$3(ctx, q.goal).id;
 			return listed({ changes: (await activityPages(ctx, activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
@@ -24086,7 +24323,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			return listed({ views: (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
@@ -24115,7 +24352,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
@@ -24134,11 +24371,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$10("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$10("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$11("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$11("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(a, ctx) {
 			const brief = (x) => ({
 				id: x.id,
@@ -24185,7 +24422,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			properties: {}
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			const on = modulesOn(ctx.ws).on;
 			const off = MODULES.filter((m) => !on.has(m.id)).map((m) => m.name);
@@ -24214,11 +24451,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$10("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$11("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$3("How many entries, newest first (default all).")
 			}
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(a) {
 			const since = a.since ? String(a.since) : void 0;
 			if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return {
@@ -24248,14 +24485,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$10("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$10("The answer, decision or help offered.")
+				request_id: str$11("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$11("The answer, decision or help offered.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save$2(ctx, answerRequest(ax$2(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$3(ctx, answerRequest(ax$3(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -24267,13 +24504,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$10("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$10("Optional: what was done.")
+				request_id: str$11("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$11("Optional: what was done.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			return save$2(ctx, markActionDone(ax$2(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
+			return save$3(ctx, markActionDone(ax$3(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
 		}
 	},
 	{
@@ -24285,14 +24522,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$10("The goal’s ID or its key, e.g. G-12."),
-				question: str$10("The question.")
+				goal_id: str$11("The goal’s ID or its key, e.g. G-12."),
+				question: str$11("The question.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			const g = goalOf$2(ctx, a.goal_id);
-			return save$2(ctx, askQuestion(ax$2(ctx), g, String(a.question ?? "")), `Asked ${name$1(ctx, g.ownerId)} a question on ${g.title}`, "");
+			const g = goalOf$3(ctx, a.goal_id);
+			return save$3(ctx, askQuestion(ax$3(ctx), g, String(a.question ?? "")), `Asked ${name$1(ctx, g.ownerId)} a question on ${g.title}`, "");
 		}
 	},
 	{
@@ -24304,13 +24541,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$10("The request’s ID."),
-				goal_id: str$10("The goal that waits on it (its ID or key).")
+				request_id: str$11("The request’s ID."),
+				goal_id: str$11("The goal that waits on it (its ID or key).")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			return save$2(ctx, linkRequest(ax$2(ctx), requestOf(ctx, a.request_id), goalOf$2(ctx, a.goal_id)), "Linked the goal to the request", "");
+			return save$3(ctx, linkRequest(ax$3(ctx), requestOf(ctx, a.request_id), goalOf$3(ctx, a.goal_id)), "Linked the goal to the request", "");
 		}
 	},
 	{
@@ -24322,14 +24559,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$10("The ask’s ID."),
-				goal_id: str$10("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$11("The ask’s ID."),
+				goal_id: str$11("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save$2(ctx, withdrawRequest(ax$2(ctx), r, a.goal_id ? goalOf$2(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$3(ctx, withdrawRequest(ax$3(ctx), r, a.goal_id ? goalOf$3(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -24340,15 +24577,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$10("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$11("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const g = goalOf$2(ctx, a.goal_id);
-			return save$2(ctx, askForUpdate(ax$2(ctx), g), `Asked ${name$1(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
+			const g = goalOf$3(ctx, a.goal_id);
+			return save$3(ctx, askForUpdate(ax$3(ctx), g), `Asked ${name$1(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
 		}
 	},
 	{
@@ -24359,11 +24596,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$10("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$11("The goal’s ID or its key, e.g. G-12.") }
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			return save$2(ctx, undoUpdateAsk(ax$2(ctx), goalOf$2(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
+			return save$3(ctx, undoUpdateAsk(ax$3(ctx), goalOf$3(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
 		}
 	},
 	{
@@ -24379,16 +24616,16 @@ var WORK_TOOLS = [
 				"who"
 			],
 			properties: {
-				goal_id: str$10("The goal’s ID or its key, e.g. G-12."),
-				text: str$10("What needs doing."),
-				who: str$10("Who does it (name or ID)."),
+				goal_id: str$11("The goal’s ID or its key, e.g. G-12."),
+				text: str$11("What needs doing."),
+				who: str$11("Who does it (name or ID)."),
 				due_week: int$3("The week it’s due by.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			const g = goalOf$2(ctx, a.goal_id);
-			return save$2(ctx, addAction(ax$2(ctx), g, String(a.text ?? ""), {
+			const g = goalOf$3(ctx, a.goal_id);
+			return save$3(ctx, addAction(ax$3(ctx), g, String(a.text ?? ""), {
 				assigneeId: personOf$2(ctx, a.who).id,
 				dueWeek: a.due_week == null ? null : Number(a.due_week)
 			}), `Agreed a next step on ${g.title}`, "");
@@ -24403,13 +24640,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$10("Its ID, from get_review."),
-				text: str$10("The new wording."),
-				who: str$10("Actions: who does it."),
+				call_id: str$11("Its ID, from get_review."),
+				text: str$11("The new wording."),
+				who: str$11("Actions: who does it."),
 				due_week: int$3("Actions: the week it’s due by (0 for none).")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
 			if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
@@ -24429,7 +24666,7 @@ var WORK_TOOLS = [
 				assigneeId: a.who ? personOf$2(ctx, a.who).id : was.who,
 				dueWeek: a.due_week === void 0 ? was.due : Number(a.due_week) || null
 			} : void 0;
-			return save$2(ctx, editCall(ax$2(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
+			return save$3(ctx, editCall(ax$3(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
 		}
 	},
 	{
@@ -24440,15 +24677,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$10("The person to change (their ID or email). Leave out to add someone."),
-				name: str$10("Their full name."),
-				email: str$10("Their email: required for someone new."),
-				job_title: str$10("Their job title."),
-				team: str$10("Their team (name or ID); empty string for none."),
+				person_id: str$11("The person to change (their ID or email). Leave out to add someone."),
+				name: str$11("Their full name."),
+				email: str$11("Their email: required for someone new."),
+				job_title: str$11("Their job title."),
+				team: str$11("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const before = a.person_id ? personOf$2(ctx, a.person_id) : null;
 			const nm = a.name !== void 0 ? String(a.name).trim() : before?.name ?? "";
@@ -24463,7 +24700,7 @@ var WORK_TOOLS = [
 				...email ? { email } : {}
 			};
 			return {
-				...await save$2(ctx, savePerson(ax$2(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
+				...await save$3(ctx, savePerson(ax$3(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
 				data: { id: p.id }
 			};
 		}
@@ -24481,7 +24718,7 @@ var WORK_TOOLS = [
 			}
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			destructiveHint: true
 		},
 		async run(a, ctx) {
@@ -24506,9 +24743,9 @@ var WORK_TOOLS = [
 					}
 				};
 			}
-			const out = startNextCycle(ax$2(ctx));
+			const out = startNextCycle(ax$3(ctx));
 			return {
-				...await save$2(ctx, out.commit, `Started ${out.name}`, ""),
+				...await save$3(ctx, out.commit, `Started ${out.name}`, ""),
 				data: { name: out.name }
 			};
 		}
@@ -24522,20 +24759,20 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$10("The view to change."),
-				name: str$10("Its name."),
-				query: str$10("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$11("The view to change."),
+				name: str$11("Its name."),
+				query: str$11("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			const out = saveView(ax$2(ctx), {
+			const out = saveView(ax$3(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				params: String(a.query ?? "").replace(/^.*\?/, "")
 			});
 			return {
-				...await save$2(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$3(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -24549,28 +24786,28 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$10("The saved layout to change."),
-				name: str$10("Its name."),
-				table: str$10("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$11("The saved layout to change."),
+				name: str$11("Its name."),
+				table: str$11("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids$2("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$10("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$11("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
-			const out = saveTableView(ax$2(ctx), {
+			const out = saveTableView(ax$3(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				layout
 			}, headOf(ctx, layout.table));
 			return {
-				...await save$2(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$3(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -24583,15 +24820,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$10("The view’s ID, from list_views.") }
+			properties: { view_id: str$11("The view’s ID, from list_views.") }
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$2(ctx, deleteView(ax$2(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
+			return save$3(ctx, deleteView(ax$3(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
 		}
 	},
 	{
@@ -24603,16 +24840,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$10("The view’s ID."),
+				view_id: str$11("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$2(ctx, pinView(ax$2(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
+			return save$3(ctx, pinView(ax$3(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
 		}
 	},
 	{
@@ -24624,14 +24861,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$10("Who it acts as (name or ID)."),
-				name: str$10("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$11("Who it acts as (name or ID)."),
+				name: str$11("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const p = personOf$2(ctx, a.person);
-			const c = createToken(ax$2(ctx), p.id, String(a.name ?? ""));
+			const c = createToken(ax$3(ctx), p.id, String(a.name ?? ""));
 			const token = await ctx.issueToken({
 				...c,
 				changes: c.changes.map((x) => ({
@@ -24653,15 +24890,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$10("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$11("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$2(ctx, revokeToken(ax$2(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
+			return save$3(ctx, revokeToken(ax$3(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
 		}
 	},
 	{
@@ -24672,15 +24909,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$10("The new name.") }
+			properties: { name: str$11("The new name.") }
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			const from = ctx.ws.name;
-			return save$2(ctx, renameWorkspace(ax$2(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
+			return save$3(ctx, renameWorkspace(ax$3(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
 		}
 	},
 	{
@@ -24694,14 +24931,14 @@ var WORK_TOOLS = [
 			properties: { on: bool$1("true to record how the app is used here, false to stop.") }
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to record, or on: false to stop.");
 			const on = a.on;
 			return {
-				...await save$2(ctx, setRecording(ax$2(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
+				...await save$3(ctx, setRecording(ax$3(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
 				data: { recording: ctx.ws.recording !== false }
 			};
 		}
@@ -24715,19 +24952,19 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$10("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$11("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to switch it on, or on: false to switch it off.");
 			const id = String(a.feature ?? "");
 			const m = MODULES.find((x) => x.id === id);
-			const res = await save$2(ctx, setModule(ax$2(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
+			const res = await save$3(ctx, setModule(ax$3(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
 			const r = modulesOn(ctx.ws);
 			return {
 				...res,
@@ -24747,24 +24984,24 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$10("The team to change (name or ID). Leave out to add a team."),
-				name: str$10("The team’s name."),
-				lead: str$10("The team lead (a person’s name or ID); empty string for none."),
-				purpose: str$10("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
+				team: str$11("The team to change (name or ID). Leave out to add a team."),
+				name: str$11("The team’s name."),
+				lead: str$11("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$11("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const id = a.team !== void 0 ? teamOf(ctx, a.team) ?? void 0 : void 0;
 			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf$2(ctx, a.lead).id;
-			const out = saveTeam(ax$2(ctx), {
+			const out = saveTeam(ax$3(ctx), {
 				id,
 				name: String(a.name ?? ""),
 				...leadId !== void 0 ? { leadId } : {},
 				...a.purpose !== void 0 && a.purpose !== null ? { objective: String(a.purpose) } : {}
 			});
 			return {
-				...await save$2(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
+				...await save$3(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
 				data: { id: out.id }
 			};
 		}
@@ -24778,8 +25015,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$10("The team to remove (name or ID)."),
-				move_to: str$10("Where its people and goals go (a team’s name or ID).")
+				team: str$11("The team to remove (name or ID)."),
+				move_to: str$11("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -24793,7 +25030,7 @@ var WORK_TOOLS = [
 			if (!id) throw new Error("Name the team to remove.");
 			const name = ctx.snapshot.teams.find((t) => t.id === id).name;
 			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf(ctx, a.move_to) : null;
-			return save$2(ctx, removeTeam(ax$2(ctx), id, to), `Removed the team ${name}`, "");
+			return save$3(ctx, removeTeam(ax$3(ctx), id, to), `Removed the team ${name}`, "");
 		}
 	},
 	{
@@ -24804,7 +25041,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$10("The workspace’s exact name.") }
+			properties: { confirm_name: str$11("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -24832,7 +25069,7 @@ init_removal();
 init_status();
 init_vocabulary();
 init_via();
-var str$9 = (description, extra = {}) => ({
+var str$10 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -24847,7 +25084,7 @@ var REMOVE = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var WRITE$1 = {
+var WRITE$2 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
@@ -24856,7 +25093,7 @@ var WRITE$1 = {
 var VIA$1 = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 var KINDS = removedKinds(MODULE_RECORDS);
-var ax$1 = (ctx) => ({
+var ax$2 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -24867,7 +25104,7 @@ var ax$1 = (ctx) => ({
 	...ctx.full ? { full: ctx.full } : {},
 	records: MODULE_RECORDS
 });
-async function save$1(ctx, c, done) {
+async function save$2(ctx, c, done) {
 	await ctx.save({
 		...c,
 		changes: c.changes.map((x) => ({
@@ -24877,7 +25114,7 @@ async function save$1(ctx, c, done) {
 	});
 	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
 }
-var goalOf$1 = (ctx, id) => {
+var goalOf$2 = (ctx, id) => {
 	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
 	if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
@@ -24926,14 +25163,14 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$9("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$9("Its ID, from list_removed.")
+				kind: str$10("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$10("Its ID, from list_removed.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
-			const c = restoreRemoved(ax$1(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
+			const c = restoreRemoved(ax$2(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
 			await ctx.save({
 				...c,
 				changes: c.changes.map((x) => ({
@@ -24953,15 +25190,15 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$9("Their ID or full name."),
-				goals_to: str$9("Who takes over their goals: an ID or full name."),
-				asks_to: str$9("Who takes over their open asks: an ID or full name.")
+				person: str$10("Their ID or full name."),
+				goals_to: str$10("Who takes over their goals: an ID or full name."),
+				asks_to: str$10("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const p = personOf$1(ctx, a.person);
-			return save$1(ctx, markPersonLeft(ax$1(ctx), p.id, {
+			return save$2(ctx, markPersonLeft(ax$2(ctx), p.id, {
 				goalsTo: optPerson(ctx, a.goals_to),
 				asksTo: optPerson(ctx, a.asks_to)
 			}), `Marked ${p.name} as left`);
@@ -24975,12 +25212,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$9("Their ID or full name.") }
+			properties: { person: str$10("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const p = personOf$1(ctx, a.person);
-			return save$1(ctx, deletePerson(ax$1(ctx), p.id), `Deleted ${p.name}`);
+			return save$2(ctx, deletePerson(ax$2(ctx), p.id), `Deleted ${p.name}`);
 		}
 	},
 	{
@@ -24992,14 +25229,14 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$9("The goal’s ID or key, e.g. G-12."),
-				reason: str$9("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$10("The goal’s ID or key, e.g. G-12."),
+				reason: str$10("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
-			return save$1(ctx, stopGoal(ax$1(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
+			const g = goalOf$2(ctx, a.goal_id);
+			return save$2(ctx, stopGoal(ax$2(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
 		}
 	},
 	{
@@ -25010,12 +25247,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$9("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$10("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
-			return save$1(ctx, deleteGoal(ax$1(ctx), g.id), `Deleted ${g.title}`);
+			const g = goalOf$2(ctx, a.goal_id);
+			return save$2(ctx, deleteGoal(ax$2(ctx), g.id), `Deleted ${g.title}`);
 		}
 	},
 	{
@@ -25026,8 +25263,8 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$9("The check-in’s ID, from get_goal."),
-				goal_id: str$9("Or: the goal’s ID or key…"),
+				check_in_id: str$10("The check-in’s ID, from get_goal."),
+				goal_id: str$10("Or: the goal’s ID or key…"),
 				week: int$2("…and the week of its latest check-in.")
 			}
 		},
@@ -25035,13 +25272,13 @@ var REMOVE_TOOLS = [
 		async run(a, ctx) {
 			let id = a.check_in_id ? String(a.check_in_id) : "";
 			if (!id) {
-				const g = goalOf$1(ctx, a.goal_id);
+				const g = goalOf$2(ctx, a.goal_id);
 				const c = checkInsFor(g, ctx.snapshot.checkIns).filter((x) => a.week == null || x.week === Number(a.week)).at(-1);
 				if (!c) throw new Error(`${g.title} has no check-in${a.week != null ? ` for week ${String(a.week)}` : ""}.`);
 				id = c.id;
 			}
 			const c = ctx.snapshot.checkIns.find((x) => x.id === id);
-			return save$1(ctx, deleteCheckIn(ax$1(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
+			return save$2(ctx, deleteCheckIn(ax$2(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
 		}
 	},
 	{
@@ -25053,16 +25290,16 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$9("The comment’s or note’s ID."),
-				text: str$9("The corrected words.")
+				comment_id: str$10("The comment’s or note’s ID."),
+				text: str$10("The corrected words.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const id = String(a.comment_id ?? "");
 			const note = ctx.snapshot.decisions.find((d) => d.id === id);
 			if (note) {
-				const c = editCall(ax$1(ctx), note, String(a.text ?? ""));
+				const c = editCall(ax$2(ctx), note, String(a.text ?? ""));
 				if (!c) return { text: "Nothing to change: it already says that." };
 				await ctx.save({
 					...c,
@@ -25073,7 +25310,7 @@ var REMOVE_TOOLS = [
 				});
 				return { text: `Corrected the note (as ${ctx.actor.name}).` };
 			}
-			const c = editComment(ax$1(ctx), id, String(a.text ?? ""));
+			const c = editComment(ax$2(ctx), id, String(a.text ?? ""));
 			if (!c) return { text: "Nothing to change: it already says that." };
 			await ctx.save({
 				...c,
@@ -25093,13 +25330,13 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$9("The comment’s or note’s ID.") }
+			properties: { comment_id: str$10("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const id = String(a.comment_id ?? "");
-			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$1(ctx, deleteNote(ax$1(ctx), id), "Removed the note");
-			return save$1(ctx, deleteComment(ax$1(ctx), id), "Removed the comment");
+			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$2(ctx, deleteNote(ax$2(ctx), id), "Removed the note");
+			return save$2(ctx, deleteComment(ax$2(ctx), id), "Removed the comment");
 		}
 	},
 	{
@@ -25110,12 +25347,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$9("The cycle’s ID.") }
+			properties: { cycle_id: str$10("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save$1(ctx, deleteCycle(ax$1(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
+			return save$2(ctx, deleteCycle(ax$2(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
 		}
 	},
 	{
@@ -25126,12 +25363,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$9("The started cycle’s ID, from get_workspace.") }
+			properties: { cycle_id: str$10("The started cycle’s ID, from get_workspace.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save$1(ctx, undoStart(ax$1(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
+			return save$2(ctx, undoStart(ax$2(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
 		}
 	},
 	{
@@ -25143,7 +25380,7 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["import_id"],
 			properties: {
-				import_id: str$9("The import’s ID (imp_…), from get_activity."),
+				import_id: str$10("The import’s ID (imp_…), from get_activity."),
 				dry_run: {
 					type: "boolean",
 					description: "Say what Undo would do without saving anything."
@@ -25158,7 +25395,7 @@ var REMOVE_TOOLS = [
 				at: k.at
 			});
 			if (a.dry_run === true) {
-				const p = undoPreview(ax$1(ctx), String(a.import_id ?? ""));
+				const p = undoPreview(ax$2(ctx), String(a.import_id ?? ""));
 				return {
 					data: {
 						restores: p.restores,
@@ -25168,7 +25405,7 @@ var REMOVE_TOOLS = [
 					text: !p.restores ? `Nothing saved. ${nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(keptText).join("; ")}.` : ""}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
 				};
 			}
-			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
+			const out = undoImport(ax$2(ctx), String(a.import_id ?? ""));
 			await ctx.save({
 				...out.commit,
 				changes: out.commit.changes.map((x) => ({
@@ -25486,12 +25723,12 @@ function markupOps(o) {
 	};
 }
 // src/mcp/markupTools.ts
-var str$8 = (description, extra = {}) => ({
+var str$9 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ$3 = {
+var READ$4 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -25551,15 +25788,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$8("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$8("Only this workspace’s (its id)."),
+				status: str$9("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$9("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a, ctx) {
 			return listed({ markups: (await inbox(ctx).list({
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
@@ -25588,11 +25825,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$8("The markup’s id (mk_…), from list_markups or review_inbox."),
-				picture: str$8("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+				id: str$9("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$9("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a, ctx) {
 			const ops = inbox(ctx);
 			const m = await ops.open(String(a.id ?? ""));
@@ -25638,15 +25875,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$8("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
-				workspace: str$8("Only this workspace’s (its id)."),
+				status: str$9("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$9("Only this workspace’s (its id)."),
 				pictures: {
 					type: "integer",
 					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
 				}
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a, ctx) {
 			const ops = inbox(ctx);
 			const status = a.status ?? "new";
@@ -25736,11 +25973,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$8("The markup’s id (mk_…)."),
-				status: str$8("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$8("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$8("With wont-fix: why it won’t be fixed."),
-				issue_url: str$8("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$9("The markup’s id (mk_…)."),
+				status: str$9("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$9("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$9("With wont-fix: why it won’t be fixed."),
+				issue_url: str$9("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -25774,12 +26011,12 @@ var MARKUP_TOOLS = [
 	}
 ];
 // src/mcp/feedbackTools.ts
-var str$7 = (description, extra = {}) => ({
+var str$8 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ$2 = {
+var READ$3 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -25799,15 +26036,15 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$7("Only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$7("Only this workspace’s (its id)."),
+				status: str$8("Only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$8("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			if (ctx.feedback) return listed({ feedback: (await ctx.feedback.list(Number(a.limit ?? 50), {
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
@@ -25851,9 +26088,9 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$7("The feedback’s id, from list_feedback.") }
+			properties: { id: str$8("The feedback’s id, from list_feedback.") }
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const f = await triage(ctx).open(String(a.id ?? ""));
 			const text = [
@@ -25877,10 +26114,10 @@ var FEEDBACK_TOOLS = [
 			additionalProperties: false,
 			required: ["id", "status"],
 			properties: {
-				id: str$7("The feedback’s id."),
-				status: str$7("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$7("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$7("With wont-fix: why it won’t be fixed.")
+				id: str$8("The feedback’s id."),
+				status: str$8("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$8("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$8("With wont-fix: why it won’t be fixed.")
 			}
 		},
 		annotations: {
@@ -25911,12 +26148,12 @@ var FEEDBACK_TOOLS = [
 ];
 // src/modules/feedback/tools.ts
 init_actions();
-var str$6 = (description, extra = {}) => ({
+var str$7 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var tools$5 = [
+var tools$6 = [
 	...MARKUP_TOOLS,
 	...FEEDBACK_TOOLS,
 	{
@@ -25928,17 +26165,17 @@ var tools$5 = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$6("How it felt.", { enum: [
+				mood: str$7("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$6("What happened, or what would help.")
+				text: str$7("What happened, or what would help.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			return save$2(ctx, sendFeedback(ax$2(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
+			return save$3(ctx, sendFeedback(ax$3(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
 		}
 	}
 ];
@@ -26456,23 +26693,23 @@ init_status();
 init_vocabulary();
 init_via();
 addCheckInReader(metricReader);
-var str$5 = (description, extra = {}) => ({
+var str$6 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ$1 = {
+var READ$2 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-var WRITE = {
+var WRITE$1 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: true,
 	openWorldHint: false
 };
 var VIA = VIA_MCP;
-var ax = (ctx) => ({
+var ax$1 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -26482,7 +26719,7 @@ var ax = (ctx) => ({
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
 	...ctx.full ? { full: ctx.full } : {}
 });
-var save = (ctx, c) => ctx.save({
+var save$1 = (ctx, c) => ctx.save({
 	...c,
 	changes: c.changes.map((x) => ({
 		...x,
@@ -26490,7 +26727,7 @@ var save = (ctx, c) => ctx.save({
 	}))
 });
 /** A rule that says no is the assistant's to fix, so it reads as an error result, not a crash. */
-async function ruled(run) {
+async function ruled$1(run) {
 	try {
 		return await run();
 	} catch (e) {
@@ -26506,7 +26743,7 @@ var metricOf = (ctx, ref) => {
 	if (!m) throw new NotAllowed(`There’s no metric called or with the ID ${String(ref)}. Use list_metrics.`);
 	return m;
 };
-var goalOf = (ctx, id) => {
+var goalOf$1 = (ctx, id) => {
 	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
 	if (!g) throw new NotAllowed(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
@@ -26578,25 +26815,25 @@ function metricData(ctx, m) {
 	};
 }
 var FIELDS = {
-	name: str$5("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
-	meaning: str$5("What it means and how it’s calculated: what is counted, over what period, what is left out."),
-	unit: str$5("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
+	name: str$6("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
+	meaning: str$6("What it means and how it’s calculated: what is counted, over what period, what is left out."),
+	unit: str$6("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
 	decimals: {
 		type: "integer",
 		minimum: 0,
 		maximum: 4,
 		description: "Places after the decimal point it’s shown with (0 to 4; 0 when left out)."
 	},
-	direction: str$5("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
-	source: str$5("Where the number comes from: a dashboard, a tool, a query."),
-	source_owner: str$5("Who owns that source: a team or a person, as text."),
-	refresh: str$5("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
-	owner: str$5("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
-	caveats: str$5("What to watch out for when reading it."),
-	measurement: str$5("Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.", { enum: [...MEASUREMENTS] }),
-	measurement_note: str$5("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.")
+	direction: str$6("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
+	source: str$6("Where the number comes from: a dashboard, a tool, a query."),
+	source_owner: str$6("Who owns that source: a team or a person, as text."),
+	refresh: str$6("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
+	owner: str$6("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
+	caveats: str$6("What to watch out for when reading it."),
+	measurement: str$6("Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.", { enum: [...MEASUREMENTS] }),
+	measurement_note: str$6("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.")
 };
-var tools$4 = [
+var tools$5 = [
 	{
 		name: "list_metrics",
 		title: "List the metric library",
@@ -26605,11 +26842,11 @@ var tools$4 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				search: str$5("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
-				unit: str$5("Only metrics in this unit (any case)."),
-				team: str$5("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
-				owner: str$5("Only metrics this person owns, by ID, email or name."),
-				direction: str$5("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
+				search: str$6("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
+				unit: str$6("Only metrics in this unit (any case)."),
+				team: str$6("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
+				owner: str$6("Only metrics this person owns, by ID, email or name."),
+				direction: str$6("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
 				unused: {
 					type: "boolean",
 					description: "Only metrics no live goal uses."
@@ -26622,7 +26859,7 @@ var tools$4 = [
 					type: "boolean",
 					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
 				},
-				sort: str$5("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
+				sort: str$6("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
 					"name",
 					"goals",
 					"changed"
@@ -26634,9 +26871,9 @@ var tools$4 = [
 				}
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
-			return ruled(async () => {
+			return ruled$1(async () => {
 				const team = a.team == null || a.team === "" ? void 0 : /^(the )?(whole )?company$/i.test(String(a.team).trim()) ? "company" : sliceOf(ctx, a.team) ?? void 0;
 				const ask = {
 					q: String(a.search ?? ""),
@@ -26692,11 +26929,11 @@ var tools$4 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["metric"],
-			properties: { metric: str$5("The metric’s ID or name.") }
+			properties: { metric: str$6("The metric’s ID or name.") }
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
-			return ruled(async () => {
+			return ruled$1(async () => {
 				const m = metricOf(ctx, a.metric);
 				const d = metricData(ctx, m);
 				const side = goalsOfMetric(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, m.id);
@@ -26797,7 +27034,7 @@ var tools$4 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$5("The metric to change, by ID or name. Leave out to add one."),
+				id: str$6("The metric to change, by ID or name. Leave out to add one."),
 				...FIELDS,
 				confirm: {
 					type: "boolean",
@@ -26820,16 +27057,16 @@ var tools$4 = [
 					additionalProperties: false,
 					description: "The person’s answers to the checks a previous call returned.",
 					properties: {
-						name: str$5("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
-						unit: str$5("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
-						meaning: str$5("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
+						name: str$6("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
+						unit: str$6("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
+						meaning: str$6("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
 					}
 				}
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return ruled(async () => {
+			return ruled$1(async () => {
 				const input = {
 					...a.id != null && a.id !== "" ? { id: metricOf(ctx, a.id).id } : {},
 					...a.name !== void 0 ? { name: String(a.name) } : {},
@@ -26860,7 +27097,7 @@ var tools$4 = [
 						text: `Nothing saved: use ${use.name} (${use.id}) instead.`
 					};
 				}
-				const { open } = openChecks(ax(ctx), {
+				const { open } = openChecks(ax$1(ctx), {
 					...input,
 					answers
 				});
@@ -26881,7 +27118,7 @@ var tools$4 = [
 						text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join("; ")})`).join("\n")}`
 					};
 				}
-				const x = ax(ctx);
+				const x = ax$1(ctx);
 				const was = input.id ? metricsOf(x.snapshot).find((m) => m.id === input.id) : void 0;
 				const { commit, metric } = saveMetricAsked(x, {
 					...input,
@@ -26894,7 +27131,7 @@ var tools$4 = [
 					},
 					text: `Nothing changed: ${metric.name} already says that.`
 				};
-				await save(ctx, commit);
+				await save$1(ctx, commit);
 				const still = lineOf(ctx.snapshot, metric).line;
 				const more = was && metric.decimals < was.decimals ? linkedGoals(x.full ?? x.snapshot, metric.id).filter((g) => g.decimals > metric.decimals) : [];
 				const places = more.length ? ` ${more.length === 1 ? "1 goal shows" : `${more.length} goals show`} more decimal places than ${metric.name} now does: ${more.map((g) => g.title).join(", ")}. They keep theirs until their owners change them.` : "";
@@ -26919,7 +27156,7 @@ var tools$4 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["metric"],
-			properties: { metric: str$5("The metric’s ID or name.") }
+			properties: { metric: str$6("The metric’s ID or name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -26928,9 +27165,9 @@ var tools$4 = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			return ruled(async () => {
-				const c = removeMetric(ax(ctx), metricOf(ctx, a.metric).id);
-				await save(ctx, c);
+			return ruled$1(async () => {
+				const c = removeMetric(ax$1(ctx), metricOf(ctx, a.metric).id);
+				await save$1(ctx, c);
 				return {
 					data: {
 						removed: true,
@@ -26950,21 +27187,21 @@ var tools$4 = [
 			additionalProperties: false,
 			required: ["metric"],
 			properties: {
-				metric: str$5("The metric’s ID or name."),
-				why: str$5("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
-				replaced_by: str$5("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
+				metric: str$6("The metric’s ID or name."),
+				why: str$6("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
+				replaced_by: str$6("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
 				bring_back: {
 					type: "boolean",
 					description: "Bring a retired metric back."
 				}
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return ruled(async () => {
+			return ruled$1(async () => {
 				const m = metricOf(ctx, a.metric);
-				const c = a.bring_back === true ? unretireMetric(ax(ctx), m.id) : retireMetric(ax(ctx), m.id, String(a.why ?? ""), a.replaced_by ? metricOf(ctx, a.replaced_by).id : null);
-				await save(ctx, c);
+				const c = a.bring_back === true ? unretireMetric(ax$1(ctx), m.id) : retireMetric(ax$1(ctx), m.id, String(a.why ?? ""), a.replaced_by ? metricOf(ctx, a.replaced_by).id : null);
+				await save$1(ctx, c);
 				const goals = c.changes.filter((x) => x.goalId).length;
 				return {
 					data: {
@@ -26986,16 +27223,16 @@ var tools$4 = [
 			additionalProperties: false,
 			required: ["from", "into"],
 			properties: {
-				from: str$5("The metric to merge away, by ID or name."),
-				into: str$5("The metric to keep, by ID or name: one in use, in the same unit."),
-				why: str$5("Why, in a line. “The same number as {into}.” when left out.")
+				from: str$6("The metric to merge away, by ID or name."),
+				into: str$6("The metric to keep, by ID or name: one in use, in the same unit."),
+				why: str$6("Why, in a line. “The same number as {into}.” when left out.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return ruled(async () => {
-				const c = mergeMetrics(ax(ctx), metricOf(ctx, a.from).id, metricOf(ctx, a.into).id, String(a.why ?? ""));
-				await save(ctx, c);
+			return ruled$1(async () => {
+				const c = mergeMetrics(ax$1(ctx), metricOf(ctx, a.from).id, metricOf(ctx, a.into).id, String(a.why ?? ""));
+				await save$1(ctx, c);
 				return {
 					data: {
 						saved: true,
@@ -27015,11 +27252,11 @@ var tools$4 = [
 			additionalProperties: false,
 			required: ["goal"],
 			properties: {
-				goal: str$5("The goal’s ID or key (G-12)."),
-				metric: str$5("The metric’s ID or name. Required unless unlinking."),
-				team: str$5("The slice: a team by ID or name. Leave out for the whole company."),
-				part: str$5("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
-				reason: str$5("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
+				goal: str$6("The goal’s ID or key (G-12)."),
+				metric: str$6("The metric’s ID or name. Required unless unlinking."),
+				team: str$6("The slice: a team by ID or name. Leave out for the whole company."),
+				part: str$6("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
+				reason: str$6("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
 				answers: {
 					type: "object",
 					additionalProperties: false,
@@ -27035,17 +27272,17 @@ var tools$4 = [
 				}
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return ruled(async () => {
-				const g = goalOf(ctx, a.goal);
+			return ruled$1(async () => {
+				const g = goalOf$1(ctx, a.goal);
 				if (a.unlink === true) {
-					const c = unlinkGoalMetric(ax(ctx), g);
+					const c = unlinkGoalMetric(ax$1(ctx), g);
 					if (!c) return {
 						data: { saved: false },
 						text: `${g.title} isn’t measured by a metric.`
 					};
-					await save(ctx, c);
+					await save$1(ctx, c);
 					return {
 						data: { saved: true },
 						text: `${g.title}: ${c.changes[0].summary.charAt(0).toLowerCase()}${c.changes[0].summary.slice(1)} (as ${ctx.actor.name}).`
@@ -27069,7 +27306,7 @@ var tools$4 = [
 				}, {
 					errors: linkProblems(g, m).errors,
 					warnings: []
-				}, linkReads(ax(ctx), g, m.id), reason);
+				}, linkReads(ax$1(ctx), g, m.id), reason);
 				const open = all.some((c) => c.kind === "fix") ? [] : all.filter((c) => c.kind === "check" && !answered(c));
 				if (open.length) return {
 					data: {
@@ -27082,7 +27319,7 @@ var tools$4 = [
 					},
 					text: ["Nothing saved yet. Answer these, then call again with answers:", ...open.map((c) => `${c.field}: ${c.words} (${c.answers.map((x) => x.choice).join(" / ")})`)].join("\n")
 				};
-				const c = linkGoalMetric(ax(ctx), g, m.id, teamId, part, reason);
+				const c = linkGoalMetric(ax$1(ctx), g, m.id, teamId, part, reason);
 				if (!c) return {
 					data: {
 						saved: false,
@@ -27090,7 +27327,7 @@ var tools$4 = [
 					},
 					text: `${g.title} is already measured by ${m.name} for ${forWords(sliceName(ctx.snapshot, teamId), part)}.`
 				};
-				await save(ctx, c);
+				await save$1(ctx, c);
 				return {
 					data: {
 						saved: true,
@@ -27241,7 +27478,7 @@ init_actions();
 init_removal();
 init_review();
 init_vocabulary();
-var str$4 = (description, extra = {}) => ({
+var str$5 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -27255,7 +27492,7 @@ var ids$1 = (description) => ({
 	items: { type: "string" },
 	description
 });
-var tools$3 = [
+var tools$4 = [
 	{
 		name: "list_reviews",
 		title: "Reviews",
@@ -27265,7 +27502,7 @@ var tools$3 = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			return listed({ reviews: ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -27297,9 +27534,9 @@ var tools$3 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$5("The review’s ID, from list_reviews.") }
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id);
 			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -27382,24 +27619,24 @@ var tools$3 = [
 				"kind"
 			],
 			properties: {
-				review_id: str$4("The review’s ID."),
-				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
-				kind: str$4("What it is.", { enum: [
+				review_id: str$5("The review’s ID."),
+				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
+				kind: str$5("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action",
 					"accept"
 				] }),
-				text: str$4("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
-				who: str$4("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				text: str$5("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
+				who: str$5("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$1("Actions: the week it’s due by.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			const r = reviewOf(ctx, a.review_id), g = goalOf$2(ctx, a.goal_id);
-			if (a.kind === "accept") return save$2(ctx, acceptRisk(ax$2(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
+			const r = reviewOf(ctx, a.review_id), g = goalOf$3(ctx, a.goal_id);
+			if (a.kind === "accept") return save$3(ctx, acceptRisk(ax$3(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
 			const kind = a.kind;
 			if (![
 				"acknowledge",
@@ -27408,7 +27645,7 @@ var tools$3 = [
 				"action"
 			].includes(kind)) throw new Error("kind is acknowledge, note, ask, action or accept.");
 			const assigneeId = kind === "action" && a.who ? personOf$2(ctx, a.who).id : void 0;
-			return save$2(ctx, reviewCall(ax$2(ctx), g, r, kind, String(a.text ?? ""), {
+			return save$3(ctx, reviewCall(ax$3(ctx), g, r, kind, String(a.text ?? ""), {
 				assigneeId,
 				dueWeek: a.due_week
 			}), `${{
@@ -27433,12 +27670,12 @@ var tools$3 = [
 				description: "The marks’ IDs (kind acknowledge), from get_review."
 			} }
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const ids = (a.call_ids ?? []).map(String);
 			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
 			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
-			return save$2(ctx, unmarkReviewed(ax$2(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
+			return save$3(ctx, unmarkReviewed(ax$3(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
 		}
 	},
 	{
@@ -27449,10 +27686,10 @@ var tools$3 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$4("The review to change. Leave out to set up a new one."),
-				name: str$4("Its name, e.g. \"Platform weekly review\"."),
+				review_id: str$5("The review to change. Leave out to set up a new one."),
+				name: str$5("Its name, e.g. \"Platform weekly review\"."),
 				every_weeks: int$1("Held every 1, 2 or 4 weeks."),
-				weekday: str$4("The weekday.", { enum: [
+				weekday: str$5("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
@@ -27465,7 +27702,7 @@ var tools$3 = [
 				people: ids$1("Who’s in it (names or IDs). New reviews include you.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const day = a.weekday === void 0 ? void 0 : [
 				"monday",
@@ -27491,9 +27728,9 @@ var tools$3 = [
 					scope,
 					people: people ?? before.people
 				};
-				return save$2(ctx, saveReview(ax$2(ctx), after, before), `Changed the review “${after.name}”`, "");
+				return save$3(ctx, saveReview(ax$3(ctx), after, before), `Changed the review “${after.name}”`, "");
 			}
-			const r = newReview(ax$2(ctx), {
+			const r = newReview(ax$3(ctx), {
 				name: String(a.name ?? ""),
 				everyWeeks: Number(a.every_weeks ?? 1),
 				weekday: day ?? ctx.cycle.reviewDay,
@@ -27503,7 +27740,7 @@ var tools$3 = [
 				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
 			});
 			return {
-				...await save$2(ctx, saveReview(ax$2(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
+				...await save$3(ctx, saveReview(ax$3(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
 				data: { id: r.id }
 			};
 		}
@@ -27516,13 +27753,13 @@ var tools$3 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$5("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			const out = endReview(ax$1(ctx), String(a.review_id ?? ""));
-			return save$1(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
+			const out = endReview(ax$2(ctx), String(a.review_id ?? ""));
+			return save$2(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
 		}
 	},
 	{
@@ -27533,19 +27770,19 @@ var tools$3 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$5("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			return save$1(ctx, deleteReview(ax$1(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
+			return save$2(ctx, deleteReview(ax$2(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
 		}
 	}
 ];
 // src/modules/spreadsheets/tools.ts
 init_columns();
 init_tableLayout();
-var str$3 = (description, extra = {}) => ({
+var str$4 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -27555,7 +27792,7 @@ var ids = (description) => ({
 	items: { type: "string" },
 	description
 });
-var READ = {
+var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -27563,7 +27800,7 @@ var READ = {
 var csvFormats = (sheets, reviews = true) => sheetNamesWith(sheets, reviews).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
 /** Every format this build has, for the tool's schema; a workspace with a module (or Reviews) switched off has fewer (F2, RS1). */
 var CSV_FORMATS = csvFormats(MODULE_SHEETS);
-var tools$2 = [{
+var tools$3 = [{
 	name: "export",
 	title: "Export the goals",
 	description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks, notes or metrics (the metric library). The goals, plan, check-ins and people CSVs load back with bulk_change.",
@@ -27571,7 +27808,7 @@ var tools$2 = [{
 		type: "object",
 		additionalProperties: false,
 		required: ["format"],
-		properties: { format: str$3("Which export.", { enum: [
+		properties: { format: str$4("Which export.", { enum: [
 			"json",
 			"brief",
 			...CSV_FORMATS.map(([f]) => f)
@@ -27620,14 +27857,14 @@ var tools$2 = [{
 		type: "object",
 		additionalProperties: false,
 		properties: {
-			view: str$3("The name of a saved layout: one of yours, or one pinned for everyone."),
-			table: str$3("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+			view: str$4("The name of a saved layout: one of yours, or one pinned for everyone."),
+			table: str$4("Which data table, when not using a view.", { enum: TABLE_ORDER }),
 			columns: ids("The columns, in order. Leave out for the usual columns."),
-			query: str$3("Search, filters and sort, as for save_table_view."),
-			format: str$3("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+			query: str$4("Search, filters and sort, as for save_table_view."),
+			format: str$4("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
 		}
 	},
-	annotations: READ,
+	annotations: READ$1,
 	async run(a, ctx) {
 		const layout = layoutFrom(ctx, a);
 		const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
@@ -27651,6 +27888,481 @@ var tools$2 = [{
 		};
 	}
 }];
+// src/modules/tags/fields.ts
+init_actions();
+init_records();
+/** The module's id, and the keys its records are filed under (records.ts). */
+var MODULE = "tags";
+var FIELDS_KEY = "fields";
+var VALUES_KEY = "fieldValues";
+/** Every field in a workspace (or a commit), retired ones included, in their order. */
+var fieldsOf = (s) => [...moduleRows(s, MODULE, FIELDS_KEY)].sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
+/** The live fields, in their order: what a goal's page, the tools and the filters show. */
+var liveFields = (s) => fieldsOf(s).filter((f) => !f.retiredAt);
+/** Every goal's value in a workspace (or a commit). */
+var valuesOf = (s) => moduleRows(s, MODULE, VALUES_KEY);
+/** A commit's part for fields and values. */
+var fieldRows = (rows) => withModuleRows(MODULE, {
+	[FIELDS_KEY]: rows.fields,
+	[VALUES_KEY]: rows.fieldValues
+});
+var valueId = (goalId, fieldId) => `${goalId}:${fieldId}`;
+/** A goal's value for a field, or '' when it has none. */
+function valueOf(s, goalId, fieldId) {
+	const v = valuesOf(s).find((x) => x.id === valueId(goalId, fieldId));
+	return v && !v.removedAt ? v.value : "";
+}
+/** How many of these goals have a value for a field. */
+function goalsWith(s, fieldId, goalIds) {
+	return valuesOf(s).filter((v) => v.fieldId === fieldId && !v.removedAt && v.value && goalIds.has(v.goalId)).length;
+}
+/** A field's kind in words: “A list: Discover, Build, Run” or “Free text”. */
+var kindWords = (f) => f.kind === "list" ? `A list: ${f.options.join(", ")}` : "Free text";
+/** A field by id, or a NotAllowed that says it has gone. */
+function fieldById(s, id) {
+	const f = fieldsOf(s).find((x) => x.id === id);
+	if (!f) throw new NotAllowed("That field no longer exists. Reload to see the latest.");
+	return f;
+}
+/** A live field by its name, whatever the case, or null. */
+var fieldByName = (s, name) => liveFields(s).find((f) => f.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
+var canDefineFields = (actor) => actor.admin;
+var canSetFields = (actor, g) => actor.admin || g.ownerId === actor.id;
+var no = (msg) => {
+	throw new NotAllowed(msg);
+};
+var ADMINS = "Only an admin can change the workspace’s fields.";
+var log = (x, c) => ({
+	id: x.newId("chg"),
+	at: x.now,
+	actorId: x.actor.id,
+	entity: "field",
+	...c
+});
+var tidy = (f) => ({
+	name: f.name.trim(),
+	kind: f.kind,
+	options: f.kind === "list" ? f.options.map((o) => o.trim()) : []
+});
+var all = (x) => fieldsOf(x.full ?? x.snapshot);
+/** Add a field, after the others. “Stage added”. */
+function addField(x, input) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const f = tidy(input);
+	const fields = all(x);
+	const field = {
+		id: x.newId("fld"),
+		...f,
+		position: Math.max(-1, ...fields.map((v) => v.position)) + 1,
+		createdBy: x.actor.id,
+		createdAt: x.now,
+		retiredAt: null,
+		retiredBy: null
+	};
+	const problem = fieldProblem(field, fields);
+	if (problem) no(problem);
+	return {
+		...fieldRows({ fields: [field] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: field.id,
+			action: "created",
+			summary: `${field.name} added`,
+			diffs: [{
+				field: "Field",
+				from: "—",
+				to: field.name
+			}, {
+				field: "Kind",
+				from: "—",
+				to: kindWords(field)
+			}]
+		})]
+	};
+}
+/** Rename a field or change a list's values (its kind stays). Goals keep the values they hold. Null: nothing changed. */
+function changeField(x, id, input) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const was = fieldById(x.full ?? x.snapshot, id);
+	const f = tidy({
+		...input,
+		kind: was.kind
+	});
+	const next = {
+		...was,
+		name: f.name,
+		options: f.options
+	};
+	const problem = fieldProblem(next, all(x));
+	if (problem) no(problem);
+	const diffs = [...next.name !== was.name ? [{
+		field: "Name",
+		from: was.name,
+		to: next.name
+	}] : [], ...next.options.join("\n") !== was.options.join("\n") ? [{
+		field: "Values",
+		from: was.options.join(", "),
+		to: next.options.join(", ")
+	}] : []];
+	if (!diffs.length) return null;
+	const summary = next.name !== was.name ? `${was.name} renamed ${next.name}` : `${next.name}’s values changed`;
+	return {
+		...fieldRows({ fields: [next] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "edited",
+			summary,
+			diffs
+		})]
+	};
+}
+/** Move a live field one place up (-1) or down (+1) among the live fields. Null: it is already first or last. */
+function moveField(x, id, by) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const live = liveFields(x.full ?? x.snapshot);
+	const at = live.findIndex((f) => f.id === id);
+	if (at < 0) no("That field is retired or no longer exists. Reload to see the latest.");
+	if (!live[at + by]) return null;
+	const order = [...live];
+	order.splice(at, 1);
+	order.splice(at + by, 0, live[at]);
+	return {
+		...fieldRows({ fields: order.map((f, i) => ({
+			...f,
+			position: i
+		})).filter((f, i) => live.find((v) => v.id === f.id).position !== i) }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "edited",
+			summary: `${live[at].name} moved ${by < 0 ? "up" : "down"}`,
+			diffs: [{
+				field: "Order",
+				from: live.map((f) => f.name).join(", "),
+				to: order.map((f) => f.name).join(", ")
+			}]
+		})]
+	};
+}
+/** Retire a field (Lane, 5a): it leaves goals' pages and the tools; every value stays, and it can be brought back. */
+function retireField(x, id) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const f = fieldById(x.full ?? x.snapshot, id);
+	if (f.retiredAt) no(`${f.name} is already retired.`);
+	return {
+		...fieldRows({ fields: [{
+			...f,
+			retiredAt: x.now,
+			retiredBy: x.actor.id
+		}] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "removed",
+			summary: `${f.name} retired`,
+			diffs: [{
+				field: "Field",
+				from: f.name,
+				to: "Retired"
+			}]
+		})]
+	};
+}
+/** Bring a retired field back, with every value goals had, after the live ones. Refused when six are live, or when a
+live field has its name now. */
+function bringBackField(x, id) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const fields = all(x);
+	const f = fieldById(x.full ?? x.snapshot, id);
+	if (!f.retiredAt) no(`${f.name} isn’t retired.`);
+	const back = {
+		...f,
+		retiredAt: null,
+		retiredBy: null,
+		position: Math.max(-1, ...fields.filter((v) => !v.retiredAt).map((v) => v.position)) + 1
+	};
+	const problem = fieldProblem(back, fields);
+	if (problem) no(problem);
+	return {
+		...fieldRows({ fields: [back] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "restored",
+			summary: `${f.name} brought back`,
+			diffs: [{
+				field: "Field",
+				from: "Retired",
+				to: f.name
+			}]
+		})]
+	};
+}
+/**
+* Set a goal's values (rule 2): `values` by field id, each as typed. A list's value is kept as the list writes it; empty
+* clears it. Every value is checked before anything is saved, so one refused value saves none. History says each
+* change on the goal, “Stage: Discover → Build”; no reason is asked (a field is not the plan). Null: nothing changed.
+*/
+function setGoalFields(x, goal, values) {
+	if (!canSetFields(x.actor, goal)) no("Only the goal’s owner or an admin can change its fields.");
+	const s = x.full ?? x.snapshot;
+	const rows = [];
+	const changes = [];
+	for (const [fieldId, typed] of Object.entries(values)) {
+		const f = fieldById(s, fieldId);
+		if (f.retiredAt) no(`${f.name} is retired. An admin can bring it back in Workspace, Fields.`);
+		const r = valueProblem(f, typed);
+		if ("problem" in r) return no(r.problem);
+		const from = valueOf(s, goal.id, f.id);
+		if (from === r.value) continue;
+		rows.push({
+			id: valueId(goal.id, f.id),
+			goalId: goal.id,
+			fieldId: f.id,
+			value: r.value,
+			setBy: x.actor.id,
+			setAt: x.now,
+			removedAt: null,
+			removedBy: null
+		});
+		changes.push(log(x, {
+			goalId: goal.id,
+			entityId: f.id,
+			action: "edited",
+			summary: `${f.name}: ${from || "Not set"} → ${r.value || "Not set"}`,
+			diffs: [{
+				field: f.name,
+				from: from || "—",
+				to: r.value || "—"
+			}]
+		}));
+	}
+	return rows.length ? {
+		...fieldRows({ fieldValues: rows }),
+		changes
+	} : null;
+}
+// src/modules/tags/tools.ts
+init_actions();
+init_goalKey();
+init_via();
+var str$3 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var READ = {
+	readOnlyHint: true,
+	openWorldHint: false
+};
+var WRITE = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: true,
+	openWorldHint: false
+};
+var ax = (ctx) => ({
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	actor: ctx.actor,
+	now: ctx.now,
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
+	...ctx.full ? { full: ctx.full } : {}
+});
+var save = (ctx, c) => ctx.save({
+	...c,
+	changes: c.changes.map((x) => ({
+		...x,
+		diffs: [...x.diffs, VIA_MCP]
+	}))
+});
+/** A rule that says no is the assistant's to fix, so it reads as an error result, not a crash. */
+async function ruled(run) {
+	try {
+		return await run();
+	} catch (e) {
+		if (e instanceof NotAllowed) return {
+			isError: true,
+			text: e.message
+		};
+		throw e;
+	}
+}
+var goalOf = (ctx, id) => {
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new NotAllowed(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
+	return g;
+};
+var names = (ctx) => liveFields(ctx.full ?? ctx.snapshot).map((f) => f.name).join(", ") || "none yet";
+/** A field by ID or name (a retired one too, by ID or name, for bringing it back). */
+var fieldRef = (ctx, ref) => {
+	const s = ctx.full ?? ctx.snapshot;
+	const t = String(ref ?? "").trim().toLowerCase();
+	const f = fieldsOf(s).find((x) => x.id === ref) ?? fieldByName(s, t) ?? fieldsOf(s).find((x) => x.name.trim().toLowerCase() === t);
+	if (!t || !f) throw new NotAllowed(`There’s no field called or with the ID ${String(ref)}. Fields: ${names(ctx)}. Use list_fields.`);
+	return f;
+};
+var tools$2 = [
+	{
+		name: "list_fields",
+		title: "The workspace’s fields",
+		description: `The workspace’s own fields on goals (up to ${FIELD_LIMITS.fields}, such as a stage or a programme): each a list of values or free text, in order, with how many of this cycle’s goals have a value. With goal_id, that goal’s value for each. Retired fields are listed apart: their values are kept, and an admin can bring them back. No rule reads a field: they are for finding and sorting.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: { goal_id: str$3("A goal’s ID or key (G-12), to give its values too.") }
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const s = ctx.full ?? ctx.snapshot;
+				const goal = a.goal_id != null ? goalOf(ctx, a.goal_id) : null;
+				const ids = new Set(ctx.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+				const row = (f) => ({
+					id: f.id,
+					name: f.name,
+					kind: f.kind,
+					kindLabel: kindWords(f),
+					values: f.kind === "list" ? f.options : [],
+					goalsWithAValue: goalsWith(s, f.id, ids)
+				});
+				return listed({
+					fields: liveFields(s).map((f) => ({
+						...row(f),
+						...goal ? { goalValue: valueOf(s, goal.id, f.id) || null } : {}
+					})),
+					retired: fieldsOf(s).filter((f) => f.retiredAt).map(row),
+					...goal ? { goal: {
+						id: goal.id,
+						title: goal.title,
+						youCanChange: canSetFields(ctx.actor, goal)
+					} } : {},
+					youCanDefine: canDefineFields(ctx.actor)
+				});
+			});
+		}
+	},
+	{
+		name: "set_goal_fields",
+		title: "Set a goal’s fields",
+		description: "Set a goal’s values for the workspace’s fields, by field name: { \"Stage\": \"Build\" }. A list field takes one of its values (any case; kept as the list writes it); free text up to 80 characters; an empty string clears it. The goal’s owner or an admin. A value a list doesn’t hold is refused with the list’s values: ask the person, or an admin can add it with save_field. Every value is checked before any is saved. With dry_run, nothing is saved: it says what would change.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id", "fields"],
+			properties: {
+				goal_id: str$3("The goal’s ID or key (G-12)."),
+				fields: {
+					type: "object",
+					description: "Field name to value, e.g. { \"Stage\": \"Build\" }; \"\" clears it.",
+					additionalProperties: { type: "string" }
+				},
+				dry_run: {
+					type: "boolean",
+					description: "Say what would change without saving anything."
+				}
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const goal = goalOf(ctx, a.goal_id);
+				const given = a.fields && typeof a.fields === "object" ? a.fields : {};
+				if (!Object.keys(given).length) throw new NotAllowed(`Give at least one field, by name. Fields: ${names(ctx)}.`);
+				const values = {};
+				for (const [name, v] of Object.entries(given)) {
+					const f = fieldByName(ctx.full ?? ctx.snapshot, name);
+					if (!f) throw new NotAllowed(`There’s no field called ${name}. Fields: ${names(ctx)}.`);
+					values[f.id] = v == null ? "" : String(v);
+				}
+				const c = setGoalFields(ax(ctx), goal, values);
+				const changes = (c?.changes ?? []).map((x) => x.summary);
+				if (a.dry_run === true) return {
+					text: changes.length ? `Would change on ${goal.title}: ${changes.join("; ")}. Nothing was saved.` : "Nothing would change.",
+					data: {
+						saved: false,
+						changes
+					}
+				};
+				if (!c) return {
+					text: "Nothing changed: the goal already has those values.",
+					data: {
+						saved: false,
+						changes
+					}
+				};
+				await save(ctx, c);
+				return {
+					text: `${changes.join("; ")} on ${goal.title} (as ${ctx.actor.name}).`,
+					data: {
+						saved: true,
+						changes
+					}
+				};
+			});
+		}
+	},
+	{
+		name: "save_field",
+		title: "Define a field",
+		description: `Admins: add a field (name, kind "list" with values, or "text"), rename one or change a list’s values (field and name or values), move it up or down (move), retire it (retire: true; its values are kept and it leaves goals’ pages) or bring a retired one back (bring_back: true). At most ${FIELD_LIMITS.fields} live fields; a name of up to ${FIELD_LIMITS.name} characters; a list holds 1 to ${FIELD_LIMITS.values} values of up to ${FIELD_LIMITS.option} characters, none twice; free text has none.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				field: str$3("The field to change, by ID or name. Leave out to add one."),
+				name: str$3("Its name, e.g. Stage."),
+				kind: str$3("For a new field: a list of values, or free text.", { enum: ["list", "text"] }),
+				values: {
+					type: "array",
+					items: { type: "string" },
+					description: "A list’s values, in order."
+				},
+				move: str$3("Move it one place.", { enum: ["up", "down"] }),
+				retire: {
+					type: "boolean",
+					description: "Retire it: its values stay on goals and in History."
+				},
+				bring_back: {
+					type: "boolean",
+					description: "Bring a retired field back, with its values."
+				}
+			}
+		},
+		annotations: {
+			...WRITE,
+			idempotentHint: false
+		},
+		async run(a, ctx) {
+			return ruled(async () => {
+				const x = ax(ctx);
+				const vals = Array.isArray(a.values) ? a.values.map(String) : void 0;
+				let c;
+				if (a.field == null) c = addField(x, {
+					name: String(a.name ?? ""),
+					kind: a.kind === "text" ? "text" : "list",
+					options: vals ?? []
+				});
+				else {
+					const f = fieldRef(ctx, a.field);
+					if (a.retire === true) c = retireField(x, f.id);
+					else if (a.bring_back === true) c = bringBackField(x, f.id);
+					else if (a.move === "up" || a.move === "down") c = moveField(x, f.id, a.move === "up" ? -1 : 1);
+					else c = changeField(x, f.id, {
+						name: a.name != null ? String(a.name) : fieldById(ctx.full ?? ctx.snapshot, f.id).name,
+						options: vals ?? f.options
+					});
+				}
+				if (!c) return { text: "Nothing changed." };
+				await save(ctx, c);
+				return { text: `${c.changes[0].summary} (as ${ctx.actor.name}).` };
+			});
+		}
+	}
+];
 // src/modules/watching/tools.ts
 init_actions();
 init_review();
@@ -27669,7 +28381,7 @@ var tools$1 = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$4,
+		annotations: READ$5,
 		async run(_a, ctx) {
 			return listed({
 				watches: ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
@@ -27703,12 +28415,12 @@ var tools$1 = [
 			}
 		},
 		annotations: {
-			...WRITE$2,
+			...WRITE$3,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$2(ctx, a.ref).id;
-			return save$2(ctx, watch(ax$2(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$2(ctx, ref).title}`, "Already watching that.");
+			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$3(ctx, a.ref).id;
+			return save$3(ctx, watch(ax$3(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$3(ctx, ref).title}`, "Already watching that.");
 		}
 	},
 	{
@@ -27721,9 +28433,9 @@ var tools$1 = [
 			required: ["watch_id"],
 			properties: { watch_id: str$2("The watch’s ID, from list_watching.") }
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
-			return save$2(ctx, unwatch(ax$2(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
+			return save$3(ctx, unwatch(ax$3(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
 		}
 	}
 ];
@@ -27744,7 +28456,7 @@ var tools = [{
 		properties: {},
 		additionalProperties: false
 	},
-	annotations: READ$4,
+	annotations: READ$5,
 	async run(_a, ctx) {
 		const retros = ctx.snapshot.retros ?? [];
 		const list = ctx.snapshot.goals.map((g) => {
@@ -27799,18 +28511,18 @@ var tools = [{
 		}
 	},
 	annotations: {
-		...WRITE$2,
+		...WRITE$3,
 		idempotentHint: true
 	},
 	async run(a, ctx) {
-		const g = goalOf$2(ctx, a.goal_id);
+		const g = goalOf$3(ctx, a.goal_id);
 		if (![
 			"hit",
 			"partly",
 			"missed"
 		].includes(String(a.result))) throw new Error("result is hit, partly or missed.");
 		if (!["carry", "stop"].includes(String(a.next))) throw new Error("next is carry or stop.");
-		return save$2(ctx, saveRetro(ax$2(ctx), g, {
+		return save$3(ctx, saveRetro(ax$3(ctx), g, {
 			result: a.result,
 			learned: String(a.learned ?? ""),
 			next: a.next
@@ -27821,18 +28533,22 @@ var tools = [{
 var tools_default = [
 	{
 		id: "feedback",
-		part: tools$5
+		part: tools$6
 	},
 	{
 		id: "metrics",
-		part: tools$4
+		part: tools$5
 	},
 	{
 		id: "reviews",
-		part: tools$3
+		part: tools$4
 	},
 	{
 		id: "spreadsheets",
+		part: tools$3
+	},
+	{
+		id: "tags",
 		part: tools$2
 	},
 	{
@@ -51912,6 +52628,8 @@ init_goalKey();
 init_records();
 /** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
+/** A table the schema asked for doesn't have (PostgREST's PGRST205, or Postgres's own words). */
+var noTable = (e) => /Could not find the table|relation .* does not exist/i.test(e.message);
 var MISSING = (fn) => `The database has no ${fn}: apply the migrations in supabase/migrations.`;
 /** A value in a PostgREST filter, quoted so commas, dots and colons in it (a time, say) read as part of it. */
 var quoted = (v) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -52011,7 +52729,10 @@ var SupabaseStore = class {
 			this.listed("okr_token_list", ws),
 			this.all("okr_views", ws),
 			this.all("okr_requests", ws),
-			loadModules(this.records, (table) => this.all(table, ws))
+			loadModules(this.records, (table) => this.all(table, ws).catch((e) => {
+				if (noTable(e)) return null;
+				throw e;
+			}))
 		]);
 		if (!cycles.length) throw new Error("This workspace has no cycle yet.");
 		return upgradeAsks({

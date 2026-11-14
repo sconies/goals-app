@@ -1,0 +1,17 @@
+rule,case,field,typed,kept,problem
+value,list-exact,Stage,Build,Build,
+value,list-case,Stage, build ,Build,
+value,list-unknown,Stage,Operate,,"“Operate” isn’t one of Stage’s values: Discover, Build or Run."
+value,list-clear,Stage,,,
+value,text,Programme,Payments uplift,Payments uplift,
+value,text-long,Programme,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,,Keep Programme to 80 characters.
+value,text-80,Programme,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,
+field,ok,Stage,Discover|Build|Run,,
+field,no-name,  ,Discover|Build|Run,,Give the field a name.
+field,name-taken,stage,Discover|Build|Run,,There’s already a field called “Stage”.
+field,name-of-retired,Stage,Discover|Build|Run,,
+field,seventh,Region,,,A workspace has at most 6 fields. Retire one first.
+field,list-empty,Stage,,,A list needs at least one value.
+field,list-twice,Stage,Build|build,,“build” is in the list twice.
+field,list-21,Stage,V0|V1|V2|V3|V4|V5|V6|V7|V8|V9|V10|V11|V12|V13|V14|V15|V16|V17|V18|V19|V20,,A list holds at most 20 values.
+field,text-with-values,Programme,,,"A free-text field has no values: choose A list of values, or leave the values out."
