@@ -2,7 +2,7 @@
 /* Rule RS1 (docs/design/round-4/reviews-switch/spec.md 4): one phrase for the clock, dueWords. The table's three rows,
    the due flag's sentence, and the receipt that says it. */
 import { dueWords, dueWordsOn, receiptText } from './progress';
-import { heldOnDueDay } from './review';
+import { heldOnDueDay, sessionOnDueDay } from './review';
 import { articleById, articleWords } from '../help/guide';
 import type { Cycle, Review } from './types';
 
@@ -24,6 +24,15 @@ describe('dueWords (RS1)', () => {
     const none = [review({ weekday: 1 }), review({ endedAt: '2026-11-01' }), review({ removedAt: '2026-11-01' }), review({ everyWeeks: 4 }), review({ createdAt: '2026-11-13T09:00:00Z' })];
     expect(heldOnDueDay(none, cycle, 46)).toBe(false);
     expect(dueWords(true, cycle, 46, false).by).toBe('by Thursday');
+  });
+
+  it('a review’s own page says “Before this review” only in a week it is held on the due day (review of #432)', () => {
+    expect(sessionOnDueDay(review(), cycle, 46)).toBe(true);
+    // A four-weekly review on the due weekday, in a week with no session: not “before this review”.
+    const four = review({ everyWeeks: 4 });
+    const held = [45, 46, 47, 48].filter((w) => sessionOnDueDay(four, cycle, w));
+    expect(held).toEqual([48]);
+    expect(sessionOnDueDay(review({ weekday: 1 }), cycle, 46)).toBe(false);
   });
 
   it('Reviews off: “by Thursday”, whatever is held', () => {

@@ -3207,8 +3207,14 @@ function sessionDate(r, cycle, week) {
 * dueWords then says "before Thursday’s review"; otherwise "by Thursday".
 */
 function heldOnDueDay(reviews, cycle, week, personId) {
+	return reviews.some((r) => !r.removedAt && !r.endedAt && (personId == null || r.people.includes(personId)) && sessionOnDueDay(r, cycle, week));
+}
+/** Whether this review has a session in `week` on the day check-ins are due: on the due weekday is not enough, as a
+fortnightly, monthly or quarterly review has weeks with no session (review of #432). Its page and get_review say
+"Before this review" only then. */
+function sessionOnDueDay(r, cycle, week) {
 	const w = Math.max(1, week);
-	return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && (personId == null || r.people.includes(personId)) && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w);
+	return r.weekday === cycle.reviewDay && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w;
 }
 /**
 * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
@@ -15750,6 +15756,30 @@ var _virtual_faro_modules_default = [
 		}
 	},
 	{
+		id: "tags",
+		name: "Fields",
+		summary: "Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.",
+		group: "tools",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [],
+		help: [],
+		requirements: [],
+		journeys: [],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text; a goal has at most one value per field. No rule reads a field. Today it holds its tables (migration 0052) and its rule (tags-fields); its screens, its goal block, its filters, its sheet columns and its AI tools come next (TG1, TG2).",
+			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule."],
+			"exit": ["fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts).", "The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, and a value over 80 characters (migration 0052's checks, src/spec/limits.ts)."],
+			"gaps": ["Its two tables, faro.goal_fields and faro.goal_field_values (migration 0052, on module_tables as module tags), are made one merge ahead of the code that uses them; records.ts claims them in TG1, and module.json lists them then.", "Nothing draws a field yet: Workspace → Fields, the goal's Fields block, the MCP tools list_fields and set_goal_fields, and the switch's off states are TG1; the filters, saved views, Data's column and the sheet's columns with the import's question are TG2 (docs/design/round-4/tags/spec.md, section 10). Until then switching Fields off changes nothing anyone can see."]
+		}
+	},
+	{
 		id: "watching",
 		name: "Watching",
 		summary: "Follow goals you don’t own: they show on your Home and under Watching in Goals.",
@@ -18643,6 +18673,7 @@ var help$3 = [{
 			list: [
 				"At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.",
 				"Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.",
+				"It is headed “Before this review” only in a week the review is held on the day check-ins are due. A review held on another day, or a fortnightly, monthly or quarterly one in a week it isn’t held, shows the week and its due date instead (“Week 46, due by Thursday 12 Nov”) and counts check-ins on time.",
 				"It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it."
 			]
 		},
@@ -26869,6 +26900,12 @@ function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
 		weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue)
 	};
 }
+/** The Before this review panel's heading on a review's page and in get_review (review of #432): "Before this review"
+only for a session held on the due day in that week (`onDueDay`, review.ts sessionOnDueDay); otherwise the week and
+its due date, as no review is held before the deadline. */
+function beforeReviewHeading(onDueDay, cycle, week) {
+	return onDueDay ? "Before this review" : `Week ${week}, due by ${dueWords$1(false, cycle, week).date}`;
+}
 // src/modules/reviews/tools.ts
 init_actions();
 init_removal();
@@ -26962,11 +26999,15 @@ var tools$3 = [
 					answer: answerOf(d)?.text ?? null
 				} : {}
 			}));
-			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
+			const wk = Math.min(x.week, ctx.week);
+			const onDueDay = sessionOnDueDay(r, ctx.cycle, wk);
+			const heading = beforeReviewHeading(onDueDay, ctx.cycle, wk);
+			const b = beforeReview(x.items.map((i) => i.goal), wk, {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
+			}, ctx.cycle, ctx.today, ctx.actor.id, onDueDay);
 			const before = b ? {
+				heading,
 				says: b.says,
 				due: b.counts.due,
 				inTime: b.counts.inTime,
@@ -26994,7 +27035,7 @@ var tools$3 = [
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` Before this review: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` ${heading}: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},

@@ -38,6 +38,8 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
 
 - A proposed goal isn’t stopped, and only a proposed goal names who proposed it. (`okr_goals_proposed_ok`)
+- A preference kept on the server for a person is one of the listed keys: today only what they opened and put off among proposed goals. Everything else a person chose stays in their browser. (`person_prefs_key_check`)
+- A preference kept on the server for a person is at most 16 KB. (`person_prefs_value_check`)
 
 ## Worked examples
 
