@@ -252,6 +252,9 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #498 Help: a switched-off module's page has no Help link to its hidden article | 4 | 0 | 0 | 0 |
 | #501 PR CI caps checks as well as journeys | 4 | 0 | 0 | 0 |
 | #491 SM1h: with one team, Home shows The team's goals once | 1 | 0 | 0 | 0 |
+| #487 TG1: the Fields module (Workspace, Fields; a goal's Fields block; three AI tools; 0054) | 2 | 0 | 0 | 2 |
+| #508 KL: the rebuild lessons in the generated kit | 4 | 0 | 0 | 0 |
+| #464 GR: guardrails on a goal | 7d | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2173,4 +2176,29 @@ Read; its test passes on main (5 in `src/spec/prEvalsCap.test.ts`). Nothing foun
 ### #491 SM1h: with one team, Home shows "The team's goals" once (track 1, merged 14 Nov, 18:44 UTC)
 
 Read; its tests pass on main (37 in `src/domain/home.test.ts`); not walked on screen by me (U49 now checks the heading and that no "Your goals", "Your team" or "Goals you watch" is beside it). Nothing found. `theOneTeam` (exactly one team, and the viewer is in it or leads it) is a pure rule in `src/domain/home.ts`; Home's first section then lists that team's goals through the query port with the viewer's own first, a teammate's row carries its owner's name, its counts and links go to `scope=team`, and "Your team" is not drawn. An admin in no team keeps "Your goals". Help, What's new, the requirement, the rule's words with a worked example and the module map's line come with it. **#492's low is closed here:** the spec's rule 4 examples (`homeBlocks`) and `homeSets`'s comment now read every scope.
+
+### #487 TG1: the Fields module (track 2, merged 14 Nov, 19:14 UTC)
+
+Read (the rules, the records, the actions and tools, the store's change, migration 0054, the core's small changes, the styles), with a probe of the save on PGlite; its tests pass on main (17 in `src/modules/tags`); the screens were not walked by me (U-journeys and N34, Fields off, are its browser checks). No high, no medium.
+
+- **The save on tables with no `removed_at` (the check the last reviewer left): holds (ran).** Through the Supabase adapter on `faro` and through plain Postgres, with every migration: a field and two values save and read back the same; a second save with one value marked removed by the core and one plain value in the same batch writes the first as cleared (`value ''`) and the second as changed, with no `removed_at` sent. `okr_commit` upserts a module's rows by their own keys, so nothing needed the column.
+- The rules are pure and in the module (`fields.ts`): admins define fields, the owner or an admin sets a goal's values, every value is checked before any is saved, each change is in History as entity `field`. The actions and the three tools call the same functions; the permission is in the rule, not the tool. A switched-off Fields' Workspace address says it is off (`NotFound` reads a module's sections). Module-map, README, architecture and handoff lines, a rebuild stage (outline), conformance rows, Help and What's new come with it. 0054 is one check, dropped and made again, with every name on `faro.`; the code doesn't rely on it, so it ships with the code.
+- The Data filter fix that rides along (a second filter built on the address as it is now) is the same pattern Goals uses.
+
+**Lows.** (1) (Ran.) Through the old names in `public`, the fallback while the Data API doesn't offer `faro`, a save of a field succeeds and the next load reads no fields: the store treats the missing table as empty on reads but `okr_commit` still writes. `faro` is offered on the live project (planning, checked 13 Nov), so nobody meets it today; if the fallback were ever in use, Fields would look like it loses what was just added. (2) (Read.) `setGoalFields` asks who may, not whether the goal is still running: a stopped or removed goal's values can be set through the tool.
+
+### #508 KL: the rebuild lessons in the generated kit (track 4, merged 14 Nov, 19:46 UTC); #507, docs
+
+Read. Nothing found. The retro's lessons move from hand-written `docs/handoff.md` into `src/spec/rebuild.ts`, which `npm run spec` writes to `spec/rebuild/lessons.md`; the handoff page points at it. No rule or screen changes. **#507** is planning's handover.
+
+### #464 GR: guardrails on a goal (track 7d, merged 14 Nov, 19:46 UTC)
+
+Read (the rule, the engine, the row mapper, carry and recarry, the screens' use, the spec's words); its tests pass on main (7 in `guards.test.ts` and `guardsRow.test.ts`); not walked on screen by me (U171 is its journey). No high, no medium. Both checks the last reviewer left hold:
+
+- **`guards` is in `BUILT_KEYS`** (`src/domain/changeset.ts:308`), so a workbook row that says nothing about guards keeps the ones the goal has.
+- **No JSON null reaches 0051's check (ran, its own test on PGlite).** `goalToRows` writes `guards` on every row as a list or SQL null (`[]` and absent both become null), and the test puts a mixed batch through `jsonb_populate_recordset` and the check's own expression.
+
+The rule lives once (`guardBreaches`, `guardedCalc` in `src/domain/guards.ts`): the check-in form, the one-table check-in, the change engine (a sheet, the AI tools, with the guards' own rows in the same file counted) and the conformance cases all pass the breaches to `evaluate`. A guard reads the goal's own `guards` field and range goals, never a module's rows, which is Lane's 2a; the module map and README say it is core with no switch and why. Guards follow their goals into the next year only when the guard carries too. The words are out of the first download.
+
+**Low (read).** Guards can be named only on the goal's edit form: the workbook has no column for them and no AI tool sets them (as `alsoHelps`), so a workspace built from another's exported workbook has none.
 
