@@ -5252,6 +5252,7 @@ From the [reviews](../modules/reviews/README.md) module: switched off with it.
     reviewed: number;
     of: number;
     beforeThisReview: {
+        heading: string;
         says: string;
         due: number;
         inTime: number;
