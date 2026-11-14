@@ -2,6 +2,37 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Saturday 14 November, ~15:10 UTC (context near 300k, handing over before SM1h; supersedes the ~13:40 entry on #482's branch)
+
+Session: session_012kbr8xPMKxizxiksy71mcL. Planning: session_012kbr91eefh4gwCAztBncNT. Reviewer: session_012kbr8xhnbxBn8GD91Ct4dL (send each merged code PR's number in one line).
+
+**List (planning, 14 Nov 13:34):** #469, #482, SM1h, HM7, HB3. PF1–PF2 and all review lows moved to the backlog (#483, "Deferred to after the handoff"): fix a low only when it rides with a change to the same lines.
+
+**Merged:** #479 and #468 (HM3). The reviewer has been told about both. HM3's F1 needed a real fix: its phone checks on Oskar's Home now wait for Goals you watch (`.home-watch .tree .trow-why`), as its desktop checks did.
+
+**#482 (`lane-answers`): ready, auto-merge on, CI was running at 14:41.** It holds Lane's answers 1–4.
+- **Planning's (a), authorship:** in `planChanges`, `author = existing ? existing.authorId : actor.id`, so replacing a check-in keeps who checked in at every door; the actor is the replacer, and History's correction line names them with the reason.
+- **Ended year:** a missing week can be added late with a reason, at every door (`endedAdd`, and the form's refusal now applies only when the week has a check-in). Replacing one is still refused.
+- **Conformance:** a new case, `corrects-keeps-author`, plus an `author` column in changes.csv and `given.reason`.
+- **What's new:** "A correction keeps whose check-in it is". It says Data and MCP behave differently now.
+
+When #482 merges, tell the reviewer.
+
+**#469 HM4: retargeted to main.** Main is merged in locally in the worktree `../wt-hm4` (commit 14b8fef2, clean, spec current). A Sonnet agent was gating it (vitest, then `evals:changed`) and pushes only if green. If the session ends first, rerun the gate from that worktree, or fetch the branch and merge main again. Once green: update its description (it still says "stacked on HM3", "Draft"), mark it ready, turn auto-merge on, and tell the reviewer when it merges.
+
+**SM1h (next; not started).** `docs/design/round-4/small-workspaces/spec.md` 2.1 and rule 1:
+- "Goals you watch" is not drawn while nothing is watched.
+- With one team, "Your goals" and "Your team" become one section, "The team's goals · {n}", with the viewer's own goals first.
+- No count of nought anywhere.
+
+HM3's sets live in `src/domain/homeSets.ts` and `HomeSets.tsx`. This branch (`sm1h-home`) carries only this entry so far.
+
+**Then:** HM7 (the leader's Home cell; `docs/design/home/spec.md` part 9, row 7, HM7: the standing cell, rule 7, the rest of U124, `HOME-LEADER`), then HB3 (Home's habit cell, round 4's habit spec), which follows HM7.
+
+**Traps:**
+- Use `cp -al` for a worktree's node_modules, not a symlink; the main checkout here had none, so run `npm ci` in one worktree first. After `build:mcp`, check `grep -c '^// \.\./' api/mcp.js` is 0.
+- Vitest run while evals are running times out (layers, fence, scale, proposed). Rerun those files alone.
+
 ## Track 1, Saturday 14 November, ~10:40 UTC (context past 300k, handing over; supersedes the 13 Nov 21:00 entry)
 
 Session: session_012kbr92yprssgsHbkpCFh3s. Planning: session_012kbr91eefh4gwCAztBncNT (report there once, finished results and blockers only).
