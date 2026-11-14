@@ -67,6 +67,7 @@ const ALLOWED: { file: string; word: string; why: string }[] = [
   { file: 'src/screens/CheckInFlow.tsx', word: 'Done', why: 'The button that closes the “why better than the numbers” sheet: finished with this sheet, not a status.' },
   { file: 'src/screens/DataLayout.tsx', word: 'Done', why: 'The button that closes the column layout sheet, not a status.' },
   { file: 'src/screens/GoalsScreen.tsx', word: 'Done', why: 'The button that closes the phone’s View sheet (goals spec, 2.4), not a status.' },
+  { file: 'src/screens/Onboarding.tsx', word: 'Done', why: 'The button that closes the How you’ll work sheet in set-up, not a status.' },
   { file: 'src/screens/Watching.tsx', word: 'Done', why: 'The button that finishes changing what you watch, not a status.' },
   { file: 'src/ui/Pick.tsx', word: 'Done', why: 'The button that closes a picker where several can be chosen (find-and-pick), not a status.' },
   { file: 'src/ui/AiAssistants.tsx', word: 'Done', why: 'The button that closes the assistants sheet, not a status.' },

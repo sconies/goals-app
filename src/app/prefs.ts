@@ -3,5 +3,9 @@
    it through usePrefs() (app/search). */
 import { browserPrefs } from '../adapters/local';
 import { serverPrefs } from '../adapters/serverPrefs';
+import { mergeProposals } from './proposalSeen';
 
-export const prefs = serverPrefs(browserPrefs('faro-prefs:'));
+/** How two copies of each server-kept key combine (one for each of SERVER_PREF_KEYS). */
+export const PREF_MERGES = { proposals: mergeProposals };
+
+export const prefs = serverPrefs(browserPrefs('faro-prefs:'), PREF_MERGES);
