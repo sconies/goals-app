@@ -63,6 +63,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - deleting a check-in and undoing an import ask the same rule › the owner deletes their latest check-in; an admin can’t
 - deleting a check-in and undoing an import ask the same rule › the owner deletes one an admin loaded onto their goal; a previous owner can’t delete theirs
 - deleting a check-in and undoing an import ask the same rule › an admin can’t undo the owner’s correction of a check-in; the owner can
+- deleting a check-in and undoing an import ask the same rule › an admin’s workbook row that replaces someone else’s check-in for this week is a correction, with a reason (Lane, 14 Nov)
 - deleting a check-in and undoing an import ask the same rule › an admin still undoes a workbook they loaded (the workbook door)
 
 ### [evals/onboarding.eval.ts](../../../evals/onboarding.eval.ts)

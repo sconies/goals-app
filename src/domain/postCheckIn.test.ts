@@ -74,6 +74,29 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(ok.commit.changes.find((c) => c.action === 'imported')!.undo!.checkIns).toEqual([{ id: past.id, before: past }]);
   });
 
+  it('an ended year: a missing week can still be added, with a reason, at every door; replacing one is refused (Lane, 14 Nov)', () => {
+    const pw = checkInsFor(goal, s.checkIns).filter((c) => c.week < week).pop()!.week;
+    const gap: Snapshot = { ...s, checkIns: s.checkIns.filter((c) => !(c.goalId === goal.id && c.week === pw)) };
+    const late = (snap: Snapshot) => ({ ...x(snap), now: new Date(Date.parse(cycleDates(cycle).wrapUpCloses) + 86_400_000 * 2).toISOString() });
+    const draft = { ...emptyDraft(goal, null), value: String(Math.round(planAt(goal.plan, pw, cycle.weeks))) };
+    // The form: added late with a reason; refused without one; replacing a week that has one is refused.
+    expect(() => postCheckIn(late(gap), post({ week: pw, mode: 'correct', reason: '', draft }))).toThrow(/Say why, in a sentence of at least 10/);
+    const added = postCheckIn(late(gap), post({ week: pw, mode: 'correct', reason: 'The week was missed before the year closed', draft }));
+    expect(added.commit.changes.find((c) => c.entity === 'check-in')!.summary).toMatch(new RegExp(`^Added week ${pw} later: `));
+    expect(() => postCheckIn(late(s), post({ week: pw, mode: 'correct', reason: 'The week was missed before the year closed', draft }))).toThrow(`${cycle.name} has ended, so its check-ins can’t be corrected.`);
+    // A row from a workbook or MCP: asks for a reason first, then adds it the same way.
+    const row = { __row: '2', 'goal id': goal.id, week: String(pw), value: draft.value };
+    for (const via of ['spreadsheet', 'mcp'] as const) {
+      const at = late(gap);
+      const plan = (reason?: string) => planChanges({ tables: { checkIns: [row] }, snapshot: gap, cycle, week, actor: person(via === 'mcp' ? 'mateo' : 'amara'), now: at.now, newId: at.newId, via, ...(reason ? { reason } : {}) });
+      expect(plan().needsReason, via).toBe(true);
+      expect(plan().commit, via).toBeNull();
+      const done = plan('The week was missed before the year closed');
+      expect(done.commit, via).toBeTruthy();
+      expect(done.commit!.changes.find((c) => c.entity === 'check-in')!.diffs[0], via).toEqual({ field: 'Why corrected', from: '—', to: 'The week was missed before the year closed' });
+    }
+  });
+
   it('refuses “new” or “again” for a week that has passed: that is a correction', () => {
     expect(() => postCheckIn(x(), post({ week: week - 1, mode: 'again' }))).toThrow(`Week ${week - 1} has passed. Correct it, or add it, with a reason.`);
   });
@@ -113,13 +136,14 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(refused(as('mateo', 'mcp')), 'the owner').toBe(false);
   });
 
-  it('records who made the change through each exception: the admin as author and actor, with the door as its Via, and says whose it replaced', () => {
+  it('records who made the change through each exception: the owner stays the author, the admin is the actor, with the door as its Via, and says whose it replaced (Lane, 14 Nov)', () => {
     const last = s.checkIns.filter((c) => c.goalId === goal.id).at(-1)!;
     const label = { spreadsheet: 'Spreadsheet', setup: 'Set-up', table: 'Data tables' } as const;
     for (const via of ADMIN_CHECK_IN_DOORS) {
       const row = { __row: '2', id: last.id, 'goal id': goal.id, week: String(last.week), value: String((last.value ?? 0) + 1), why: 'Corrected from the source data' };
       const cs = planChanges({ tables: { checkIns: [row] }, snapshot: s, cycle, week, actor: person('amara'), now: today.toISOString(), newId: (p) => `${p}_w${++n}`, via, reason: 'Corrected from the source data.' });
-      expect(cs.commit!.checkIns!.map((c) => c.authorId), via).toEqual(['amara']);
+      expect(cs.commit!.checkIns!.map((c) => c.authorId), via).toEqual([last.authorId]);
+      expect(last.authorId, via).not.toBe('amara');
       const changes = cs.commit!.changes!;
       expect(changes.length, via).toBeGreaterThan(0);
       for (const c of changes) {
