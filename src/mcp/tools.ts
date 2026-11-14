@@ -337,8 +337,8 @@ const CORE_TOOLS: ToolDef[] = [
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+      if (scope && scope !== 'all' && (!scoped || (scope === 'mine' && !scoped.ids.length))) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       // With Reviews off `inreview=` narrows nothing, as on Goals (build review of #424).

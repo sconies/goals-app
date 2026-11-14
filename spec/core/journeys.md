@@ -137,6 +137,7 @@ Checks that Lane’s review notes stay fixed.
 | N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 | N27 | The rail’s Faro mark opens the workspace switcher, the Demo box stays on screen, and Escape returns focus to the mark | `RAIL-SWITCH` | `evals/notes/22-rail-switch.cjs` |
 | N28 | Small workspaces, quiet: no nought beside a tab or a menu row, and the empty Watching page says when you’d want it | `SMALL-QUIET` | `evals/notes/23-small-quiet.cjs` |
+| N30 | Small workspaces: a tab or a module’s row waits until it has something in it, and every address still opens | `SMALL-MENU` | `evals/notes/30-small-menu.cjs` |
 
 ## The ease test
 
