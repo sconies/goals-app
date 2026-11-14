@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { askLead, homeFor, homeLead, missedReviews, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
+import { asTeams, askLead, homeFor, homeLead, missedReviews, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
 import { buildPlatformOrg } from '../data/platformOrg';
-import { scopeToCycle } from './cycle';
+import { currentCycle as currentCycleOf, scopeToCycle } from './cycle';
+import { attentionFor, type GoalAttention } from './attention';
+import { homeSets } from './homeSets';
+import { scopesFor } from './goalsPage';
+import { watchedGoals } from './review';
 import { currentWeek, hasEnded } from './plan';
 
 /* Rule 2's worked examples (docs/design/home/spec.md): weekly, due Thursday 12 Nov, week 46 of 53. */
@@ -181,5 +185,70 @@ describe('Home rank 60 after the asks: a goal proposed for you (goal entry rule 
     expect(homeLead(facts({ today: '2026-11-13', asks: [w], proposals: [prop()] }, { done: 2 }))?.about).toBe(w.askId);
     expect(homeLead(facts({ today: '2026-11-13', proposals: [prop()] }, { done: 1, due: due(1) }))?.kind).toBe('check-in-late');
     expect(homeLead(facts({ today: '2026-11-13', asks: [waiting(ask({ askedOn: '2026-11-12' }), '2026-11-13')], proposals: [prop()] }, { done: 2 }))?.about).toBe('g132');
+  });
+});
+
+describe('Home rule 4: the sets [HOME-MANAGER]', () => {
+  // The example workspace on Wednesday 11 Nov (docs/design/home/spec.md rule 4's worked examples, with the demo's own numbers).
+  const today = new Date('2026-11-11T12:00:00Z');
+  const full = buildPlatformOrg(today);
+  const cycle = currentCycleOf(full.cycles, today)!;
+  const s = scopeToCycle(full, cycle);
+  const attention = s.goals.map((g) => attentionFor(g, s, cycle, today));
+  const setsOf = (who: string) => {
+    const p = s.people.find((x) => x.id === who)!;
+    const teams = s.teams.filter((t) => t.id === p.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name }));
+    const facts = { goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) };
+    const { tabs } = scopesFor(facts, null);
+    return { sets: homeSets({ id: who, teams }, tabs, attention, s.teams), tabs };
+  };
+  const tab = (tabs: { id: string; ids: string[] }[], id: string) => tabs.find((t) => t.id === id)!.ids.length;
+
+  it('Tunde: Your goals · 2; Your team · Build & Release, its rows not his; Watching · 1 as one row', () => {
+    const { sets, tabs } = setsOf('tunde');
+    expect(sets.mine?.total).toBe(2);
+    expect(sets.team?.names).toEqual(['Build & Release']);
+    expect(sets.team?.total).toBe(tab(tabs, 'team'));
+    expect(sets.team?.rows.every((a) => a.goal.ownerId !== 'tunde')).toBe(true);
+    expect(sets.team?.rows.length).toBe(sets.team!.needs.filter((a) => a.goal.ownerId !== 'tunde').length);
+    expect([sets.watching?.total, sets.watching?.teams]).toEqual([1, null]);
+  });
+  it('Rhea: Your team · CI/CD · 17 goals, the same as the My team tab; the rows are what needs attention without hers', () => {
+    const { sets, tabs } = setsOf('rhea');
+    expect(sets.mine?.total).toBe(8);
+    expect([sets.team?.names, sets.team?.total, tab(tabs, 'team')]).toEqual([['CI/CD'], 17, 17]);
+    expect(sets.team!.needs.some((a) => a.goal.ownerId === 'rhea')).toBe(true);
+    expect(sets.team!.rows.some((a) => a.goal.ownerId === 'rhea')).toBe(false);
+  });
+  it('Amara: Watching · 56 goals in 13 teams, as teams, worst first, the counts adding up', () => {
+    const { sets } = setsOf('amara');
+    expect(sets.mine).toBeNull();
+    const w = sets.watching!;
+    expect([w.total, w.teams?.length]).toEqual([56, 13]);
+    expect(w.teams!.reduce((n, t) => n + t.total, 0)).toBe(56);
+    expect(w.teams!.reduce((n, t) => n + t.needs, 0)).toBe(w.needs.length);
+    const off = (t: { byStatus: { status: string; n: number }[] }) => t.byStatus.find((c) => c.status === 'off')?.n ?? 0;
+    expect(w.teams!.map(off)).toEqual([...w.teams!.map(off)].sort((a, b) => b - a));
+    expect(w.teams![0]!.name).toBe('CI/CD');
+    expect(w.teams!.every((t) => !('moved' in t))).toBe(true);
+  });
+  it('Oskar: Watching · 3, every goal a row; his team Developer Experience is there, as it holds goals he doesn’t own', () => {
+    const { sets } = setsOf('oskar');
+    expect([sets.watching?.total, sets.watching?.teams]).toEqual([3, null]);
+    expect(sets.team?.names).toEqual(['Developer Experience']);
+  });
+  it('No Your team when the team scope holds only the viewer’s own goals, or there is no team', () => {
+    const g = (id: string, ownerId: string, teamId: string) => ({ goal: { id, ownerId, teamId, title: id }, status: { status: 'on' }, flags: [], weight: 0, handled: null, lookedAt: null }) as unknown as GoalAttention;
+    const list = [g('a', 'me', 't'), g('b', 'me', 't')];
+    const tabs = [{ id: 'mine' as const, label: 'Mine', ids: ['a', 'b'] }, { id: 'team' as const, label: 'My team', ids: ['a', 'b'] }];
+    expect(homeSets({ id: 'me', teams: [{ id: 't', name: 'T' }] }, tabs, list, [{ id: 't', name: 'T' }]).team).toBeNull();
+    expect(homeSets({ id: 'me', teams: [] }, tabs.slice(0, 1), list, []).team).toBeNull();
+  });
+  it('asTeams: three or more teams, or more than twelve goals in two or more', () => {
+    const t = (...ids: string[]) => ids.map((teamId) => ({ teamId }));
+    expect(asTeams(t('a', 'b', 'c'))).toBe(true);
+    expect(asTeams(t(...Array(6).fill('a'), ...Array(6).fill('b')))).toBe(false);
+    expect(asTeams(t(...Array(7).fill('a'), ...Array(6).fill('b')))).toBe(true);
+    expect(asTeams(t(...Array(40).fill('a')))).toBe(false);
   });
 });

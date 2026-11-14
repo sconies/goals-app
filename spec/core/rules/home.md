@@ -92,6 +92,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home after the build review of #305 › a session missed in the year’s last week is not “not held” once the year has ended
 - Home rank 60 after the asks: a goal proposed for you (goal entry rule 14) › leads once it has waited 7 days, oldest first, with Open it
 - Home rank 60 after the asks: a goal proposed for you (goal entry rule 14) › comes after any ask that leads, and after a check-in that does
+- Home rule 4: the sets [HOME-MANAGER] › Tunde: Your goals · 2; Your team · Build & Release, its rows not his; Watching · 1 as one row
+- Home rule 4: the sets [HOME-MANAGER] › Rhea: Your team · CI/CD · 17 goals, the same as the My team tab; the rows are what needs attention without hers
+- Home rule 4: the sets [HOME-MANAGER] › Amara: Watching · 56 goals in 13 teams, as teams, worst first, the counts adding up
+- Home rule 4: the sets [HOME-MANAGER] › Oskar: Watching · 3, every goal a row; his team Developer Experience is there, as it holds goals he doesn’t own
+- Home rule 4: the sets [HOME-MANAGER] › No Your team when the team scope holds only the viewer’s own goals, or there is no team
+- Home rule 4: the sets [HOME-MANAGER] › asTeams: three or more teams, or more than twelve goals in two or more
 
 ### [src/domain/askHandover.test.ts](../../../src/domain/askHandover.test.ts)
 

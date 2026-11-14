@@ -13,11 +13,21 @@ module.exports = {
 
     // [Home] 1, 2, 7, 18: Elena's Home on a phone.
     {
+      // Amara's Watching spans 13 teams, so it is a table of teams (Home rule 4, HM3): Oskar's three watched goals are
+      // the goal rows on a phone.
+      {
+        const [c0, q] = await open(390, 844, 'oskar', '/', true);
+        check(await css(q, '.tree .trow', 'display') === 'flex', '[Home] 1: a phone row is not stacked');
+        const t = await box(q, '.tree .trow-title'), row = await box(q, '.tree .trow');
+        check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
+        check(await css(q, '.tree .trow-why', '-webkit-line-clamp') === 'none', '[Home] 1: phone reason is still clamped');
+        check(await css(q, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
+        check(Math.round((await box(q, '.trow-title .level')).h) === 20, '[Home] 8: the level tag is not 20px tall');
+        await c0.close();
+      }
       const [c, p] = await open(390, 844, 'amara', '/', true);
-      check(await css(p, '.tree .trow', 'display') === 'flex', '[Home] 1: a phone row is not stacked');
-      const t = await box(p, '.tree .trow-title'), row = await box(p, '.tree .trow');
-      check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
-      check(await css(p, '.tree .trow-why', '-webkit-line-clamp') === 'none', '[Home] 1: phone reason is still clamped');
+      // The teams table stacks each team on a phone, and nothing scrolls sideways (checked below).
+      check(await css(p, '.teams-table tbody tr', 'display') !== 'table-row', '[Home] HM3: a team is not a stacked row on a phone');
       const ring = await box(p, '.home-hero > .ring'), eb = await box(p, '.home-hero .eyebrow');
       check(ring && Math.round(ring.w) === 40 && Math.round(ring.h) === 40, `[Home] 2: phone ring is ${ring && Math.round(ring.w)}px, not 40`);
       check(ring && eb && eb.x > ring.r && Math.abs(eb.y - ring.y) <= 4, '[Home] 2: the ring is not inline left of the eyebrow');
@@ -26,8 +36,6 @@ module.exports = {
       // The Try it card left Home for the workspace switcher (backlog WS, Lane 9 Nov).
       const needs = await box(p, '.needs-you'), changes = await box(p, '.split-b');
       check(needs && changes && needs.y < changes.y && !(await p.getByText('Try it with your own team').count()), '[Home] 18: stacked order is not hero, needs your response, important changes; or Home still offers the Try it card');
-      check(await css(p, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
-      check(Math.round((await box(p, '.trow-title .level')).h) === 20, '[Home] 8: the level tag is not 20px tall');
       check(await noSideways(p), '[Home] sideways scroll at 390');
       await c.close();
     }
@@ -65,9 +73,14 @@ module.exports = {
     }
     // [Home] 1, 3, 5: Elena at 1280 and 1440.
     for (const w of [1280, 1440]) {
+      {
+        // Oskar's watched goals are rows (Amara's are a table of teams, rule 4).
+        const [c0, q] = await open(w, 900, 'oskar', '/');
+        const why = await q.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
+        check(why.clamp === '3' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
+        await c0.close();
+      }
       const [c, p] = await open(w, 900, 'amara', '/');
-      const why = await p.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
-      check(why.clamp === '3' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
       const head = await box(p, '.page.home > .page-head'), grid = await box(p, '.page.home > .home-grid');
       check(head && grid && Math.abs(head.w - grid.w) <= 1 && grid.w <= 1200, `[Home] 5: at ${w} heading ${head && Math.round(head.w)} vs grid ${grid && Math.round(grid.w)}`);
       const side = await box(p, '.home-side');

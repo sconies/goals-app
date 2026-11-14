@@ -687,6 +687,12 @@
       "use": "copy"
     },
     {
+      "id": "HOME-MANAGER",
+      "area": "Home",
+      "text": "Someone in or leading a team sees that team on Home as the Goals page's My team scope, with the goals that need attention and aren't theirs; a review they are in is the lead on its day once their own check-ins are in, and one cell otherwise; an ask says how long it has waited and is marked once late.",
+      "use": "copy"
+    },
+    {
       "id": "HOME-OWNER",
       "area": "Home",
       "text": "Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.",
