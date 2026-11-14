@@ -138,12 +138,12 @@ Checks that Lane’s review notes stay fixed.
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-OWNER` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
 | N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
-| N23 | The check-in rhythm: the read-back counts what the rule counts; only an admin can change it | `RHYTHM-OPTIONAL` `ADMIN` | `evals/notes/22-rhythm.cjs` |
 | N25 | Who may speak for a review: a non-member reads and is told who can add them; a member and an admin speak | `REVIEW-SPEAK` | `evals/notes/13-review-speak.cjs` |
 | N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 | N27 | The rail’s Faro mark opens the workspace switcher, the Demo box stays on screen, and Escape returns focus to the mark | `RAIL-SWITCH` | `evals/notes/22-rail-switch.cjs` |
 | N28 | Small workspaces, quiet: no nought beside a tab or a menu row, and the empty Watching page says when you’d want it | `SMALL-QUIET` | `evals/notes/23-small-quiet.cjs` |
 | N30 | Small workspaces: a tab or a module’s row waits until it has something in it, and every address still opens | `SMALL-MENU` | `evals/notes/30-small-menu.cjs` |
+| N31 | The check-in rhythm: the read-back counts what the rule counts; only an admin can change it | `RHYTHM-OPTIONAL` `ADMIN` | `evals/notes/31-rhythm.cjs` |
 
 ## The ease test
 

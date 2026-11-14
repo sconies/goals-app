@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (176): build it as Faro does.
+- **Copy** (177): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -707,7 +707,7 @@ Whoever sets up a workspace is its admin. Admins add people and change their det
 
 - **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** N23, U5, U10, U14, U60, U141
+- **Journeys and checks:** N31, U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 
@@ -1467,7 +1467,7 @@ An admin chooses the check-in rhythm for a workspace: every week, or none. With 
 
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
-- **Journeys and checks:** F20, N23, U101, U102
+- **Journeys and checks:** F20, N31, U101, U102
 
 ### FEATURE-GROUPS
 
