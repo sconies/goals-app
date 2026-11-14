@@ -4975,7 +4975,7 @@ var init_correctReason = __esmMin((() => {
 /**
 * Rule 3: what a reading needs before a check-in records it, the same at every door (the engine asks it of the form, the
 * one table, the AI tools and a file alike). The reading is the source's: a finite number, measured at a time that parses,
-* not after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
+* not more than a day after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
 * reading whose number differs from it needs a reason, one of 2.2's four; "Something else" needs at least
 * MIN_CORRECT_REASON characters of the owner's words, and no reason's words may run past MAX_CORRECT_REASON. Null when it
 * can be recorded.
@@ -4986,7 +4986,7 @@ function readingProblem(r, value, decimals, now) {
 	const at = typeof r.at === "string" ? Date.parse(r.at) : NaN;
 	const t = typeof now === "string" ? Date.parse(now) : now.getTime();
 	if (!Number.isFinite(at)) return `When ${source} measured its number can’t be read, so it can’t be recorded.`;
-	if (at > t) return `${source}’s number is dated after now, so it can’t be recorded.`;
+	if (at > t + 864e5) return `${source}’s number is dated after now, so it can’t be recorded.`;
 	if (t - at > RULES.readingMaxDays * 864e5) return `${source}’s number is more than ${RULES.readingMaxDays} days old, so it can’t be recorded.`;
 	if ((r.why?.text ?? "").trim().length > 500) return `Say why your number is different in at most 500 characters.`;
 	if (value == null || sameAtPlaces(value, r.value, decimals)) return null;

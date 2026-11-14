@@ -34,7 +34,7 @@ export const filledAt = (v: number, decimals: number) => String(Number(v.toFixed
 /**
  * Rule 3: what a reading needs before a check-in records it, the same at every door (the engine asks it of the form, the
  * one table, the AI tools and a file alike). The reading is the source's: a finite number, measured at a time that parses,
- * not after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
+ * not more than a day after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
  * reading whose number differs from it needs a reason, one of 2.2's four; "Something else" needs at least
  * MIN_CORRECT_REASON characters of the owner's words, and no reason's words may run past MAX_CORRECT_REASON. Null when it
  * can be recorded.
@@ -45,7 +45,9 @@ export function readingProblem(r: CheckInReading, value: number | null, decimals
   const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
   const t = typeof now === 'string' ? Date.parse(now) : now.getTime();
   if (!Number.isFinite(at)) return `When ${source} measured its number can’t be read, so it can’t be recorded.`;
-  if (at > t) return `${source}’s number is dated after now, so it can’t be recorded.`;
+  // A day's grace: a source's clock, a time zone, or a demo whose today is pinned while its time of day is the clock's
+  // (a post at 01:00 against a reading at 09:00 the same day) may put a true reading a few hours ahead.
+  if (at > t + 86_400_000) return `${source}’s number is dated after now, so it can’t be recorded.`;
   if (t - at > RULES.readingMaxDays * 86_400_000) return `${source}’s number is more than ${RULES.readingMaxDays} days old, so it can’t be recorded.`;
   if ((r.why?.text ?? '').trim().length > MAX_CORRECT_REASON) return `Say why your number is different in at most ${MAX_CORRECT_REASON} characters.`;
   if (value == null || sameAtPlaces(value, r.value, decimals)) return null;

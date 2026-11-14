@@ -67,6 +67,9 @@ describe('rule 3: a reading is recorded only as the rule allows', () => {
     expect(readingProblem(r({ why: { kind: 'else', text: 'Release branch moved.' } }), 14, 0, at)).toBe(null);
     expect(readingProblem(r({ at: '2020-01-01T09:00:00Z' }), 12, 0, at)).toMatch(/more than 7 days old/);
     expect(readingProblem(r({ at: '2027-01-01T09:00:00Z' }), 12, 0, at)).toMatch(/dated after now/);
+    // A day's grace: the demo pins today but keeps the clock's time of day, so a post at 01:00 meets a 09:00 reading.
+    expect(readingProblem(r({ at: '2026-11-05T09:00:00Z' }), 12, 0, '2026-11-05T01:00:00Z')).toBe(null);
+    expect(readingProblem(r({ at: '2026-11-06T09:00:00Z' }), 12, 0, '2026-11-05T01:00:00Z')).toMatch(/dated after now/);
     expect(readingProblem(r({ at: 'Thursday' }), 12, 0, at)).toMatch(/can’t be read/);
     expect(readingProblem(r({ value: Number.NaN }), 12, 0, at)).toMatch(/can’t be read/);
     expect(readingProblem(r({ value: '12' as unknown as number }), 12, 0, at)).toMatch(/can’t be read/);
