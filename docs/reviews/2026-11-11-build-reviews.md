@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `20c45115` (#477), the head of main at 14:15 UTC, 14 Nov. Expected next: #485 (PP0's code) and #476 (a `restore_removed` test with Reviews off). No medium is open.
+- **Last merge fully reviewed:** `2d9ab884` (#485), the head of main at 14:35 UTC, 14 Nov. Expected next: #476 (a `restore_removed` test with Reviews off). One medium is open: #485's (two devices, one list).
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What was left of #416 (a review held on the due weekday, but not this week) is fixed by #479.
 - **Who gets what (Lane, 14 Nov, relayed by planning at 13:34 UTC):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (they move to the backlog, #483).
@@ -239,6 +239,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #479 Before this review only when held on the due day that week (#432's medium) | readings | 0 | 0 | 0 |
 | #484 PP0: migration 0053, person_prefs | 2 | 0 | 0 | 1 |
 | #477 SM1 review: a menu row drawn in one workspace no longer follows you into another (#461's medium) | 2 | 0 | 0 | 0 |
+| #485 PP1: a proposed goal's Opened and Not yet follow the person between devices | 2 | 0 | 1 | 2 |
 
 **High findings, and where each stands**
 
@@ -2081,3 +2082,11 @@ Read against the faro rules; it is Lane's answer of 14 Nov ("Opened" kept on the
 ### #477 SM1 review: #461's medium (track 2, merged 14 Nov)
 
 **Fixed; the reproduction re-run at `20c45115`.** The rows drawn are kept per workspace (`src/ui/Shell.tsx`, the set is replaced when `app.ws.id` changes). The same steps as before, with no reload: a new workspace set up from the demo has no Metrics row; Example data has it; back in the new workspace it is gone; after a reload, still gone. N30 now builds a workspace with metrics and one without, switches between them through the switcher and asserts the row at each step, which closes #461's first low. The requirement no longer claims Home's sections (the second low): it says they are backlog SM1h, not built.
+
+### #485 PP1: Opened and Not yet kept per person on the server (track 2, merged 14 Nov)
+
+Read; the medium run against the adapter with a stand-in server. This builds Lane's answer of 14 Nov. Prefs stay a port: `serverPrefs` wraps the browser's, keeps only the keys migration 0053 allows (a test holds the two lists together), reads from memory so no screen waits, and sends a change behind itself. The rows arrive with the workspace (`loadWs`), a store with no server is plain browser Prefs, and a failed read or send leaves this browser's value. Help and What's new say it.
+
+**1. Medium (ran). Two devices open in the same hour lose each other's "Opened" and "Not yet".** The value is one list for the person, each device changes its own copy as loaded and sends the whole of it (`src/app/proposalSeen.ts:16-27`, `serverPrefs.set`), and nothing reads the server again before writing. Laptop loads and opens A; phone loads (sees A) and opens B; the laptop, not reloaded, opens C: the server holds A and C, and B asks again on both from the next load. The same for a put-off. It is the case the feature is for. Fix: merge on the way in (read the row, union the opened ids and keep the later put-off date, then write), or keep a row per goal instead of one list.
+
+**Lows.** (1) A browser that had opened goals before today loses them the first time another device writes: once the server has a row, it wins whole over this browser's older list, with no merge. (2) Forgetting a value (`set` with null) is kept for the visit only, so it returns on the next load; nothing forgets one today.
