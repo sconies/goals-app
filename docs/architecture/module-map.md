@@ -62,6 +62,7 @@ Of the features in the core today, AI access is **distinct but not yet switchabl
 | Wrap-up (`wrap-up`; SW1, the same) | `wrap-up` | — | `/retro` and `/retro/:goalId`, Home's wrap-up lead and "See the wrap-up", Goals' Wrap up, Cycles' "Open the wrap-up", `get_wrap_up`, `wrap_up_goal`, its Help article. Results, carrying on and starting the next year stay core. Its read-back counts the wrap-ups kept | Module: Wrap-up |
 | Goal map (`goal-map`; SW1, the same) | `goal-map` | — | Goals' Map layout (a link or view asking for it opens the List and says so); its Help article; no tools | Module: Goal map |
 | Feedback (`feedback`; SW1, the same) | `feedback` | — | The Feedback menu row, `/feedback` and its old addresses, Send feedback, Mark up this screen and Ctrl+Shift+M, the seven inbox tools and `send_feedback`, its two Help articles. It acts at once: its read-back needs the builders' store counted per workspace (SW4) | Module: Feedback |
+| Fields (`tags`; TG0: its tables and rule, no screens yet) | `tags` | — | Nothing yet: TG1 adds Workspace → Fields, a goal's Fields block and `list_fields`/`set_goal_fields`; TG2 the filters and the sheet's columns. The values stay while it is off | Module: Fields |
 
 ### Designed, not built
 

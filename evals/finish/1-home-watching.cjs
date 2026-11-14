@@ -90,7 +90,9 @@ module.exports = {
       {
         // Oskar's watched goals are rows (Amara's are a table of teams, rule 4).
         const [c0, q] = await open(w, 900, 'oskar', '/');
-        const why = await q.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
+        // Goals you watch load after Home's first download (HM3): wait for its rows.
+        await q.waitForSelector('.home-watch .tree .trow-why', { timeout: 10000 });
+        const why = await q.$eval('.home-watch .tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
         check(why.clamp === '3' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
         await c0.close();
       }

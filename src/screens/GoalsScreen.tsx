@@ -58,8 +58,10 @@ export function GoalsScreen() {
   const facts = useMemo(() => scopeFacts(app.snapshot, app.viewer), [app.snapshot, app.viewer]);
   const modules = useModules();
   const mapHere = goalMapOn(modules.on);
-  const { tabs: scopeTabs, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'), { watching: watchingOn(modules.on) });
-  const hasScope = (x: Scope) => scopeTabs.some((t) => t.id === x);
+  const { tabs: drawnTabs, every: everyScope, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'), { watching: watchingOn(modules.on) });
+  // Every address still opens (SM1): a tab that waits is drawn while it is the one open, except My team, which goes to
+  // All when it isn't drawn (it is the same list).
+  const hasScope = (x: Scope) => (x === 'team' ? drawnTabs : everyScope).some((t) => t.id === x);
   // Old addresses (show=…, a filter with no scope, a bare /goals) say what they meant, replacing the entry (rule 6).
   // A filter naming a team, person or goal the workspace doesn't have is dropped, and the page says so (spec 2.1, item 7).
   const [moved, setMoved] = useState<{ text: string; at: string; from: string } | null>(null);
@@ -99,7 +101,8 @@ export function GoalsScreen() {
   }, [params, opens, loaded, mapHere]);
   const scope: Scope = hasScope(params.get('scope') as Scope) ? (params.get('scope') as Scope) : opens;
   useEffect(() => { if (params.get('scope')) prefs.set(app.ws.id, app.viewer.id, 'goals-scope', scope); }, [scope, params, prefs, app.ws.id, app.viewer.id]);
-  const scopeTab = scopeTabs.find((t) => t.id === scope)!;
+  const scopeTab = everyScope.find((t) => t.id === scope)!;
+  const scopeTabs = drawnTabs.some((t) => t.id === scope) ? drawnTabs : everyScope.filter((t) => t.id === scope || drawnTabs.includes(t));
   const inScope = useMemo(() => new Set(scopeTab.ids), [scopeTab]);
   const group: Group = (GROUPS.some(([k]) => k === params.get('group')) ? params.get('group') : ownGroup(scope)) as Group;
   const switchOn = params.get('attention') === '1' || !!params.get('needs');
@@ -202,11 +205,24 @@ export function GoalsScreen() {
   const tabRow = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const row = tabRow.current;
-    const tab = row?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (!row || !tab || row.scrollWidth <= row.clientWidth) return;
-    const left = tab.offsetLeft - row.offsetLeft, right = left + tab.offsetWidth;
-    if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 4);
-    else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
+    if (!row) return;
+    const bring = () => {
+      const tab = row.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!tab || row.scrollWidth <= row.clientWidth) return;
+      const left = tab.offsetLeft - row.offsetLeft, right = left + tab.offsetWidth;
+      if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 4);
+      else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
+    };
+    bring();
+    // Again whenever a tab is added or changes size (SM1: a tab that gets its first goal, a saved view or a count that
+    // arrives after the page opens widens the row; on a slow phone that comes after the first scroll, F5 L&T 2).
+    if (typeof ResizeObserver === 'undefined') return;
+    const sized = new ResizeObserver(() => bring());
+    const watch = () => { sized.disconnect(); sized.observe(row); for (const el of row.children) sized.observe(el); };
+    watch();
+    const added = new MutationObserver(() => { watch(); bring(); });
+    added.observe(row, { childList: true });
+    return () => { sized.disconnect(); added.disconnect(); };
   }, [scope, activeView?.id]);
   const groupWord = GROUPS.find(([k]) => k === group)![1];
   const onMap = layout === 'map';

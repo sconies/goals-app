@@ -4982,7 +4982,8 @@ var init_correctReason = __esmMin((() => {
 * can be recorded.
 */
 function readingProblem(r, value, decimals, now) {
-	const source = typeof r?.source === "string" && r.source.trim() ? r.source.trim() : "The source";
+	if (typeof r?.source !== "string" || !r.source.trim()) return "A reading needs the name of the source that read it, so it can’t be recorded.";
+	const source = r.source.trim();
 	if (typeof r?.value !== "number" || !Number.isFinite(r.value)) return `${source}’s number can’t be read, so it can’t be recorded.`;
 	const at = typeof r.at === "string" ? Date.parse(r.at) : NaN;
 	const t = typeof now === "string" ? Date.parse(now) : now.getTime();
@@ -15407,6 +15408,7 @@ var _virtual_faro_modules_default = [
 		],
 		redirects: [["/data/metrics", "/metrics"]],
 		navigation: ["Metrics"],
+		menu: { "waitsFor": "metrics" },
 		places: [
 			"goal.facts",
 			"goal.measure",
@@ -15744,6 +15746,30 @@ var _virtual_faro_modules_default = [
 				"bulk_change"
 			],
 			"ColumnsHelp": ["get_help", "export"]
+		}
+	},
+	{
+		id: "tags",
+		name: "Fields",
+		summary: "Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.",
+		group: "tools",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [],
+		help: [],
+		requirements: [],
+		journeys: [],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text; a goal has at most one value per field. No rule reads a field. Today it holds its tables (migration 0052) and its rule (tags-fields); its screens, its goal block, its filters, its sheet columns and its AI tools come next (TG1, TG2).",
+			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule."],
+			"exit": ["fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts).", "The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, and a value over 80 characters (migration 0052's checks, src/spec/limits.ts)."],
+			"gaps": ["Its two tables, faro.goal_fields and faro.goal_field_values (migration 0052, on module_tables as module tags), are made one merge ahead of the code that uses them; records.ts claims them in TG1, and module.json lists them then.", "Nothing draws a field yet: Workspace → Fields, the goal's Fields block, the MCP tools list_fields and set_goal_fields, and the switch's off states are TG1; the filters, saved views, Data's column and the sheet's columns with the import's question are TG2 (docs/design/round-4/tags/spec.md, section 10). Until then switching Fields off changes nothing anyone can see."]
 		}
 	},
 	{
@@ -16451,36 +16477,43 @@ var SCOPES = [
 ];
 /**
 * Rule 1. The tabs someone has, in order: Mine (when they own a goal), My team or My teams (their team and the teams
-* they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
+* they lead, when they have one), Watching, All. A tab waits (small workspaces SM1, rule 1): it is drawn when its list
+* has a goal and isn't the same list as a tab drawn before it; All is always drawn. `every` keeps each scope whether
+* drawn or not, since every address still opens. Opens on the scope last used when it is still drawn; otherwise Mine,
 * else Watching when it has goals, else All.
 */
 function scopesFor(f, last, opts = { watching: true }) {
-	const tabs = [];
+	const every = [];
 	const mine = scopeIds(f, "mine");
-	if (mine.length) tabs.push({
+	every.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) tabs.push({
+	if (f.teams.length) every.push({
 		id: "team",
 		label: f.teams.length === 1 ? "My team" : "My teams",
 		ids: scopeIds(f, "team")
 	});
-	if (opts.watching) tabs.push({
+	if (opts.watching) every.push({
 		id: "watching",
 		label: "Watching",
 		ids: scopeIds(f, "watching")
 	});
-	tabs.push({
+	every.push({
 		id: "all",
 		label: "All",
 		ids: scopeIds(f, "all")
 	});
+	const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+	const tabs = [];
+	const all = every.find((t) => t.id === "all");
+	for (const t of every) if (t === all || t.ids.length && !same(t.ids, all.ids) && !tabs.some((d) => same(d.ids, t.ids))) tabs.push(t);
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
-		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
+		every,
+		opens: has(last) ? last : mine.length ? "mine" : every.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
 	};
 }
 /** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
@@ -17240,6 +17273,22 @@ function aiBrief(x) {
 	}
 	return out.join("\n");
 }
+// src/domain/feeder.ts
+var COUNT_WORDS = [
+	"no",
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+	"ten"
+];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 // src/domain/summaryFacts.ts
 init_numbers();
 init_checkin();
@@ -17256,21 +17305,6 @@ var DIRECTION = {
 	better: "recovering",
 	flat: "flat"
 };
-var COUNT_WORDS = [
-	"no",
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"eight",
-	"nine",
-	"ten"
-];
-/** "two", "three" … for small counts in a sentence; digits from 11. */
-var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 var plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 var pct$2 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
@@ -19771,7 +19805,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
+					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. A tab is shown once it has goals in it and isn’t the same list as one before it (in a workspace of one team, My team is All, so it isn’t shown); All is always there. The same goes for a feature’s menu row, such as Metrics, which appears with the first metric. Every address still opens. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
@@ -19826,7 +19860,8 @@ var CORE_ARTICLES = [
 			"NAV-GOALS",
 			"STORY",
 			"LEVELS",
-			"BULK-EDIT"
+			"BULK-EDIT",
+			"SMALL-MENU"
 		],
 		keywords: [
 			"list",
@@ -21526,6 +21561,17 @@ var WHATS_NEW = [
 			"Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals."
 		],
 		articles: ["home"]
+	},
+	{
+		id: "menu-shows-what-you-use",
+		date: "2026-11-14",
+		title: "The menu shows what you use",
+		points: [
+			"A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.",
+			"Metrics joins the menu with the first metric, and the message after saving it says so.",
+			"Nothing is switched off: every page still opens from its address, Find and Workspace."
+		],
+		articles: ["goals", "metrics"]
 	},
 	{
 		id: "table-confirm-readings",
@@ -28032,8 +28078,8 @@ var CORE_TOOLS = [
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+			if (scope && scope !== "all" && (!scoped || scope === "mine" && !scoped.ids.length)) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, void 0, reviewsOn(modulesOn(ctx.ws).on));
@@ -29376,7 +29422,7 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
-// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// ../goals-app/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -29384,7 +29430,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// node_modules/tslib/tslib.es6.mjs
+// ../goals-app/node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -29420,12 +29466,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// node_modules/@supabase/functions-js/dist/module/helper.js
+// ../goals-app/node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// node_modules/@supabase/functions-js/dist/module/types.js
+// ../goals-app/node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -29515,7 +29561,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// ../goals-app/node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -29768,7 +29814,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// node_modules/@supabase/postgrest-js/dist/index.mjs
+// ../goals-app/node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -33742,7 +33788,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -33835,7 +33881,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -33869,7 +33915,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -34011,7 +34057,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -34197,7 +34243,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// ../goals-app/node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -35892,7 +35938,7 @@ var Socket = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -35979,7 +36025,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -36012,7 +36058,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -36034,7 +36080,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -36136,7 +36182,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -36271,7 +36317,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -36962,7 +37008,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -37073,7 +37119,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -37685,7 +37731,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// node_modules/iceberg-js/dist/index.mjs
+// ../goals-app/node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -38181,7 +38227,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// node_modules/@supabase/storage-js/dist/index.mjs
+// ../goals-app/node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -41368,9 +41414,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/version.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -41399,7 +41445,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -41685,7 +41731,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -41888,7 +41934,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -42286,7 +42332,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -42445,13 +42491,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/types.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -43597,7 +43643,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -43629,7 +43675,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -43648,7 +43694,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -43688,7 +43734,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -43878,7 +43924,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -44484,7 +44530,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -49985,9 +50031,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// node_modules/@supabase/supabase-js/dist/index.mjs
+// ../goals-app/node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
