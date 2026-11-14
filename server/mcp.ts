@@ -21,7 +21,7 @@ import type { McpContext } from '../src/mcp/tools';
 import { PICTURES_UNREADABLE, pictureType, type MarkupOps } from '../src/markup/ops';
 import type { FeedbackOps } from '../src/markup/feedback';
 import { modulesOn } from '../src/core/registry';
-import { aiAccessOn, aiAccessShutWords, NO_AI_ACCESS } from '../src/app/reads';
+import { aiAccessOn, aiAccessShutWords } from '../src/app/reads';
 
 export interface Deps {
   /** The live (not revoked) token with this hash, and its workspace. */
@@ -92,10 +92,10 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   const found = await deps.findToken(hash);
   if (!found) return rpcError(401, 'That token isn’t valid or has been revoked. Ask an admin for a new one.', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
   // The door (SW2, spec 6.1): while AI access is off in the workspace, every request but initialize and tools/list is
-  // refused, saying so, and the token's last use doesn't move. A build without AI access refuses every token.
-  if (!aiAccessOn(modulesOn(null).on)) return rpcError(403, NO_AI_ACCESS);
+  // refused, saying so, and the token's last use doesn't move. Only the workspace's switch shuts it: a build without the
+  // module keeps the server open (planning, 14 Nov), since the core's own tools (MCP-PARITY) answer through it.
   const off = deps.modulesOff ? await deps.modulesOff(found.workspaceId).catch(() => [] as string[]) : [];
-  const shut = aiAccessOn(modulesOn({ modulesOff: off }).on) ? null : aiAccessShutWords(await deps.workspaceName(found.workspaceId));
+  const shut = aiAccessOn(modulesOn(null).on) && !aiAccessOn(modulesOn({ modulesOff: off }).on) ? aiAccessShutWords(await deps.workspaceName(found.workspaceId)) : null;
   if (picture !== null) return shut ? rpcError(403, shut) : pictureResponse(picture, deps.markups?.(hash));
 
   let body: unknown;

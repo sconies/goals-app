@@ -15495,7 +15495,7 @@ var _virtual_faro_modules_default = [
 			],
 			"gaps": [
 				"AI access is a switch, not yet a folder of its own (SW7 moves it): its screens (src/ui/AiAssistants.tsx; the AI access section in src/screens/Workspace.tsx; the tokens in src/screens/Settings.tsx and src/screens/People.tsx), its rules (src/domain/actions.ts createToken and revokeToken; the read-back in src/domain/switchOff.ts) and its table (okr_api_tokens, migration 0010) are still the core's, and so is the door in server/mcp.ts. This folder holds its section, its Help article and its AI tools; src/app/reads.ts aiAccessOn is the one place that asks whether it is on.",
-				"A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server refuses every token with “This Faro has no AI access.”",
+				"A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server stays open, answering the core’s tools, and only the token tools are missing.",
 				"No conformance rows: the demo workspace has no tokens (they work only in the real app), so there is nothing to count."
 			]
 		}
@@ -16563,8 +16563,6 @@ var aiAccessOn = (on) => on.has("ai-access");
 var aiAccessShutWords = (workspace) => `AI access is switched off in ${workspace}. An admin can switch it on in Faro, under Workspace, Features.`;
 /** What set_feature answers when it switches AI access off: the last thing that token does (spec 6.2). */
 var aiAccessLastWords = (workspace) => `AI access is off in ${workspace}. This connection stops working now. An admin switches it back on in Faro.`;
-/** What the MCP server answers every token in a build without AI access (FARO_WITHOUT=ai-access, spec 6.1). */
-var NO_AI_ACCESS = "This Faro has no AI access.";
 /** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
 on and starting the next year are the core's and never ask. */
 var wrapUpOn = (on) => on.has("wrap-up");
@@ -30408,8 +30406,8 @@ async function serve(req, deps) {
 	const hash = await hashToken(token);
 	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
-	if (!aiAccessOn(modulesOn(null).on)) return rpcError(403, NO_AI_ACCESS);
-	const shut = aiAccessOn(modulesOn({ modulesOff: deps.modulesOff ? await deps.modulesOff(found.workspaceId).catch(() => []) : [] }).on) ? null : aiAccessShutWords(await deps.workspaceName(found.workspaceId));
+	const off = deps.modulesOff ? await deps.modulesOff(found.workspaceId).catch(() => []) : [];
+	const shut = aiAccessOn(modulesOn(null).on) && !aiAccessOn(modulesOn({ modulesOff: off }).on) ? aiAccessShutWords(await deps.workspaceName(found.workspaceId)) : null;
 	if (picture !== null) return shut ? rpcError(403, shut) : pictureResponse(picture, deps.markups?.(hash));
 	let body;
 	try {

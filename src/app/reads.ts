@@ -53,8 +53,6 @@ export const aiAccessOn = (on: ReadonlySet<string>): boolean => on.has('ai-acces
 export const aiAccessShutWords = (workspace: string) => `AI access is switched off in ${workspace}. An admin can switch it on in Faro, under Workspace, Features.`;
 /** What set_feature answers when it switches AI access off: the last thing that token does (spec 6.2). */
 export const aiAccessLastWords = (workspace: string) => `AI access is off in ${workspace}. This connection stops working now. An admin switches it back on in Faro.`;
-/** What the MCP server answers every token in a build without AI access (FARO_WITHOUT=ai-access, spec 6.1). */
-export const NO_AI_ACCESS = 'This Faro has no AI access.';
 /** Whether Feedback is on: its menu row and page, Send feedback, Mark up this screen (and its key) and the inbox tools. */
 export const feedbackOn = (on: ReadonlySet<string>): boolean => on.has('feedback');
 /** Whether the Goal map is on: Goals' Map layout. */

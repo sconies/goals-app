@@ -47,7 +47,7 @@
     ],
     "gaps": [
       "AI access is a switch, not yet a folder of its own (SW7 moves it): its screens (src/ui/AiAssistants.tsx; the AI access section in src/screens/Workspace.tsx; the tokens in src/screens/Settings.tsx and src/screens/People.tsx), its rules (src/domain/actions.ts createToken and revokeToken; the read-back in src/domain/switchOff.ts) and its table (okr_api_tokens, migration 0010) are still the core's, and so is the door in server/mcp.ts. This folder holds its section, its Help article and its AI tools; src/app/reads.ts aiAccessOn is the one place that asks whether it is on.",
-      "A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server refuses every token with “This Faro has no AI access.”",
+      "A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server stays open, answering the core’s tools, and only the token tools are missing.",
       "No conformance rows: the demo workspace has no tokens (they work only in the real app), so there is nothing to count."
     ]
   }
