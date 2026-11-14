@@ -25,7 +25,7 @@ Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCA
      - Watching off: restoring or undoing a removed watch, and MCP `list_removed`/`restore_removed`, still go through and name watches. Refuse by what the save writes, as `writesReviews` does, rather than by the four names in `SWITCHED_ACTIONS` (`src/app/reads.ts`).
      - Wrap-up off: Cycles, Workspace and the Start page still say "the wrap-up is open … N goals still to wrap up" (`src/domain/workspaceAttention.ts` 79–89, `startYear.ts` 42 and 58), and so does the tool's read-back.
      - Watching off: `/activity?watching=all` still shows "Goals you watch" (`src/screens/Activity.tsx` 50–52).
-     - Lows are in `docs/reviews/2026-11-11-build-reviews.md` on branch `build-reviews`.
+     - Lows are in the build review log (docs/reviews/2026-11-11-build-reviews.md on build-reviews).
   3. Check SW1's leftovers from the 20:15 entry against main and do what is still open: `get_goal` `watchedBy`, `get_activity watching=1`, the year line's wrap-up words, the "Watching is off here" filter line, and About's "All eight are on".
   4. SW2: the AI access switch.
   5. FD: the first download is at 274/275 KB and live at 334/334. Trim the first download under 265 KB without raising the budgets.
