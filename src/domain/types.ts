@@ -368,8 +368,9 @@ export interface Watch {
 export interface Review {
   id: Id;
   name: string;
-  /** Held every this many weeks of the cycle, on this weekday (0 = Monday). */
+  /** Held every this many weeks of the cycle (1 to 13), on `weekday`. */
   everyWeeks: number;
+  /** The day of the week it is held: 0 = Monday, 1 = Tuesday, … 6 = Sunday (as `reviewDay`). */
   weekday: number;
   scope: { goals: Id[]; trees: Id[]; levels: Level[] };
   people: Id[];

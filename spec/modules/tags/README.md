@@ -29,9 +29,11 @@ Module id `tags`, in [src/modules/tags/](../../../src/modules/tags/module.json).
 
 ## Journeys and checks
 
+Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).
+
 | Id | What | Where |
 |---|---|---|
-| U174 | A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words | `evals/journeys.cjs` |
+| [U174](journeys/U174.md) | A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words | `evals/journeys.cjs` |
 | N34 | Fields switched off: no Fields block on a goal, no Workspace → Fields, its address says it is off, and it all comes back on | `evals/notes/34-fields-off.cjs` |
 
 ## Help

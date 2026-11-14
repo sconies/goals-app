@@ -152,7 +152,8 @@ export interface PlaceNames {
 const SETUP_TITLES: Record<string, string> = { workspace: 'Set up: the workspace and you', people: 'Set up: people', goals: 'Set up: goals', check: 'Set up: check' };
 
 /** The places named the same wherever they are. */
-const FIXED: Record<string, string> = {
+/** The fixed places' names, by address (rule 2). */
+export const FIXED: Record<string, string> = {
   '/': 'Home', '/goals': 'Goals', '/watching': 'Goals', '/goals/new': 'New goal', '/check-in': 'Check-in', '/quick-check-in': 'Check-in, all in one table',
   '/reviews': 'Reviews', '/reviews/new': 'New review', '/people': 'People', '/teams': 'Teams', '/activity': 'Activity', '/data': 'Data',
   '/workspace': 'Workspace', '/workspace/new': 'Set up a workspace', '/settings': 'Settings', '/help': 'Help', '/whats-new': 'What’s new',

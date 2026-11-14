@@ -453,8 +453,8 @@ A goal review on a cadence: which goals it walks, and who takes part. Anyone can
 |---|---|---|---|
 | `id` | `Id` | yes |  |
 | `name` | `string` | yes |  |
-| `everyWeeks` | `number` | yes | Held every this many weeks of the cycle, on this weekday (0 = Monday). |
-| `weekday` | `number` | yes |  |
+| `everyWeeks` | `number` | yes | Held every this many weeks of the cycle (1 to 13), on `weekday`. |
+| `weekday` | `number` | yes | The day of the week it is held: 0 = Monday, 1 = Tuesday, … 6 = Sunday (as `reviewDay`). |
 | `scope` | `{ goals: Id[]; trees: Id[]; levels: Level[] }` | yes |  |
 | `people` | `Id[]` | yes |  |
 | `createdBy` | `Id` | yes |  |
