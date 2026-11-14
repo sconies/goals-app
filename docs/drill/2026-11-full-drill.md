@@ -14,8 +14,8 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 | 2. The core data and the change engine | **Pass**: 205 of 205 rows, store contract 13 of 13; stage 1 still passes. Only after reading the expected rows by hand | 22 (2.1 to 2.22) | |
 | 3. The core screens and journeys | **Harness pass**: 145 of 145 rows; stages 1 and 2 still pass. By hand: 15 of 71 core journeys carried out fully, 18 in part, 38 not built; the core requirements not checkable from the kit | 31 (3.1 to 3.31) | |
 | 4. Module: Feedback | Running | | |
-| 5. Module: Goal map | Running | | |
-| 6. Module: Metric library | Waiting | | |
+| 5. Module: Goal map | **Switch criteria pass** (3, 4: verified by the reviewer); the requirements and journeys only in part (1, 2: weak, journeys are titles); stages 1 to 3 still pass with it on | 22 (5.1 to 5.22) | |
+| 6. Module: Metric library | Running | | |
 | 7. Module: Reviews | Waiting | | |
 | 8. Module: Spreadsheets | Waiting | | |
 | 9. Module: Fields (TG1) | Waiting | | |
@@ -121,4 +121,33 @@ The harness passed: `navigation.csv` 60 of 60, `readback.csv` 6 of 6, `find.csv`
 | 3.29 | No status shapes for No check-in yet and Not started | Words |
 | 3.30 | Goals' filters and sort live only in a source file not in the kit | Words |
 | 3.31 | Some screen behaviours are a line, not a specification | Words |
+
+### Stage 5: Goal map
+
+Built as its own folder over the core. With it on, stages 1 to 3 still score 100%; its own exit tests pass 13 of 16, with 3 journeys (U39, U90, F6) not checkable. A separate reviewer, also seeing only the kit, verified criteria 3 and 4 (off: Layout offers List, Table, Board and History and nothing says Map; `view=map` opens the List with "The Goal map is off here, so this is the List." once, character for character) and rated 1 and 2 weak: pan, zoom, the keyboard and the phone width need a browser, and the journeys are titles. **The module isn't self-contained in the kit's terms:** the core rebuild had no Layout menu, no Table, Board or History, and no Workspace → Features, because the kit doesn't specify them, so the module's builder added them to the core.
+
+| # | Gap | Evidence |
+|---|---|---|
+| 5.1 | The switch is named only in `schema.sql` (`modulesOff`); `workspace.json` can't say a module is off, so the harness can't score the off state | Kit |
+| 5.2 | Journeys are titles; their steps are in `evals/*.cjs`, not in the kit | Kit |
+| 5.3 | No browser in the kit's runner: pan, zoom, keyboard and phone width only by hand; dragging and Tidy up not built | Kit |
+| 5.4 | Whether the tree is `parentId` only (also-helps lines feed no roll-up or critical path) | Guessed |
+| 5.5 | Siblings with no estimated effect get a share of 0 | Guessed |
+| 5.6 | The find example's letters name different goals from the other examples | Words |
+| 5.7 | What the map shows is listed level by level | Guessed |
+| 5.8 | Opening a goal shows everything under it at every depth; the fold counts every hidden goal | Guessed |
+| 5.9 | Goals with no check-in yet are left out of the roll-up's counts and status | Guessed |
+| 5.10 | The roll-up's format differs between two worked examples | Words |
+| 5.11 | "Says once" means once on that page | Guessed |
+| 5.12 | Help's module article ids use a different format from the core's | Words |
+| 5.13 | Table, Board and History aren't defined anywhere in the kit | Kit |
+| 5.14 | Saved views aren't in the core | Kit |
+| 5.15 | The core has no proposed goals and no parameter to filter them | Kit |
+| 5.16 | The words for a goal's number, target and gap on the map | Words |
+| 5.17 | Which goals are greyed "for context" when the map is narrowed | Guessed |
+| 5.18 | Search on the Map without a script | Guessed |
+| 5.19 | Fit all and Readable need the window's size | Guessed |
+| 5.20 | Workspace → Features is missing from the core | Kit |
+| 5.21 | The stage page's own listed gaps: the source files it names aren't in the kit | Kit |
+| 5.22 | The phone's View sheet isn't built | Not built |
 
