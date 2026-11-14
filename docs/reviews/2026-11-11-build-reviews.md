@@ -14,9 +14,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `3e20d6ad` (#472), the head of main at 13:25 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `77fea651` (#479), the head of main at 13:40 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
-- **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
+- **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What was left of #416 (a review held on the due weekday, but not this week) is fixed by #479.
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
 - **Lane's answers, 14 Nov (relayed by planning, 12:33 UTC).** Read fixes against these, and don't raise them again:
   - #334, an admin's pasted row over this week's check-in: treat it as a correction, with a reason and the owner kept as author (track 1).
@@ -234,6 +234,8 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #473 U159 waits for the number step; EVAL_CLOCK in the harness | readings | 0 | 0 | 0 |
 | #461 SM1: a module's menu row and a Goals tab wait until they have something in them | 2 | 0 | 1 | 2 |
 | #472 TG0: migration 0052, a workspace's own fields, with the Fields module's rule | 2 | 0 | 0 | 1 |
+| #480 PR CI runs the core journeys and the 25 the PR's files name most directly | 4 | 0 | 0 | 0 |
+| #479 Before this review only when held on the due day that week (#432's medium) | readings | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2058,3 +2060,11 @@ Read against the faro rules. Two tables, `faro.goal_fields` and `faro.goal_field
 **Low.** A free-text field "has none" of a list's values in the limits' words, but neither the check (`kind = 'text' or …`) nor `fieldProblem` refuses a text field that carries values. Either say so in the rule, or drop the claim.
 
 **To watch in TG1.** The generic module save must cope with tables that have no `removed_at`: a field is retired, a value is cleared to empty, and `anon` has no delete.
+
+### The 13:40 UTC check, 14 Nov: #480, #479 and two handovers
+
+**#479 (track 1): #432's medium and its lows. Holds as read; its tests pass on main.** The flag is now `sessionOnDueDay` (`src/domain/review.ts`): the due weekday and a session in the week counted, the test `heldOnDueDay` already made and now shares. A fortnightly, monthly or quarterly review on the due day, in a week it holds no session, is headed "Week 46, due by Thursday 12 Nov" and says "on time". The screen and `get_review` take the heading from one function (`beforeReviewHeading`); the tool's text and a new `heading` field carry it, U153 asserts the fortnightly's heading, and Help's Reviews article has the sentence.
+
+**#480 (track 4): CI, Lane's answer of 14 Nov.** A pull request runs the core journeys and at most 25 others, the ones its files name most directly; the rest are listed in the run's output and wait for the full suite after the merge. Checks aren't capped. A unit test holds the ranking. Nothing found.
+
+**#481, #478:** handovers only.
