@@ -144,3 +144,10 @@ export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRo
   const words = dueWords(held, cycle, week, held);
   return { counts, past, words, says: beforeReviewText(h, past, words), weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue) };
 }
+
+/** The Before this review panel's heading on a review's page and in get_review (review of #432): "Before this review"
+    only for a session held on the due day in that week (`onDueDay`, review.ts sessionOnDueDay); otherwise the week and
+    its due date, as no review is held before the deadline. */
+export function beforeReviewHeading(onDueDay: boolean, cycle: Cycle, week: number): string {
+  return onDueDay ? 'Before this review' : `Week ${week}, due by ${dueWords(false, cycle, week).date}`;
+}
