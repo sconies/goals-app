@@ -17,7 +17,14 @@ import { useGoalQuery } from './GoalFilters';
 export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean; onClose: () => void; sortOff?: string }) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
-  const { filters: modFilters } = useGoalColumns();
+  const { filters: modFilters, families } = useGoalColumns();
+  // A module's family of filters (Fields: one row per live list field), each ticked as Status is: any of them.
+  const tick = (f: (typeof families)[number], param: string, v: string) => setQ((cur) => {
+    const was = f.picked(app.snapshot, param, cur.cols[param] ?? '');
+    const text = f.text(app.snapshot, param, was.includes(v) ? was.filter((x) => x !== v) : [...was, v]);
+    const { [param]: _, ...cols } = cur.cols;
+    return { ...cur, cols: text ? { ...cols, [param]: text } : cols };
+  });
   const [owner, setOwner] = useState('');
   const [params, setParams] = useSearchParams();
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -61,6 +68,14 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
           <input className="input" type="search" placeholder="Find an owner" value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Find an owner" />
           {match.length > 0 && <span className="filter-options">{match.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setQ((cur) => ({ ...cur, owner: [...cur.owner, p.id] })); setOwner(''); }}>{p.name}</button>)}</span>}
         </fieldset>
+        {families.flatMap((f) => f.rows(app.snapshot).map((row) => {
+          const picked = f.picked(app.snapshot, row.param, q.cols[row.param] ?? '');
+          return (
+            <fieldset key={row.param} className="filter-group"><legend className="field-label">{row.label}</legend>
+              <span className="filter-options">{row.options.map((o) => <label key={o} className="check"><input type="checkbox" checked={picked.includes(o)} onChange={() => tick(f, row.param, o)} /> {o}</label>)}</span>
+            </fieldset>
+          );
+        }))}
       </div>
       {/* Used less often: folded, and open when one of them is set. */}
       <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps || Object.keys(q.cols).length)}>

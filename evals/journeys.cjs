@@ -6984,6 +6984,95 @@ journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as A
   await p.context().close();
 }, []);
 
+/** Fields' journeys (TG2): Stage (Discover, Build, Run) saved straight into the demo, with Flaky test rate in Build and
+    Base image build time in Discover, as an admin would have set them; the page reloaded to read it. */
+async function seedStage(p) {
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  await p.evaluate(async () => {
+    const at = new Date().toISOString();
+    const field = { id: 'fld_stage', name: 'Stage', kind: 'list', options: ['Discover', 'Build', 'Run'], position: 0, createdBy: 'amara', createdAt: at, retiredAt: null, retiredBy: null };
+    const v = (goalId, value) => ({ id: `${goalId}:fld_stage`, goalId, fieldId: 'fld_stage', value, setBy: 'amara', setAt: at });
+    await window.__goalsStore.commit('platform-org', { modules: { tags: { fields: [field], fieldValues: [v('lead-flaky', 'Build'), v('ci-docker', 'Discover')] } }, changes: [] });
+  });
+  await p.reload();
+}
+
+journey('U175', ['TAGS-FILTER', 'SAVED-VIEWS'], 'Goals filtered by a workspace’s own field (TG2): as Amara, with Stage on two goals, the Filters sheet has a Stage row (Discover · Build · Run · Not set); ticking Build lists Flaky test rate and not Base image build time, the filter line says “Stage is Build” with Remove, and the address carries it; saved as a view “Building”, plain Goals and then the view bring the same goals back, and Data’s Goals table has a Stage column', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await seedStage(p);
+  await p.goto(url('/goals?scope=all'));
+  await h.inView(p.getByRole('button', { name: /^Filter(s| and sort)/ }), 'entry', 'Filters');
+  await h.click(p.getByRole('button', { name: /^Filter(s| and sort)/ }));
+  const sheet = p.getByRole('dialog', { name: 'Filter goals' });
+  const row = sheet.getByRole('group', { name: 'Stage' });
+  await row.waitFor();
+  const words = (await row.innerText()).replace(/\s+/g, ' ').trim();
+  h.set('parity', /Stage.*Discover.*Build.*Run.*Not set/.test(words), `the Stage row says “${words}”`);
+  await h.click(row.getByLabel('Build'));
+  await h.checkpoint('filters');
+  await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
+  const remove = p.getByRole('button', { name: 'Remove the filter Stage is Build' });
+  await remove.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('attention', await remove.isVisible(), 'the filter line does not say “Stage is Build” with Remove');
+  await see(p, 'Flaky test rate in the main pipelines', 'the goal in Build is not listed');
+  const listed = async () => (await p.locator('main').innerText()).includes('Base image build time');
+  h.set('progress', !(await listed()) && /[?&]f\.fld_stage=Build/.test(p.url()), `the goal in Discover is listed, or the address (${p.url()}) does not carry the filter`);
+  await h.checkpoint('filtered');
+  // Saved as a view: the parameter goes with it, and the view brings the goals back.
+  await viewsAction(h, p, 'Save this view…');
+  const save = p.getByRole('dialog', { name: 'Save this view' });
+  await h.fill(save.getByLabel('Name'), 'Building');
+  await h.click(save.getByRole('button', { name: 'Save view' }));
+  await save.waitFor({ state: 'hidden' });
+  const s = await h.snapshot();
+  h.set('logged', (s.views ?? []).some((v) => v.name === 'Building' && v.params.includes('f.fld_stage=Build') && !v.deletedAt), 'the view was not saved with the Stage filter');
+  await p.goto(url('/goals?scope=all'));
+  await see(p, 'Base image build time', 'plain Goals does not list every goal');
+  await openSaved(h, p, /Building/);
+  await see(p, 'Flaky test rate in the main pipelines', 'opening the view does not list the goal in Build');
+  h.set('finish', !(await listed()) && await p.getByRole('button', { name: 'Remove the filter Stage is Build' }).isVisible(), 'the view did not bring the Stage filter back');
+  // Data's Goals table: a column per live field.
+  await p.goto(url('/data?t=goals'));
+  await p.locator('main table').first().waitFor();
+  h.set('errors', (await p.locator('main table thead').first().innerText()).includes('Stage'), 'Data’s Goals table has no Stage column');
+  await p.context().close();
+});
+
+journey('U176', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await seedStage(p);
+  await p.goto(url('/data/import'));
+  await h.inView(p.getByRole('button', { name: 'Download the workbook' }), 'entry', 'Download the workbook');
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the workbook' }))]);
+  const file = path.join(require('os').tmpdir(), `u176-${Date.now()}.xlsx`);
+  await download.saveAs(file);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
+  await see(p, 'Nothing would change', 'the workbook loaded straight back changes something', 15000);
+  h.set('parity', !(await p.locator('main').innerText()).includes('the column Stage'), 'the file line says Stage is a column nothing reads');
+  await h.checkpoint('round trip');
+  const s0 = await h.snapshot();
+  const g = (id) => s0.goals.find((x) => x.id === id);
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('stages.csv', `Key,Goal,Stage\n${g('lead-flaky').key},${g('lead-flaky').title},Operate\n${g('ci-docker').key},${g('ci-docker').title},operate\n`));
+  const ask = 'Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?';
+  await see(p, ask, 'a value Stage doesn’t hold is not asked about');
+  // One question for both rows: one answer to give (the group's sentence may also be its example).
+  h.set('attention', (await p.getByRole('radio', { name: 'Add “Operate” to Stage' }).count()) === 1, 'the value is asked about more than once');
+  await h.checkpoint('asked');
+  await h.click(p.getByRole('radio', { name: 'Add “Operate” to Stage' }));
+  await h.click(p.getByRole('button', { name: /^Save 2 changes/ }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const vals = s.modules?.tags?.fieldValues ?? [];
+  const f = (s.modules?.tags?.fields ?? []).find((x) => x.id === 'fld_stage');
+  h.set('finish', !!f && f.options.includes('Operate') && ['lead-flaky', 'ci-docker'].every((id) => vals.some((v) => v.goalId === id && v.value === 'Operate')), 'Operate was not added, or the goals are not in it');
+  h.set('logged', s.changes.some((c) => c.entity === 'field' && c.goalId === 'lead-flaky' && c.summary === 'Stage: Build → Operate' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Spreadsheet')), 'History does not say “Stage: Build → Operate” via the spreadsheet');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+});
+
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.

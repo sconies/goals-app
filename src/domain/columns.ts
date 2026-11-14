@@ -16,7 +16,7 @@ import { planAsOf, planAt, planEnd, weekDate } from './plan';
 import { weekCode } from './weeks';
 import { answerOf, saidIn, type Said } from './review';
 import type { GoalSummary } from './summary';
-import type { ModuleSheet } from './records';
+import type { ModuleGoalColumns, ModuleSheet } from './records';
 import type { Ask, Cause, CheckIn, Cycle, Goal, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
 import { ASK_KIND, FLAG, LABEL, LEFT, leftName, lower, QUARTER, STOPPED } from './vocabulary';
 
@@ -32,6 +32,8 @@ export interface ExportInput {
   goals?: Goal[];
   /** The sheets feature modules add (domain/records), after the core's: those of the modules in this build. */
   sheets?: readonly ModuleSheet[];
+  /** The modules' columns on Goals (domain/records ModuleGoalColumns), after the core's: those of the modules on here. */
+  goalColumns?: readonly ModuleGoalColumns[];
   /** False when Reviews is switched off here (RS, spec 5): the workbook leaves out the Notes sheet and Asks' Review column. */
   reviews?: boolean;
 }

@@ -17,7 +17,8 @@ import type { Answers, CheckInPost, PostMode, Via } from '../domain/changeset';
  */
 type Engine = typeof import('../domain/changeset');
 let engine: Engine | null = null;
-export async function loadEngine(): Promise<Engine> { return (engine ??= await import('../domain/changeset')); }
+// A module's own Goals columns (Fields') are read by its rules, which load with the engine.
+export async function loadEngine(): Promise<Engine> { if (!engine) await loadGoalSheets(); return (engine ??= await import('../domain/changeset')); }
 /** Sets the engine from a screen that imports it statically (src/app/engineReady.ts), so the screen's previews can run
     during its first render. */
 export function setEngine(e: Engine) { engine ??= e; }
@@ -51,7 +52,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import type { CheckInReading, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
-import { recordsOn } from '../core/records';
+import { loadGoalSheets, recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { moduleOffWords, reviewsOffWords, reviewsOn, reviewWriteRows, SWITCHED_ACTIONS, switchedOffWords } from './reads';
 import { writesReviews } from '../domain/reviewWrites';

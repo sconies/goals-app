@@ -2,9 +2,11 @@
    or free text. Pure. No rule in src/domain reads a field (no status, flag or check-in rule): that is what lets the
    module be switched off. The database holds each limit too (migration 0052; src/spec/limits.ts). */
 
+import { NOT_SET } from './filter';
 import type { GoalField } from './types';
 
 export type { GoalField } from './types';
+export { filterGoals, NOT_SET, pickedOf } from './filter';
 
 /** The limits: live fields per workspace (Lane, 1a), a name, a list's values and each value, and a goal's value. */
 export const FIELD_LIMITS = { fields: 6, name: 40, values: 20, option: 40, value: 80 } as const;
@@ -35,6 +37,8 @@ export function fieldProblem(field: Pick<GoalField, 'id' | 'name' | 'kind' | 'op
   if (long) return `Keep each value to ${FIELD_LIMITS.option} characters: “${long.slice(0, 20)}…” is longer.`;
   const twice = values.find((v, i) => values.findIndex((w) => key(w) === key(v)) !== i);
   if (twice) return `“${twice}” is in the list twice.`;
+  // “Not set” is what a goal with no value says (rule 3's filters): a value can't be called that.
+  if (values.some((v) => key(v) === key(NOT_SET))) return `“${NOT_SET}” is what a goal with no value says. Call the value something else.`;
   return null;
 }
 

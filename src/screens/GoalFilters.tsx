@@ -6,7 +6,7 @@ import { useApp } from '../app/state';
 import { useGoalColumns, useModules } from '../core/app';
 import { reviewsOn } from '../app/reads';
 import {
-  EMPTY_QUERY, parseQuery, QUERY_KEYS, queryEntries, queryParts, SORT_OPTIONS, without,
+  EMPTY_QUERY, isQueryKey, parseQuery, queryEntries, queryParts, SORT_OPTIONS, without,
   type GoalQuery, type SortKey,
 } from '../domain/query';
 import type { Goal, SavedView } from '../domain/types';
@@ -41,7 +41,7 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
   const set = (change: GoalQuery | ((q: GoalQuery) => GoalQuery), opts?: { push?: boolean }) => {
     const base = latest();
     const next = typeof change === 'function' ? change(parseQuery(base)) : change;
-    const out = new URLSearchParams([...[...base].filter(([k]) => !QUERY_KEYS.includes(k)), ...queryEntries(next)]);
+    const out = new URLSearchParams([...[...base].filter(([k]) => !isQueryKey(k)), ...queryEntries(next)]);
     if (out.toString() !== base.toString()) setParams(out, { replace: !opts?.push });
   };
   return [q, set];

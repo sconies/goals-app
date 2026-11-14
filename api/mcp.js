@@ -1,4 +1,5 @@
 // \0rolldown/runtime.js
+var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -6,6 +7,15 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
+};
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
 };
 // server/log.ts
 /** Writes the failure to standard error and returns its reference. Never throws. */
@@ -6148,6 +6158,9 @@ function addColumnParams(params) {
 		QUERY_KEYS.push(k);
 	}
 }
+function addColumnPrefixes(prefixes) {
+	for (const p of prefixes) if (p && !COLUMN_PREFIXES.includes(p)) COLUMN_PREFIXES.push(p);
+}
 /** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
 function parseQuery(p) {
 	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
@@ -6169,7 +6182,7 @@ function parseQuery(p) {
 		helps: p.get("helps") === "1",
 		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
 		dir: dir === "desc" ? -1 : 1,
-		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v)),
+		cols: Object.fromEntries([...COLUMN_PARAMS, ...[...new Set(p.keys())].filter(familyParam).slice(0, 20)].map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v)),
 		checkedin: p.get("checkedin") === "no" || p.get("checkedin") === "asked" ? p.get("checkedin") : null,
 		inreview: (p.get("inreview") ?? "").slice(0, 200) || null
 	};
@@ -6230,7 +6243,7 @@ function matches(s, q, ctx, tree) {
 	if (q.kind.length && !q.kind.includes(g.kind)) return false;
 	for (const [k, v] of Object.entries(q.cols ?? {})) {
 		const col = ctx.columns?.[k];
-		if (col && col(g) !== v) return false;
+		if (col && !columnPasses(col, g, v)) return false;
 	}
 	if (q.attention || q.needs.length) {
 		if (!onAttentionList(s.attention)) return false;
@@ -6277,12 +6290,12 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$4, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$4, COLUMN_PARAMS, COLUMN_PREFIXES, familyParam, columnPasses, QUERY_KEYS, GAP_RANK;
 var init_query = __esmMin((() => {
 	init_levels();
 	init_attention();
 	init_status();
-	init_find();
+	init_find$1();
 	init_vocabulary();
 	init_year();
 	EMPTY_QUERY = {
@@ -6347,6 +6360,9 @@ var init_query = __esmMin((() => {
 		return Number.isInteger(n) && n > 0 ? n : null;
 	};
 	COLUMN_PARAMS = [];
+	COLUMN_PREFIXES = [];
+	familyParam = (k) => COLUMN_PREFIXES.some((p) => k.startsWith(p) && k.length > p.length);
+	columnPasses = (col, g, picked) => col.test ? col.test(g, picked) : col(g) === picked;
 	QUERY_KEYS = [
 		"q",
 		"status",
@@ -6618,7 +6634,7 @@ function suggest(rows, viewerId, recents) {
 	}
 }
 var wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
-var init_find = __esmMin((() => {
+var init_find$1 = __esmMin((() => {
 	init_fold();
 	init_levels();
 	init_goalKey();
@@ -6745,7 +6761,7 @@ function filterEntries(filters, sort) {
 }
 var OP_LABEL, NO_VALUE, isNum, rowWords, wordsFor, sortIndex;
 var init_tableFilter = __esmMin((() => {
-	init_find();
+	init_find$1();
 	init_goalKey();
 	OP_LABEL = {
 		is: "is any of",
@@ -6793,7 +6809,8 @@ function visibleColumns(table, head, cols) {
 		for (const c of always) if (!rest.includes(c)) rest.splice(Math.min(rest.length, Math.max(0, head.indexOf(c) - 1)), 0, c);
 	} else {
 		const pick = t.defaults;
-		rest = head.filter((c) => has(c) && (!pick || pick.includes(c) || always.includes(c)));
+		const core = pick ? new Set(headersOf(KIND_OF[table])) : null;
+		rest = head.filter((c) => has(c) && (!pick || pick.includes(c) || always.includes(c) || !core.has(c)));
 	}
 	return [...head.includes(t.name) ? [t.name] : [], ...new Set(rest)];
 }
@@ -8593,7 +8610,7 @@ var init_goalEntry = __esmMin((() => {
 	init_baseline();
 	init_proposed();
 	init_goalRights();
-	init_find();
+	init_find$1();
 	init_numbers();
 	init_levels();
 	init_plan();
@@ -10245,6 +10262,8 @@ function groupTitle(kind, sheet, count, first) {
 		case "cant-change": return `${n$1(count, "row")} change${count === 1 ? "s" : ""} something that can’t change`;
 		case "not-allowed": return sheet === "People" ? `${n$1(count, "row")} change${count === 1 ? "s" : ""} people. Only an admin can add or change people` : `${n$1(count, "row")} change${count === 1 ? "s" : ""} ${count === 1 ? "a goal" : "goals"} you don’t own`;
 		case "removal-refused": return `${n$1(count, "row")} can’t be ${sheet === "People" ? "marked as left" : "stopped or deleted"} as ${count === 1 ? "it stands" : "they stand"}`;
+		case "too-long": return `${n$1(count, "cell")} ${count === 1 ? "is" : "are"} longer than ${col || "its column"} holds`;
+		case "module-value": return first.message;
 		case "loop": return `${n$1(count, "goal")} would feed ${count === 1 ? "itself" : "themselves"}`;
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
@@ -10302,7 +10321,7 @@ function groupIssues(issues) {
 }
 var fold$1, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
 var init_problemLevels = __esmMin((() => {
-	init_find();
+	init_find$1();
 	fold$1 = (s) => fold$2(s).replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 	MUST_KINDS = [
 		"required-empty",
@@ -10324,7 +10343,8 @@ var init_problemLevels = __esmMin((() => {
 		"cant-change",
 		"not-allowed",
 		"removal-refused",
-		"loop"
+		"loop",
+		"too-long"
 	];
 	CHECK_KINDS = [
 		"near-ref",
@@ -10347,7 +10367,8 @@ var init_problemLevels = __esmMin((() => {
 		"totals-row",
 		"big-removal",
 		"feeds-lower",
-		"for-someone-else"
+		"for-someone-else",
+		"module-value"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
 	SEVERITY = {
@@ -12362,6 +12383,62 @@ function* planChangesInChunks(input) {
 			...asked.length ? { questions: asked } : {}
 		});
 	}
+	let moduleOut;
+	if (!create) {
+		const recAt = new Map(goalRows.map(({ r, row }) => [row, r]));
+		for (const m of input.records ?? []) {
+			const gs = m.goalSheet;
+			const heads = gs ? gs.columns(s) : [];
+			if (!gs || !heads.length) continue;
+			const rows = [...touched].flatMap(([id, t]) => {
+				const r = t.sheet === "Goals" && !leftSet.has(`Goals|${t.row}`) ? recAt.get(t.row) : void 0;
+				const g = goalOut.get(id) ?? (t.before && !issuesAt.get(`Goals|${t.row}`)?.some((x) => x.kind === "not-allowed") ? work.get(id) : void 0);
+				if (!r || !g) return [];
+				const cells = Object.fromEntries(heads.filter((h) => has(r, h.header.toLowerCase())).map((h) => [h.header, val(r, h.header.toLowerCase())]));
+				return Object.keys(cells).length ? [{
+					row: t.row,
+					goal: g,
+					cells
+				}] : [];
+			});
+			if (!rows.length) continue;
+			const got = gs.read({
+				snapshot: s,
+				actor,
+				now,
+				newId: (p) => newId(p),
+				rows,
+				answer: (column, found) => answerOf("module-value", "Goals", column, found),
+				raise: (i) => raise(i.kind, "Goals", i.row, i.name, i.message, {
+					column: i.column,
+					...i.found ? { found: i.found } : {},
+					...i.answers ? { answers: i.answers } : {}
+				})
+			});
+			moduleOut = applyModuleRows(moduleOut, got.commit.modules);
+			changes.push(...got.changes);
+			for (const [goalId, diffs] of Object.entries(got.diffs)) {
+				const item = items.find((x) => x.goalId === goalId && x.sheet === "Goals" && (x.kind === "goal" || x.kind === "plan" || x.kind === "new goal"));
+				if (item) {
+					item.diffs.push(...diffs);
+					continue;
+				}
+				const t = touched.get(goalId);
+				const g = goalOut.get(goalId) ?? work.get(goalId);
+				items.push({
+					sheet: "Goals",
+					row: t.row,
+					goalId,
+					goal: g.title,
+					kind: "goal",
+					summary: got.changes.filter((c) => c.goalId === goalId).map((c) => c.summary).join("; "),
+					diffs
+				});
+				unchanged--;
+				unchangedBy.Goals--;
+			}
+		}
+	}
 	const ciOut = [];
 	const ciBefore = /* @__PURE__ */ new Map();
 	for (const x of doneAtSetUp) {
@@ -13051,6 +13128,7 @@ function* planChangesInChunks(input) {
 		goals: ordered,
 		checkIns: ciOut,
 		...reqOut.size ? { requests: [...reqOut.values()] } : {},
+		...moduleOut && hasModuleRows(moduleOut) ? { modules: moduleOut } : {},
 		changes
 	};
 	else if (ok) {
@@ -13107,6 +13185,7 @@ function* planChangesInChunks(input) {
 			checkIns: ciOut,
 			...reqOut.size ? { requests: [...reqOut.values()] } : {},
 			...reviewsOut.size ? { reviews: [...reviewsOut.values()] } : {},
+			...moduleOut && hasModuleRows(moduleOut) ? { modules: moduleOut } : {},
 			changes: [...changes, summary]
 		};
 	}
@@ -13804,7 +13883,7 @@ function unlinkGoalMetric(x, goal) {
 	};
 }
 var MODULE$1, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$1, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log$1, live$2, ownsOrAdmin, canEditMetric, canLinkGoal;
-var init_rules = __esmMin((() => {
+var init_rules$1 = __esmMin((() => {
 	init_actions();
 	init_changes();
 	init_format();
@@ -14315,7 +14394,7 @@ function checkReads(s) {
 	};
 }
 var init_checkReads = __esmMin((() => {
-	init_rules();
+	init_rules$1();
 	init_rulesDefine();
 }));
 // src/modules/metrics/rulesChange.ts
@@ -14576,7 +14655,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 var same$1, onDay, goalsWord, metricOf$1, mayChange, retiredWords;
 var init_rulesChange = __esmMin((() => {
 	init_rulesMeasured();
-	init_rules();
+	init_rules$1();
 	same$1 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
 		day: "numeric",
@@ -14632,7 +14711,7 @@ function saveMetricAsked(x, input) {
 }
 var init_rulesSave = __esmMin((() => {
 	init_checkReads();
-	init_rules();
+	init_rules$1();
 	init_rulesChange();
 	init_rulesDefine();
 }));
@@ -14736,7 +14815,7 @@ function linkReads(x, goal, metricId) {
 }
 var init_rulesLink = __esmMin((() => {
 	init_rulesMeasured();
-	init_rules();
+	init_rules$1();
 	init_rulesParts();
 	init_rulesSave();
 	init_rulesChange();
@@ -15073,7 +15152,7 @@ var SKIP = /* @__PURE__ */ new Set([
 ]);
 // src/modules/metrics/sheet.ts
 init_columns();
-init_rules();
+init_rules$1();
 var { match: m, shown: sh } = moduleColumn;
 var or = cellOr;
 var METRICS_SHEET = {
@@ -15118,7 +15197,7 @@ var METRICS_SHEET = {
 };
 // src/modules/metrics/records.ts
 init_actions();
-init_rules();
+init_rules$1();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
 var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
 var iso$4 = (v) => new Date(String(v)).toISOString();
@@ -15301,7 +15380,543 @@ var records$3 = {
 		}
 	}]
 };
+// src/modules/tags/filter.ts
+/** Rule 3 for one goal at a time: whether a goal (by id) matches every field filtered. */
+function fieldMatcher(values, filters) {
+	const want = Object.entries(filters).filter(([, picked]) => picked.length).map(([f, picked]) => [f, new Set(picked.map(k$1))]);
+	if (!want.length) return () => true;
+	const fields = new Set(want.map(([f]) => f));
+	const held = /* @__PURE__ */ new Map();
+	for (const v of values) if (fields.has(v.fieldId) && !v.removedAt && v.value.trim()) held.set(`${v.goalId}:${v.fieldId}`, k$1(v.value));
+	return (goalId) => want.every(([f, picked]) => picked.has(held.get(`${goalId}:${f}`) ?? k$1("Not set")));
+}
+/**
+* The values a filter's text picks from a list field, as the list writes them: "Build,Run" or "build, not set". Read
+* against the list, so a value with a comma in it ("Data, AI") is still one value; anything the list doesn't hold is
+* left out, as a link's unknown values are (domain/query).
+*/
+function pickedOf(field, text) {
+	const known = [...field.options.map((o) => o.trim()), NOT_SET];
+	const parts = text.split(",");
+	const out = [];
+	for (let i = 0; i < parts.length;) {
+		let hit = -1;
+		for (let j = parts.length; j > i && hit < 0; j--) {
+			const t = k$1(parts.slice(i, j).join(","));
+			if (known.some((o) => k$1(o) === t)) hit = j;
+		}
+		if (hit < 0) {
+			i++;
+			continue;
+		}
+		const v = known.find((o) => k$1(o) === k$1(parts.slice(i, hit).join(",")));
+		if (!out.includes(v)) out.push(v);
+		i = hit;
+	}
+	return out;
+}
+var NOT_SET, filterParam, k$1, pickedText;
+var init_filter = __esmMin((() => {
+	NOT_SET = "Not set";
+	filterParam = (fieldId) => `f.${fieldId}`;
+	k$1 = (s) => s.trim().toLowerCase();
+	pickedText = (field, picked) => [...field.options.map((o) => o.trim()), NOT_SET].filter((o) => picked.some((p) => k$1(p) === k$1(o))).join(",");
+}));
+// src/modules/tags/rules.ts
+/**
+* Rule 1. What stops a field being saved, or null: a name of 1 to 40 characters that no other live field has (whatever
+* the case); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
+* six live fields. `fields`
+* is the workspace's fields as they are now (the one being changed among them, by id, or not yet).
+*/
+function fieldProblem(field, fields) {
+	const name = field.name.trim();
+	if (!name) return "Give the field a name.";
+	if (name.length > FIELD_LIMITS.name) return `Keep the name to ${FIELD_LIMITS.name} characters.`;
+	const others = fields.filter((f) => f.id !== field.id && live$1(f));
+	if (live$1(field) && others.some((f) => key$1(f.name) === key$1(name))) return `There’s already a field called “${others.find((f) => key$1(f.name) === key$1(name)).name.trim()}”.`;
+	if (live$1(field) && !fields.some((f) => f.id === field.id && live$1(f)) && others.length >= FIELD_LIMITS.fields) return `A workspace has at most ${FIELD_LIMITS.fields} fields. Retire one first.`;
+	if (field.kind === "text") return field.options.length ? "A free-text field has no values: choose A list of values, or leave the values out." : null;
+	const values = field.options.map((v) => v.trim());
+	if (!values.filter(Boolean).length) return "A list needs at least one value.";
+	if (values.some((v) => !v)) return "Remove the empty value, or type one.";
+	if (values.length > FIELD_LIMITS.values) return `A list holds at most ${FIELD_LIMITS.values} values.`;
+	const long = values.find((v) => v.length > FIELD_LIMITS.option);
+	if (long) return `Keep each value to ${FIELD_LIMITS.option} characters: “${long.slice(0, 20)}…” is longer.`;
+	const twice = values.find((v, i) => values.findIndex((w) => key$1(w) === key$1(v)) !== i);
+	if (twice) return `“${twice}” is in the list twice.`;
+	if (values.some((v) => key$1(v) === key$1("Not set"))) return `“${NOT_SET}” is what a goal with no value says. Call the value something else.`;
+	return null;
+}
+/**
+* Rule 2. A goal's value for a field, as stored, or why not: empty clears it; a list's value must be one of its values
+* (whatever the case) and is kept as the list writes it; free text is at most 80 characters. Spaces at either end go.
+*/
+function valueProblem(field, typed) {
+	const v = typed.trim();
+	if (!v) return { value: "" };
+	if (field.kind === "text") return v.length > FIELD_LIMITS.value ? { problem: `Keep ${field.name.trim()} to ${FIELD_LIMITS.value} characters.` } : { value: v };
+	const hit = field.options.find((o) => key$1(o) === key$1(v));
+	if (hit) return { value: hit.trim() };
+	const list = field.options.map((o) => o.trim());
+	const said = list.length > 1 ? `${list.slice(0, -1).join(", ")} or ${list[list.length - 1]}` : list[0] ?? "";
+	return { problem: `“${v}” isn’t one of ${field.name.trim()}’s values: ${said}.` };
+}
+var FIELD_LIMITS, key$1, live$1;
+var init_rules = __esmMin((() => {
+	init_filter();
+	FIELD_LIMITS = {
+		fields: 6,
+		name: 40,
+		values: 20,
+		option: 40,
+		value: 80
+	};
+	key$1 = (s) => s.trim().toLowerCase();
+	live$1 = (f) => !f.retiredAt;
+}));
+// src/modules/tags/fields.ts
+/** A goal's value for a field, or '' when it has none. */
+function valueOf(s, goalId, fieldId) {
+	const v = valuesOf(s).find((x) => x.id === valueId(goalId, fieldId));
+	return v && !v.removedAt ? v.value : "";
+}
+/** How many of these goals have a value for a field. */
+function goalsWith(s, fieldId, goalIds) {
+	return valuesOf(s).filter((v) => v.fieldId === fieldId && !v.removedAt && v.value && goalIds.has(v.goalId)).length;
+}
+/** A field by id, or a NotAllowed that says it has gone. */
+function fieldById(s, id) {
+	const f = fieldsOf(s).find((x) => x.id === id);
+	if (!f) throw new NotAllowed("That field no longer exists. Reload to see the latest.");
+	return f;
+}
+/** Add a field, after the others. “Stage added”. */
+function addField(x, input) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const f = tidy(input);
+	const fields = all(x);
+	const field = {
+		id: x.newId("fld"),
+		...f,
+		position: Math.max(-1, ...fields.map((v) => v.position)) + 1,
+		createdBy: x.actor.id,
+		createdAt: x.now,
+		retiredAt: null,
+		retiredBy: null
+	};
+	const problem = fieldProblem(field, fields);
+	if (problem) no(problem);
+	return {
+		...fieldRows({ fields: [field] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: field.id,
+			action: "created",
+			summary: `${field.name} added`,
+			diffs: [{
+				field: "Field",
+				from: "—",
+				to: field.name
+			}, {
+				field: "Kind",
+				from: "—",
+				to: kindWords(field)
+			}]
+		})]
+	};
+}
+/** Rename a field or change a list's values (its kind stays). Goals keep the values they hold. Null: nothing changed. */
+function changeField(x, id, input) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const was = fieldById(x.full ?? x.snapshot, id);
+	const f = tidy({
+		...input,
+		kind: was.kind
+	});
+	const next = {
+		...was,
+		name: f.name,
+		options: f.options
+	};
+	const problem = fieldProblem(next, all(x));
+	if (problem) no(problem);
+	const diffs = [...next.name !== was.name ? [{
+		field: "Name",
+		from: was.name,
+		to: next.name
+	}] : [], ...next.options.join("\n") !== was.options.join("\n") ? [{
+		field: "Values",
+		from: was.options.join(", "),
+		to: next.options.join(", ")
+	}] : []];
+	if (!diffs.length) return null;
+	const summary = next.name !== was.name ? `${was.name} renamed ${next.name}` : `${next.name}’s values changed`;
+	return {
+		...fieldRows({ fields: [next] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "edited",
+			summary,
+			diffs
+		})]
+	};
+}
+/** Move a live field one place up (-1) or down (+1) among the live fields. Null: it is already first or last. */
+function moveField(x, id, by) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const live = liveFields(x.full ?? x.snapshot);
+	const at = live.findIndex((f) => f.id === id);
+	if (at < 0) no("That field is retired or no longer exists. Reload to see the latest.");
+	if (!live[at + by]) return null;
+	const order = [...live];
+	order.splice(at, 1);
+	order.splice(at + by, 0, live[at]);
+	const moved = order.map((f, i) => ({
+		...f,
+		position: i
+	})).filter((f, i) => live.find((v) => v.id === f.id).position !== i);
+	return {
+		...fieldRows({ fields: moved }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "edited",
+			summary: `${live[at].name} moved ${by < 0 ? "up" : "down"}`,
+			diffs: [{
+				field: "Order",
+				from: live.map((f) => f.name).join(", "),
+				to: order.map((f) => f.name).join(", ")
+			}]
+		})]
+	};
+}
+/** Retire a field (Lane, 5a): it leaves goals' pages and the tools; every value stays, and it can be brought back. */
+function retireField(x, id) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const f = fieldById(x.full ?? x.snapshot, id);
+	if (f.retiredAt) no(`${f.name} is already retired.`);
+	return {
+		...fieldRows({ fields: [{
+			...f,
+			retiredAt: x.now,
+			retiredBy: x.actor.id
+		}] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "removed",
+			summary: `${f.name} retired`,
+			diffs: [{
+				field: "Field",
+				from: f.name,
+				to: "Retired"
+			}]
+		})]
+	};
+}
+/** Bring a retired field back, with every value goals had, after the live ones. Refused when six are live, or when a
+live field has its name now. */
+function bringBackField(x, id) {
+	if (!canDefineFields(x.actor)) no(ADMINS);
+	const fields = all(x);
+	const f = fieldById(x.full ?? x.snapshot, id);
+	if (!f.retiredAt) no(`${f.name} isn’t retired.`);
+	const back = {
+		...f,
+		retiredAt: null,
+		retiredBy: null,
+		position: Math.max(-1, ...fields.filter((v) => !v.retiredAt).map((v) => v.position)) + 1
+	};
+	const problem = fieldProblem(back, fields);
+	if (problem) no(problem);
+	return {
+		...fieldRows({ fields: [back] }),
+		changes: [log(x, {
+			goalId: null,
+			entityId: id,
+			action: "restored",
+			summary: `${f.name} brought back`,
+			diffs: [{
+				field: "Field",
+				from: "Retired",
+				to: f.name
+			}]
+		})]
+	};
+}
+/**
+* Set a goal's values (rule 2): `values` by field id, each as typed. A list's value is kept as the list writes it; empty
+* clears it. Every value is checked before anything is saved, so one refused value saves none. History says each
+* change on the goal, “Stage: Discover → Build”; no reason is asked (a field is not the plan). Null: nothing changed.
+*/
+function setGoalFields(x, goal, values) {
+	if (!canSetFields(x.actor, goal)) no("Only the goal’s owner or an admin can change its fields.");
+	const s = x.full ?? x.snapshot;
+	const rows = [];
+	const changes = [];
+	for (const [fieldId, typed] of Object.entries(values)) {
+		const f = fieldById(s, fieldId);
+		if (f.retiredAt) no(`${f.name} is retired. An admin can bring it back in Workspace, Fields.`);
+		const r = valueProblem(f, typed);
+		if ("problem" in r) return no(r.problem);
+		const from = valueOf(s, goal.id, f.id);
+		if (from === r.value) continue;
+		rows.push({
+			id: valueId(goal.id, f.id),
+			goalId: goal.id,
+			fieldId: f.id,
+			value: r.value,
+			setBy: x.actor.id,
+			setAt: x.now,
+			removedAt: null,
+			removedBy: null
+		});
+		changes.push(log(x, {
+			goalId: goal.id,
+			entityId: f.id,
+			action: "edited",
+			summary: `${f.name}: ${from || "Not set"} → ${r.value || "Not set"}`,
+			diffs: [{
+				field: f.name,
+				from: from || "—",
+				to: r.value || "—"
+			}]
+		}));
+	}
+	return rows.length ? {
+		...fieldRows({ fieldValues: rows }),
+		changes
+	} : null;
+}
+var MODULE, FIELDS_KEY, VALUES_KEY, fieldsOf, liveFields, valuesOf, fieldRows, valueId, kindWords, fieldByName, canDefineFields, canSetFields, no, ADMINS, log, tidy, all;
+var init_fields = __esmMin((() => {
+	init_actions();
+	init_records();
+	init_rules();
+	MODULE = "tags";
+	FIELDS_KEY = "fields";
+	VALUES_KEY = "fieldValues";
+	fieldsOf = (s) => [...moduleRows(s, MODULE, FIELDS_KEY)].sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
+	liveFields = (s) => fieldsOf(s).filter((f) => !f.retiredAt);
+	valuesOf = (s) => moduleRows(s, MODULE, VALUES_KEY);
+	fieldRows = (rows) => withModuleRows(MODULE, {
+		[FIELDS_KEY]: rows.fields,
+		[VALUES_KEY]: rows.fieldValues
+	});
+	valueId = (goalId, fieldId) => `${goalId}:${fieldId}`;
+	kindWords = (f) => f.kind === "list" ? `A list: ${f.options.join(", ")}` : "Free text";
+	fieldByName = (s, name) => liveFields(s).find((f) => f.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
+	canDefineFields = (actor) => actor.admin;
+	canSetFields = (actor, g) => actor.admin || g.ownerId === actor.id;
+	no = (msg) => {
+		throw new NotAllowed(msg);
+	};
+	ADMINS = "Only an admin can change the workspace’s fields.";
+	log = (x, c) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		entity: "field",
+		...c
+	});
+	tidy = (f) => ({
+		name: f.name.trim(),
+		kind: f.kind,
+		options: f.kind === "list" ? f.options.map((o) => o.trim()) : []
+	});
+	all = (x) => fieldsOf(x.full ?? x.snapshot);
+}));
+// src/modules/tags/find.ts
+var find_exports = /* @__PURE__ */ __exportAll({ fieldParams: () => fieldParams });
+/** The parameters find_goals' `fields` means; anything else is an Error in words. */
+async function fieldParams(s, asked) {
+	const out = {};
+	for (const [name, v] of Object.entries(asked)) {
+		const f = fieldByName(s, name);
+		if (!f) throw new Error(`There’s no field called ${name}. Fields: ${liveFields(s).map((x) => x.name).join(", ") || "none yet"}.`);
+		if (f.kind === "text") throw new Error(`${f.name} is free text, so it can’t filter goals: only a list field can.`);
+		const typed = (Array.isArray(v) ? v.map(String) : String(v ?? "").split(",")).map((x) => x.trim()).filter(Boolean);
+		if (!typed.length) throw new Error(`Say which of ${f.name}’s values to find: ${[...f.options, NOT_SET].join(", ")}.`);
+		const picked = [];
+		for (const t of typed) {
+			if (t.toLowerCase() === "Not set".toLowerCase()) {
+				picked.push(NOT_SET);
+				continue;
+			}
+			const r = valueProblem(f, t);
+			if ("problem" in r) throw new Error(`${r.problem} Or ${NOT_SET}, for goals with no value.`);
+			picked.push(r.value);
+		}
+		out[filterParam(f.id)] = pickedText(f, picked);
+	}
+	return out;
+}
+var init_find = __esmMin((() => {
+	init_filter();
+	init_fields();
+	init_rules();
+}));
+// src/modules/tags/sheet.ts
+var sheet_exports = /* @__PURE__ */ __exportAll({
+	readFieldColumns: () => readFieldColumns,
+	unknownValue: () => unknownValue
+});
+/** The question for a value a list doesn't hold, in the spec's words, and its answers: Add (an admin, while the list has
+room), or leave the cells empty. */
+function unknownValue(field, value, count, canAdd) {
+	return canAdd ? {
+		message: `${field} says “${value}” on ${rows$2(count)}. Add “${value}” to ${field}, or leave these cells empty?`,
+		answers: [{
+			choice: "add",
+			label: `Add “${value}” to ${field}`
+		}, {
+			choice: "empty",
+			label: "Leave these cells empty"
+		}]
+	} : {
+		message: `${field} says “${value}” on ${rows$2(count)}, which isn’t one of its values, and only an admin can add one. Leave these cells empty, or fix the file?`,
+		answers: [{
+			choice: "empty",
+			label: "Leave these cells empty"
+		}]
+	};
+}
+function readFieldColumns(r) {
+	let s = r.snapshot;
+	const x = {
+		snapshot: s,
+		actor: r.actor,
+		now: r.now,
+		newId: r.newId
+	};
+	const out = {
+		commit: {},
+		changes: [],
+		diffs: {}
+	};
+	const fields = liveFields(s).filter((f) => r.rows.some((row) => f.name in row.cells));
+	const wanted = /* @__PURE__ */ new Map();
+	const unknown = /* @__PURE__ */ new Map();
+	for (const f of fields) for (const row of r.rows) {
+		if (!(f.name in row.cells)) continue;
+		const typed = row.cells[f.name] ?? "";
+		const v = valueProblem(f, typed);
+		if ("value" in v) {
+			(wanted.get(row.goal.id) ?? wanted.set(row.goal.id, /* @__PURE__ */ new Map()).get(row.goal.id)).set(f.id, v.value);
+			continue;
+		}
+		if (f.kind === "text") {
+			r.raise({
+				kind: "too-long",
+				row: row.row,
+				name: row.goal.title,
+				column: f.name,
+				found: typed.trim().slice(0, 40),
+				message: v.problem
+			});
+			continue;
+		}
+		const key = `${f.id}|${k(typed)}`;
+		(unknown.get(key) ?? unknown.set(key, {
+			field: f.id,
+			value: typed.trim(),
+			rows: []
+		}).get(key)).rows.push(row.row);
+	}
+	const adds = /* @__PURE__ */ new Map();
+	for (const u of unknown.values()) {
+		const f = fields.find((v) => v.id === u.field);
+		const roomy = !fieldProblem({
+			...f,
+			options: [
+				...f.options,
+				...adds.get(f.id) ?? [],
+				u.value
+			]
+		}, liveFields(s));
+		const canAdd = r.actor.admin && roomy;
+		const a = r.answer(f.name, u.value);
+		const goalsAt = (row) => r.rows.find((x) => x.row === row).goal;
+		if (a?.choice === "add" && canAdd) {
+			adds.set(f.id, [...adds.get(f.id) ?? [], u.value]);
+			for (const row of u.rows) {
+				const g = goalsAt(row);
+				(wanted.get(g.id) ?? wanted.set(g.id, /* @__PURE__ */ new Map()).get(g.id)).set(f.id, u.value);
+			}
+		} else if (a?.choice === "empty") for (const row of u.rows) {
+			const g = goalsAt(row);
+			(wanted.get(g.id) ?? wanted.set(g.id, /* @__PURE__ */ new Map()).get(g.id)).set(f.id, "");
+		}
+		else {
+			const q = unknownValue(f.name, u.value, u.rows.length, canAdd);
+			for (const row of u.rows) r.raise({
+				kind: "module-value",
+				row,
+				name: goalsAt(row).title,
+				column: f.name,
+				found: u.value,
+				message: q.message,
+				answers: q.answers
+			});
+		}
+	}
+	const changes = [];
+	for (const [id, more] of adds) {
+		const f = fields.find((v) => v.id === id);
+		const c = changeField(x, id, {
+			name: f.name,
+			options: [...f.options, ...more]
+		});
+		if (!c) continue;
+		out.commit = { modules: applyModuleRows(out.commit.modules, c.modules) };
+		s = {
+			...s,
+			modules: applyModuleRows(s.modules, c.modules)
+		};
+		changes.push(...c.changes);
+	}
+	for (const row of r.rows) {
+		const want = wanted.get(row.goal.id);
+		if (!want) continue;
+		const differ = Object.fromEntries([...want].filter(([fid, v]) => valueOf(s, row.goal.id, fid) !== v));
+		if (!Object.keys(differ).length) continue;
+		try {
+			const c = setGoalFields({
+				...x,
+				snapshot: s
+			}, row.goal, differ);
+			if (!c) continue;
+			out.commit = { modules: applyModuleRows(out.commit.modules, c.modules) };
+			changes.push(...c.changes);
+			out.diffs[row.goal.id] = [...out.diffs[row.goal.id] ?? [], ...c.changes.flatMap((ch) => ch.diffs)];
+		} catch (e) {
+			if (!(e instanceof NotAllowed)) throw e;
+			r.raise({
+				kind: "not-allowed",
+				row: row.row,
+				name: row.goal.title,
+				column: fields.find((f) => f.id in differ).name,
+				message: e.message
+			});
+		}
+	}
+	out.changes = changes;
+	return out;
+}
+var k, rows$2;
+var init_sheet = __esmMin((() => {
+	init_actions();
+	init_records();
+	init_fields();
+	init_rules();
+	k = (s) => s.trim().toLowerCase();
+	rows$2 = (n) => n === 1 ? "1 row" : `${n} rows`;
+}));
 // src/modules/tags/records.ts
+init_records();
+init_filter();
 var FIELDS$1 = "fields";
 var VALUES = "fieldValues";
 var iso$3 = (v) => new Date(String(v)).toISOString();
@@ -15345,38 +15960,103 @@ var valueFromRow = (r) => ({
 	setBy: String(r.set_by),
 	setAt: iso$3(r.set_at)
 });
+var field = {
+	name: "field",
+	key: FIELDS$1,
+	table: "goal_fields",
+	removable: false,
+	toRow: fieldToRow,
+	fromRow: fieldFromRow,
+	order: (a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt),
+	carry: (rows) => rows
+};
+var value = {
+	name: "field value",
+	key: VALUES,
+	table: "goal_field_values",
+	removable: false,
+	toRow: valueToRow,
+	fromRow: valueFromRow,
+	carry: (rows) => rows.filter((v) => !v.removedAt),
+	follow: (rows, copies) => rows.filter((v) => copies.has(v.goalId) && v.value).map((v) => ({
+		...v,
+		id: `${copies.get(v.goalId)}:${v.fieldId}`,
+		goalId: copies.get(v.goalId),
+		removedAt: null,
+		removedBy: null
+	})),
+	goalOf: (v) => v.goalId
+};
+var fieldsIn = (s) => moduleRows(s, "tags", FIELDS$1).filter((f) => !f.retiredAt).sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
+var valuesIn = (s) => moduleRows(s, "tags", VALUES);
+var held = (s) => {
+	const m = /* @__PURE__ */ new Map();
+	for (const v of valuesIn(s)) if (!v.removedAt && v.value) m.set(`${v.goalId}:${v.fieldId}`, v.value);
+	return m;
+};
+/** Each live list field's column, by its parameter: the goal's value (or Not set), and rule 3's test for what is picked. */
+function filterColumns(s) {
+	const out = {};
+	const lists = fieldsIn(s).filter((f) => f.kind === "list");
+	if (!lists.length) return out;
+	const by = held(s);
+	const values = valuesIn(s);
+	for (const f of lists) {
+		const fill = (g) => by.get(`${g.id}:${f.id}`) ?? "Not set";
+		let last = null;
+		fill.test = (g, text) => {
+			if (last?.text !== text) {
+				const picked = pickedOf(f, text);
+				last = {
+					text,
+					match: picked.length ? fieldMatcher(values, { [f.id]: picked }) : () => true
+				};
+			}
+			return last.match(g.id);
+		};
+		out[filterParam(f.id)] = fill;
+	}
+	return out;
+}
+/** The reader for the Goals sheet's columns, loaded with the change engine. */
+var reader = null;
+var records$2 = {
+	records: [field, value],
+	goalColumnFamilies: [{
+		prefix: "f.",
+		columns: filterColumns,
+		arg: {
+			module: "Fields",
+			name: "fields",
+			description: `Goals with these values of the workspace’s own list fields, by name: {"Stage": "Build, Run"}; "${NOT_SET}" for none.`,
+			params: async (s, asked) => (await Promise.resolve().then(() => (init_find(), find_exports))).fieldParams(s, asked)
+		}
+	}],
+	goalSheet: {
+		columns: (s) => fieldsIn(s).map((f) => ({
+			header: f.name,
+			about: `The workspace’s own field: ${f.kind === "list" ? `one of ${f.options.join(", ")}` : "free text"}, or empty for none.`
+		})),
+		cell: (s, goalId, header) => {
+			const f = fieldsIn(s).find((x) => x.name === header);
+			return f && held(s).get(`${goalId}:${f.id}`) || null;
+		},
+		load: async () => {
+			reader ??= await Promise.resolve().then(() => (init_sheet(), sheet_exports));
+		},
+		read: (x) => {
+			if (!reader) throw new Error("Fields’ columns haven’t loaded: call loadGoalSheets() before the change engine runs.");
+			return reader.readFieldColumns(x);
+		}
+	}
+};
 // \0virtual:faro-modules/records
 var records_default = [{
 	id: "metrics",
 	part: records$3
 }, {
 	id: "tags",
-	part: { records: [{
-		name: "field",
-		key: FIELDS$1,
-		table: "goal_fields",
-		removable: false,
-		toRow: fieldToRow,
-		fromRow: fieldFromRow,
-		order: (a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt),
-		carry: (rows) => rows
-	}, {
-		name: "field value",
-		key: VALUES,
-		table: "goal_field_values",
-		removable: false,
-		toRow: valueToRow,
-		fromRow: valueFromRow,
-		carry: (rows) => rows.filter((v) => !v.removedAt),
-		follow: (rows, copies) => rows.filter((v) => copies.has(v.goalId) && v.value).map((v) => ({
-			...v,
-			id: `${copies.get(v.goalId)}:${v.fieldId}`,
-			goalId: copies.get(v.goalId),
-			removedAt: null,
-			removedBy: null
-		})),
-		goalOf: (v) => v.goalId
-	}] }
+	part: records$2
 }];
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [
@@ -15852,13 +16532,27 @@ var _virtual_faro_modules_default = [
 			"save_field"
 		],
 		help: ["fields"],
-		requirements: ["TAGS-FIELDS", "TAGS-OFF"],
-		journeys: ["U174", "N34"],
+		requirements: [
+			"TAGS-FIELDS",
+			"TAGS-FILTER",
+			"TAGS-SHEET",
+			"TAGS-OFF"
+		],
+		journeys: [
+			"U174",
+			"U175",
+			"U176",
+			"N34"
+		],
 		elsewhere: [],
 		rebuild: {
 			"status": "outline",
-			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block and no Fields in Workspace's menu, /workspace/fields says Fields is switched off and who can switch it on, and the three tools refuse; every field and value stays, and comes back when it is switched on.",
-			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.", "The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. Goals' Filters sheet has a row per live list field (its values and “Not set”, any of them ticked), the filter line says “Stage is Build” with Remove, and the address carries it as /goals?f.<field id>=Build so a link and a saved view keep it; free text is not a filter. Data's Goals table and every export's Goals sheet have a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, an export loaded straight back changes nothing, and a value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”), which only an admin may add. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields), finds goals by them (find_goals' fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block, no Fields in Workspace's menu, no field filter on Goals and no field column on Data or in an export (a file's are columns nothing reads, named once), /workspace/fields says Fields is switched off and who can switch it on, and the three tools and find_goals' fields refuse; every field and value stays, and comes back when it is switched on.",
+			"entry": [
+				"The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.",
+				"The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).",
+				"The core reads a module's family of Goals filters (domain/records GoalColumnFamily: parameters by their start, f.) and its columns on the Goals sheet (ModuleGoalColumns: written by every export, read back by the change engine, which asks a module's question as its own Check, module-value), and loads a module's reader with the change engine (core/records loadGoalSheets)."
+			],
 			"exit": [
 				"fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.",
 				"The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a value over 80 characters (src/spec/limits.ts).",
@@ -15866,11 +16560,16 @@ var _virtual_faro_modules_default = [
 				"Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).",
 				"A retired field leaves goals' pages and list_fields' live fields, keeps every value, and brought back shows them again.",
 				"Starting the next year copies each goal's values to its copy; a copy that leaves, or a start undone, clears the copy's values (the tables have no removed_at: src/modules/tags/records.test.ts).",
-				"Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_fields, set_goal_fields and save_field refuse with the switched-off sentence; switched back on, every value is there (check N34)."
+				"Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, Goals has no Stage filter and Data no Stage column, a link's f.<field id> narrows nothing, and list_fields, set_goal_fields, save_field and find_goals' fields refuse with the switched-off sentence; switched back on, every value is there (check N34).",
+				"filterGoals gives the tags-filter rule's worked examples (src/modules/tags/filter.test.ts): a goal matches every field filtered, Not set matches a goal with no value, and a filter's text reads a value with a comma in it as one.",
+				"As Amara, with Stage on two goals, Goals' Filters sheet has a Stage row; ticking Build lists only the goal in Build, the filter line says “Stage is Build” with Remove, the address carries f.<field id>=Build, a view saved from it brings the same goals back, and Data's Goals table has a Stage column (journey U175).",
+				"The workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once, and added, both goals are in Operate, the list holds it and History says “Stage: Build → Operate” via the spreadsheet (journey U176; src/modules/tags/sheet.test.ts, which also covers an admin's Add, anyone else's Leave these cells empty, free text over 80 characters and a goal the loader may not change).",
+				"find_goals' fields filter finds the same goals as the Goals link with the same filter, and refuses an unknown field, a free-text field and a value the list doesn't hold in words (src/modules/tags/tools.test.ts)."
 			],
 			"gaps": [
-				"The filters (“Stage is Build” on Goals and in saved views), Data's Goals column, the Goals sheet's columns and the import's question about a value a list doesn't hold are TG2 (docs/design/round-4/tags/spec.md, section 10); find_goals' fields filter comes with them.",
-				"Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); the import's one question per value, offering an admin to add it, is TG2's.",
+				"Find doesn't search a free-text field's words: Find searches a goal's own row (its name, key, owner, team, reason and definition), and a module adds a kind to Find, not words to a goal's row.",
+				"Undo this import puts goals, plans and check-ins back, but not a field's values or a value added to a list (the core's import undo keeps no module rows yet).",
+				"Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); only the Goals sheet asks the question.",
 				"A field's kind can't be changed once it is added: a list and free text hold values of different shapes."
 			]
 		},
@@ -15889,7 +16588,8 @@ var _virtual_faro_modules_default = [
 		parity: {
 			"FieldsSection": ["list_fields", "save_field"],
 			"FieldsBlock": ["list_fields", "set_goal_fields"]
-		}
+		},
+		filters: ["fields"]
 	},
 	{
 		id: "watching",
@@ -16031,6 +16731,18 @@ var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => (m.goalColumns ?? []).ma
 	...c,
 	module: m.module
 })));
+/** The modules' families of Goals filters (Fields' `f.<field id>`), each with its module: the app's filters and
+find_goals read them, and both leave out a switched-off module's. */
+var MODULE_GOAL_FAMILIES = MODULE_RECORDS.flatMap((m) => (m.goalColumnFamilies ?? []).map((f) => ({
+	...f,
+	module: m.module
+})));
+/** The modules' columns on the Goals sheet (Fields' one per live field), of the modules on in a workspace: a module
+that's off adds no column to any export, and its columns in a file are columns nothing reads. */
+var goalSheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.goalSheet ? [m.goalSheet] : []);
+/** Loads every module's Goals-column reader (domain/records ModuleGoalColumns `load`): with the change engine, before
+it runs, wherever it runs (the app, the import's worker, the MCP server). */
+var loadGoalSheets = () => Promise.all(MODULE_RECORDS.map((m) => m.goalSheet?.load())).then(() => void 0);
 /** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
@@ -16048,6 +16760,7 @@ and whether Reviews is on (RS1, Reviews switch spec 5): with it off the workbook
 column. Spread into workbook()'s input, so the rule lives here once. */
 var exportOn = (ws) => ({
 	sheets: sheetsOn(ws),
+	goalColumns: goalSheetsOn(ws),
 	reviews: isModuleOn(ws, "reviews")
 });
 // src/mcp/moduleOff.ts
@@ -16421,7 +17134,7 @@ init_askHandover();
 init_progress();
 init_asks();
 init_attention();
-var live$1 = (xs) => xs.filter((x) => !x.removedAt);
+var live = (xs) => xs.filter((x) => !x.removedAt);
 /**
 * Whether Reviews is on (FT2): the one place that names the reviews module. Screens pass `useModules().on`, the MCP
 * server and the dispatcher `modulesOn(ws).on`; the rules in src/domain take the answer as `reviews: boolean`. A build
@@ -16448,7 +17161,7 @@ var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cy
 /** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
 narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 function goalRows(s, cycle, today, week, columns, reviews = true) {
-	const goals = live$1(s.goals).filter((g) => !g.stoppedAt);
+	const goals = live(s.goals).filter((g) => !g.stoppedAt);
 	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
 	const rows = {
 		checkIns: s.checkIns,
@@ -16477,7 +17190,7 @@ function personRows(s) {
 	const here = new Set(s.people.map((p) => p.id));
 	return {
 		kind: "person",
-		people: live$1([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
+		people: live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
 		teamName: (id) => teams.get(id)?.name ?? "",
 		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
@@ -16486,7 +17199,7 @@ function teamRows(s) {
 	return {
 		kind: "team",
 		teams: s.teams,
-		people: live$1(s.people)
+		people: live(s.people)
 	};
 }
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
@@ -16512,7 +17225,7 @@ function searchRows(s, cycle, today, week, columns, reviews = true) {
 and the teams they lead, and the goals they watch. Goals' screen and find_goals read the same facts. */
 function scopeFacts(s, viewer) {
 	return {
-		goals: live$1(s.goals).filter((g) => !g.stoppedAt).map((g) => ({
+		goals: live(s.goals).filter((g) => !g.stoppedAt).map((g) => ({
 			id: g.id,
 			ownerId: g.ownerId,
 			teamId: g.teamId
@@ -16586,7 +17299,7 @@ function askWaiting(r, viewerId, s, cycle, week, today, reviews = true) {
 // src/domain/goalsPage.ts
 init_query();
 init_attention();
-init_find();
+init_find$1();
 init_vocabulary();
 var SCOPES = [
 	"mine",
@@ -16659,7 +17372,7 @@ var UnknownKind = class extends Error {
 	}
 };
 // src/adapters/localSearch.ts
-init_find();
+init_find$1();
 function localSearch(rows, finders = {}) {
 	const core = CORE_KINDS.filter((k) => rows[k]);
 	return {
@@ -16859,6 +17572,14 @@ function startHere(x, opts = {}) {
 			emptyText(c),
 			c.means
 		]);
+		if (kind === "goals" && !opts.template && x.snapshot) for (const m of x.goalColumns ?? []) for (const c of m.columns(x.snapshot)) rows.push([
+			c.header,
+			"Optional",
+			null,
+			null,
+			"Not set",
+			c.about
+		]);
 	}
 	if (opts.template) return rows;
 	for (const sheet of [...sheetsFor(x.reviews !== false), ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
@@ -16890,6 +17611,17 @@ function startHere(x, opts = {}) {
 		],
 		...definitions()
 	];
+}
+/** The modules' columns on Goals (domain/records ModuleGoalColumns, Fields' one per live field), after the core's:
+each goal's cell under each header. */
+function withModuleColumns(rows, x, goalIds) {
+	const cols = (x.goalColumns ?? []).flatMap((m) => m.columns(x.snapshot).map((c) => ({
+		m,
+		header: c.header
+	})));
+	if (!cols.length) return rows;
+	const [head, ...body] = rows;
+	return [[...head, ...cols.map((c) => c.header)], ...body.map((r, i) => [...r, ...cols.map((c) => c.m.cell(x.snapshot, goalIds[i], c.header))])];
 }
 var muted = (kind, head) => head.map(String).filter((h) => isWorkedOut(kind, h));
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
@@ -16924,7 +17656,7 @@ function workbook(x) {
 	const reviews = x.reviews !== false;
 	const asks = sheetsFor(reviews).find((v) => v.kind === "asks");
 	const book = [
-		["goals", rowsOf(GOALS, goalRows)],
+		["goals", withModuleColumns(rowsOf(GOALS, goalRows), x, goalRows.map((r) => r.g.id))],
 		["plan", planRows(x, sums, c)],
 		["checkIns", rowsOf(CHECK_INS, checkIns)],
 		["people", rowsOf(PEOPLE, x.snapshot.people.map((p) => ({
@@ -18103,7 +18835,7 @@ init_levels();
 init_plan();
 init_year();
 init_via();
-init_find();
+init_find$1();
 var ACTIVITY_KINDS = [
 	["checkins", "Check-ins"],
 	["plans", "Plans and targets"],
@@ -18866,6 +19598,7 @@ var help$3 = [
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
+					"A workspace’s own fields (Fields) are columns on Goals, headed with each field’s name: a cell changes the goal’s value, an empty one clears it, and a value a list doesn’t hold is asked about once (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”); only an admin can add it. With Fields switched off, those columns are named as columns nothing reads.",
 					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
 					"Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).",
 					"Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.",
@@ -19119,56 +19852,8 @@ var help$3 = [
 		related: ["import", "export"]
 	}
 ];
-// src/modules/tags/rules.ts
-/** The limits: live fields per workspace (Lane, 1a), a name, a list's values and each value, and a goal's value. */
-var FIELD_LIMITS = {
-	fields: 6,
-	name: 40,
-	values: 20,
-	option: 40,
-	value: 80
-};
-var key$1 = (s) => s.trim().toLowerCase();
-var live = (f) => !f.retiredAt;
-/**
-* Rule 1. What stops a field being saved, or null: a name of 1 to 40 characters that no other live field has (whatever
-* the case); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
-* six live fields. `fields`
-* is the workspace's fields as they are now (the one being changed among them, by id, or not yet).
-*/
-function fieldProblem(field, fields) {
-	const name = field.name.trim();
-	if (!name) return "Give the field a name.";
-	if (name.length > FIELD_LIMITS.name) return `Keep the name to ${FIELD_LIMITS.name} characters.`;
-	const others = fields.filter((f) => f.id !== field.id && live(f));
-	if (live(field) && others.some((f) => key$1(f.name) === key$1(name))) return `There’s already a field called “${others.find((f) => key$1(f.name) === key$1(name)).name.trim()}”.`;
-	if (live(field) && !fields.some((f) => f.id === field.id && live(f)) && others.length >= FIELD_LIMITS.fields) return `A workspace has at most ${FIELD_LIMITS.fields} fields. Retire one first.`;
-	if (field.kind === "text") return field.options.length ? "A free-text field has no values: choose A list of values, or leave the values out." : null;
-	const values = field.options.map((v) => v.trim());
-	if (!values.filter(Boolean).length) return "A list needs at least one value.";
-	if (values.some((v) => !v)) return "Remove the empty value, or type one.";
-	if (values.length > FIELD_LIMITS.values) return `A list holds at most ${FIELD_LIMITS.values} values.`;
-	const long = values.find((v) => v.length > FIELD_LIMITS.option);
-	if (long) return `Keep each value to ${FIELD_LIMITS.option} characters: “${long.slice(0, 20)}…” is longer.`;
-	const twice = values.find((v, i) => values.findIndex((w) => key$1(w) === key$1(v)) !== i);
-	if (twice) return `“${twice}” is in the list twice.`;
-	return null;
-}
-/**
-* Rule 2. A goal's value for a field, as stored, or why not: empty clears it; a list's value must be one of its values
-* (whatever the case) and is kept as the list writes it; free text is at most 80 characters. Spaces at either end go.
-*/
-function valueProblem(field, typed) {
-	const v = typed.trim();
-	if (!v) return { value: "" };
-	if (field.kind === "text") return v.length > FIELD_LIMITS.value ? { problem: `Keep ${field.name.trim()} to ${FIELD_LIMITS.value} characters.` } : { value: v };
-	const hit = field.options.find((o) => key$1(o) === key$1(v));
-	if (hit) return { value: hit.trim() };
-	const list = field.options.map((o) => o.trim());
-	const said = list.length > 1 ? `${list.slice(0, -1).join(", ")} or ${list[list.length - 1]}` : list[0] ?? "";
-	return { problem: `“${v}” isn’t one of ${field.name.trim()}’s values: ${said}.` };
-}
 // src/modules/tags/help.ts
+init_rules();
 var help$2 = [{
 	id: "fields",
 	title: "Fields: a workspace’s own columns on goals",
@@ -19199,17 +19884,39 @@ var help$2 = [{
 			]
 		},
 		{
+			heading: "Finding goals by a field",
+			list: [
+				"Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.",
+				"The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.",
+				"A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort, filter or edit like any other."
+			]
+		},
+		{
+			heading: "In a spreadsheet",
+			list: [
+				"Every export’s Goals sheet has a column for each field, headed with its name: the goal’s value, or empty for none.",
+				"Change a cell and load the file back on Import: the goal takes the value, under the same rules as its page, and History says it. An empty cell clears the value. A file exported and loaded straight back changes nothing.",
+				"A value a list doesn’t hold is asked once, however many rows say it: “Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?” Only an admin can add it to the list; anyone else leaves those cells empty, or fixes the file.",
+				"A column headed with a name no field has is named as a column nothing reads."
+			]
+		},
+		{
 			heading: "With an AI assistant",
-			list: ["list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules."]
+			list: ["list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.", "find_goals finds goals by their fields: fields: { \"Stage\": \"Build\" }, several values of one field as “Build, Run”, and “Not set” for none."]
 		},
 		{
 			heading: "Who can",
-			text: ["Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again."]
+			text: ["Admins add and change the fields, and add a value to a list from a spreadsheet. A goal’s owner or an admin sets its values. Everyone sees them and filters by them. An admin can switch Fields off in Workspace, Features: the block, the section, the filters and the columns go (a file’s field columns are then columns nothing reads), and every field and value is kept for when it’s switched on again."]
 		}
 	],
 	routes: ["/workspace/fields"],
 	screens: ["FieldsSection", "FieldsBlock"],
-	reqs: ["TAGS-FIELDS", "TAGS-OFF"],
+	reqs: [
+		"TAGS-FIELDS",
+		"TAGS-FILTER",
+		"TAGS-SHEET",
+		"TAGS-OFF"
+	],
 	keywords: [
 		"field",
 		"fields",
@@ -19219,12 +19926,16 @@ var help$2 = [{
 		"programme",
 		"custom field",
 		"column",
-		"label"
+		"label",
+		"filter by field",
+		"not set"
 	],
 	related: [
 		"workspace",
 		"features",
-		"goal-page"
+		"goal-page",
+		"goals-filters",
+		"import"
 	]
 }];
 // \0virtual:faro-modules/help
@@ -19362,7 +20073,7 @@ var PROTOTYPE_LINE = "Faro is a prototype: a working model of a goals app, built
 // src/help/guide.ts
 init_checkin();
 init_thresholds();
-init_find();
+init_find$1();
 init_vocabulary();
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 var define = (t) => `${t.label}: ${t.long}`;
@@ -20121,8 +20832,8 @@ var CORE_ARTICLES = [
 				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.",
 				"Search for a goal’s key to find it, however it’s typed: G-48, g48 or just 48. A key finds only its own goal; a bare number also finds goals with that number in their words.",
 				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
-				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
-				"Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.",
+				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links. When the workspace has its own fields (Fields), each list field has a row too, such as “Stage: Discover · Build · Run · Not set”: tick any of them, and Not set finds goals with no value. A free-text field isn’t a filter.`,
+				"Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”, or “Stage is Build” for a field), each with Remove. A search is never listed as a filter.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.",
 				"Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open."
 			]
@@ -20815,6 +21526,7 @@ var CORE_ARTICLES = [
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
 					"Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
+					"When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
 				]
 			},
@@ -21773,6 +22485,22 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goal-fields-filters",
+		date: "2026-11-14",
+		title: "Find goals by your own fields, and keep them in spreadsheets",
+		points: [
+			"Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. The filter line says “Stage is Build”, and a saved view keeps it.",
+			"Data’s Goals table and every exported Goals sheet have a column for each field. Change a cell and load the file back to change the goal’s value.",
+			"A value a list doesn’t hold is asked about once, however many rows say it. Only an admin can add it to the list.",
+			"An AI assistant can find goals by their fields too."
+		],
+		articles: [
+			"fields",
+			"goals-filters",
+			"import"
+		]
+	},
 	{
 		id: "goal-fields",
 		date: "2026-11-14",
@@ -23643,7 +24371,8 @@ var sheetOf = (ctx, t) => workbook({
 	cycle: ctx.cycle,
 	week: ctx.week,
 	today: ctx.today,
-	reviews: reviewsOn(modulesOn(ctx.ws).on)
+	reviews: reviewsOn(modulesOn(ctx.ws).on),
+	goalColumns: goalSheetsOn(ctx.ws)
 }).find((x) => x.name === TABLES[t].sheet);
 var headOf = (ctx, t) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ""));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
@@ -25844,10 +26573,10 @@ var tools$6 = [
 // src/modules/metrics/rulesLibrary.ts
 init_rulesLink();
 init_rulesMeasured();
-init_find();
+init_find$1();
 init_numbers();
 init_status();
-init_rules();
+init_rules$1();
 init_names();
 var DAY = 864e5;
 /** "lower is better", as a row and a search read it. */
@@ -26003,7 +26732,7 @@ function goalsByStatus(statuses) {
 	})).sort((a, b) => RANK[b.status] - RANK[a.status] || a.status.localeCompare(b.status));
 }
 // src/modules/metrics/reads.ts
-init_rules();
+init_rules$1();
 init_rulesDefine();
 init_checkReads();
 /** The running cycle's live goals: not removed, not stopped. */
@@ -26299,7 +27028,7 @@ function sourcesFrom(seed, cycle, behindWeeks = 0) {
 }
 // src/modules/metrics/readingTool.ts
 init_status();
-init_rules();
+init_rules$1();
 /** The sources an assistant's check-in reads: the demo's in the example, none elsewhere. */
 function toolSources(ctx) {
 	if (ctx.ws.kind !== "example") return [];
@@ -26346,7 +27075,7 @@ var metricReader = {
 init_rulesMeasured();
 init_actions();
 init_goalKey();
-init_rules();
+init_rules$1();
 init_rulesChange();
 init_rulesDefine();
 init_rulesSave();
@@ -27550,265 +28279,12 @@ var tools$3 = [{
 		};
 	}
 }];
-// src/modules/tags/fields.ts
-init_actions();
-init_records();
-/** The module's id, and the keys its records are filed under (records.ts). */
-var MODULE = "tags";
-var FIELDS_KEY = "fields";
-var VALUES_KEY = "fieldValues";
-/** Every field in a workspace (or a commit), retired ones included, in their order. */
-var fieldsOf = (s) => [...moduleRows(s, MODULE, FIELDS_KEY)].sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
-/** The live fields, in their order: what a goal's page, the tools and the filters show. */
-var liveFields = (s) => fieldsOf(s).filter((f) => !f.retiredAt);
-/** Every goal's value in a workspace (or a commit). */
-var valuesOf = (s) => moduleRows(s, MODULE, VALUES_KEY);
-/** A commit's part for fields and values. */
-var fieldRows = (rows) => withModuleRows(MODULE, {
-	[FIELDS_KEY]: rows.fields,
-	[VALUES_KEY]: rows.fieldValues
-});
-var valueId = (goalId, fieldId) => `${goalId}:${fieldId}`;
-/** A goal's value for a field, or '' when it has none. */
-function valueOf(s, goalId, fieldId) {
-	const v = valuesOf(s).find((x) => x.id === valueId(goalId, fieldId));
-	return v && !v.removedAt ? v.value : "";
-}
-/** How many of these goals have a value for a field. */
-function goalsWith(s, fieldId, goalIds) {
-	return valuesOf(s).filter((v) => v.fieldId === fieldId && !v.removedAt && v.value && goalIds.has(v.goalId)).length;
-}
-/** A field's kind in words: “A list: Discover, Build, Run” or “Free text”. */
-var kindWords = (f) => f.kind === "list" ? `A list: ${f.options.join(", ")}` : "Free text";
-/** A field by id, or a NotAllowed that says it has gone. */
-function fieldById(s, id) {
-	const f = fieldsOf(s).find((x) => x.id === id);
-	if (!f) throw new NotAllowed("That field no longer exists. Reload to see the latest.");
-	return f;
-}
-/** A live field by its name, whatever the case, or null. */
-var fieldByName = (s, name) => liveFields(s).find((f) => f.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
-var canDefineFields = (actor) => actor.admin;
-var canSetFields = (actor, g) => actor.admin || g.ownerId === actor.id;
-var no = (msg) => {
-	throw new NotAllowed(msg);
-};
-var ADMINS = "Only an admin can change the workspace’s fields.";
-var log = (x, c) => ({
-	id: x.newId("chg"),
-	at: x.now,
-	actorId: x.actor.id,
-	entity: "field",
-	...c
-});
-var tidy = (f) => ({
-	name: f.name.trim(),
-	kind: f.kind,
-	options: f.kind === "list" ? f.options.map((o) => o.trim()) : []
-});
-var all = (x) => fieldsOf(x.full ?? x.snapshot);
-/** Add a field, after the others. “Stage added”. */
-function addField(x, input) {
-	if (!canDefineFields(x.actor)) no(ADMINS);
-	const f = tidy(input);
-	const fields = all(x);
-	const field = {
-		id: x.newId("fld"),
-		...f,
-		position: Math.max(-1, ...fields.map((v) => v.position)) + 1,
-		createdBy: x.actor.id,
-		createdAt: x.now,
-		retiredAt: null,
-		retiredBy: null
-	};
-	const problem = fieldProblem(field, fields);
-	if (problem) no(problem);
-	return {
-		...fieldRows({ fields: [field] }),
-		changes: [log(x, {
-			goalId: null,
-			entityId: field.id,
-			action: "created",
-			summary: `${field.name} added`,
-			diffs: [{
-				field: "Field",
-				from: "—",
-				to: field.name
-			}, {
-				field: "Kind",
-				from: "—",
-				to: kindWords(field)
-			}]
-		})]
-	};
-}
-/** Rename a field or change a list's values (its kind stays). Goals keep the values they hold. Null: nothing changed. */
-function changeField(x, id, input) {
-	if (!canDefineFields(x.actor)) no(ADMINS);
-	const was = fieldById(x.full ?? x.snapshot, id);
-	const f = tidy({
-		...input,
-		kind: was.kind
-	});
-	const next = {
-		...was,
-		name: f.name,
-		options: f.options
-	};
-	const problem = fieldProblem(next, all(x));
-	if (problem) no(problem);
-	const diffs = [...next.name !== was.name ? [{
-		field: "Name",
-		from: was.name,
-		to: next.name
-	}] : [], ...next.options.join("\n") !== was.options.join("\n") ? [{
-		field: "Values",
-		from: was.options.join(", "),
-		to: next.options.join(", ")
-	}] : []];
-	if (!diffs.length) return null;
-	const summary = next.name !== was.name ? `${was.name} renamed ${next.name}` : `${next.name}’s values changed`;
-	return {
-		...fieldRows({ fields: [next] }),
-		changes: [log(x, {
-			goalId: null,
-			entityId: id,
-			action: "edited",
-			summary,
-			diffs
-		})]
-	};
-}
-/** Move a live field one place up (-1) or down (+1) among the live fields. Null: it is already first or last. */
-function moveField(x, id, by) {
-	if (!canDefineFields(x.actor)) no(ADMINS);
-	const live = liveFields(x.full ?? x.snapshot);
-	const at = live.findIndex((f) => f.id === id);
-	if (at < 0) no("That field is retired or no longer exists. Reload to see the latest.");
-	if (!live[at + by]) return null;
-	const order = [...live];
-	order.splice(at, 1);
-	order.splice(at + by, 0, live[at]);
-	return {
-		...fieldRows({ fields: order.map((f, i) => ({
-			...f,
-			position: i
-		})).filter((f, i) => live.find((v) => v.id === f.id).position !== i) }),
-		changes: [log(x, {
-			goalId: null,
-			entityId: id,
-			action: "edited",
-			summary: `${live[at].name} moved ${by < 0 ? "up" : "down"}`,
-			diffs: [{
-				field: "Order",
-				from: live.map((f) => f.name).join(", "),
-				to: order.map((f) => f.name).join(", ")
-			}]
-		})]
-	};
-}
-/** Retire a field (Lane, 5a): it leaves goals' pages and the tools; every value stays, and it can be brought back. */
-function retireField(x, id) {
-	if (!canDefineFields(x.actor)) no(ADMINS);
-	const f = fieldById(x.full ?? x.snapshot, id);
-	if (f.retiredAt) no(`${f.name} is already retired.`);
-	return {
-		...fieldRows({ fields: [{
-			...f,
-			retiredAt: x.now,
-			retiredBy: x.actor.id
-		}] }),
-		changes: [log(x, {
-			goalId: null,
-			entityId: id,
-			action: "removed",
-			summary: `${f.name} retired`,
-			diffs: [{
-				field: "Field",
-				from: f.name,
-				to: "Retired"
-			}]
-		})]
-	};
-}
-/** Bring a retired field back, with every value goals had, after the live ones. Refused when six are live, or when a
-live field has its name now. */
-function bringBackField(x, id) {
-	if (!canDefineFields(x.actor)) no(ADMINS);
-	const fields = all(x);
-	const f = fieldById(x.full ?? x.snapshot, id);
-	if (!f.retiredAt) no(`${f.name} isn’t retired.`);
-	const back = {
-		...f,
-		retiredAt: null,
-		retiredBy: null,
-		position: Math.max(-1, ...fields.filter((v) => !v.retiredAt).map((v) => v.position)) + 1
-	};
-	const problem = fieldProblem(back, fields);
-	if (problem) no(problem);
-	return {
-		...fieldRows({ fields: [back] }),
-		changes: [log(x, {
-			goalId: null,
-			entityId: id,
-			action: "restored",
-			summary: `${f.name} brought back`,
-			diffs: [{
-				field: "Field",
-				from: "Retired",
-				to: f.name
-			}]
-		})]
-	};
-}
-/**
-* Set a goal's values (rule 2): `values` by field id, each as typed. A list's value is kept as the list writes it; empty
-* clears it. Every value is checked before anything is saved, so one refused value saves none. History says each
-* change on the goal, “Stage: Discover → Build”; no reason is asked (a field is not the plan). Null: nothing changed.
-*/
-function setGoalFields(x, goal, values) {
-	if (!canSetFields(x.actor, goal)) no("Only the goal’s owner or an admin can change its fields.");
-	const s = x.full ?? x.snapshot;
-	const rows = [];
-	const changes = [];
-	for (const [fieldId, typed] of Object.entries(values)) {
-		const f = fieldById(s, fieldId);
-		if (f.retiredAt) no(`${f.name} is retired. An admin can bring it back in Workspace, Fields.`);
-		const r = valueProblem(f, typed);
-		if ("problem" in r) return no(r.problem);
-		const from = valueOf(s, goal.id, f.id);
-		if (from === r.value) continue;
-		rows.push({
-			id: valueId(goal.id, f.id),
-			goalId: goal.id,
-			fieldId: f.id,
-			value: r.value,
-			setBy: x.actor.id,
-			setAt: x.now,
-			removedAt: null,
-			removedBy: null
-		});
-		changes.push(log(x, {
-			goalId: goal.id,
-			entityId: f.id,
-			action: "edited",
-			summary: `${f.name}: ${from || "Not set"} → ${r.value || "Not set"}`,
-			diffs: [{
-				field: f.name,
-				from: from || "—",
-				to: r.value || "—"
-			}]
-		}));
-	}
-	return rows.length ? {
-		...fieldRows({ fieldValues: rows }),
-		changes
-	} : null;
-}
 // src/modules/tags/tools.ts
 init_actions();
 init_goalKey();
 init_via();
+init_fields();
+init_rules();
 var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -28421,6 +28897,7 @@ async function change(ctx, tables, opts) {
 		text: `Not checked. ${big}`
 	};
 	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
+	await loadGoalSheets();
 	const cs = planChanges({
 		tables,
 		snapshot: ctx.snapshot,
@@ -28716,6 +29193,14 @@ var CORE_TOOLS = [
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
+				...Object.fromEntries(MODULE_GOAL_FAMILIES.flatMap((f) => f.arg ? [[f.arg.name, {
+					type: "object",
+					additionalProperties: { anyOf: [{ type: "string" }, {
+						type: "array",
+						items: { type: "string" }
+					}] },
+					description: f.arg.description
+				}]] : [])),
 				state: str("active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).", { enum: [
 					"active",
 					"proposed",
@@ -28765,6 +29250,18 @@ var CORE_TOOLS = [
 				query = parseQuery(new URLSearchParams(v.params));
 				linkScope = new URLSearchParams(v.params).get("scope");
 			}
+			for (const f of MODULE_GOAL_FAMILIES) {
+				const v = f.arg ? a[f.arg.name] : void 0;
+				if (!f.arg || !v || typeof v !== "object" || !Object.keys(v).length) continue;
+				if (!isModuleOn(ctx.ws, f.module)) throw new Error(moduleOffSentence(f.arg.module, ctx.ws.name, `find_goals’ ${f.arg.name} filter`));
+				query = {
+					...query,
+					cols: {
+						...query.cols,
+						...await f.arg.params(ctx.full ?? ctx.snapshot, v)
+					}
+				};
+			}
 			const status = a.status ? statusIn(a.status) : null;
 			const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
 			const owners = [
@@ -28798,10 +29295,13 @@ var CORE_TOOLS = [
 				sort: asked.sort ? asked.sort + (asked.dir === -1 ? ".desc" : "") : null
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
+			const sNow = ctx.full ?? ctx.snapshot;
+			const family = Object.assign({}, ...MODULE_GOAL_FAMILIES.filter((f) => isModuleOn(ctx.ws, f.module)).map((f) => f.columns(sNow)));
 			const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => {
 				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module));
-				return c && v ? [{
-					fill: c.fill(ctx.full ?? ctx.snapshot),
+				const col = c ? c.fill(sNow) : family[k];
+				return col && v ? [{
+					col,
 					v
 				}] : [];
 			});
@@ -28831,7 +29331,7 @@ var CORE_TOOLS = [
 			const proposedOnly = a.state === "proposed";
 			const inScopeOf = (g) => !inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false;
 			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
-			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
+			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => columnPasses(c.col, x.goal, c.v)));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			return listed(goalPage(list.map((s) => ({
 				key: s.goal.key ?? null,
@@ -29422,6 +29922,7 @@ var TOOL_MODULE = new Map(tools_default.flatMap((m) => m.part.map((t) => [t.name
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
 module's own (the spreadsheets module's export and export_table). */
 addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
+addColumnPrefixes(MODULE_GOAL_FAMILIES.map((f) => f.prefix));
 var TOOLS = [
 	...CORE_TOOLS,
 	...WORK_TOOLS,

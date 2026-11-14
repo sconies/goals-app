@@ -107,7 +107,7 @@ describe('Every module’s manifest', () => {
         expect(Object.keys(app?.places ?? {}).sort()).toEqual([...m.places].sort());
         expect((app?.sections ?? []).map((x) => x.id).sort()).toEqual([...(m.sections ?? [])].sort());
         expect((app?.finders ?? []).map((x) => x.kind).sort()).toEqual([...(m.finders ?? [])].sort());
-        expect((app?.filters ?? []).map((x) => x.id).sort()).toEqual([...(m.filters ?? [])].sort());
+        expect([...(app?.filters ?? []), ...(app?.filterFamilies ?? [])].map((x) => x.id).sort()).toEqual([...(m.filters ?? [])].sort());
         expect(!!app?.toSortOut).toBe(!!m.toSortOut);
         for (const [, to] of m.redirects) expect(m.routes, `redirect to ${to}`).toContain(to);
       });

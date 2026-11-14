@@ -107,4 +107,18 @@ describe('a module’s filter, declared as a column (architecture 4.2)', () => {
     expect(q.queryParts({ ...q.EMPTY_QUERY, cols: { measuredby: 'm1' } }, names)).toEqual([{ key: 'measuredby', label: 'Measured by', values: ['M1'] }]);
     expect(q.without(parsed, 'measuredby').cols).toEqual({});
   });
+
+  it('reads a family’s parameters by their start (Fields’ f.<field id>), and a column’s test picks several values', async () => {
+    const q = await import('./query');
+    q.addColumnPrefixes(['fam.']);
+    const parsed = q.parseQuery(new URLSearchParams('fam.stage=Build,Run&fam.=x&status=off'));
+    expect(parsed.cols).toEqual({ 'fam.stage': 'Build,Run' });
+    expect(q.isQueryKey('fam.stage')).toBe(true);
+    expect(q.isQueryKey('fam.')).toBe(false);
+    expect(q.queryEntries(parsed)).toContainEqual(['fam.stage', 'Build,Run']);
+    const col: import('./query').ColumnFill = Object.assign((g: { id: string }) => (g.id === 'a' ? 'Build' : 'Discover'), { test: (g: { id: string }, picked: string) => picked.split(',').includes(g.id === 'a' ? 'Build' : 'Discover') });
+    expect(q.columnPasses(col, { id: 'a' } as never, 'Build,Run')).toBe(true);
+    expect(q.columnPasses(col, { id: 'b' } as never, 'Build,Run')).toBe(false);
+    expect(q.without(parsed, 'fam.stage').cols).toEqual({});
+  });
 });

@@ -1212,9 +1212,21 @@
       "use": "copy"
     },
     {
+      "id": "TAGS-FILTER",
+      "area": "Goals",
+      "text": "Goals filters by a workspace's own list fields: the Filters sheet has a row per live list field with its values and “Not set” to tick (any of them), the filter line says “Stage is Build” with Remove, the address carries it (/goals?f.<field id>=Build) so a link and a saved view keep it, and an AI assistant's find_goals takes the same filter by name (fields: { Stage: \"Build\" }). Free text is not a filter. Data's Goals table has a column per live field.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-SHEET",
+      "area": "Import",
+      "text": "Every export's Goals sheet has a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, and an export loaded straight back changes nothing. A value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”): only an admin may add it, anyone else leaves those cells empty or fixes the file. A column headed with a name no field has is a column nothing reads.",
+      "use": "copy"
+    },
+    {
       "id": "TAGS-OFF",
       "area": "Architecture",
-      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again.",
+      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), Goals has no field filters and Data no field columns, exports have no field columns and the import names a file's as columns nothing reads, and the fields tools and find_goals' fields filter refuse. Every field and value is kept, and switching it on shows them again.",
       "use": "copy"
     },
     {

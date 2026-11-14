@@ -10,7 +10,8 @@ import type { Cell } from '../domain/export';
 import type { CheckInReading, Goal, GoalKind, Person, Snapshot, Team } from '../domain/types';
 import type { WorkspaceNeed } from '../domain/workspaceAttention';
 import type { NavGroup } from '../domain/navigation';
-import { addColumnParams, type QueryContext, type QueryNames } from '../domain/query';
+import { addColumnParams, addColumnPrefixes, type QueryContext, type QueryNames } from '../domain/query';
+import type { GoalColumnFamily } from '../domain/records';
 import type { Finder } from '../adapters/localSearch';
 import { MODULES, modulesOn } from './registry';
 import type { PlaceName } from './module';
@@ -165,8 +166,27 @@ export interface ModuleFilter {
   says: (snapshot: Snapshot, value: string) => string | null;
 }
 
+/**
+ * A family of filters a module adds to Goals (TG2, Fields: one per live list field, `?f.<field id>=Build,Run`): its
+ * parameters are named by the open workspace, and each picks one value or several. Its columns are the module's records'
+ * family (domain/records GoalColumnFamily), so the app and find_goals match alike.
+ */
+export interface ModuleFilterFamily {
+  list: 'goals';
+  id: string;
+  family: GoalColumnFamily;
+  /** Its rows in the Filters sheet, from the open workspace: each a parameter, its label and the values to tick. */
+  rows(s: Snapshot): { param: string; label: string; options: string[] }[];
+  /** The values a parameter's text picks, and the text for the values picked. */
+  picked(s: Snapshot, param: string, text: string): string[];
+  text(s: Snapshot, param: string, picked: readonly string[]): string;
+  /** The filter in words for the filter line ("Stage is", "Build or Run"); null when it names nothing (a retired field). */
+  says(s: Snapshot, param: string, text: string): { label: string; value: string } | null;
+}
+
 // Every module filter's parameter is read from a Goals address as the core's own are (domain/query).
 addColumnParams(APP.flatMap((m) => m.part.filters ?? []).map((f) => f.param));
+addColumnPrefixes(APP.flatMap((m) => m.part.filterFamilies ?? []).map((f) => f.family.prefix));
 
 
 
@@ -207,6 +227,8 @@ export interface AppModule {
   finders?: ModuleFinder[];
   /** Filters it adds to core lists (module.json `filters`, by id). */
   filters?: ModuleFilter[];
+  /** Families of filters it adds to Goals, one per thing the open workspace has (module.json `filters`, by id). */
+  filterFamilies?: ModuleFilterFamily[];
   /** What it raises on About's "To sort out" without a Workspace section of its own (module.json `toSortOut`, AR2):
       the same shape a section's `needs` gives. */
   toSortOut?: (snapshot: Snapshot, viewer: Person) => WorkspaceNeed[];
@@ -234,18 +256,25 @@ export function useModules() {
 /** The filters of the modules that are on, for Goals: each column by its parameter, and its words for the filter line. */
 const goalFilters = (screens: ReturnType<typeof useModules>['screens']) => screens.flatMap((m) => m.filters ?? []).filter((f) => f.list === 'goals');
 /** The goal list's module columns (Measured by …), filled from a snapshot: what the query port narrows by. */
+const goalFamilies = (screens: ReturnType<typeof useModules>['screens']) => screens.flatMap((m) => m.filterFamilies ?? []).filter((f) => f.list === 'goals');
 export const goalColumns = (screens: ReturnType<typeof useModules>['screens'], s: Snapshot): NonNullable<QueryContext['columns']> =>
-  Object.fromEntries(goalFilters(screens).map((f) => [f.param, f.fill(s)]));
+  Object.assign(Object.fromEntries(goalFilters(screens).map((f) => [f.param, f.fill(s)])), ...goalFamilies(screens).map((f) => f.family.columns(s)));
 
-export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']>; col: NonNullable<QueryNames['col']>; filters: ModuleFilter[] } {
+export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']>; col: NonNullable<QueryNames['col']>; filters: ModuleFilter[]; families: ModuleFilterFamily[] } {
   const { screens } = useModules();
   const app = useApp();
   return useMemo(() => {
     const filters = goalFilters(screens);
+    const families = goalFamilies(screens);
     return {
       filters,
+      families,
       columns: goalColumns(screens, app.snapshot),
-      col: (param, value) => { const f = filters.find((x) => x.param === param); const v = f?.says(app.snapshot, value); return f && v ? { label: f.label, value: v } : null; },
+      col: (param, value) => {
+        const fam = families.find((x) => param.startsWith(x.family.prefix));
+        if (fam) return fam.says(app.snapshot, param, value);
+        const f = filters.find((x) => x.param === param); const v = f?.says(app.snapshot, value); return f && v ? { label: f.label, value: v } : null;
+      },
     };
   }, [screens, app.snapshot]);
 }

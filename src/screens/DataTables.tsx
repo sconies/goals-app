@@ -95,8 +95,9 @@ export function DataTables() {
   useEffect(() => { if (params.has('s')) setView({}, 'remembered'); });
   const canEdit = app.viewer.admin;
   // With Reviews off (RS) Asks has no Review column to choose.
-  const reviews = exportOn(app.ws).reviews;
-  const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, reviews }), [app.ws, app.snapshot, app.cycle, app.week, app.today, reviews]);
+  // A module's columns on Goals (Fields' one per live field) are Data's Goals columns too, as in every export.
+  const { reviews, goalColumns } = useMemo(() => exportOn(app.ws), [app.ws]);
+  const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, reviews, goalColumns }), [app.ws, app.snapshot, app.cycle, app.week, app.today, reviews, goalColumns]);
   const tables = useMemo(() => {
     const out = {} as Record<Tab, { head: string[]; rows: { key: string; cells: string[]; locked?: string }[] }>;
     for (const [t] of TABS) {

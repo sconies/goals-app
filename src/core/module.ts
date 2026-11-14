@@ -63,7 +63,7 @@ export interface ModuleFacts {
   places: PlaceName[];
   /** The kinds of thing its app.tsx makes findable (AR2): each answers find-and-pick and Find through the Search port. */
   finders?: string[];
-  /** The filters its app.tsx adds to a core list, by id (AR2): declared as data, so a server can apply them. */
+  /** The filters and families of filters its app.tsx adds to a core list, by id (AR2): declared as data, so a server can apply them. */
   filters?: string[];
   /** Whether its app.tsx raises things to sort out on Workspace's overview, with no Workspace section of its own (AR2). */
   toSortOut?: boolean;
