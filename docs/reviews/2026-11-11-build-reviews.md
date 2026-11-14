@@ -247,6 +247,9 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #475 ST2 + SM3: set-up in four steps, each an address; no example templates | 2 | 0 | 1 | 1 |
 | #476 SW1 review: #444's three mediums (Watching off by what a save writes; no wrap-up or watch words when off) | 4 | 0 | 0 | 1 |
 | #482 A correction keeps whose check-in it is; an ended year's missing week is added late with a reason at every door | 1 | 0 | 0 | 1 |
+| #495 Set-up: a name step 1 refuses can't reach Create by Forward or a typed address (#475's medium) | 2 | 0 | 0 | 0 |
+| #469 HM4: Changed since you last looked | 1 | 0 | 0 | 3 |
+| #498 Help: a switched-off module's page has no Help link to its hidden article | 4 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2146,4 +2149,18 @@ The first-download comment records Lane's 275 KB; the number is unchanged.
 Read against Lane's answers of 14 Nov; its tests pass on main (57 across `postCheckIn`, `setUpCheckIn` and the conformance test). No high, no medium. Replacing a check-in keeps its author at every door, with the change's actor the one who replaced it; an admin's workbook row over someone else's check-in for this week is a correction that asks for a reason first (#334's answer); a week an ended year has no check-in for is added late with a reason from a workbook or the AI tools as from the form, and replacing one there is still refused. Help, What's new (it says the behaviour changed), the rule's words, a conformance case with an `author` column, and the design note's "anyone in the workspace" come with it. The reason box's words are now one component for Preview and the import's Check.
 
 **Low (read).** A workbook row that adds a missing week to an ended year needs a reason but its kind is "check-in", not "replaces check-in", so `ReasonWords` (`src/ui/IssueGroup.tsx`) asks "Why are these plans changing?" and speaks of the old and new plan.
+
+### #495 Set-up: #475's medium (track 2, merged 14 Nov, 17:38 UTC)
+
+**Fixed; read, and its tests pass on main (20 in `src/domain/dayOne.test.ts`).** `firstUnfilled` now asks what step 1's own Continue asks (`workspaceStepProblem`: the names rule, your name, a real email, your team), so Check's address with the name "ab", a name of 83 characters or an email that isn't one goes back to step 1. The journey changes the name to "ab" from Check and opens Check by its address, as my run did; the spec's rule has the case as a worked example. Not walked again by me. #475's low (an outcome with a title and no numbers reads "None yet" on Check until Create refuses it) stands.
+
+### #469 HM4: Changed since you last looked (track 1, merged 14 Nov, 17:48 UTC)
+
+Read (the rule, the app layer, the query, the screen, the styles, the harness changes); its tests pass on main (35 across `changed`, `changedSince` and `query`); not walked on screen by me, and F25 and U124 are its browser checks. No high, no medium. Rule 5 is pure (`movement`, `changedSince`, `sinceFor` in `src/domain/changed.ts`); the app layer asks the status rule twice, on the day and now; Home's block, the teams table's "Since" column, the Goals filter `moved=`/`since=` and `find_goals` all read the one `movement`. The day is kept per person and workspace behind the Prefs port and is the same before and after today's visit is recorded. It reads every scope (#492's fix survived the merge) and leaves Watching's goals out when Watching is off. Rows are hairline-divided, the status now is a shape and a word, nothing is a stripe or a pill. Both first-download budgets hold without being raised (274.7 of 275 KB by its own count). Counting over the widest set only is the design's (spec part 8).
+
+**Lows (read).** (1) A correction keeps its check-in's posted time (`changeset.ts:1487`), and a past week added late is dated to that week's due day, so the status "on the day" is worked out with today's corrected or added numbers: a correction that turns a goal from on track to off track since Friday shows no change on Home. (2) The design says `get_my_work` returns `changed` and takes `since` (`docs/design/home/spec.md`, section on tools); it has neither, and `get_my_work` was not rebuilt around Home's plan in HM1 to HM3 either. `find_goals` answers `moved=`; the generated spec and Help don't claim the rest. (3) `evals/touches.cjs` names `changed.ts`, `query.ts` and `homeSeen.ts` for U124 and F25 but not `src/app/moved.ts`, where the two statuses are worked out.
+
+### #498 Help: a switched-off module's page-foot link (track 4, merged 14 Nov, 17:57 UTC); #483 and #499, docs
+
+Read. Nothing found. `HelpLinks` draws no link when the page's article belongs to a module that is off (Lane, 14 Nov: Help hides a switched-off module's articles); N21 now checks, for each module off, that Help lists none of its articles, that the page's link doesn't open one, and that What's new still lists Reviews' release. Help's and `docs/architecture.md`'s sentences say the same. **#483** is the backlog (PF1, PF2 and review lows deferred to after the handoff) and planning's handover; **#499** is track 4's handover. No code in either.
 
