@@ -3,6 +3,7 @@ import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Ass
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 import { isCount, isShare } from './plan';
 import { fmt } from './format';
+import { guardedCalc, type GuardBreach } from './guards';
 import { farOutside, fixed, notNumberText, parseNumber, precisionProblem, usuallyPositive } from './numbers';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
@@ -182,9 +183,13 @@ export interface Evaluation {
   /** The same, in words (MISSING_TEXT). */
   missing: string[];
   canPost: boolean;
+  /** The guards past their limit that made it worse, if any (GR). */
+  breaches: readonly GuardBreach[];
 }
 
-export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, all: CheckIn[]): Evaluation {
+/** Judge a check-in draft. `breaches`: the goal's guards past their limit this week (domain/guards guardBreaches), which
+    make the calculated status at least as bad as theirs (GR). */
+export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, all: CheckIn[], breaches: readonly GuardBreach[] = []): Evaluation {
   const before = checkInsFor(goal, all).filter((c) => c.week < week);
   const value = parseNumber(draft.value);
   let assessment: Assessment;
@@ -197,13 +202,15 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
     assessment = assessMilestone(goal, week, draft.stages);
   }
   const a = assessment;
-  const calc: Status = a.calc === 'planned' || a.calc === 'none' ? 'on' : a.calc;
+  const calc: Status = guardedCalc(a.calc === 'planned' || a.calc === 'none' ? 'on' : a.calc, breaches);
   const status = draft.status ?? calc;
   const greener = RANK[status] < RANK[calc];
 
   let reason: Evaluation['reason'] = null;
   if (a.kind === 'metric') reason = a.ahead ? 'ahead' : a.behind ? 'behind' : null;
   else if (a.calc === 'risk' || a.calc === 'off') reason = 'behind';
+  // A guard past its limit (GR) is a reason to say why, as being behind is.
+  if (breaches.length && reason !== 'behind' && (calc === 'risk' || calc === 'off')) reason = 'behind';
   const asksTarget = a.kind === 'metric' && a.ahead;
   const needsPath = status === 'risk' || status === 'off';
 
@@ -224,12 +231,12 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
     const better = goal.kind === 'metric' && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target);
     if (!better) codes.push('target');
   }
-  return { assessment, calc, status, greener, reason, asksTarget, needsPath, unchanged, codes, missing: codes.map((c) => MISSING_TEXT[c]), canPost: codes.length === 0 };
+  return { assessment, calc, status, greener, reason, asksTarget, needsPath, unchanged, codes, missing: codes.map((c) => MISSING_TEXT[c]), canPost: codes.length === 0, breaches };
 }
 
 /** Turn a valid draft into a check-in record. Throws if the draft cannot be posted. */
-export function toCheckIn(goal: Goal, cycle: Cycle, week: number, draft: Draft, all: CheckIn[], authorId: string, now: Date, id: string): CheckIn {
-  const e = evaluate(goal, cycle, week, draft, all);
+export function toCheckIn(goal: Goal, cycle: Cycle, week: number, draft: Draft, all: CheckIn[], authorId: string, now: Date, id: string, breaches: readonly GuardBreach[] = []): CheckIn {
+  const e = evaluate(goal, cycle, week, draft, all, breaches);
   if (!e.canPost) throw new Error('Still needed: ' + e.missing.join(', '));
   return {
     id, goalId: goal.id, authorId, week, postedAt: now.toISOString(),

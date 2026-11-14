@@ -62,6 +62,12 @@
       "use": "copy"
     },
     {
+      "id": "GUARDRAILS",
+      "area": "Status rules",
+      "text": "A goal can name up to five range goals that guard it: a guard past its limit makes it at risk, two weeks running off track, and the check-in and goal page say which guard and by how much.",
+      "use": "copy"
+    },
+    {
       "id": "OWNER-CALL",
       "area": "Status rules",
       "text": "The owner's call is the official status shown everywhere, with the calculated status beside it.",

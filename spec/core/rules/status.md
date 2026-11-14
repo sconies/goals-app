@@ -49,6 +49,8 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 - A stage not done is expected in its forecast week (or its due week if none), never before its due week; once its due week has passed (due < *w*), never before this week. *Weeks late* = expected − due. More than 2 weeks late: `off` (Late); 1–2: `risk` (Slipping); otherwise `planned` (On schedule).
 - The goal: every stage done is `done`; week 0 is `planned`; any stage `off` is `off`; any `risk` is `risk`; otherwise `on`.
 
+**Guardrails** (GR, `src/domain/guards.ts`): a goal may name up to five goals that guard it (`guards`), each a running goal kept in a range in the same year, never itself. As of week *w*, a guard whose latest number (posted in week *w* or before) is past its limit is a breach: at risk when it is out at that number, off track when it is out two weeks running (its own range rule). A guard near its limit but inside it is no breach. At a check-in the calculated status is the worse of the goal's own and its worst breach's (`guardedCalc`), and a breach that makes it at risk or off track asks why, as being behind does. Each breach is said in words beside the status: which guard, its number and week, and how far past its limit (`breachWords`). A guard stopped or removed guards nothing until it is brought back.
+
 **From what has been posted** (`assessPosted`, used everywhere a goal's status is shown) in week *w*:
 
 - Take the goal's check-ins up to week *w* (those with `week` ≤ *w*, from the ones posted by today), ordered by week, then by when they were posted. The latest is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
@@ -89,6 +91,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A cost in USD with 2 decimals, 0.42 down to 0.30 over 13 weeks (week 1 plan 0.4108): 0.41, 0.42 and 0.40 in week 1. | `0.41: on; 0.42: off, behind; 0.40: on, well ahead` |
 | A range, at most 12.0% with a 1-point margin: 10.5 after 10.6; 11.2 after 10.6; 12.6 after 11.2; 10.4 after 12.6; 12.4 after 12.6. | `on, risk, risk, risk, off` |
 | A range, at least 99 with a 0.5 margin: 99.8 after 99.9; 99.3 after 99.9; 98 after 98.5. | `on, risk, off` |
+| A goal on plan in week 4, guarded by “Change failure rate” (G-41, at most 12.0%): the guard at 11.5 in week 4; at 14.0 after 11.0; at 14.0 after 13.0. | `on / risk / off: Guardrail “Change failure rate” (G-41) is over its 12.0% limit: 14.0% in week 4, 2.0 pts over, 2 weeks running.` |
 | A range between 99.5 and 99.95 with a 0.1 margin: 99.7 after 99.7; 99.9 after 99.7 (near the upper); 99.55 after 99.7 (near the lower); 99.95 after 99.7 (at the upper); 99.96 after 99.7; 99.4 after 99.3. | `on, risk, risk, risk, risk, off` |
 | The same range, said in words, and its gap at 99.96 and at 99.4 (each against the nearer bound). | `between 99.50% and 99.95% / Over the 99.95% limit / Under the 99.50% limit` |
 | Stages A (due week 3) and B (due week 7). In week 4, A done in week 3 and B expected in week 9; then B expected in week 10. | `risk, off` |
@@ -105,6 +108,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
+- [src/domain/guards.ts](../../../src/domain/guards.ts): `guardBreaches`, `guardedCalc`, `breachWords`, `guardRefusal`, `MAX_GUARDS`
 - [src/domain/status.ts](../../../src/domain/status.ts): `assessMetric`, `assessRange`, `assessMilestone`, `assessPosted`, `goalStatus`, `daysWithoutUpdate`, `worst`, `RANK`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
 
@@ -120,6 +124,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `HONEST-NUMBERS`: Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. Exports judge every past check-in against the plan of its own week, as the screens do. What the map shows, the count, the link and "what's shown now" in Export are the same goals; goals drawn only for context are greyed and say so. While goals still have no check-in, the app says how many have reported rather than showing nothing needs attention; a milestone with no check-in isn't called on schedule, and the critical path only runs through goals whose status is known.
 
 ## Tests that check it
+
+### [src/domain/guards.test.ts](../../../src/domain/guards.test.ts)
+
+- guardrails on a goal › only a running goal kept in a range, in the same year, can guard; never the goal itself
+- guardrails on a goal › a guard past its limit makes the goal at risk; two weeks running, off track; near it, nothing
+- guardrails on a goal › the calculated status is the worse of the goal’s own and its worst guard’s
+- guardrails on a goal › a check-in on plan with a guard past its limit is off track, and asks why
+- guardrails on a goal › is kept through the form and the database row, at most five, never itself
 
 ### [src/domain/rules.test.ts](../../../src/domain/rules.test.ts)
 

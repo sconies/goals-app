@@ -45,7 +45,8 @@ export function recarry(goal: Goal, full: CarryRows, extra: { checkIns?: CheckIn
   if (carries(kind)) {
     const id = live?.id ?? left?.id ?? x.newId('goal');
     const helps = (goal.alsoHelps ?? []).map((h) => copyOf(keyOf(h))?.id).filter((h): h is string => !!h);
-    const made = carryCopy(goal, { old: cycle, next: later, checkIns, id, parentId: live ? live.parentId : copyOf(keyOf(goal.parentId))?.id ?? null, now: live?.createdAt ?? left?.createdAt ?? x.now, alsoHelps: live ? live.alsoHelps ?? [] : helps });
+    const guards = (goal.guards ?? []).map((x) => copyOf(keyOf(x.goal))?.id).filter((h): h is string => !!h);
+    const made = carryCopy(goal, { old: cycle, next: later, checkIns, id, parentId: live ? live.parentId : copyOf(keyOf(goal.parentId))?.id ?? null, now: live?.createdAt ?? left?.createdAt ?? x.now, alsoHelps: live ? live.alsoHelps ?? [] : helps, guards: live ? (live.guards ?? []).map((x) => x.goal) : guards });
     if (live) {
       if (sameCopy(made, live)) return null;
       return { goals: [{ ...made, version: live.version }], changes: [log(`${goal.title} in ${later.name} now starts from where it ended in ${cycle.name}`, id)] };

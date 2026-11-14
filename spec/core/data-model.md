@@ -165,6 +165,7 @@ type Io = 'input' | 'output'
 | `effect` | `number \| null` | yes | Estimated effect on the parent's metric, in the parent's unit (e.g. days off). |
 | `whyHelps` | `string` | no | Optional: why we expect this goal to help the one it feeds. A hypothesis, not a proven cause. |
 | `alsoHelps` | `Id[]` | no | Other goals it also helps, beyond the one it feeds: a dotted line on the map, not part of the tree. |
+| `guards` | `{ goal: Id }[]` | no | The goals that guard it (GR; domain/guards): goals kept in a range, whose number past its limit makes this goal at risk or off track. Absent or empty: none. |
 | `source` | `string` | yes | Where the number comes from and who owns that source. |
 | `definition` | `string` | yes |  |
 | `createdAt` | `string` | yes |  |

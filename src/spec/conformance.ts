@@ -2,6 +2,7 @@
    plain CSV files under spec/conformance/, made by the real rules. A rebuild proves its rules by reading the same
    workspace (spec/conformance/workspace.json) and matching every row. src/spec/conformance.test.ts recomputes them
    from workspace.json and fails on any difference. Pure: no files are read or written here. */
+import { guardBreaches } from '../domain/guards';
 import { ZONE_CASE, ZONE_HEADER, zoneRowsOf, type ZoneCase } from './zones';
 import { attentionFor, attentionGroup, needsAttention } from '../domain/attention';
 import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
@@ -191,8 +192,10 @@ export function checkInRows(w: ConformanceWorkspace): string[][] {
     const g = goalAsOf(goal, c.week);
     const posted = draftFrom(c);
     const bare = { ...emptyDraft(g, null), value: posted.value, stages: posted.stages };
-    const e = evaluate(g, w.cycle, c.week, bare, w.checkIns);
-    const called = evaluate(g, w.cycle, c.week, { ...bare, status: c.status }, w.checkIns);
+    // Its guards past their limit that week (GR) count, as they do at the check-in.
+    const breaches = guardBreaches(g, w.goals, w.cycle, w.checkIns, c.week);
+    const e = evaluate(g, w.cycle, c.week, bare, w.checkIns, breaches);
+    const called = evaluate(g, w.cycle, c.week, { ...bare, status: c.status }, w.checkIns, breaches);
     // The habit's moment (rule 3): what this check-in made, against the goal's check-ins posted before it.
     const m = moment(w.checkIns.filter((x) => x.goalId === c.goalId && x.id !== c.id && x.postedAt < c.postedAt), c, g);
     rows.push([c.id, String(c.week), keyOf(goal), e.calc, e.reason ?? '', yes(e.asksTarget), yes(e.needsPath), e.codes.join(' '), c.status, yes(called.greener), called.codes.join(' '), m ? `${m.kind}${m.kind === 'back' ? ` ${m.behind}` : ''}` : '']);

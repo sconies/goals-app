@@ -7,6 +7,7 @@ import { goalChecks } from '../src/domain/goalEntry';
 import { goalMustFix } from '../src/domain/goalEntry';
 import { currentWeek, forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
+import { breachWords, guardBreaches } from '../src/domain/guards';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
 import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { applyQuery, EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../src/domain/query';
@@ -89,6 +90,20 @@ describe('milestone status', () => {
   it(R('MILESTONE', 'a stage forecast 3 weeks late is off track'), () => expect(assessMilestone(ms, 5, u(11)).calc).toBe('off'));
   it(R('MILESTONE', 'a stage past its due week and not done counts as late'), () => expect(assessMilestone(ms, 11, u(null)).calc).toBe('off'));
   it(R('MILESTONE', 'all stages done is done'), () => expect(assessMilestone(ms, 9, u(null, 9)).calc).toBe('done'));
+});
+
+describe('guardrails on a goal', () => {
+  const guarded: MetricGoal = { ...up, id: 'guarded', guards: [{ goal: 'cfr' }] };
+  const goals = [cfr, guarded];
+  const onPlan = { ...emptyDraft(guarded, null), value: String(planAt(guarded.plan, 4, 13)) };
+  const calcWith = (cis: CheckIn[]) => evaluate(guarded, cycle, 4, onPlan, cis, guardBreaches(guarded, goals, cycle, cis, 4)).calc;
+  it(R('GUARDRAILS', 'a guard inside its limit leaves the goal on track'), () => expect(calcWith([posted('cfr', 4, '2026-10-05', { value: 11.5 })])).toBe('on'));
+  it(R('GUARDRAILS', 'a guard past its limit makes the goal at risk'), () => expect(calcWith([posted('cfr', 3, '2026-09-28', { value: 11 }), posted('cfr', 4, '2026-10-05', { value: 14 })])).toBe('risk'));
+  it(R('GUARDRAILS', 'past it two weeks running makes the goal off track, said in words'), () => {
+    const cis = [posted('cfr', 3, '2026-09-28', { value: 13 }), posted('cfr', 4, '2026-10-05', { value: 14 })];
+    expect(calcWith(cis)).toBe('off');
+    expect(breachWords(guardBreaches(guarded, goals, cycle, cis, 4)[0]!)).toBe('Guardrail “CFR” is over its 12.0% limit: 14.0% in week 4, 2.0 pts over, 2 weeks running.');
+  });
 });
 
 describe('the owner’s call and staleness', () => {

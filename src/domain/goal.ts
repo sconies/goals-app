@@ -1,4 +1,5 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
+import { MAX_GUARDS } from './guards';
 import { parseNumber } from './checkin';
 import { farOutside, fixed, typedDecimals } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
@@ -20,6 +21,8 @@ export interface GoalDraft {
   whyHelps: string;
   /** Other goals it also helps (dotted lines on the map). */
   alsoHelps: string[];
+  /** The goals that guard it (GR, domain/guards), by id. Left out: as it was. */
+  guards?: string[];
   /** When the target is due, as a week from the cycle's start; empty means the end of the cycle. */
   endWeek: string;
   /** Plan numbers typed by hand, by checkpoint week. Empty means the shape decides. */
@@ -66,7 +69,7 @@ export function draftOf(g: Goal): GoalDraft {
   const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? '');
   Object.assign(d, {
     kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
-    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], source: g.source, definition: g.definition,
+    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], guards: (g.guards ?? []).map((x) => x.goal), source: g.source, definition: g.definition,
   });
   if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: g.targetUnset ? '' : String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])), baselinePeriod: g.baseline?.period ?? '', baselineProvisional: !!g.baseline?.provisional });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), lower: g.range.lower != null ? String(g.range.lower) : '', margin: String(g.range.margin) });
@@ -160,6 +163,13 @@ export function withPlanOf(base: Goal, plan: Goal): Goal {
   return base;
 }
 
+/** The guards a draft keeps (GR): its own list, each once, never the goal itself; as they were when it says nothing. */
+function guardsOf(d: GoalDraft, id: string, existing: Goal | null): Pick<Goal, 'guards'> {
+  const ids = d.guards === undefined ? (existing?.guards ?? []).map((x) => x.goal) : d.guards;
+  const kept = [...new Set(ids)].filter((x) => x && x !== id).slice(0, MAX_GUARDS);
+  return kept.length ? { guards: kept.map((goal) => ({ goal })) } : {};
+}
+
 /**
  * Build the goal from a valid draft. When an existing metric goal's plan changes after
  * check-ins have started, the first plan is kept as the original and the change is dated.
@@ -169,6 +179,7 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
     id: base.id, ...(existing?.key ? { key: existing.key } : {}), cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
     level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
     effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), ...((d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
+    ...guardsOf(d, base.id, existing),
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {
