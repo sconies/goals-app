@@ -195,4 +195,10 @@ One meaning for every word the app uses for a state. Each is defined once, in `s
 | `note-removed` | Note removed | What a review’s record shows where a note was. | `commentsOf` (removal.ts) | screens, exports, help, ai |  |
 | `edited` | edited | Beside words corrected after they were posted. | `commentsOf` (removal.ts) | screens, exports, help, ai |  |
 
+### The check-in rhythm
+
+| Code | Word | What it means | Decided by | Where | Don’t say |
+|---|---|---|---|---|---|
+| `as-of` | as of week {n} | The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm. | `goalStatus` (status.ts) | screens, exports, help, ai |  |
+
 <!-- status words: end -->

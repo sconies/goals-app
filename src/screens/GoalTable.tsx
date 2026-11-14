@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { assessPosted } from '../domain/status';
+import { rhythmOf } from '../domain/thresholds';
 import { type GoalSummary } from '../domain/summary';
 import { compare, type GoalQuery, type SortKey } from '../domain/query';
 import { Spark, StageSpark } from '../ui/charts';
@@ -96,7 +97,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                         <span className="gt-name"><Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} />{goal.key && <span className="gkey" title="The goal’s key">{goal.key}</span>}</span>
                       </td>
                       {show.has('owner') && <td className="col-opt">{s.owner}</td>}
-                      <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? <Keep text={`Last: week ${s.lastWeek}`} /> : app.week > 0 ? LABEL.none : ''}</span></td>
+                      <td><Chip k={s.status} />{!rhythmOf(app.cycle) && s.asOfWeek != null && s.status !== 'done' && <span className="hint gt-asof"> as of week {s.asOfWeek}</span>}<ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? <Keep text={`Last: week ${s.lastWeek}`} /> : app.week > 0 ? LABEL.none : ''}</span></td>
                       <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan"><Keep text={`plan ${s.planThen}`} /></span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
                       {show.has('target') && <td className="num col-opt">{s.target}</td>}
                       {show.has('gap') && <td className={'col-opt gt-gap tone-' + s.gapTone + ' small'} title={s.gap}>{s.gap !== s.now ? s.gap : ''}</td>}

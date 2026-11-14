@@ -189,7 +189,7 @@ function AllDone({ first, fromTable }: { first?: boolean; fromTable?: FromTable 
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} counts="check-ins" label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
         <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : w.complete ? `Week ${app.week} is done` : `${w.done} of ${w.total} checked in`}</h1>
-        {w.complete ? <Receipt /> : <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week)}</p>}
+        {w.complete ? <Receipt /> : <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week, app.cycle)}</p>}
         {fromTable && <TablePosted posted={fromTable.posted} kept={fromTable.kept} />}
         <div className="row done-actions">
           {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
@@ -234,7 +234,10 @@ function Receipt() {
   // The deadline in dueWords' words (RS1): "before Thursday’s review" only for someone in a review held that day while
   // Reviews is on (T4, FT2); otherwise "by Thursday".
   const words = dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week, app.viewer.id);
-  const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, words);
+  const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const f = receiptFacts(p, app.viewer.id, app.snapshot, app.cycle, app.week, words);
+  // With no set rhythm there is no receipt (FT1): nothing was due, so it says what is in, with no deadline and no run.
+  if (!f) return <p className="muted ci-week-done">{weekDoneText(p, app.week, app.cycle)}</p>;
   const r = receiptText({ ...f, nextDue: f.nextDue ? longDay(f.nextDue) : null });
   return (
     <div className="ci-receipt">
@@ -280,7 +283,7 @@ function Posted({ goal, c, updated, fixing, left, nextTitle, onNext }: { goal: G
       {goal.kind !== 'milestone' && (() => { const line = readingLine(c, goal, app.today); return line ? <p className="small ci-reading">{line}</p> : null; })()}
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
       {m && <MomentPanel m={m} goal={goal} c={c} />}
-      {!left && p.goals.length > 0 && (weekCompletion(p).complete ? <Receipt /> : <p className="muted ci-week-done">{weekDoneText(p, app.week)}</p>)}
+      {!left && p.goals.length > 0 && (weekCompletion(p).complete ? <Receipt /> : <p className="muted ci-week-done">{weekDoneText(p, app.week, app.cycle)}</p>)}
       <div className="row done-actions">
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>

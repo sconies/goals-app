@@ -71,6 +71,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home', 'goals-filters'],
   },
   {
+    id: 'check-in-rhythm',
+    date: '2026-11-14',
+    title: 'Check-ins can have no set rhythm',
+    points: [
+      'Check-ins can have no set rhythm. An admin chooses on Workspace, Features: every week, or no set rhythm.',
+      'With none, nothing is due or late, and each goal says which week its status is from (“On track · as of week 44”).',
+      'Before it changes, the sheet says what will change for everyone, counted. Switching a rhythm back on counts from that day, so nothing is late, and Undo puts it back.',
+    ],
+    articles: ['features', 'check-in'],
+  },
+  {
     id: 'corrections-keep-the-author',
     date: '2026-11-14',
     title: 'A correction keeps whose check-in it is',

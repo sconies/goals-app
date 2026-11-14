@@ -1,11 +1,15 @@
 /* The numbers the rules turn on, as the spec states them. Kept apart from the rules themselves so the vocabulary
    (domain/vocabulary.ts) can say them in its meanings without importing the rules that use its words. */
+import type { Cycle } from './types';
 
 /** Status thresholds. */
 export const RULES = {
   onTrack: 0.95,
   atRisk: 0.8,
   wellAhead: 1.2,
+  /** Missed check-ins before a goal has no recent update: two check-ins' time, counted in the cycle's rhythm (staleAfterDays). */
+  staleCheckIns: 2,
+  /** @deprecated staleAfterDays(cycle) for a weekly cycle (14 days); kept until the vocabulary and the spec pages say the helper. */
   staleDays: 14,
   /** A milestone stage more than this many weeks late is off track. */
   lateWeeksOff: 2,
@@ -45,4 +49,23 @@ export function nameProblem(name: string, thing: 'workspace' | 'goal' | 'outcome
 export function nameLength(name: string): string | null {
   const n = name.trim().replace(/\s+/g, ' ').length;
   return n >= MAX_WORKSPACE_NAME - 20 ? `${n} of ${MAX_WORKSPACE_NAME} characters` : null;
+}
+
+/** A cycle's check-in rhythm (FT1): every `weeks` weeks, due by `dueDay` (0 = Monday), counted from `from` (yyyy-mm-dd).
+    Null when there is no set rhythm. */
+export type Rhythm = { weeks: number; dueDay: number; from: string } | null;
+
+/** The cycle's rhythm, or null with no set rhythm (`checkInWeeks` 0). Every week from the cycle's start when unset. */
+export function rhythmOf(cycle: Pick<Cycle, 'checkInWeeks' | 'reviewDay' | 'rhythmFrom' | 'startDate'>): Rhythm {
+  const weeks = cycle.checkInWeeks ?? 1;
+  if (weeks === 0) return null;
+  const from = cycle.rhythmFrom && cycle.rhythmFrom > cycle.startDate ? cycle.rhythmFrom : cycle.startDate;
+  return { weeks, dueDay: cycle.reviewDay, from };
+}
+
+/** Days without a check-in before a goal has no recent update: RULES.staleCheckIns × 7 × the cycle's check-in weeks
+    (14 every week). Null with no set rhythm: then nothing goes quiet. */
+export function staleAfterDays(cycle: Pick<Cycle, 'checkInWeeks' | 'reviewDay' | 'rhythmFrom' | 'startDate'>): number | null {
+  const r = rhythmOf(cycle);
+  return r ? RULES.staleCheckIns * 7 * r.weeks : null;
 }

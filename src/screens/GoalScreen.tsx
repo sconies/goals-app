@@ -5,6 +5,8 @@
    last week, to target, will it hit); the chart marks those numbers where they are; Why opens with the owner's reason;
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
+import { rhythmOf } from '../domain/thresholds';
+import { canAskUpdate } from '../domain/rhythm';
 import { guardBreaches } from '../domain/guards';
 import { breachWords } from '../domain/guardWords';
 import { Place, useModules } from '../core/app';
@@ -153,10 +155,14 @@ function GoalView({ goal }: { goal: Goal }) {
   const watching = !watchingHere ? null : !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
   const openSteps = [...steps.forYou, ...steps.open].filter((x) => x.kind === 'action').length;
   const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, openSteps, firstDue: own.length === 0 });
-  const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status });
+  // With no set rhythm (FT1) nothing is due: the owner's check-in is an ordinary button, and anyone else may ask for an
+  // update whenever the latest check-in isn't this week's (canAskUpdate), as an ordinary button too.
+  const noRhythm = !rhythmOf(cycle);
+  const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status, week, checkedInThisWeek: noRhythm ? own.some((c) => c.week === week) : undefined });
+  const askable = noRhythm && primary.kind !== 'ask-update' && canAskUpdate({ goal, viewer: app.viewer, status, latestWeek: st.latest?.week ?? null, week, updateAsked: !!updateAsk });
 
   const figures = barFigures(goal, app.snapshot, cycle, week, stale);
-  const card = goalScorecard(goal, cycle, app.snapshot.checkIns, week, stale);
+  const card = goalScorecard(goal, cycle, app.snapshot.checkIns, week, stale, noRhythm && status !== 'done' ? st.asOfWeek : null);
   const why = whyLine(goal, app.snapshot, att);
   const feeds = feedsLine(children, (g) => app.statusOf(g).status);
   const a = assessPosted(goal, cycle, app.snapshot.checkIns, week);
@@ -234,11 +240,12 @@ function GoalView({ goal }: { goal: Goal }) {
   const actions = review ? null : (
     <>
       {mainAction}
+      {askable && <button type="button" className="btn" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button>}
       {standingButton}
       {menu}
     </>
   );
-  const askedLine = stopped ? <StoppedNote goal={goal} /> : !isOwner && stale && !review && (updateAsk
+  const askedLine = stopped ? <StoppedNote goal={goal} /> : !isOwner && (stale || noRhythm) && !review && (updateAsk
     ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(updateAsk.createdAt, app.today)}{updateAsk.askedBy !== app.viewer.id ? ` (${app.person(updateAsk.askedBy)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s open on their Home until they check in or answer it.{canWithdraw(updateAsk, app.viewer, goal) && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
     : undone ? <span className="small" role="status">Withdrawn. It’s off their Home.</span> : null);
 
@@ -340,7 +347,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   // When it was last updated: the latest check-in's date, beside its week.
-  const updated = updatedLine(goal, app.snapshot);
+  const st = app.statusOf(goal);
+  const updated = updatedLine(goal, app.snapshot, !rhythmOf(app.cycle) && st.status !== 'done' ? st.asOfWeek : null);
   const breaches = guardBreaches(goal, app.snapshot.goals, app.cycle, app.snapshot.checkIns, app.week);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
     ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={storyOn() ? STORY_MS * storyPace() : MOTION_MS} onLanded={storyOn() ? landedMoment : undefined} land={storyOn()} />
@@ -709,11 +717,13 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
   // A check-in an admin loaded (a workbook, or a correction in Data) is said as theirs, by name: not as the owner's.
   const sayer = latest && latest.authorId !== goal.ownerId ? app.person(latest.authorId)?.name ?? 'Someone else' : null;
+  // With no set rhythm a reason from an earlier week is labelled with its week (FT1): "Julia said in week 44".
+  const saidIn = latest && !rhythmOf(app.cycle) && latest.week !== app.week ? `${sayer ?? app.person(latest.authorId)?.name.split(' ')[0] ?? ownerFirst} said in week ${latest.week}.` : null;
   const [title, purpose] = !latest ? ['Why', 'Nothing said yet. The first check-in will say where it stands.']
     : stale ? [`Why it has ${lower(STATUS.stale)}`, `When ${sayer ?? 'the owner'} last said where it stands.`]
-    : behind ? [`Why it ${STATUS[status].short}`, `${sayer ? `${sayer}’s` : 'The owner’s'} reason, from ${when ?? 'their check-in'}.`]
+    : behind ? [`Why it ${STATUS[status].short}`, saidIn ?? `${sayer ? `${sayer}’s` : 'The owner’s'} reason, from ${when ?? 'their check-in'}.`]
     : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
-    : ['The latest word', when ? `What ${sayer ?? 'the owner'} said in ${when}.` : 'What the owner has said so far.'];
+    : ['The latest word', saidIn ?? (when ? `What ${sayer ?? 'the owner'} said in ${when}.` : 'What the owner has said so far.')];
   return (
     <section className="block why-block goal-section" id="why" aria-labelledby="g-why" data-part="Why">
       <SectionHead id="g-why" title={title} purpose={purpose} />
