@@ -102,8 +102,8 @@ ambiguous-ref,2,,Goals,3,,,,goal_c2,Shared name,new goal,Name: — → Shared na
 ambiguous-ref,3,,Goals,4,,,,goal_c3,Feeds the shared name,new goal,Name: — → Feeds the shared name | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
 near-header,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Targett"":""50""}]",,,,,,,,0,no,no
 two-columns,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Goal name"":""Another name""}]",,,,,,,,0,no,no
-date-as-week,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""2026-11-04"",""Value"":""6""}]",,,,,,,checkIns=1 replaced=1,0,no,yes
-date-as-week,1,,Check-ins,2,,,,lead-ci-time,Pipeline queue wait (p90),replaces check-in,Status call: Off track → At risk | Value: 8 min → 6 min | Via: — → Spreadsheet,,,no,
+date-as-week,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""2026-11-04"",""Value"":""6""}]",,,,,,,checkIns=1 replaced=1,0,yes,no
+date-as-week,1,,Check-ins,2,,,,lead-ci-time,Pipeline queue wait (p90),replaces check-in,Status call: Off track → At risk | Value: 8 min → 6 min | Via: — → Spreadsheet,,,yes,
 left-alone,0,amara,goals,,"[{""Key"":""G-14"",""Target"":""1""}]",,"{""stopped"":[""G-14""]}",,,,,,1,no,no
 unknown-owner-setup,0,amara,goals,,"[{""Goal"":""Night shift rota"",""Owner email"":""nia@example.com"",""Owner"":""Nia Okoro"",""Team"":""CI/CD"",""Unit"":""%"",""Start"":""10"",""Target"":""50""}]",,"{""mode"":""create"",""sheets"":{""people"":[{""Name"":""Ines Novak"",""Email"":""ines@example.com"",""Team"":""CI/CD""}]}}",,,,,newPeople=1,0,no,no
 unknown-owner-setup,1,,People,2,,,,,Ines Novak,new person,Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Spreadsheet,,,no,

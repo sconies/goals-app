@@ -104,7 +104,7 @@ describe('deleting a check-in and undoing an import ask the same rule', () => {
     // An admin's workbook corrects the goal's latest check-in (a workbook can't add this week's new one: backlog AD).
     const latest = checkInsFor(goal, snapshot.checkIns).at(-1)!;
     const row: Rec = { __row: '2', id: latest.id, 'goal id': goal.id, week: String(latest.week), value: String(latest.value), why: 'Corrected from the source data, as loaded' };
-    const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded' });
+    const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded from the source data' });
     const after = applyCommit(snapshot, cs.commit!);
     const c = checkInsFor(goal, after.checkIns).at(-1)!;
     expect(c.authorId).toBe('amara');
@@ -131,11 +131,27 @@ describe('deleting a check-in and undoing an import ask the same rule', () => {
     expect(undoImport(as('mateo', after, later), imp).restored).toBe(1);
   });
 
+  it('an admin’s workbook row that replaces someone else’s check-in for this week is a correction, with a reason (Lane, 14 Nov)', () => {
+    const latest = checkInsFor(goal, snapshot.checkIns).at(-1)!;
+    expect(latest.week).toBe(week);
+    const row: Rec = { __row: '2', id: latest.id, 'goal id': goal.id, week: String(latest.week), value: String(latest.value), why: 'Corrected from the source data, as loaded' };
+    const plan = (reason?: string) => planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', ...(reason ? { reason } : {}) });
+    const asked = plan();
+    expect(asked.needsReason).toBe(true);
+    expect(asked.commit).toBeNull();
+    expect(asked.items.find((x) => x.kind === 'replaces check-in')?.needsReason).toBe(true);
+    const done = plan('Loaded from the source data');
+    const ch = done.commit!.changes.find((c) => c.diffs?.some((d) => d.field === 'Why corrected'))!;
+    expect(ch).toBeTruthy();
+    expect(ch.summary).not.toMatch(/^Checked in/);
+    expect(ch.diffs[0]).toEqual({ field: 'Why corrected', from: '—', to: 'Loaded from the source data' });
+  });
+
   it('an admin still undoes a workbook they loaded (the workbook door)', () => {
     // An admin's workbook corrects the goal's latest check-in (a workbook can't add this week's new one: backlog AD).
     const latest = checkInsFor(goal, snapshot.checkIns).at(-1)!;
     const row: Rec = { __row: '2', id: latest.id, 'goal id': goal.id, week: String(latest.week), value: String(latest.value), why: 'Corrected from the source data, as loaded' };
-    const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded' });
+    const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded from the source data' });
     const after = applyCommit(snapshot, cs.commit!);
     const imp = cs.commit!.changes.find((c) => c.action === 'imported')!.entityId;
     expect(undoImport(as('amara', after, later), imp).restored).toBe(1);
