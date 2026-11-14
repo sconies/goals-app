@@ -20,6 +20,4 @@ Each feature module is one folder, `src/modules/<id>/`, with a `module.json` say
 
 These can’t be switched off yet. Each says why, and which item gives it a switch (`src/spec/alwaysOn.ts`).
 
-| Feature | Why it can’t be switched off yet | Its switch |
-|---|---|---|
-| AI access | Every AI call is checked against a token at the server’s door. Switching it off needs the Features screen’s groups and a way to keep tokens named for when it comes back. | SW2 |
+_None._

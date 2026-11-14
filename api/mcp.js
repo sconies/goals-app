@@ -15324,6 +15324,53 @@ var records_default = [{
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [
 	{
+		id: "ai-access",
+		name: "AI access",
+		summary: "Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights.",
+		group: "beyond",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		sections: ["ai"],
+		tables: [],
+		aiTools: [
+			"list_tokens",
+			"create_token",
+			"revoke_token"
+		],
+		help: ["ai"],
+		requirements: [
+			"MCP-TOKENS",
+			"TOKENS-SERVER-ONLY",
+			"AI-ACCESS-OPTIONAL"
+		],
+		journeys: [
+			"U22",
+			"U62",
+			"U171"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "AI access, as a feature a workspace can switch off. An admin makes a personal MCP token for someone (shown once, only its hash kept) and anyone revokes their own; an AI tool using the token acts as that person through the MCP server, with that person's rights, every change logged as theirs “via MCP”. The tokens are listed on their own Workspace section, AI access (/workspace/ai, admins), in Settings (your own) and on a person's page (Make an MCP token). Off, the server refuses every token of the workspace with one sentence, but still lists its tools; no token can be made; Workspace, Settings and People show no tokens; /workspace/ai says it is switched off. Tokens are kept, not revoked: switching it back on makes them work again. An admin switches it on Workspace, Features, after a read-back that names the tokens.",
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 2).", "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (the AI tools' stage)."],
+			"exit": [
+				"Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.",
+				"Switched off, making a token is refused with “AI access is off in {workspace}.”, and revoking one still works.",
+				"Switched off, Workspace has no AI access section (/workspace/ai is Page not found with “AI access is switched off in {workspace}. An admin can switch it on in Workspace, Features.”), Settings has no “Your MCP tokens” and a person's page has no Make an MCP token (journey U171).",
+				"Switching off first reads back, from the rule aiAccessReadBack, the tokens that stop working (the first five by person and name, then how many more) and the changes AI tools made here; switching back on, only when tokens were kept, names those that work again. With no token it acts at once.",
+				"set_feature switching AI access off answers “AI access is off in {workspace}. This connection stops working now. An admin switches it back on in Faro.”"
+			],
+			"gaps": [
+				"AI access is a switch, not yet a folder of its own (SW7 moves it): its screens (src/ui/AiAssistants.tsx; the AI access section in src/screens/Workspace.tsx; the tokens in src/screens/Settings.tsx and src/screens/People.tsx), its rules (src/domain/actions.ts createToken and revokeToken; the read-back in src/domain/switchOff.ts) and its table (okr_api_tokens, migration 0010) are still the core's, and so is the door in server/mcp.ts. This folder holds its section, its Help article and its AI tools; src/app/reads.ts aiAccessOn is the one place that asks whether it is on.",
+				"A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server refuses every token with “This Faro has no AI access.”",
+				"No conformance rows: the demo workspace has no tokens (they work only in the real app), so there is nothing to count."
+			]
+		}
+	},
+	{
 		id: "feedback",
 		name: "Feedback",
 		summary: "Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.",
@@ -16339,6 +16386,15 @@ var reviewWriteRows = (s) => ({
 });
 /** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
 var watchingOn = (on) => on.has("watching");
+/** Whether AI access is on (SW2): the MCP server's door, Workspace's AI access section, the tokens in Settings and on
+People, and making a token. Revoking one never asks. */
+var aiAccessOn = (on) => on.has("ai-access");
+/** What the MCP server answers every request but initialize and tools/list while AI access is off (SW2, spec 6.1). */
+var aiAccessShutWords = (workspace) => `AI access is switched off in ${workspace}. An admin can switch it on in Faro, under Workspace, Features.`;
+/** What set_feature answers when it switches AI access off: the last thing that token does (spec 6.2). */
+var aiAccessLastWords = (workspace) => `AI access is off in ${workspace}. This connection stops working now. An admin switches it back on in Faro.`;
+/** What the MCP server answers every token in a build without AI access (FARO_WITHOUT=ai-access, spec 6.1). */
+var NO_AI_ACCESS = "This Faro has no AI access.";
 /** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
 on and starting the next year are the core's and never ask. */
 var wrapUpOn = (on) => on.has("wrap-up");
@@ -18157,7 +18213,7 @@ function parseActivity(p) {
 		since: date(p.get("since"))
 	};
 }
-var VIA$3 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
+var VIA$4 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
 var PLAN_FIELDS = [
 	"Start",
 	"Target",
@@ -18170,7 +18226,7 @@ var PLAN_FIELDS = [
 ];
 /** What kind of change this is. A goal change that touches its plan or target counts as a plan change. */
 function kindOf(c) {
-	if (VIA$3(c) === VIA_LABEL.mcp || VIA$3(c) === "AI assistant (MCP)") return "ai";
+	if (VIA$4(c) === VIA_LABEL.mcp || VIA$4(c) === "AI assistant (MCP)") return "ai";
 	if (c.action === "imported" || c.action === "undone") return "imports";
 	if (c.entity === "check-in") return "checkins";
 	if (c.entity === "metric") return "goals";
@@ -18259,6 +18315,53 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/modules/ai-access/help.ts
+var help$7 = [{
+	id: "ai",
+	title: "AI access",
+	summary: "The MCP tokens that let Claude or another AI tool act as someone here, and the switch that turns them all off.",
+	group: "you",
+	after: "workspace-access",
+	sections: [
+		{
+			heading: "What it’s for",
+			text: ["Letting an AI tool read and act in this workspace as one person, with that person’s rights. Faro has no AI built in: this is the door other AI tools use."]
+		},
+		{
+			heading: "How to use it",
+			list: [
+				"Workspace, AI access lists every MCP token, newest first: what it’s for, whom it acts as, when it was made and last used, and Revoke. Make a token is the section’s one action; the token is shown once.",
+				"Every change an AI tool makes is logged as its person’s, marked “via MCP” in Activity.",
+				"AI access can be switched off for the whole workspace, on Workspace, Features. Before it goes off, Faro names the tokens that stop working at once and counts what AI tools already changed (that stays). The tokens are kept, not revoked: switch AI access back on and they work again, after Faro names them. To end one for good, revoke it first; See the tokens, in the same message, lists them with Revoke.",
+				"While it is off, an AI tool that calls Faro is told “AI access is switched off in” the workspace, and that an admin can switch it on. It still sees the list of tools. No token can be made, and Workspace, Settings and People show no tokens.",
+				"An AI tool can switch AI access off (as its admin), but never back on: that is the last thing its token does."
+			]
+		},
+		{
+			heading: "Who can",
+			text: ["Admins make tokens, revoke any, and switch AI access. Anyone revokes their own in Settings."]
+		}
+	],
+	routes: ["/workspace/ai"],
+	screens: [],
+	reqs: ["MCP-TOKENS", "AI-ACCESS-OPTIONAL"],
+	keywords: [
+		"ai access",
+		"mcp token",
+		"token",
+		"integrations",
+		"api access",
+		"bots",
+		"key",
+		"revoke",
+		"switch off ai"
+	],
+	related: [
+		"ai-assistants",
+		"workspace-access",
+		"features"
+	]
+}];
 // src/modules/feedback/help.ts
 var help$6 = [{
 	id: "feedback",
@@ -19137,6 +19240,10 @@ var help$2 = [
 ];
 // \0virtual:faro-modules/help
 var help_default = [
+	{
+		id: "ai-access",
+		part: help$7
+	},
 	{
 		id: "feedback",
 		part: help$6
@@ -21161,37 +21268,34 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace-access",
 		title: "Workspace: Access",
-		summary: "For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace.",
+		summary: "For admins: who the admins are, where they are made, and taken back.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
 			list: [
 				"Admins lists everyone who is one, A to Z. Add an admin is the page’s main action: find someone by name, job title or team, then Make them an admin. The message that says so has Undo.",
 				"Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin, which has no Undo: only another admin can make you one again. There is always at least one admin: the only one has no button, and their row says The only admin.",
-				"The same two are on a person’s page in People, under For admins, with Make an MCP token for that person.",
-				"MCP tokens: Make a token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.",
-				"In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so in place of the list."
+				"The same two are on a person’s page in People, under For admins, with Make an MCP token for that person while AI access is on.",
+				"The MCP tokens have their own section, AI access, after this one. See AI access."
 			]
 		}, {
 			heading: "Who can",
-			text: ["Admins. Everyone finds their own MCP tokens in Settings."]
+			text: ["Admins."]
 		}],
 		routes: ["/workspace/access"],
 		screens: [],
-		reqs: ["ADMIN", "MCP-TOKENS"],
+		reqs: ["ADMIN"],
 		keywords: [
 			"access",
 			"admins",
 			"add an admin",
 			"make admin",
 			"remove admin",
-			"who is an admin",
-			"revoke",
-			"assistant access"
+			"who is an admin"
 		],
 		related: [
 			"workspace",
-			"ai-assistants",
+			"ai",
 			"people"
 		]
 	},
@@ -21325,9 +21429,10 @@ var CORE_ARTICLES = [
 				list: [
 					"On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.",
 					"Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.",
-					"While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.",
+					"While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, how many MCP tokens are in use, or when the wrap-up opens and, while it is open, how many goals are wrapped up.",
 					"Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.",
 					"Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.",
+					"Switching AI access off names the MCP tokens that stop working at once (they are kept, not revoked), counts what AI tools already changed (it stays, marked “via MCP”), and says an AI tool can’t switch it back on. Switching it back on names the tokens that will work again. With no token, either way it acts at once. While it is off, every AI tool calling Faro here is told AI access is switched off, no token can be made, and Workspace, Settings and People show no tokens. See AI access.",
 					"Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.",
 					"Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.",
 					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help (and the Help link at the foot of its pages) and its MCP tools; What’s new still lists its releases. Anything that needs it goes off with it, and Features says so.",
@@ -21357,6 +21462,7 @@ var CORE_ARTICLES = [
 			"FEEDBACK-OPTIONAL",
 			"MAP-OPTIONAL",
 			"WRAP-UP-OPTIONAL",
+			"AI-ACCESS-OPTIONAL",
 			"FEATURE-GROUPS"
 		],
 		keywords: [
@@ -21483,7 +21589,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to connect",
 				list: [
-					"An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.",
+					"An admin makes a personal MCP token for you under Workspace, AI access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.",
 					"Add the server to your AI tool with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header \"Authorization: Bearer gk_…\".",
 					"See and revoke your MCP tokens in Settings. The full list of tools is in docs/mcp.md."
 				]
@@ -21709,6 +21815,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "ai-access-switch",
+		date: "2026-11-14",
+		title: "AI access can be switched off",
+		points: [
+			"AI access can be switched off for a workspace, on Workspace, Features. Every MCP token stops working at once and is kept; switching it back on names them first.",
+			"The MCP tokens have their own Workspace section, AI access, after Access.",
+			"While it is off, an AI tool calling Faro is told so, no token can be made, and a token can still be revoked."
+		],
+		articles: ["ai", "features"]
+	},
 	{
 		id: "home-changed",
 		date: "2026-11-14",
@@ -23500,7 +23617,7 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-var str$10 = (description, extra = {}) => ({
+var str$11 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -23529,7 +23646,7 @@ var WRITE$2 = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA$2 = VIA_MCP;
+var VIA$3 = VIA_MCP;
 var ax$2 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
@@ -23548,7 +23665,7 @@ async function save$2(ctx, c, done, nothing) {
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA$2]
+			diffs: [...x.diffs, VIA$3]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}).` };
@@ -23861,20 +23978,20 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$10(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$11(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$10("Only one kind.", { enum: [
+				kind: str$11("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$10("Only asks on a goal (its ID or key).")
+				goal_id: str$11("Only asks on a goal (its ID or key).")
 			}
 		},
 		annotations: READ$4,
@@ -23932,7 +24049,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$10("An Activity link’s query string."),
+				query: str$11("An Activity link’s query string."),
 				limit: int$3("How many changes, newest first (default 50, at most 500).")
 			}
 		},
@@ -23993,26 +24110,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "list_tokens",
-		title: "AI assistant tokens",
-		description: "Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: READ$4,
-		async run(_a, ctx) {
-			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
-				id: t.id,
-				name: t.name,
-				person: name$1(ctx, t.personId),
-				createdAt: t.createdAt,
-				lastUsedAt: t.lastUsedAt
-			})) });
-		}
-	},
-	{
 		name: "get_help",
 		title: "Help: what the app does",
 		description: "The app’s own guide, the same as its Help pages: one article per screen or feature, saying what it is for, how to use it and who can. Give an article’s id for the whole article, or a search for the articles that match; with neither, every article’s id, title and summary.",
@@ -24020,8 +24117,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$10("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$10("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$11("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$11("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
 		annotations: READ$4,
@@ -24100,7 +24197,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$10("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$11("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$3("How many entries, newest first (default all).")
 			}
 		},
@@ -24134,8 +24231,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$10("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$10("The answer, decision or help offered.")
+				request_id: str$11("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$11("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE$2,
@@ -24153,8 +24250,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$10("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$10("Optional: what was done.")
+				request_id: str$11("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$11("Optional: what was done.")
 			}
 		},
 		annotations: WRITE$2,
@@ -24171,8 +24268,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$10("The goal’s ID or its key, e.g. G-12."),
-				question: str$10("The question.")
+				goal_id: str$11("The goal’s ID or its key, e.g. G-12."),
+				question: str$11("The question.")
 			}
 		},
 		annotations: WRITE$2,
@@ -24190,8 +24287,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$10("The request’s ID."),
-				goal_id: str$10("The goal that waits on it (its ID or key).")
+				request_id: str$11("The request’s ID."),
+				goal_id: str$11("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE$2,
@@ -24208,8 +24305,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$10("The ask’s ID."),
-				goal_id: str$10("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$11("The ask’s ID."),
+				goal_id: str$11("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE$2,
@@ -24226,7 +24323,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$10("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$11("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -24245,7 +24342,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$10("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$11("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE$2,
 		async run(a, ctx) {
@@ -24265,9 +24362,9 @@ var WORK_TOOLS = [
 				"who"
 			],
 			properties: {
-				goal_id: str$10("The goal’s ID or its key, e.g. G-12."),
-				text: str$10("What needs doing."),
-				who: str$10("Who does it (name or ID)."),
+				goal_id: str$11("The goal’s ID or its key, e.g. G-12."),
+				text: str$11("What needs doing."),
+				who: str$11("Who does it (name or ID)."),
 				due_week: int$3("The week it’s due by.")
 			}
 		},
@@ -24289,9 +24386,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$10("Its ID, from get_review."),
-				text: str$10("The new wording."),
-				who: str$10("Actions: who does it."),
+				call_id: str$11("Its ID, from get_review."),
+				text: str$11("The new wording."),
+				who: str$11("Actions: who does it."),
 				due_week: int$3("Actions: the week it’s due by (0 for none).")
 			}
 		},
@@ -24326,11 +24423,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$10("The person to change (their ID or email). Leave out to add someone."),
-				name: str$10("Their full name."),
-				email: str$10("Their email: required for someone new."),
-				job_title: str$10("Their job title."),
-				team: str$10("Their team (name or ID); empty string for none."),
+				person_id: str$11("The person to change (their ID or email). Leave out to add someone."),
+				name: str$11("Their full name."),
+				email: str$11("Their email: required for someone new."),
+				job_title: str$11("Their job title."),
+				team: str$11("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -24408,9 +24505,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$10("The view to change."),
-				name: str$10("Its name."),
-				query: str$10("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$11("The view to change."),
+				name: str$11("Its name."),
+				query: str$11("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE$2,
@@ -24435,16 +24532,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$10("The saved layout to change."),
-				name: str$10("Its name."),
-				table: str$10("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$11("The saved layout to change."),
+				name: str$11("Its name."),
+				table: str$11("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids$2("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$10("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$11("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE$2,
@@ -24469,7 +24566,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$10("The view’s ID, from list_views.") }
+			properties: { view_id: str$11("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -24489,7 +24586,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$10("The view’s ID."),
+				view_id: str$11("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -24502,55 +24599,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "create_token",
-		title: "Make an MCP token",
-		description: "Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["person", "name"],
-			properties: {
-				person: str$10("Who it acts as (name or ID)."),
-				name: str$10("What it’s for, e.g. \"Claude on Maya’s laptop\".")
-			}
-		},
-		annotations: WRITE$2,
-		async run(a, ctx) {
-			const p = personOf$2(ctx, a.person);
-			const c = createToken(ax$2(ctx), p.id, String(a.name ?? ""));
-			const token = await ctx.issueToken({
-				...c,
-				changes: c.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, VIA$2]
-				}))
-			});
-			return {
-				text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`,
-				data: { token }
-			};
-		}
-	},
-	{
-		name: "revoke_token",
-		title: "Revoke a token",
-		description: "Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["token_id"],
-			properties: { token_id: str$10("The token’s ID, from list_tokens.") }
-		},
-		annotations: {
-			...WRITE$2,
-			destructiveHint: true,
-			idempotentHint: true
-		},
-		async run(a, ctx) {
-			return save$2(ctx, revokeToken(ax$2(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
-		}
-	},
-	{
 		name: "rename_workspace",
 		title: "Rename the workspace",
 		description: "Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.",
@@ -24558,7 +24606,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$10("The new name.") }
+			properties: { name: str$11("The new name.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -24601,7 +24649,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$10("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$11("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
@@ -24615,8 +24663,10 @@ var WORK_TOOLS = [
 			const m = MODULES.find((x) => x.id === id);
 			const res = await save$2(ctx, setModule(ax$2(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
 			const r = modulesOn(ctx.ws);
+			const last = !a.on && !res.isError && !aiAccessOn(r.on) && aiAccessOn(modulesOn(null).on);
 			return {
 				...res,
+				...last ? { text: aiAccessLastWords(ctx.ws.name) } : {},
 				data: {
 					on: [...r.on],
 					off: [...r.off.keys()]
@@ -24633,10 +24683,10 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$10("The team to change (name or ID). Leave out to add a team."),
-				name: str$10("The team’s name."),
-				lead: str$10("The team lead (a person’s name or ID); empty string for none."),
-				purpose: str$10("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
+				team: str$11("The team to change (name or ID). Leave out to add a team."),
+				name: str$11("The team’s name."),
+				lead: str$11("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$11("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
 		annotations: WRITE$2,
@@ -24664,8 +24714,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$10("The team to remove (name or ID)."),
-				move_to: str$10("Where its people and goals go (a team’s name or ID).")
+				team: str$11("The team to remove (name or ID)."),
+				move_to: str$11("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -24690,7 +24740,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$10("The workspace’s exact name.") }
+			properties: { confirm_name: str$11("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -24718,7 +24768,7 @@ init_removal();
 init_status();
 init_vocabulary();
 init_via();
-var str$9 = (description, extra = {}) => ({
+var str$10 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -24739,7 +24789,7 @@ var WRITE$1 = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA$1 = VIA_MCP;
+var VIA$2 = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 var KINDS = removedKinds(MODULE_RECORDS);
 var ax$1 = (ctx) => ({
@@ -24758,7 +24808,7 @@ async function save$1(ctx, c, done) {
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA$1]
+			diffs: [...x.diffs, VIA$2]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
@@ -24812,8 +24862,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$9("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$9("Its ID, from list_removed.")
+				kind: str$10("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$10("Its ID, from list_removed.")
 			}
 		},
 		annotations: WRITE$1,
@@ -24824,7 +24874,7 @@ var REMOVE_TOOLS = [
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return { text: `${c.changes[0]?.summary ?? "Restored"} (as ${ctx.actor.name}).` };
@@ -24839,9 +24889,9 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$9("Their ID or full name."),
-				goals_to: str$9("Who takes over their goals: an ID or full name."),
-				asks_to: str$9("Who takes over their open asks: an ID or full name.")
+				person: str$10("Their ID or full name."),
+				goals_to: str$10("Who takes over their goals: an ID or full name."),
+				asks_to: str$10("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
@@ -24861,7 +24911,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$9("Their ID or full name.") }
+			properties: { person: str$10("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24878,8 +24928,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$9("The goal’s ID or key, e.g. G-12."),
-				reason: str$9("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$10("The goal’s ID or key, e.g. G-12."),
+				reason: str$10("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
@@ -24896,7 +24946,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$9("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$10("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24912,8 +24962,8 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$9("The check-in’s ID, from get_goal."),
-				goal_id: str$9("Or: the goal’s ID or key…"),
+				check_in_id: str$10("The check-in’s ID, from get_goal."),
+				goal_id: str$10("Or: the goal’s ID or key…"),
 				week: int$2("…and the week of its latest check-in.")
 			}
 		},
@@ -24939,8 +24989,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$9("The comment’s or note’s ID."),
-				text: str$9("The corrected words.")
+				comment_id: str$10("The comment’s or note’s ID."),
+				text: str$10("The corrected words.")
 			}
 		},
 		annotations: WRITE$1,
@@ -24954,7 +25004,7 @@ var REMOVE_TOOLS = [
 					...c,
 					changes: c.changes.map((x) => ({
 						...x,
-						diffs: [...x.diffs, VIA$1]
+						diffs: [...x.diffs, VIA$2]
 					}))
 				});
 				return { text: `Corrected the note (as ${ctx.actor.name}).` };
@@ -24965,7 +25015,7 @@ var REMOVE_TOOLS = [
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return { text: `Edited the comment (as ${ctx.actor.name}).` };
@@ -24979,7 +25029,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$9("The comment’s or note’s ID.") }
+			properties: { comment_id: str$10("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24996,7 +25046,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$9("The cycle’s ID.") }
+			properties: { cycle_id: str$10("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -25012,7 +25062,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$9("The started cycle’s ID, from get_workspace.") }
+			properties: { cycle_id: str$10("The started cycle’s ID, from get_workspace.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -25029,7 +25079,7 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["import_id"],
 			properties: {
-				import_id: str$9("The import’s ID (imp_…), from get_activity."),
+				import_id: str$10("The import’s ID (imp_…), from get_activity."),
 				dry_run: {
 					type: "boolean",
 					description: "Say what Undo would do without saving anything."
@@ -25059,7 +25109,7 @@ var REMOVE_TOOLS = [
 				...out.commit,
 				changes: out.commit.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return {
@@ -25069,6 +25119,86 @@ var REMOVE_TOOLS = [
 				},
 				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(keptText).join("; ")}.` : ""}`
 			};
+		}
+	}
+];
+// src/modules/ai-access/tools.ts
+init_actions();
+init_via();
+var str$9 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var VIA$1 = VIA_MCP;
+var tools$6 = [
+	{
+		name: "list_tokens",
+		title: "AI assistant tokens",
+		description: "Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: READ$4,
+		async run(_a, ctx) {
+			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
+				id: t.id,
+				name: t.name,
+				person: name$1(ctx, t.personId),
+				createdAt: t.createdAt,
+				lastUsedAt: t.lastUsedAt
+			})) });
+		}
+	},
+	{
+		name: "create_token",
+		title: "Make an MCP token",
+		description: "Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["person", "name"],
+			properties: {
+				person: str$9("Who it acts as (name or ID)."),
+				name: str$9("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+			}
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const p = personOf$2(ctx, a.person);
+			const c = createToken(ax$2(ctx), p.id, String(a.name ?? ""));
+			const token = await ctx.issueToken({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA$1]
+				}))
+			});
+			return {
+				text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`,
+				data: { token }
+			};
+		}
+	},
+	{
+		name: "revoke_token",
+		title: "Revoke a token",
+		description: "Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["token_id"],
+			properties: { token_id: str$9("The token’s ID, from list_tokens.") }
+		},
+		annotations: {
+			...WRITE$2,
+			destructiveHint: true,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			return save$2(ctx, revokeToken(ax$2(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
 		}
 	}
 ];
@@ -27706,6 +27836,10 @@ var tools = [{
 // \0virtual:faro-modules/tools
 var tools_default = [
 	{
+		id: "ai-access",
+		part: tools$6
+	},
+	{
 		id: "feedback",
 		part: tools$5
 	},
@@ -29444,7 +29578,9 @@ async function serve(req, deps) {
 	const hash = await hashToken(token);
 	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
-	if (picture !== null) return pictureResponse(picture, deps.markups?.(hash));
+	if (!aiAccessOn(modulesOn(null).on)) return rpcError(403, NO_AI_ACCESS);
+	const shut = aiAccessOn(modulesOn({ modulesOff: deps.modulesOff ? await deps.modulesOff(found.workspaceId).catch(() => []) : [] }).on) ? null : aiAccessShutWords(await deps.workspaceName(found.workspaceId));
+	if (picture !== null) return shut ? rpcError(403, shut) : pictureResponse(picture, deps.markups?.(hash));
 	let body;
 	try {
 		body = await req.json();
@@ -29604,8 +29740,8 @@ async function serve(req, deps) {
 	};
 	let res;
 	try {
-		const out = await handleBody(body, context, traceTool);
-		await deps.touch(found.token.id, now.toISOString()).catch(() => void 0);
+		const out = shut ? await throughDoor(body, shut, (m) => handleBody(m, context, traceTool)) : await handleBody(body, context, traceTool);
+		if (!shut) await deps.touch(found.token.id, now.toISOString()).catch(() => void 0);
 		res = out ? json(out) : new Response(null, {
 			status: 202,
 			headers: CORS
@@ -29624,6 +29760,32 @@ async function serve(req, deps) {
 	}
 	await sendSpans(deps, spans.rows, found.workspaceId, ctx);
 	return res;
+}
+/** What the door lets through while AI access is off: the handshake and the list of tools (so a connected tool sees why
+each call refuses, not an empty server), and notifications, which have no answer. */
+var THROUGH_THE_DOOR = /* @__PURE__ */ new Set(["initialize", "tools/list"]);
+/** A body while the door is shut: what it lets through is handled as ever; anything else is answered with `words`. */
+async function throughDoor(body, words, handle) {
+	const one = async (m) => {
+		const method = String(m?.method ?? "");
+		if (THROUGH_THE_DOOR.has(method) || method.startsWith("notifications/")) return handle(m);
+		const id = m?.id;
+		return id === void 0 ? null : {
+			jsonrpc: "2.0",
+			id,
+			error: {
+				code: -32001,
+				message: words
+			}
+		};
+	};
+	if (!Array.isArray(body)) return await one(body);
+	const out = [];
+	for (const m of body) {
+		const r = await one(m);
+		if (r) out.push(...Array.isArray(r) ? r : [r]);
+	}
+	return out.length ? out : null;
 }
 /** GET /api/mcp?picture=<markup id>/<picture name>, with any token: the picture itself, for an assistant that only
 fetches addresses. Plain words when the server has no inbox or pictures can't be read. */
