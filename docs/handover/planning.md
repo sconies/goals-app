@@ -8,6 +8,8 @@ Finish the tracks' lists below, then **KL** (the retro's lessons built into `src
 
 Out of scope until after the handoff: PF1–PF2 and every review low (backlog, "Deferred to after the handoff", #483); WM, 0c2, 0t and 3a.
 
+**Start item 11 early (Lane asked; planning's call, 14 Nov):** start it as soon as track 4's KL merges, without waiting for 7d and 3. Pin the drill to that commit of main, then run the core and each module already on main, one at a time. Add GR, MQ, MC, TG and MI as stages when they land. Leave the README, handoff and architecture rewrites until last. Start it in track 4's freed slot, so three heavy sessions run at most.
+
 ## Open sessions (at most three build tracks, plus the reviewer)
 
 | Track | Session | List, in order |
