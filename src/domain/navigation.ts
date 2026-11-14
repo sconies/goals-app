@@ -148,6 +148,9 @@ export interface PlaceNames {
 }
 
 
+/** Set-up's steps, by their address (set-up spec section 1). */
+const SETUP_TITLES: Record<string, string> = { workspace: 'Set up: the workspace and you', people: 'Set up: people', goals: 'Set up: goals', check: 'Set up: check' };
+
 /** The places named the same wherever they are. */
 const FIXED: Record<string, string> = {
   '/': 'Home', '/goals': 'Goals', '/watching': 'Goals', '/goals/new': 'New goal', '/check-in': 'Check-in', '/quick-check-in': 'Check-in, all in one table',
@@ -172,6 +175,7 @@ export function pageName(path: string, search: string, names: PlaceNames): strin
   if (FIXED[path]) return FIXED[path]!;
   const m = (re: RegExp) => re.exec(path)?.slice(1).map((x) => decodeURIComponent(x));
   let x: string[] | undefined;
+  if ((x = m(/^\/workspace\/new\/([^/]+)$/))) return SETUP_TITLES[x[0]!] ?? 'Set up a workspace';
   if ((x = m(/^\/goals\/new\/([^/]+)$/))) return NEW_GOAL_STEPS.find((st) => st.slug === x![0])?.title ?? 'New goal';
   if ((x = m(/^\/goals\/([^/]+)(\/edit|\/print)?$/))) {
     const t = names.goal(x[0]!);

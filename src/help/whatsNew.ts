@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-four-steps',
+    date: '2026-11-14',
+    title: 'Set-up in four steps you can go back through',
+    points: [
+      'Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.',
+      'How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.',
+      'Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.',
+      'Change on Check brings you straight back to it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
     id: 'table-confirm-readings',
     date: '2026-11-14',
     title: 'Numbers from a source are confirmed before they’re posted',

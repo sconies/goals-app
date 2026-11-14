@@ -156,3 +156,6 @@
    the page ends with its height and the last field is never under it. */
 .goal-edit .edit-part { gap: var(--s4); scroll-margin-top: 72px; }
 .goal-edit details.edit-part > .stack { gap: var(--s4); padding-top: var(--s2); }
+/* Set-up's "How you'll work" (small workspaces 2.2): a quiet panel with a hairline all round, never an edge stripe. */
+.focus-onboard .setup-how { gap: 6px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.focus-onboard .setup-how p { margin: 0; }

@@ -1,13 +1,13 @@
-/* Setting up a workspace: from nothing to an outcome, the goals feeding it and the people who own them,
-   one question per screen, in about three minutes. A template fills it in so it's never blank. */
+/* Setting up a workspace in four steps, each its own address (set-up spec ST2, small workspaces SM3): the workspace and
+   you (with how you'll work as a sheet), people, goals, and a check of what will be made. No example goals. */
 import { isTop, levelName } from '../domain/levels';
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { useMaybeApp, useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
 import { searchOver, usePrefs } from '../app/search';
-import { setupSteps, type SetupStep } from '../domain/dayOne';
-import { SETUP_STEP_NAMES } from '../domain/arrival';
+import { draftStep, firstUnfilled, isSetupStep, SETUP_STEPS, startOf, type SetupStart, type SetupStep } from '../domain/dayOne';
+import { howWeWork, SETUP_STEP_NAMES } from '../domain/arrival';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { tooLarge } from '../domain/importLimits';
 import { saveAndSay } from '../app/files';
@@ -19,14 +19,14 @@ import { isEmail, mergePeople, normalEmail } from '../domain/people';
 import type { Cycle } from '../domain/types';
 import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year';
 import { yearName } from '../domain/yearName';
-import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
+import { stagesFromNow } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { nameLength, nameProblem } from '../domain/thresholds';
 import { fmt } from '../domain/format';
 import { closeTeam } from '../domain/people';
-import { Steps } from '../ui/bits';
+import { Sheet, Steps } from '../ui/bits';
 import { blankGoal as blankDraft, type GoalDraft } from '../domain/goal';
 import { goalChecks, goalMustFix, unanswered, type GoalAnswers, type GoalCheck } from '../domain/goalEntry';
 import { targetText } from '../domain/format';
@@ -41,18 +41,36 @@ import { Questions, StageFields } from '../ui/GoalFields';
 import { PickOne, type PickSource } from '../ui/Pick';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
-interface GoalRow extends TemplateGoal { owner: string; /** The picked owner's email, which tells two people of one name apart (FS1 review). */ ownerEmail?: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
+/** A goal card at set-up, in the text the importer reads. */
+interface GoalCard {
+  title: string;
+  kind: 'metric' | 'milestone' | 'range';
+  unit: string;
+  start: string;
+  target: string;
+  plan?: 'straight' | 'back-loaded' | 'stepped';
+  /** Milestones: "Design@3; Pilot@7; Launch@12". */
+  stages?: string;
+  /** Ranges: the limit, which side it must stay, and how close counts as a warning. */
+  limit?: string;
+  bound?: 'at most' | 'at least';
+  margin?: string;
+}
+interface GoalRow extends GoalCard { owner: string; /** The picked owner's email, which tells two people of one name apart (FS1 review). */ ownerEmail?: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
 /** Set-up's owner picker: a search over the draft's people, and the names a goal row keeps. */
 interface OwnerPick { source: PickSource; idOf: (g: Pick<GoalRow, 'owner' | 'ownerEmail'>) => string | null; rowOf: (id: string | null) => Pick<GoalRow, 'owner' | 'ownerEmail'> }
 
 interface SetupDraft {
+  /** The step's place in SETUP_STEPS; with no `v`, a draft from before (seven steps, `draftStep`). */
   step: number;
+  v?: number;
   name: string;
   startDate: string;
   reviewDay: number;
   me: PersonRow;
   people: PersonRow[];
   objectives: Record<string, string>;
+  /** How its goals start (`SetupStart`): 'own', 'file' or 'later'; a draft from before may hold a template's id. */
   template: string;
   outcome: GoalRow;
   goals: GoalRow[];
@@ -80,12 +98,10 @@ const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: ''
 const blankGoal = (owner = ''): GoalRow => ({ title: '', kind: 'metric', unit: '', start: '', target: '', owner });
 const YES = /^(y|yes|true|1|admin|sponsor|coach|goals coach)$/i;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const SETUP_STEPS: SetupStep[] = ['workspace', 'you', 'team', 'start', 'outcome', 'goals', 'check'];
-const STEP_LABELS = SETUP_STEPS.map((x) => SETUP_STEP_NAMES[x]);
 /** Each step, for the named flow (src/help/flows.ts). */
-const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4', 'setUp.step-5', 'setUp.step-6', 'setUp.step-7'];
+const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4'];
 
-/** Most goal cards set-up takes: the step asks for two to four (UX report, 8 Nov). */
+/** Most goal cards set-up takes under the outcome (UX report, 8 Nov). */
 const MAX_GOALS = 4;
 /** How a person added by "Add {person}" is known again: their email, else their name. */
 const addedKey = (p: { name: string; email?: string }) => normalEmail(p.email ?? '') || p.name.trim().toLowerCase();
@@ -176,7 +192,7 @@ function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, 
 }
 
 function goalsTsv(d: SetupDraft) {
-  if (d.template === 'file' || d.template === 'later') return '';
+  if (startOf(d.template) !== 'own') return '';
   const people = [d.me, ...d.people];
   // A goal with no owner chosen is made owned by whoever sets up (OB3); Home asks them to give it an owner.
   const byName = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === (owner.trim() || d.me.name.trim()).toLowerCase());
@@ -191,17 +207,20 @@ function goalsTsv(d: SetupDraft) {
   return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
-/** Setting up a workspace, one question per screen. */
+/** Setting up a workspace in four steps, each its own address under /workspace/new/ (set-up spec ST2, small workspaces SM3). */
 export function Onboarding({ onClose }: { onClose?: () => void }) {
+  const { step: slug } = useParams();
   const setup = useSetup();
   const app = useMaybeApp();
   const nav = useNavigate();
-  // Set up from inside the app, "Who are you?" starts as the person you are now (backlog WS); change anything.
+  const { search } = useLocation();
+  // Set up from inside the app, you start as the person you are now (backlog WS); change anything.
   const viewer = app?.viewerChosen ? app.viewer : undefined; // No one chosen yet (from an invitation's arrival): nothing to fill in.
   const [d, setDraft, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
-    step: 0, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
+    step: 0, v: 2, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
     me: viewer ? { name: viewer.name, email: viewer.email ?? '', title: viewer.role ?? '', team: app?.team(viewer.teamId ?? '')?.name ?? '', admin: true } : { name: '', email: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
-    template: '', outcome: blankGoal(), goals: [],
+    // "Add your own" is chosen to begin with (2.6): it needs nothing prepared.
+    template: 'own', outcome: blankGoal(), goals: [blankGoal()],
   }));
   // Each change says when, so Welcome can say where a set-up was left (set-up spec 2.1).
   const set = (patch: Partial<SetupDraft>) => setDraft({ ...patch, savedAt: setup.today.toISOString() });
@@ -212,15 +231,18 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const [fileNote, setFileNote] = useState('');
   // The people as they were before the last upload, for its Undo.
   const [undoUpload, setUndoUpload] = useState<Pick<SetupDraft, 'people' | 'objectives'> | null>(null);
-  const [cycleOpen, setCycleOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
+  const [meOpen, setMeOpen] = useState(false);
+  const [startingOver, setStartingOver] = useState(false);
   const [Preview, setPreview] = useState(() => loadPreview());
 
   // A draft kept from before people had emails still opens.
   const me = { ...d.me, email: d.me.email ?? '' };
   const rowsOf = d.people.map((r) => ({ ...r, email: r.email ?? '' }));
+  const start = startOf(d.template);
   // Goals from a spreadsheet go through the import's preview in create mode (IM8): its questions are answered on Check,
   // and a goal's stages already due are counted from this week unless that answer is changed.
-  const fromFile = d.template === 'file' && !!d.fileTables;
+  const fromFile = start === 'file' && !!d.fileTables;
   // Worked out again only when what it reads changes, not on every render (#336 review: 1.3 s a render at 6,000 rows).
   const result = useMemo(
     () => buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(fromFile ? { tables: d.fileTables!, answers: d.fileAnswers ?? {} } : {}), now: setup.today, idSuffix: suffix }),
@@ -262,9 +284,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     idOf: (g) => (g.ownerEmail ? draftPeople.find((p) => normalEmail(p.email ?? '') === normalEmail(g.ownerEmail!)) : undefined)?.id ?? draftPeople.find((p) => p.name === g.owner.trim())?.id ?? null,
     rowOf: (id) => { const p = id ? draftPeople.find((x) => x.id === id) : undefined; return { owner: p?.name ?? '', ownerEmail: p?.email ?? undefined }; },
   };
-  const unownedTitles = new Set(d.template === 'file' || d.template === 'later' ? [] : d.goals.filter((g) => g.title.trim() && !g.owner.trim()).map((g) => g.title.trim()));
+  const unownedTitles = new Set(start !== 'own' ? [] : d.goals.filter((g) => g.title.trim() && !g.owner.trim()).map((g) => g.title.trim()));
   const prefs = usePrefs();
-  const skipGoalSteps = d.template === 'file' || d.template === 'later';
 
   // Each field says its own problem (setup review, 8 Nov): a name of at least MIN_NAME characters, and the numbers a goal needs.
   const nameIssue = nameProblem(d.name, 'workspace');
@@ -284,59 +305,87 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     const said = (f: 'title' | 'start' | 'target' | 'limit') => fix.find((x) => x.field === f)?.text ?? null;
     return { title: said('title'), start: said('start'), target: said('target'), limit: said('limit') };
   };
-  // A card's questions wait for their answers before Next (2.10), as the form's do.
+  // A card's questions wait for their answers before Continue (2.10), as the form's do.
   const clean = (e: ReturnType<typeof goalErr>, g?: GoalRow) => !e.title && !e.start && !e.target && !e.limit && !(g && unanswered(cardChecks(g), g.answers).length);
-  const ok = [
-    !nameIssue && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate),
-    !meErr.name && !meErr.email && !meErr.team,
-    !issues('People').length && !rowsOf.some(teamTypo),
-    !!d.template,
-    clean(goalErr(d.outcome, true), d.outcome) && !goalIssue(2),
-    d.goals.every((g) => !g.title.trim() || clean(goalErr(g), g)) && !issues('Goals').length,
-    !result.issues.length && !fileGroups.some((g) => g.level === 'check'),
-  ];
-  const problem = [
-    nameIssue ?? 'Pick the month the goal year starts.',
-    '',
-    'Fix the rows marked in red, or clear them.',
-    'Pick a starting point.',
-    goalIssue(2) ?? (unanswered(cardChecks(d.outcome), d.outcome.answers).length ? 'Answer the question above.' : ''),
-    d.goals.some((g) => g.title.trim() && clean(goalErr(g)) && unanswered(cardChecks(g), g.answers).length) && d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) ? 'Answer the questions above.' : 'Fix the goals marked in red, or remove them.',
-    fileGroups.length ? settleLine(fileGroups, d.fileName ?? 'your spreadsheet') : result.issues[0]?.message ?? '',
-  ];
+  const outcomeOk = clean(goalErr(d.outcome, true), d.outcome) && !goalIssue(2);
+  const goalsOk = d.goals.every((g) => !g.title.trim() || clean(goalErr(g), g)) && !issues('Goals').length;
+  const ok: Record<SetupStep, boolean> = {
+    workspace: !nameIssue && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate) && !meErr.name && !meErr.email && !meErr.team,
+    people: !issues('People').length && !rowsOf.some(teamTypo),
+    goals: start === 'later' || (start === 'file' ? fromFile : outcomeOk && goalsOk),
+    check: !result.issues.length && !fileGroups.some((g) => g.level === 'check'),
+  };
+  const problem: Record<SetupStep, string> = {
+    workspace: nameIssue ?? (/^\d{4}-\d{2}-\d{2}$/.test(d.startDate) ? '' : 'Pick the month the goal year starts.'),
+    people: 'Fix the rows marked in red, or clear them.',
+    goals: start === 'file' ? 'Choose a spreadsheet, or another way to start.'
+      : !outcomeOk ? goalIssue(2) ?? (unanswered(cardChecks(d.outcome), d.outcome.answers).length ? 'Answer the question above.' : '')
+      : d.goals.some((g) => g.title.trim() && clean(goalErr(g)) && unanswered(cardChecks(g), g.answers).length) && d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) ? 'Answer the questions above.' : 'Fix the goals marked in red, or remove them.',
+    check: fileGroups.length ? settleLine(fileGroups, d.fileName ?? 'your spreadsheet') : result.issues[0]?.message ?? '',
+  };
   const fieldErr = (text: string | null | undefined) => (tried && text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   // When the first check-ins are due: the first review on or after today (domain/progress firstReview).
   const cycleNow = { startDate: d.startDate, weeks: yearWeeks(d.startDate), reviewDay: d.reviewDay } as Cycle;
   const first = firstReview(cycleNow, setup.today);
   const firstText = `${WEEKDAY[d.reviewDay]} ${dayText(first.date).slice(4)}`;
+  const month = startMonth({ startDate: d.startDate } as Cycle);
+  const how = howWeWork({ reviewDay: d.reviewDay, startMonth: month, recording: !!d.recording });
   const [removed, setRemoved] = useState<{ goal: GoalRow; at: number } | null>(null);
-  const go = (step: number) => { setTried(false); setRemoved(null); setUndoUpload(null); set({ step }); };
-  // A problem is said under the field it's about, and that field takes the focus.
   const form = useRef<HTMLFormElement>(null);
+
+  // Where this address may go: a step whose earlier answers are missing goes to the first such step, its errors not yet
+  // shown (rule S1); /workspace/new goes to the draft's step.
+  const at: SetupStep | null = isSetupStep(slug) ? slug : null;
+  const gap = firstUnfilled({ name: d.name, me, start: d.template, goals: d.outcome.title.trim() ? 1 : 0, file: !!d.fileTables?.goals?.length });
+  const want = at ?? draftStep(d);
+  const goesTo = gap && SETUP_STEPS.indexOf(gap) < SETUP_STEPS.indexOf(want) ? gap : want;
+  const idx = SETUP_STEPS.indexOf(goesTo);
+  // The step this draft is at, for Welcome's "Stopped at step 2 of 4"; a fresh draft on step 1 writes nothing.
+  useEffect(() => {
+    if (!at || goesTo !== at) return;
+    if (d.v === 2 ? d.step !== idx : restored || idx > 0) set({ step: idx, v: 2 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at, goesTo]);
+  // A problem is said under the field it's about, and that field takes the focus.
   useEffect(() => {
     if (!tried) return;
     const el = form.current?.querySelector<HTMLElement>('.qsection .invalid, .qsection [aria-invalid="true"]') ?? form.current?.querySelector<HTMLElement>('.qsection [role="radio"]');
     // A goal card's open question, as New goal and the edit page do it (U93): focus on it, in view.
     const slot = el ? null : form.current?.querySelector<HTMLElement>('.qsection [data-check]')?.dataset.check;
     if (slot) focusQuestion(form.current, slot); else el?.focus();
-  }, [tried, d.step]);
-  const err = (show = true) => (tried && !ok[d.step] && show ? <span className="hint tone-off field-error" role="alert">{problem[d.step]}</span> : null);
-  const next = () => {
-    if (!ok[d.step]) { setTried(true); return; }
-    if (d.step === 3 && skipGoalSteps) return go(6);
-    if (d.step < 6) return go(d.step + 1);
-    void create();
-  };
-  const back = () => go(d.step === 6 && skipGoalSteps ? 3 : Math.max(0, d.step - 1));
+  }, [tried, at]);
+  useMark(at ? STEP_MARKS[idx] ?? null : null);
+  if (at !== goesTo) {
+    const q = new URLSearchParams(search);
+    q.delete('from');
+    const rest = q.toString();
+    return <Navigate replace to={`/workspace/new/${goesTo}${rest ? '?' + rest : ''}`} />;
+  }
+  const step = goesTo;
+  const fromCheck = new URLSearchParams(search).get('from') === 'check' && step !== 'check';
 
-  const pickTemplate = (id: string) => {
-    const t = TEMPLATES.find((x) => x.id === id);
-    // Stage weeks in a template count from now, so a mid-year setup doesn't start with stages already overdue.
-    const now = currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today);
-    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: '', ...(g.stages ? { stages: stagesFromNow(g.stages, now, yearWeeks(d.startDate)) } : {}) })) });
-    else if (id === 'blank') set({ template: id, outcome: blankGoal(d.me.name.trim()), goals: [blankGoal(d.me.name.trim())] });
-    else set({ template: id });
+  // Each step is an address: Continue adds one history entry, so the browser's Back and Forward move between steps.
+  const addr = (s: SetupStep, from?: 'check') => {
+    const q = new URLSearchParams(search);
+    q.delete('from');
+    if (from) q.set('from', from);
+    const rest = q.toString();
+    return `/workspace/new/${s}${rest ? '?' + rest : ''}`;
   };
+  const go = (s: SetupStep, from?: 'check') => { setTried(false); setRemoved(null); setUndoUpload(null); nav(addr(s, from)); };
+  const err = (show = true) => (tried && !ok[step] && show ? <span className="hint tone-off field-error" role="alert">{problem[step]}</span> : null);
+  const next = () => {
+    if (!ok[step]) { setTried(true); return; }
+    if (step === 'workspace') {
+      // Goal cards nobody has touched start owned by you, as "Start blank" did.
+      const mine = d.me.name.trim();
+      if (!d.outcome.title.trim() && !d.outcome.owner.trim()) set({ outcome: { ...d.outcome, owner: mine }, goals: d.goals.map((g) => (g.title.trim() || g.owner.trim() ? g : { ...g, owner: mine })) });
+    }
+    if (fromCheck || step === 'goals') return go('check');
+    if (step === 'check') return void create();
+    go(SETUP_STEPS[idx + 1]!);
+  };
+  const back = () => go(SETUP_STEPS[Math.max(0, idx - 1)]!);
 
   const upload = async (file: File) => {
     try {
@@ -363,7 +412,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         patch.people = merged.length ? merged : [blankPerson()];
         patch.objectives = { ...d.objectives, ...(r?.objectives ?? {}) };
       }
-      // The goals with their plans and past check-ins, for "Goals from your spreadsheet".
+      // The goals with their plans and past check-ins, for "Import a spreadsheet".
       // A new file's questions are its own: answers given to the last one are dropped.
       // A file with no goals sheet keeps the goals of the one before it, and says so (#336 review).
       const kept = !t.goals?.length && d.fileTables?.goals?.length ? d.fileName ?? 'your last spreadsheet' : null;
@@ -378,7 +427,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       const people = !n ? 'no people sheet'
         : `${added.length ? `added ${plural(added.length)}` : 'no one new to add'}${typed.length ? ` after the ${typed.length} you’d typed` : ''}${there ? `; ${there} in the file ${there === 1 ? 'was' : 'were'} already there` : ''}`;
       const skips = r ? [r.skipped.example ? `${plural(r.skipped.example)} marked Example` : '', r.skipped.left ? `${plural(r.skipped.left)} marked Left` : ''].filter(Boolean).join(' and ') : '';
-      setFileNote(`Read ${file.name}: ${people}${skips ? `; ${skips} ${r!.skipped.example + r!.skipped.left === 1 ? 'wasn’t' : 'weren’t'} added` : ''}.${t.goals?.length ? ` It also has a goals sheet${extra ? ` with ${extra}` : ''} you can use in the next step.` : kept ? ` The goals from ${kept} stay.` : ''}`);
+      const goalsLine = t.goals?.length ? (step === 'goals' ? ` Its goals sheet${extra ? `, with ${extra},` : ''} is ready to use.` : ` It also has a goals sheet${extra ? ` with ${extra}` : ''}: choose “Import a spreadsheet” on the next step to use it.`) : kept ? ` The goals from ${kept} stay.` : '';
+      setFileNote(`Read ${file.name}: ${people}${skips ? `; ${skips} ${r!.skipped.example + r!.skipped.left === 1 ? 'wasn’t' : 'weren’t'} added` : ''}.${goalsLine}`);
     } catch (e) {
       setFileNote(`Couldn’t read ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -402,80 +452,73 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   };
 
   const close = () => (onClose ? onClose() : nav(setup.hasWorkspaces ? '/workspace' : '/'));
-  const shownStep = d.step + 1;
-  // The counter counts the path chosen (rule 6): with goals set up later or from a spreadsheet, Check is Step 5 of 5.
-  const counted = setupSteps(d.template);
-  useMark(STEP_MARKS[d.step] ?? null);
   const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: rowsOf.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
-  const label = busy ? 'Creating…' : d.step === 6 ? 'Create workspace' : 'Next';
+  const wsName = d.name.trim() || 'workspace';
+  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? `Create ${wsName}` : `Continue to ${SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase()}`;
+  // Set up from inside a workspace, you are one line until you change it (2.3).
+  const known = !!viewer && !meOpen && !meErr.name && !meErr.email && !meErr.team;
+  const fileGoals = d.fileTables?.goals?.length ?? 0;
+  const startOpt = (id: SetupStart, title: string, line: ReactNode) => (
+    <button type="button" role="radio" className="opt" aria-checked={start === id} onClick={() => { setTried(false); set({ template: id }); }}><span>{title}</span><span className="hint">{line}</span></button>
+  );
+  const change = (s: SetupStep, what: string) => <button type="button" className="linkish small tap-44" aria-label={`Change ${what}`} onClick={() => go(s, 'check')}>Change</button>;
+  const changeHow = <button type="button" className="linkish small tap-44" aria-label="Change how you’ll work" onClick={() => setHowOpen(true)}>Change</button>;
 
   return (
-    <div className={'focus focus-onboard' + (d.step === 2 || d.step === 5 ? ' focus-roomy' : '')}>
+    <div className={'focus focus-onboard' + (step === 'people' || step === 'goals' ? ' focus-roomy' : '')}>
       <div className="focus-top">
-        <span className="small strong">Set up</span>
-        <Steps at={counted ? counted.indexOf(SETUP_STEPS[d.step]!) + 1 : shownStep} of={counted?.length ?? 7} label={STEP_LABELS[d.step]} />
+        <span className="small strong">Set up a workspace</span>
+        <Steps at={idx + 1} of={SETUP_STEPS.length} label={SETUP_STEP_NAMES[step]} />
         <FormClose keeps onClose={close} />
       </div>
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
-        {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish tap-44" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
+        {restored && (
+          <p className="hint" role="status">
+            {startingOver ? <>Start over? What you typed will be lost. <button type="button" className="linkish tap-44" onClick={() => { clear(); nav(addr('workspace'), { replace: true }); setTimeout(() => window.location.reload(), 0); }}>Start over</button> <button type="button" className="linkish tap-44" onClick={() => setStartingOver(false)}>Keep it</button></>
+              : <>Picked up the set-up you hadn’t finished. <button type="button" className="linkish tap-44" onClick={() => setStartingOver(true)}>Start over</button></>}
+          </p>
+        )}
 
-        {d.step === 0 && (
+        {step === 'workspace' && (
           <section className="qsection">
-            <h1 className="qtitle big">What’s this workspace for?</h1>
+            <h1 className="qtitle big">What’s this workspace for, and who are you?</h1>
             <div className="field">
-              <label className="field"><span className="field-label">Name</span>
+              <label className="field"><span className="field-label">Workspace name</span>
                 <input className={'input big-input' + (tried && nameIssue ? ' invalid' : '')} aria-invalid={(tried && !!nameIssue) || undefined} aria-describedby={nameLength(d.name) ? 'setup-name-length' : undefined} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
               </label>
               {/* The limit is said while typing, never applied by cutting the name short (backlog WS). */}
               {nameLength(d.name) && <span id="setup-name-length" className={'hint' + (nameIssue?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(d.name)}</span>}
               {fieldErr(nameIssue)}
             </div>
-            {cycleOpen ? (
-              <>
-              <div className="pair">
-                <label className="field"><span className="field-label">The goal year starts in</span>
-                  <select className="input" value={startMonth({ startDate: d.startDate } as Cycle)} onChange={(e) => set({ startDate: yearStartFor(setup.today, Number(e.target.value)) })}>{MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
-                </label>
-                <label className="field"><span className="field-label">Weekly review on</span>
-                  <select className="input" value={d.reviewDay} onChange={(e) => set({ reviewDay: Number(e.target.value) })}>{DAYS.map((x, i) => <option key={x} value={i}>{x}</option>)}</select>
-                </label>
-              </div>
-              <span className="hint">Weeks follow the calendar: week 1 is the week with the first Thursday of {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}{startMonth({ startDate: d.startDate } as Cycle) === 0 ? ', so week numbers match ISO weeks' : ''}. This year has {yearWeeks(d.startDate)} weeks.</span>
-              </>
+            {known ? (
+              <p className="setup-me">Setting up as {d.me.name.trim()}, {meEmail}, {d.me.team.trim()}. <button type="button" className="linkish tap-44" onClick={() => setMeOpen(true)}>Change</button></p>
             ) : (
-              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review for everyone <span className="nowrap">on {DAYS[d.reviewDay]}s.</span> The first is on {firstText}, so nothing is due before it. <span className="nowrap"><button type="button" className="linkish tap-44" onClick={() => setCycleOpen(true)}>Change</button></span></span>
+              <>
+                <div className="pair">
+                  <div className="field"><label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && meErr.name ? ' invalid' : '')} aria-invalid={(tried && !!meErr.name) || undefined} value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>{fieldErr(meErr.name)}</div>
+                  <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && meErr.team ? ' invalid' : '')} aria-invalid={(tried && !!meErr.team) || undefined} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{fieldErr(meErr.team)}</div>
+                </div>
+                <div className="field"><label className="field"><span className="field-label">Your email</span><input className={'input' + (tried && meErr.email ? ' invalid' : '')} aria-invalid={(tried && !!meErr.email) || undefined} type="email" autoComplete="email" value={me.email} onChange={(e) => set({ me: { ...me, email: e.target.value } })} placeholder="e.g. ana.silva@example.com" /></label>{fieldErr(meErr.email)}{tried && meIssue && ok.workspace && <span className="hint tone-off field-error" role="alert">{meIssue}</span>}</div>
+              </>
             )}
-            {/* Asked here, off unless chosen (backlog WS, Lane 9 Nov); an admin can change it later, under Privacy. */}
-            <label className="check record-check setup-recording">
-              <input type="checkbox" checked={!!d.recording} onChange={(e) => set({ recording: e.target.checked })} />
-              <span className="stack" style={{ gap: 0 }}>
-                <span>Record how the app is used here</span>
-                <span className="hint">Off unless you tick it. On, Faro records the pages people open, the buttons they press, errors and slow pages, never anything anyone types, for the people building it. An admin can change it later in Workspace, under Privacy.</span>
-              </span>
-            </label>
+            <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins.</p>
+            {/* How you'll work is a panel, not a step (small workspaces 2.2): the usual, said once, and a sheet to change it. */}
+            <div className="setup-how stack">
+              <span className="field-label">How you’ll work</span>
+              <p className="setup-how-says">{how.says}</p>
+              <span className="hint">{how.usual ? 'Most teams start this way. You can change it now, on the last step, or any time in Workspace.' : 'Changed from the usual.'}</span>
+              <div className="row"><button type="button" className="btn sm" onClick={() => setHowOpen(true)}>Change how you’ll work</button></div>
+            </div>
             {err(!nameIssue)}
           </section>
         )}
 
-        {d.step === 1 && (
-          <section className="qsection">
-            <h1 className="qtitle big">Who are you?</h1>
-            <div className="pair">
-              <div className="field"><label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && meErr.name ? ' invalid' : '')} aria-invalid={(tried && !!meErr.name) || undefined} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>{fieldErr(meErr.name)}</div>
-              <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && meErr.team ? ' invalid' : '')} aria-invalid={(tried && !!meErr.team) || undefined} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{fieldErr(meErr.team)}</div>
-            </div>
-            <div className="field"><label className="field"><span className="field-label">Your email</span><input className={'input' + (tried && meErr.email ? ' invalid' : '')} aria-invalid={(tried && !!meErr.email) || undefined} type="email" autoComplete="email" value={me.email} onChange={(e) => set({ me: { ...me, email: e.target.value } })} placeholder="e.g. ana.silva@example.com" /></label>{fieldErr(meErr.email)}{tried && meIssue && ok[1] && <span className="hint tone-off field-error" role="alert">{meIssue}</span>}</div>
-            {viewer && d.me.name === viewer.name && <p className="hint" role="status">Filled in as {viewer.name}, from {app?.ws.name}. Change anything that’s different here.</p>}
-            <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins. Anyone can own goals, watch them and run reviews. Emails tell people apart, in the app and in spreadsheets.</p>
-          </section>
-        )}
-
-        {d.step === 2 && (
+        {step === 'people' && (
           <section className="qsection">
             <div className="stack" style={{ gap: 'var(--s1)' }}>
-              <h1 className="qtitle big">Who else is on it?</h1>
-              <span className="hint">Type them in, paste rows from a spreadsheet, or upload one. You can also add people later. Leave Team empty for your own team{d.me.team.trim() ? ` (${d.me.team.trim()})` : ''}.</span>
+              <h1 className="qtitle big">Who’s on it?</h1>
+              <span className="hint">Type them in, paste rows from a spreadsheet, or upload one. You can add people later from People. Leave Team empty for your own team{d.me.team.trim() ? ` (${d.me.team.trim()})` : ''}.</span>
             </div>
             <div className="people-grid" role="table" aria-label="People">
               <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Email</span><span role="columnheader">Team</span><span role="columnheader">Admin</span><span /></div>
@@ -525,68 +568,69 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <button type="button" className="linkish tap" onClick={() => void saveAndSay(setup.toast, { workspace: d.name.trim() || 'new workspace', what: 'template', date: setup.today }, { kind: 'xlsx', sheets: templateSheets() }, 'Template saved')}>Download the Excel template</button>
             </div>
             {fileNote && <span className="hint" role="status">{fileNote}{undoUpload && <> <button type="button" className="linkish" onClick={() => { set(undoUpload); setUndoUpload(null); setFileNote(''); }}>Undo</button></>}</span>}
+            <p className="hint">Admins add people and change settings. You’re one; tick anyone else who should be.</p>
           </section>
         )}
 
-        {d.step === 3 && (
+        {step === 'goals' && (
           <section className="qsection">
             <div className="stack" style={{ gap: 'var(--s1)' }}>
-              <h1 className="qtitle big">Where do you want to start?</h1>
-              <span className="hint">A template gives you an outcome and the goals that usually feed it. You change the names and numbers next.</span>
+              <h1 className="qtitle big">What are you working towards?</h1>
+              <span className="hint">Add them now, bring them in a spreadsheet, or leave it to each owner.</span>
             </div>
-            <div className="optlist" role="radiogroup" aria-label="Starting point">
-              {!!d.fileTables?.goals?.length && <button type="button" role="radio" className="opt" aria-checked={d.template === 'file'} onClick={() => pickTemplate('file')}><span>Goals from your spreadsheet</span><span className="hint">As uploaded{d.fileTables.checkIns?.length ? ', with their plans and check-ins' : ''}</span></button>}
-              {TEMPLATES.map((t) => (
-                <button key={t.id} type="button" role="radio" className="opt" aria-checked={d.template === t.id} onClick={() => pickTemplate(t.id)}>
-                  <span>{t.name}</span><span className="hint">{t.blurb}</span>
-                </button>
-              ))}
-              <button type="button" role="radio" className="opt" aria-checked={d.template === 'blank'} onClick={() => pickTemplate('blank')}><span>Start blank</span><span className="hint">Type your own outcome and goals</span></button>
-              <button type="button" role="radio" className="opt" aria-checked={d.template === 'later'} onClick={() => pickTemplate('later')}><span>Set goals up later</span><span className="hint">Each owner adds theirs in the app</span></button>
+            {/* Set-up offers no example goals (Lane, 11 Nov): a workspace begins with real goals or none (2.6). */}
+            <div className="optlist" role="radiogroup" aria-label="How to start">
+              {startOpt('own', 'Add your own', 'The outcome you’re after and the goals that feed it, typed here. Each field shows an example of what goes in it.')}
+              {startOpt('file', 'Import a spreadsheet', 'Goals, and the people who own them, from Faro’s template or a workbook exported from another workspace. You see every row before it’s kept.')}
+              {startOpt('later', 'Later', 'Finish with no goals. Each owner adds theirs from New goal, and nothing is due until they do.')}
             </div>
-            {/* The steps this choice skips say so, rather than the count jumping (backlog WS). */}
-            {skipGoalSteps && <p className="hint setup-skip" role="status">{d.template === 'later' ? 'The next two steps, the outcome and its goals, are skipped: each owner adds theirs from New goal once the workspace is set up.' : 'The next two steps, the outcome and its goals, are skipped: they come from your spreadsheet.'} Next goes straight to Check.</p>}
-            {err()}
-          </section>
-        )}
-
-        {d.step === 4 && (
-          <section className="qsection">
-            <div className="stack" style={{ gap: 'var(--s1)' }}>
-              <h1 className="qtitle big">What outcome are you after?</h1>
-              <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
-              {d.template !== 'blank' && <span className="hint">Example numbers. Change them to yours.</span>}
-            </div>
-            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline startDate={d.startDate} />
-          </section>
-        )}
-
-        {d.step === 5 && (
-          <section className="qsection">
-            <div className="stack" style={{ gap: 'var(--s1)' }}>
-              <h1 className="qtitle big">What feeds it?</h1>
-              <span className="hint">Two to four goals that move “{d.outcome.title}”. Pick an owner for each; they check in weekly.</span>
-              {d.template !== 'blank' && <span className="hint">Example numbers. Change them to yours.</span>}
-            </div>
-            {d.goals.map((g, i) => (
-              <div key={i} className="goalcard">
-                <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} startDate={d.startDate} />
-                <button type="button" className="linkish tap" onClick={() => { setRemoved({ goal: g, at: i }); set({ goals: d.goals.filter((_, k) => k !== i) }); }}>Remove this goal</button>
+            {start === 'own' && (
+              <>
+                <div className="stack" style={{ gap: 'var(--s1)' }}>
+                  <h2 className="qtitle">What outcome are you after?</h2>
+                  <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
+                </div>
+                <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline startDate={d.startDate} />
+                <div className="stack" style={{ gap: 'var(--s1)' }}>
+                  <h2 className="qtitle">What feeds it?</h2>
+                  <span className="hint">Up to four goals that move {d.outcome.title.trim() ? `“${d.outcome.title.trim()}”` : 'it'}, each with an owner who checks in weekly. You can leave this empty.</span>
+                </div>
+                {d.goals.map((g, i) => (
+                  <div key={i} className="goalcard">
+                    <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} startDate={d.startDate} />
+                    <button type="button" className="linkish tap" onClick={() => { setRemoved({ goal: g, at: i }); set({ goals: d.goals.filter((_, k) => k !== i) }); }}>Remove this goal</button>
+                  </div>
+                ))}
+                {/* Removing a card can be undone until the next change of step (UX report, 8 Nov). */}
+                {removed && <p className="hint" role="status">Removed “{removed.goal.title.trim() || 'a goal'}”. <button type="button" className="linkish" onClick={() => { set({ goals: [...d.goals.slice(0, removed.at), removed.goal, ...d.goals.slice(removed.at)] }); setRemoved(null); }}>Undo</button></p>}
+                <div className="row" style={{ gap: 'var(--s3)' }}>
+                  <button type="button" className="btn sm" disabled={d.goals.length >= MAX_GOALS} aria-describedby={d.goals.length >= MAX_GOALS ? 'goals-cap' : undefined} onClick={() => { setRemoved(null); set({ goals: [...d.goals, blankGoal(d.me.name.trim())] }); }}>Add a goal</button>
+                  {d.goals.length >= MAX_GOALS && <span className="hint" id="goals-cap">Four is the most here: a few goals get the attention they need. Add more from New goal once the workspace is set up.</span>}
+                </div>
+              </>
+            )}
+            {start === 'file' && (
+              <div className="stack" style={{ gap: 'var(--s2)' }}>
+                {fileGoals > 0 && <p role="status" style={{ margin: 0 }}>Using the {fileGoals} {fileGoals === 1 ? 'goal' : 'goals'} in {d.fileName ?? 'your spreadsheet'}{d.fileTables?.checkIns?.length ? ', with their plans and check-ins' : ''}. You see each one on the last step.</p>}
+                <div className="actions">
+                  <UploadButton onFile={upload} label={fileGoals ? 'Choose another file' : 'Choose a spreadsheet'} />
+                  <button type="button" className="linkish tap" onClick={() => void saveAndSay(setup.toast, { workspace: d.name.trim() || 'new workspace', what: 'template', date: setup.today }, { kind: 'xlsx', sheets: templateSheets() }, 'Template saved')}>Download the template</button>
+                </div>
+                <span className="hint">Its two example rows show what a good row looks like, and are never imported.</span>
+                {fileNote && <span className="hint" role="status">{fileNote}</span>}
               </div>
-            ))}
-            {/* Removing a card can be undone until the next change of step (UX report, 8 Nov). */}
-            {removed && <p className="hint" role="status">Removed “{removed.goal.title.trim() || 'a goal'}”. <button type="button" className="linkish" onClick={() => { set({ goals: [...d.goals.slice(0, removed.at), removed.goal, ...d.goals.slice(removed.at)] }); setRemoved(null); }}>Undo</button></p>}
+            )}
             {err()}
-            <div className="row" style={{ gap: 'var(--s3)' }}>
-              <button type="button" className="btn sm" disabled={d.goals.length >= MAX_GOALS} aria-describedby={d.goals.length >= MAX_GOALS ? 'goals-cap' : undefined} onClick={() => { setRemoved(null); set({ goals: [...d.goals, blankGoal(d.me.name.trim())] }); }}>Add a goal</button>
-              {d.goals.length >= MAX_GOALS && <span className="hint" id="goals-cap">Four is the most here: a few goals get the attention they need. Add more from New goal once the workspace is set up.</span>}
-            </div>
+            <p className="hint">Not sure what a good goal looks like? <a href="/demo/goals?scope=all" target="_blank" rel="noopener noreferrer">See the goals in the demo</a>. It opens beside this, and your set-up is kept.</p>
           </section>
         )}
 
-        {d.step === 6 && (
+        {step === 'check' && (
           <section className="qsection">
-            <h1 className="qtitle big">Ready to create {d.name.trim() || 'your workspace'}?</h1>
+            <div className="stack" style={{ gap: 'var(--s1)' }}>
+              <h1 className="qtitle big">Create {wsName}?</h1>
+              <span className="hint">Nothing is saved yet. This is what pressing the button makes.</span>
+            </div>
             {fromFile && (
               <PreviewBoundary name={d.fileName ?? 'your spreadsheet'} onRetry={() => setPreview(() => loadPreview())}>
               <Suspense fallback={<p className="hint">Reading {d.fileName ?? 'your spreadsheet'}…</p>}>
@@ -609,19 +653,15 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               </PreviewBoundary>
             )}
             {err()}
-            <dl className="details">
-              <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
-              <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below${d.template === 'file' ? ', from your spreadsheet (the outcome and goals steps were skipped)' : ''}` : 'None yet: the outcome and goals steps were skipped. Each owner adds theirs from New goal.'}</dd>
-              <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; you join it in week {Math.max(0, currentWeek(cycleNow, setup.today))}</dd>
-              <dt>Weekly review</dt><dd>Everyone, every goal, on {DAYS[d.reviewDay]}s. The first is on {firstText}; the first check-ins are due before it.</dd>
-              <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
-              <dt>Recording</dt><dd>{d.recording ? 'On: how the app is used here is recorded' : 'Off: nothing about how the app is used here is recorded'}</dd>
-              {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past {result.snapshot.checkIns.length === 1 ? 'check-in' : 'check-ins'}, from your spreadsheet</dd></>}
+            <dl className="details setup-read-back">
+              <dt>You</dt><dd>{d.me.name} ({meEmail}), admin {change('workspace', 'you')}</dd>
+              <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'} {change('people', 'people')}</dd>
+              <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below${start === 'file' ? `, from ${d.fileName ?? 'your spreadsheet'}` : ''}` : 'None yet. Each owner adds theirs from New goal.'} {change('goals', 'goals')}</dd>
+              <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[month]}; you join it in week {Math.max(0, currentWeek(cycleNow, setup.today))} {changeHow}</dd>
+              <dt>Weekly review</dt><dd>Everyone, every goal, on {DAYS[d.reviewDay]}s. The first is on {firstText}; the first check-ins are due before it. {changeHow}</dd>
+              <dt>Recording</dt><dd>{d.recording ? 'On: how the app is used here is recorded' : 'Off: nothing about how the app is used here is recorded'} {changeHow}</dd>
+              {(d.fileTables?.checkIns?.length ?? 0) > 0 && start === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past {result.snapshot.checkIns.length === 1 ? 'check-in' : 'check-ins'}, from your spreadsheet</dd></>}
             </dl>
-            <div className="row" style={{ gap: 'var(--s3)' }}>
-              <button type="button" className="linkish small tap-44" onClick={() => go(0)}>Change name or year</button>
-              <button type="button" className="linkish small tap-44" onClick={() => go(2)}>Change people</button>
-            </div>
             {result.snapshot.goals.length > 0 && (
               <div className="stack" style={{ gap: 'var(--s2)' }}>
                 <span className="field-label">Check each goal’s owner, where it starts and its target</span>
@@ -634,7 +674,6 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                     </li>
                   ))}
                 </ul>
-                {!skipGoalSteps && <div className="row" style={{ gap: 'var(--s3)' }}><button type="button" className="linkish small" onClick={() => go(4)}>Change the north star</button><button type="button" className="linkish small" onClick={() => go(5)}>Change the goals</button></div>}
               </div>
             )}
           </section>
@@ -642,11 +681,33 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
         <div className="focus-foot">
           <div className="foot-row">
-            {d.step > 0 && <button type="button" className="btn ghost" onClick={back}>Back</button>}
+            {idx > 0 && !fromCheck && <button type="button" className="btn ghost" onClick={back}>Back</button>}
             <button className="btn primary big-btn" type="submit" disabled={busy}>{label}</button>
           </div>
         </div>
       </form>
+      <Sheet open={howOpen} onClose={() => setHowOpen(false)} title="How you’ll work">
+        <div className="stack" style={{ gap: 'var(--s4)' }}>
+          <div className="pair">
+            <label className="field"><span className="field-label">The goal year starts in</span>
+              <select className="input" value={month} onChange={(e) => set({ startDate: yearStartFor(setup.today, Number(e.target.value)) })}>{MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
+            </label>
+            <label className="field"><span className="field-label">Weekly review on</span>
+              <select className="input" value={d.reviewDay} onChange={(e) => set({ reviewDay: Number(e.target.value) })}>{DAYS.map((x, i) => <option key={x} value={i}>{x}</option>)}</select>
+            </label>
+          </div>
+          <span className="hint">Weeks follow the calendar: week 1 is the week with the first Thursday of {MONTH_NAMES[month]}{month === 0 ? ', so week numbers match ISO weeks' : ''}. This year has {yearWeeks(d.startDate)} weeks. Check-ins are due by the review’s day; the first review is on {firstText}.</span>
+          {/* Off unless chosen (backlog WS, Lane 9 Nov); an admin can change it later, under Privacy. */}
+          <label className="check record-check setup-recording">
+            <input type="checkbox" checked={!!d.recording} onChange={(e) => set({ recording: e.target.checked })} />
+            <span className="stack" style={{ gap: 0 }}>
+              <span>Record how the app is used here</span>
+              <span className="hint">Off unless you tick it. On, Faro records the pages people open, the buttons they press, errors and slow pages, never anything anyone types, for the people building it. An admin can change it later in Workspace, under Privacy.</span>
+            </span>
+          </label>
+          <div className="sheet-foot"><button type="button" className="btn primary" onClick={() => setHowOpen(false)}>Done</button></div>
+        </div>
+      </Sheet>
     </div>
   );
 }
