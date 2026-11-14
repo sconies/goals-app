@@ -80,6 +80,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the dispatcher, with Reviews off › refuses reopening an ended review, by Undo (undoRemoval) or from Recently removed (restoreRemoved)
 - the dispatcher, with Reviews off › still marks someone in a review as left (their reviews are carried along), and still corrects an ask’s own words
 - the AI tools, with Reviews off › edit_comment and delete_comment on a review note answer the switched-off sentence and save nothing
+- the AI tools, with Reviews off › restore_removed on an ended review answers the switched-off sentence and saves nothing, and restores it with Reviews on (#424)
 - the AI tools, with Reviews off › list_requests names no review with Reviews off, and names it with Reviews on
 - the AI tools, with Reviews off › a comment on a goal still saves
 

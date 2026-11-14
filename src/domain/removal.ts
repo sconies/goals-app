@@ -754,7 +754,8 @@ export interface Removed {
 const excerpt = (t: string, n = 60) => (t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t);
 
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
-export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS, records: readonly ModuleRecords[] = []): Removed[] {
+/** `watches: false` while Watching is switched off: its stopped watches aren't listed, as nothing can restore them then. */
+export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS, records: readonly ModuleRecords[] = [], show: { watches?: boolean } = {}): Removed[] {
   const since = Number.isFinite(days) ? new Date(now.getTime() - days * 86_400_000).toISOString() : '';
   const goalTitle = (id: string) => full.goals.find((g) => g.id === id)?.title ?? 'A goal';
   const out: Removed[] = [];
@@ -766,7 +767,7 @@ export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS, 
   for (const k of commentsOf(full.changes).values()) if (k.removedAt) add('comment', k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
   for (const d of full.decisions) if (d.removedAt && d.kind === 'note') add('note', d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
   for (const v of full.views ?? []) if (v.deletedAt) add('view', v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
-  for (const w of full.watches ?? []) if (w.removedAt) add('watch', w.id, `${nameIn(full, w.personId)} on ${w.kind === 'level' ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
+  for (const w of show.watches === false ? [] : full.watches ?? []) if (w.removedAt) add('watch', w.id, `${nameIn(full, w.personId)} on ${w.kind === 'level' ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
   for (const c of full.cycles) if (c.removedAt) add('cycle', c.id, c.name, c.removedBy, c.removedAt);
   // Each feature module's removable records (domain/records), under the record's own name.
   for (const r of removedModuleRows(full, records)) add(r.kind, r.id, r.name, r.by, r.at, r.label);

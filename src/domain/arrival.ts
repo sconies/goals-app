@@ -2,15 +2,28 @@
    name on the arrival, and where a set-up left unfinished stopped. Pure; apart from dayOne.ts so the first download
    (Home) doesn't carry what only these two screens say. */
 import type { Person } from './types';
-import { invitedTo, stepCounter, type SetupStep } from './dayOne';
+import { draftStep, invitedTo, stepCounter, type SetupStep } from './dayOne';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const shortDate = (iso: string) => { const d = new Date(iso); return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
 const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
-const ALL: SetupStep[] = ['workspace', 'you', 'team', 'start', 'outcome', 'goals', 'check'];
 
 /** Each set-up step's name, as Welcome says where a draft stopped and the steps' heads say it. */
-export const SETUP_STEP_NAMES: Record<SetupStep, string> = { workspace: 'Workspace', you: 'You', team: 'Your team', start: 'Starting point', outcome: 'Outcome', goals: 'Goals', check: 'Check' };
+export const SETUP_STEP_NAMES: Record<SetupStep, string> = { workspace: 'The workspace and you', people: 'People', goals: 'Goals', check: 'Check' };
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/**
+ * Set-up's "How you'll work" (small workspaces 2.2): what this build lets a new workspace choose, as one paragraph, and
+ * whether it is still the usual (a Thursday review, a year from January, Recording off). Check-ins are due by the
+ * review's day.
+ */
+export function howWeWork(h: { reviewDay: number; startMonth: number; recording: boolean }): { says: string; usual: boolean } {
+  const day = DAY_NAMES[h.reviewDay] ?? 'Thursday';
+  const says = `Check-ins every week, by ${day}. A weekly review on ${day}s. The year starts in ${MONTH_NAMES[h.startMonth] ?? 'January'}. Recording is ${h.recording ? 'on' : 'off'}.`;
+  return { says, usual: h.reviewDay === 3 && h.startMonth === 0 && !h.recording };
+}
 
 /**
  * Welcome's "Join a workspace you were invited to" (2.1): what a pasted link opens, or why it opens nothing. Only this
@@ -41,11 +54,8 @@ export function arrivalIntro(ws: { name: string; createdAt: string }, admin: str
     : `${ws.name} keeps the team’s goals in one place: ${what}.`;
 }
 
-/** Where a set-up left unfinished stopped (Welcome, 2.1): "Stopped at step 3 of 7, Your team, on 9 Nov." */
-export function draftStopped(d: { step?: number; template?: string; savedAt?: string }): string {
-  const step = ALL[Math.min(Math.max(d.step ?? 0, 0), ALL.length - 1)]!;
-  const counter = stepCounter(step, d.template ?? '');
-  // Before a starting point is chosen the number of steps isn't known, so the step is named without a count.
-  const at = / of /.test(counter) ? `${counter.charAt(0).toLowerCase()}${counter.slice(1)}, ${SETUP_STEP_NAMES[step]}` : SETUP_STEP_NAMES[step];
-  return `Stopped at ${at}${d.savedAt ? `, on ${shortDate(d.savedAt)}` : ''}. Nothing is saved yet.`;
+/** Where a set-up left unfinished stopped (Welcome, 2.1): "Stopped at step 2 of 4, People, on 9 Nov." */
+export function draftStopped(d: { step?: number; v?: number; savedAt?: string }): string {
+  const step = draftStep(d);
+  return `Stopped at ${stepCounter(step).replace('Step', 'step')}, ${SETUP_STEP_NAMES[step]}${d.savedAt ? `, on ${shortDate(d.savedAt)}` : ''}. Nothing is saved yet.`;
 }
