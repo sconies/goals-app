@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-goals-owner-team',
+    date: '2026-11-15',
+    title: 'Set-up’s goals count for their owner’s team',
+    points: [
+      'A goal set up for a teammate now takes their team, not yours, so their team’s page and Home count it. Change a goal’s team on the goal if it belongs elsewhere.',
+      'The Today figure you give in set-up is the goal’s number until its first check-in, marked as the baseline.',
+      'A goal kept in range can stay between two limits in set-up too, as it can in New goal.',
+    ],
+    articles: ['set-up'],
+  },
+  {
     id: 'fields-import-undo',
     date: '2026-11-15',
     title: 'Undo puts a spreadsheet’s field values back',
