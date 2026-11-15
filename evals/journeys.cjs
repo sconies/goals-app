@@ -3196,14 +3196,19 @@ journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add
   h.set('errors', await send.getByRole('alert').filter({ hasText: 'Say what should change first' }).isVisible(), 'an empty line says nothing');
   await h.fill(send.getByLabel('What should change?'), 'Say whether it will hit the target in words I can scan');
   await h.click(send.getByRole('button', { name: 'It’s OK' }));
-  const steps = send.getByLabel(/Include my last 20 steps on this visit/);
-  const ticked = await steps.isChecked();
+  // The steps start unticked and are shown before sending (Lane, 15 Nov): see them, then choose to include them.
+  const steps = send.getByLabel(/Include my last \d+ steps on this visit/);
+  const unticked = !(await steps.isChecked());
+  await h.click(send.locator('.mk-steps summary'));
+  const listed = await send.locator('.mk-steps li').count();
+  await h.click(steps);
+  const ticked = unticked && listed > 0 && listed <= 20 && await steps.isChecked();
   const help = await send.getByRole('link', { name: /What’s sent/ }).getAttribute('href');
   await h.checkpoint('send');
   await h.click(send.getByRole('button', { name: 'Send', exact: true }));
   await see(p, 'Sent. You’ll hear when it’s fixed.', 'no word that it was sent');
   await p.locator('.markup-root').waitFor({ state: 'detached' });
-  h.set('finish', await p.locator('.goal-bar').first().isVisible() && ticked && /\/help\/feedback$/.test(help || ''), `after sending: steps ticked ${ticked}, help link ${help}`);
+  h.set('finish', await p.locator('.goal-bar').first().isVisible() && ticked && /\/help\/feedback$/.test(help || ''), `after sending: steps started unticked ${unticked}, ${listed} shown, then ticked ${ticked}, help link ${help}`);
   const kept = (await keptMarkups(p)).pop();
   const ok = !!kept && kept.line === 'Say whether it will hit the target in words I can scan' && kept.mood === 'meh' && kept.route === '/goals/:goalId' && kept.goalId === 'ns-lead'
     && kept.strokes.length === 2 && kept.strokes[0].kind === 'box' && kept.strokes[1].kind === 'note' && kept.strokes[1].text === 'Hard to tell which way is better'
