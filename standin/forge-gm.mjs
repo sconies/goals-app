@@ -1,0 +1,31 @@
+const B='http://localhost:42021', WS='ws_platform';
+function cl(){let ck='';const c=async(m,u,b)=>{const r=await fetch(B+u,{method:m,headers:{...(ck?{cookie:ck}:{}),...(b!==undefined?{'Content-Type':'application/json'}:{})},body:b===undefined?undefined:JSON.stringify(b)});const s=r.headers.get('set-cookie');if(s)ck=s.split(';')[0];const t=await r.text();let j;try{j=JSON.parse(t)}catch{}return{s:r.status,j,t}};return c}
+const rhea=cl(), amara=cl();
+await rhea('POST','/api/signin',{email:'rhea.kapoor@example.com',password:'faro-standin'});
+await amara('POST','/api/signin',{email:'amara.nwosu@example.com',password:'faro-standin'});
+let n=0;const ch=(a,e,id,sum)=>({id:'chg_f'+(++n),at:new Date().toISOString(),actorId:a,goalId:null,entity:e,entityId:id,action:'edited',summary:sum,diffs:[]});
+const now=new Date().toISOString();
+const view=(id,p,pin=false)=>({id,personId:p,name:'v',params:'view=map',pinned:pin,createdAt:now,updatedAt:now,deletedAt:null});
+const T=async(name,who,body)=>{const r=await who('POST',`/api/workspaces/${WS}/commit`,body);console.log(name,r.s,r.j?.error??'');};
+const g=await amara('GET',`/api/workspaces/${WS}`);console.log(g.s,Object.keys(g.j??{}));const ids=g.j.snapshot??g.j;
+console.log('people sample',ids.people.filter(p=>p.admin).map(p=>p.id), ids.people.find(p=>p.email==='rhea.kapoor@example.com')?.id, ids.people.find(p=>p.email==='amara.nwosu@example.com')?.id);
+const R=ids.people.find(p=>p.email==='rhea.kapoor@example.com').id, A=ids.people.find(p=>p.email==='amara.nwosu@example.com').id;
+const other=ids.people.find(p=>p.id!==R&&p.id!==A).id;
+await T('admin saves own view',amara,{views:[view('v_a',A)],changes:[ch(A,'view','v_a','s')]});
+await T('member edits admin view (forge)',rhea,{views:[{...view('v_a',A),name:'hijack'}],changes:[ch(R,'view','v_a','s')]});
+await T('member deletes admin view via deletedAt',rhea,{views:[{...view('v_a',A),deletedAt:now}],changes:[ch(R,'view','v_a','s')]});
+await T('member creates view as other person',rhea,{views:[view('v_x',A)],changes:[ch(R,'view','v_x','s')]});
+await T('member creates pinned own',rhea,{views:[view('v_p',R,true)],changes:[ch(R,'view','v_p','s')]});
+await T('member change logged as admin',rhea,{views:[view('v_r',R)],changes:[ch(A,'view','v_r','s')]});
+await T('member switch off',rhea,{modulesOff:['goal-map'],changes:[ch(R,'workspace',WS,'s')]});
+await T('member modulesOff empty (switch all on)',rhea,{modulesOff:[],changes:[ch(R,'workspace',WS,'s')]});
+// kinds the guard does not check, as member
+const d={id:'dec_f',goalId:ids.goals[0].id,byId:A,at:now,decision:'approved'};
+await T('member forges decision as admin',rhea,{decisions:[d],changes:[ch(R,'goal',ids.goals[0].id,'s')]});
+await T('member watch for other',rhea,{watches:[{id:'w_f',goalId:ids.goals[0].id,personId:other,createdAt:now}],changes:[ch(R,'goal',ids.goals[0].id,'s')]});
+await T('member feedback as other',rhea,{feedback:[{id:'f_f',goalId:ids.goals[0].id,fromId:other,at:now,text:'x'}],changes:[ch(R,'goal',ids.goals[0].id,'s')]});
+const a0=(await amara('GET',`/api/workspaces/${WS}`)).j;const after=a0.snapshot??a0;
+console.log('views now',after.views.map(v=>[v.id,v.personId,v.name,v.deletedAt?'del':'']),'modulesOff',JSON.stringify(after.modulesOff??after.workspace?.modulesOff));
+const gid=ids.goals[0].id;
+await T('FORGE decision (byId admin) as member',rhea,{decisions:[{id:'dec_f2',goalId:gid,checkInId:null,reviewId:null,week:1,kind:'approve-target',byId:A,at:now,note:'x'}],changes:[ch(R,'goal',gid,'s')]});
+await T('FORGE watch for other as member',rhea,{watches:[{id:'w_f2',personId:other,kind:'goal',ref:gid}],changes:[ch(R,'goal',gid,'s')]});
