@@ -16,7 +16,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session �
 
 - **Last merge fully reviewed:** `752d6c97` (#539), the head of main at 05:55 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #531, #493, #520, #533, #536, #537, #534 and #539, at the end, under "The reviewer of 15 November". Docs-only merges (#535) have neither.
 - **Merged since, not reviewed:** none.
-- **Since this note (15 Nov, 06:25 UTC; reviewer session …ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, so none is open; one low logged. Last merge fully reviewed is now `8753b652`.
+- **Since this note (15 Nov, 06:25 UTC; reviewer session …ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, one low logged. #543 (`2811e0ae`) is reviewed too: two mediums, sent to planning at 07:45 UTC (the drill passes when `drill.json` names a contract the folder lacks; five journey sentences that say what Faro doesn't do) and one low. Those two are the only mediums open. Last merge fully reviewed is now `2811e0ae`.
 - **Highs open:** none. #520's (Undo this import removed a goal of another year) was closed by #534.
 - **Mediums open:** two, with planning since 05:40 UTC, both left by #534:
   - A goals sheet headed with another name for Goal ("Title", "Goal name", "Objective") beside Metric and Unit is read as the Metrics sheet; before MI it was Goals. `isMetricsHeader` (`src/modules/metrics/sheet.ts`) stands aside for Goal or Key only. Track 3.
@@ -290,6 +290,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session �
 | #534 MI review: #520's high and four mediums | 3 | 0 | 2 | 0 |
 | #539 Kit words: the reviewer's findings on #536 and #537 | item 11 | 0 | 0 | 0 |
 | #541 Import review: #534's two mediums | 3 | 0 | 0 | 1 |
+| #543 Kit: stage 3 drill gaps | item 11 | 0 | 2 | 1 |
 
 **High findings, and where each stands**
 
@@ -2528,3 +2529,18 @@ Read against #534's two mediums, at `8753b652`, with both first probes run again
 One finding.
 
 - **Low. A near-miss of Goal still makes a Goals sheet Metrics.** `coreGoalsColumn` answers only for `exact` and `also`, so "Goals" or "Objectives" (one letter out, which the Goals sheet itself would ask about) beside Metric and Unit is read as the Metrics sheet: `['Goals', 'Metric', 'Unit', 'Target']` on "Sheet1" gives a Metrics table and no goals. `src/modules/metrics/sheet.ts`, `isMetricsHeader`.
+
+### #543 Kit: stage 3 drill gaps (item 11, merged 15 Nov)
+
+Read at `2811e0ae`: `scripts/drill.mjs`, the test fix and the generators by me; the added sentences by two Sonnet subagents told to split each into statements and run each against the code and the demo (about 140 statements), with the ones below checked again by hand. `npx vitest run src/domain/query.test.ts src/spec` passes (130), every module has its stage, `npm run drill -- scripts/drill-faro` passes, and `--expected spec/conformance/core-only` now scores (957 of 957 cells, the rest named as not scored). `spec/rebuild/modules.json` is each `module.json` without `rebuild`, all nine.
+
+- **Medium. A contract name in `drill.json` that the conformance folder lacks is now skipped, and the drill passes.** Before, `"contracts": ["Store"]` (the folder has `store`) stopped with "No contract Store in …; there are goals, prefs, search, store" and exit 2. Now it prints "Not run: contract Store (not in …)" above the scores, then "PASS: every row and column matches", exit 0; `--json` gives `pass: true` with no `contracts` key and nothing saying one was left out. The typo check was kept only for `--contracts` on the command line. Run with a stage 2 folder whose `main.mjs` copies `changes.csv` and `import.csv`: 100%, PASS, no contract run. `scripts/drill.mjs`, the `unknown.length && opt.contracts && all.length` line; a name the folder lacks while it has others could fail as before, and only a folder with no `contracts/` be let through.
+- **Medium. Five of the new journey sentences say what Faro doesn't do** (`src/spec/journeySteps.ts`, `PIECES` and `JOURNEY_SET_UP`):
+  - `.goal-read-back` is "a row per sentence, each with its id" and `.rr-value` "the row's sentence". It is a row per topic (What, Who and where, Measured by, Left as usual, You said), each with a label, one or more sentences ("Left as usual" is several) and Change; the id is `data-row`, which nobody sees (`src/screens/GoalWizard.tsx`, `src/domain/readBack.ts`).
+  - `.why-block` is "the goal's “Why” section". The heading is "Why" only with no check-in; U78's goal is off track, so it reads "Why it …" (`src/screens/GoalScreen.tsx`, the `[title, purpose]` lines). "Why" is the section link's word.
+  - U78: the ask is on "`ns-lead` and two goals feeding it". `lead-runners` feeds `lead-ci-time`, which feeds `ns-lead` (`spec/conformance/workspace.json`).
+  - U78: "An answered row is settled and stays". It stays for eight weeks (`actionList`, `src/domain/goalPage.ts`), and settled is every row that isn't open, closed ones too.
+  - U122: both check-ins are "posted, on time, that morning" of Wednesday 11 November. In the demo of 11 November `lead-rollback`'s is posted on Tuesday 10 November; only `cfr-contract`'s is Wednesday's.
+- **Low. Smaller ones in the same words.** The goal page's standing button is given as "Check in again" only; with no set rhythm and no check-in this week it is "Check in for week {n}" (`standingAction`, `src/domain/goalPage.ts`; `src/spec/screenFacts.ts`). The Respond form is "a text box and a submit button": a decision's also has "Answer it / Ask the owner first" and "Leave it open", and the button reads "Record the answer". `.home-mine` is "The team's goals" with one team, `.after-publish` "After you propose it" for a proposed goal. `TONES` has no word for planned, none or unmeasured (no journey uses one). "A session is held … the session's own date when there are none" can't happen: an empty walk is never held.
+
+The test fix (`vi.resetModules()` round `query.test.ts`'s added parameters) was read and run beside the spec tests in one process, which pass; the order that failed on CI was not forced.
