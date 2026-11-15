@@ -25,6 +25,9 @@ To set up (S = your scratchpad):
 3. Core: for modules, extract the passing stage-3 folder to S/stage-3 (BUILDER.md copies `S/stage-3/rebuild` into each module's folder).
 4. Save each rebuild to `drill-11-rebuild` as soon as it reports (the builder writes `S/<folder>.tgz`; untar it in a worktree of the branch), plus REVIEW.md and a RESULTS.md row.
 
+## Time-box (Lane, 15 Nov, via planning)
+The drill is time-boxed. One re-run on main only: stage 3, then each module, with no further rounds of kit fixes to chase journey scores. Gaps the re-run finds are written down, not fixed in the kit, unless they are one-line corrections. Score on behaviour first (the rules and conformance rows a rebuild meets); report journeys alongside, saying plainly which failures are only class names or wording. Then write it up in `docs/drill/2026-11-full-drill.md`, saying honestly what a kit-only rebuild gets right and where the internal team should read the code, with the same message in `docs/handoff.md`; then the README, handoff and architecture rewrites, the GitHub description draft for Lane, and #512 out of draft.
+
 ## Where it stands
 **Run on pin 752d6c97 is complete:** every stage 3–12 built and reviewed; all rows and REVIEW.md files are on `drill-11-rebuild` (last commit 3a47d8cf, then 9a200812 for vercel.json). Summary of that run: every module scores 100% on the harness and its own CSV where one exists, exit tests are honest; but each module changed 3–8 core files and most journeys stayed PART, because stage 3 lacked screens and the platform lacked places. Late GR, MQ, SW2, FT1 have no module on main yet (MC deferred, Lane 14 Nov).
 
