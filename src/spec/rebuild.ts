@@ -151,7 +151,7 @@ function guide(all: Stage[], rows: Stage1Files): string {
 
 /* ---------- stage 1 ---------- */
 
-function stage1(rows: Stage1Files): string {
+function stage1(rows: Stage1Files, edgeRows: number): string {
   return GENERATED + [
     '# Stage 1: the core rules',
     '',
@@ -190,6 +190,7 @@ function stage1(rows: Stage1Files): string {
     '',
     '- A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.',
     '- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard; `checkin` alone for check-ins), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).',
+    `- **The same command runs twice.** After the demo workspace, the harness runs it again on the edge-case workspace (a copy of \`spec/conformance/edge/workspace.json\`, writing into \`rebuild/drill-out/edge/\`) and scores the same five files from it against \`spec/conformance/edge/\` (${edgeRows} rows more, reported as \`edge/status.csv\` and so on). It is a small workspace of the cases the demo never has: ranges at and past both bounds, numbers refused for a share, the habit’s moment across gaps and corrections, ties in posting time, a plan that starts late, a goal held to no number. Read it the same way (its own cycle, its own \`builtFor\`); nothing in it is special-cased, so a rebuild that hard-codes the demo (its week 45, its goals) fails here. [The conformance data](../conformance/README.md#the-edge-case-workspace-edge) says which goal is there for which edge.`,
     '- **The check-in rhythm is a field of the cycle** (`checkInWeeks`: every week when absent, 0 for no set rhythm; `rhythmFrom`, when the present rhythm began). Read it from `workspace.json`’s cycle, never assume every week. Score both conformance sets: the main one, and `spec/conformance/no-rhythm/` (the same workspace with `checkInWeeks` 0; `status`, `flags`, `scorecard` and `projection`), with `node spec/rebuild/drill.mjs rebuild --expected spec/conformance/no-rhythm --files status,flags,scorecard,projection`.',
     '',
     '### A good order',
@@ -205,7 +206,7 @@ function stage1(rows: Stage1Files): string {
     '',
     '## Exit criteria',
     '',
-    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${total(rows)} rows; \`scorecard-words.csv\`, scored when asked, is not counted).`,
+    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${total(rows)} rows from the demo workspace and ${edgeRows} from the edge-case workspace; \`scorecard-words.csv\`, scored when asked, is not counted).`,
     '2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.',
     '3. [The habit](../core/rules/habit.md#worked-examples) (the run with one late week forgiven, the receipt’s sentences, a target reached or back on track) gives what each of its worked examples says. Its rows are scored with the files they sit in: the run and its forgiven week in `home.csv`’s `run` and `forgiven` (stage 3), and the moment in `checkin.csv`’s `moment` (stage 1).',
     '4. `rebuild/GAPS.md` lists everything you had to guess.',
@@ -586,11 +587,11 @@ const portsAtScale = () => GENERATED + [
 /** One file's entry in scripts/browser-storage.json: what it keeps in the browser and where the internal app keeps it. */
 export interface BrowserState { uses: number; keeps: string; server: string }
 
-export function rebuildFiles(mods: ModuleWithRebuild[], rows: Stage1Files, harness: string, browser: Record<string, BrowserState> = {}, later: DrillFiles = {}): Record<string, string> {
+export function rebuildFiles(mods: ModuleWithRebuild[], rows: Stage1Files, harness: string, browser: Record<string, BrowserState> = {}, later: DrillFiles = {}, edgeRows = 0): Record<string, string> {
   const all = stages(mods);
   const out: Record<string, string> = {
     'spec/rebuild/README.md': guide(all, rows),
-    'spec/rebuild/stage-1-core-rules.md': stage1(rows),
+    'spec/rebuild/stage-1-core-rules.md': stage1(rows, edgeRows),
     'spec/rebuild/stage-2-core-data.md': stage2(later),
     'spec/rebuild/stage-3-core-screens.md': stage3(later),
     'spec/rebuild/adapters.md': adapters(browser),
