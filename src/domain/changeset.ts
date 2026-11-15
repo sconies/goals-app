@@ -1858,7 +1858,18 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     for (const p of planned) changes.push(...(p.result.commit.changes ?? []));
     const moduleRowsOut = planned.reduce<ModuleRows | undefined>((m, p) => mergeModuleRows(m, p.result.commit.modules), undefined);
     const moduleUndo = planned.flatMap((p) => p.result.undo);
-    const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
+    // A module's goals (a metric's gap holding its goals' numbers): one this file also changes on Goals takes what the
+    // module changed on it too (#520 review: un-held and renamed in one file), so neither change is lost.
+    const allGoals = new Map((input.full?.goals ?? s.goals).map((g) => [g.id, g]));
+    const plannedGoals = planned.flatMap((p) => p.result.commit.goals ?? []);
+    for (const mg of plannedGoals) {
+      const at = ordered.findIndex((o) => o.id === mg.id);
+      if (at < 0) continue;
+      const base = allGoals.get(mg.id) as Record<string, unknown> | undefined;
+      const moved = Object.fromEntries(Object.entries(mg).filter(([k, v]) => v !== base?.[k]));
+      ordered[at] = { ...ordered[at]!, ...moved } as Goal;
+    }
+    const moduleGoals = plannedGoals.filter((g) => !ordered.some((o) => o.id === g.id));
     for (const ch of changes) ch.importId = importId;
     const requestsBefore = asksOf(s);
     const summary: Change = {
@@ -1875,7 +1886,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       },
     };
     // A module's goals (a metric's gap holding its goals' numbers) after the file's own, each kept as it was for Undo.
-    for (const g of moduleGoals) summary.undo!.goals.push({ id: g.id, before: savedGoal.get(g.id) ?? null });
+    // Kept as each was, from every year's goals: a module may change a goal of another year (#520 review).
+    for (const g of moduleGoals) summary.undo!.goals.push({ id: g.id, before: allGoals.get(g.id) ?? null });
     result.commit = {
       ...(peopleOut.size ? { people: [...peopleOut.values()] } : {}),
       ...(teamsOut.size ? { teams: [...teamsOut.values()] } : {}),

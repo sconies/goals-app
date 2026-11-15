@@ -9,10 +9,10 @@ import { planChanges, type Answers, type Tables } from '../../domain/changeset';
 import { currentCycle, scopeToCycle } from '../../domain/cycle';
 import { workbook } from '../../domain/export';
 import { currentWeek } from '../../domain/plan';
-import { undoImport } from '../../domain/removal';
+import { undoImport, undoPreview } from '../../domain/removal';
 import { readLine, readTables, type NamedGrid } from '../../domain/sheets';
 import type { Snapshot } from '../../domain/types';
-import { liveMetrics, metricsOf } from './rules';
+import { liveMetrics, metricsOf, saveMetric } from './rules';
 import { linkedGoals } from './rulesChange';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -125,6 +125,61 @@ describe('the Metrics sheet in and out (MI)', () => {
     ]);
     const loop = cs.issues.find((i) => i.kind === 'loop')!;
     expect(loop).toMatchObject({ level: 'must', column: 'Part of' });
+  });
+
+  // #520 review: a gap metric whose goals are held to no number (the demo's state after "Gap" is said).
+  const at = (n: number) => new Date(today.getTime() + n * 60_000).toISOString();
+  const as = (snap: Snapshot, now: string) => ({ snapshot: scopeToCycle(snap, cycle), full: snap, cycle, week, actor: snap.people.find((p) => p.id === 'amara')!, now, newId });
+  const gapped = (): Snapshot => {
+    const f = structuredClone(full) as Snapshot;
+    for (const m of metricsOf(f)) if (m.id === used.id) Object.assign(m, { measurement: 'gap', measurementNote: 'No feed yet.' });
+    const held = new Set(linkedGoals(f, used.id).map((g) => g.id));
+    f.goals = f.goals.map((g) => (held.has(g.id) ? { ...g, unmeasuredSince: today.toISOString() } : g));
+    return f;
+  };
+  const importOf = (cs: ReturnType<typeof plan>) => cs.commit!.changes.find((c) => c.action === 'imported')!.importId!;
+
+  it('[#520 review] Undo leaves a goal of another year as it was, when a retire let go of it', () => {
+    const f = gapped();
+    const gid = linkedGoals(f, used.id)[0]!.id;
+    f.cycles = [...f.cycles, { ...cycle, id: 'cyc-other' }];
+    f.goals = f.goals.map((g) => (g.id === gid ? { ...g, cycleId: 'cyc-other' } : g));
+    const cs = plan(metricsTable([{ ID: used.id, Action: 'Retire', Reason: 'Replaced by the new dashboard.' }]), { snap: f });
+    expect(must(cs)).toEqual([]);
+    expect(cs.commit!.goals!.find((g) => g.id === gid)?.unmeasuredSince ?? null).toBeNull();
+    const after = applyCommit(f, cs.commit!);
+    const back = applyCommit(after, undoImport(as(after, at(1)), importOf(cs)).commit);
+    const g = back.goals.find((v) => v.id === gid)!;
+    expect(g.removedAt ?? null).toBeNull();
+    expect(g.unmeasuredSince).toBeTruthy();
+  });
+
+  it('[#520 review] one file that retires a gap metric and renames its goal keeps both', () => {
+    const f = gapped();
+    const g = f.goals.find((v) => v.id === linkedGoals(f, used.id).find((l) => l.cycleId === cycle.id)!.id)!;
+    const cs = plan({ ...metricsTable([{ ID: used.id, Action: 'Retire', Reason: 'Replaced by the new dashboard.' }]), goals: [{ key: g.key!, goal: `${g.title} (renamed)`, __row: '2' }] }, { snap: f });
+    expect(must(cs)).toEqual([]);
+    const saved = applyCommit(f, cs.commit!).goals.find((v) => v.id === g.id)!;
+    expect(saved.title).toBe(`${g.title} (renamed)`);
+    expect(saved.unmeasuredSince ?? null).toBeNull();
+  });
+
+  it('[#520 review] Undo leaves a metric changed since as it is, and says so', () => {
+    const cs = plan(metricsTable([{ ID: spare.id, Caveats: 'Read with the release calendar.' }]));
+    const after = applyCommit(full, cs.commit!);
+    const later = applyCommit(after, saveMetric(as(after, at(60)), { id: spare.id, source: 'The new dashboard', confirm: true }).commit!);
+    const preview = undoPreview(as(later, at(61)), importOf(cs));
+    expect(preview.restores).toBe(0);
+    expect(preview.skipped.map((k) => k.name)).toEqual([spare.name]);
+    expect(metricsOf(later).find((m) => m.id === spare.id)?.source).toBe('The new dashboard');
+  });
+
+  it('[#520 review] a Goals sheet made by hand with a Metric column is read as goals', () => {
+    for (const head of [['Goal', 'Metric', 'Unit', 'Target', 'Owner'], ['Key', 'Goal', 'Metric', 'Unit', 'Now']]) {
+      const read = readTables([{ name: 'Sheet1', rows: [head, head.map(() => 'x')] }], sheetHeadsFor({}));
+      expect(read.tables.modules?.Metrics).toBeUndefined();
+      expect(read.tables.goals?.length).toBe(1);
+    }
   });
 
   it('retires with a reason and brings back; a change of meaning on a metric goals use is asked', () => {

@@ -9973,6 +9973,11 @@ function undoPlan(x, importId) {
 	let moduleBack = 0;
 	for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
 		const cur = (full.modules?.[m.module]?.[m.key] ?? []).find((r) => r.id === id);
+		const by = latest((c) => c.entityId === id && c.entity !== "workspace" && c.entity !== "goal");
+		if (by && cur) {
+			keep(String(cur.name ?? `A ${m.key} row`), by, "other");
+			continue;
+		}
 		const back = before ?? (cur && !cur.removedAt ? {
 			...cur,
 			removedAt: x.now,
@@ -13385,7 +13390,19 @@ function* planChangesInChunks(input) {
 		for (const p of planned) changes.push(...p.result.commit.changes ?? []);
 		const moduleRowsOut = planned.reduce((m, p) => mergeModuleRows(m, p.result.commit.modules), void 0);
 		const moduleUndo = planned.flatMap((p) => p.result.undo);
-		const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
+		const allGoals = new Map((input.full?.goals ?? s.goals).map((g) => [g.id, g]));
+		const plannedGoals = planned.flatMap((p) => p.result.commit.goals ?? []);
+		for (const mg of plannedGoals) {
+			const at = ordered.findIndex((o) => o.id === mg.id);
+			if (at < 0) continue;
+			const base = allGoals.get(mg.id);
+			const moved = Object.fromEntries(Object.entries(mg).filter(([k, v]) => v !== base?.[k]));
+			ordered[at] = {
+				...ordered[at],
+				...moved
+			};
+		}
+		const moduleGoals = plannedGoals.filter((g) => !ordered.some((o) => o.id === g.id));
 		for (const ch of changes) ch.importId = importId;
 		const requestsBefore = asksOf(s);
 		const summary = {
@@ -13433,7 +13450,7 @@ function* planChangesInChunks(input) {
 		};
 		for (const g of moduleGoals) summary.undo.goals.push({
 			id: g.id,
-			before: savedGoal.get(g.id) ?? null
+			before: allGoals.get(g.id) ?? null
 		});
 		result.commit = {
 			...peopleOut.size ? { people: [...peopleOut.values()] } : {},
@@ -16057,8 +16074,9 @@ var METRICS_SHEET = {
 	}
 };
 /** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
-Direction or Measures. */
+Direction or Measures; never one with a Goal or Key column, which is a Goals sheet. */
 function isMetricsHeader(h) {
+	if (h.has("goal") || h.has("key")) return false;
 	return h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
 }
 // src/modules/metrics/records.ts

@@ -650,6 +650,9 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
   let moduleBack = 0;
   for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
     const cur = ((full.modules?.[m.module]?.[m.key] ?? []) as ModuleRow[]).find((r) => r.id === id);
+    // A row changed since by anything else is left as it is, and said (rule 9; #520 review).
+    const by = latest((c) => c.entityId === id && c.entity !== 'workspace' && c.entity !== 'goal');
+    if (by && cur) { keep(String((cur as { name?: unknown }).name ?? `A ${m.key} row`), by, 'other'); continue; }
     const back = (before as ModuleRow | null) ?? (cur && !cur.removedAt ? { ...cur, removedAt: x.now, removedBy: x.actor.id } : null);
     if (!back) continue;
     ((modules[m.module] ??= {})[m.key] ??= []).push(back);
