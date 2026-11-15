@@ -51,14 +51,15 @@ export const measurementWords = (m: Pick<Metric, 'measurement' | 'measurementNot
 };
 
 /**
- * The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link, the goal
- * neither removed nor stopped), whose hold differs from what the metric says. Each with its History line. Empty when
- * nothing changes, so a save that leaves the gap as it was writes no goal.
+ * The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link), whose hold
+ * differs from what the metric says. Each with its History line. Empty when nothing changes, so a save that leaves the
+ * gap as it was writes no goal. Stopped and removed goals are kept in step too (#503 review): restarting or restoring
+ * one re-works nothing, so it must come back held exactly as its metric says now.
  */
 export function heldBy(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, m: Metric, goals: readonly Goal[], links: readonly MetricLink[]): { goals: Goal[]; changes: Change[] } {
   const ids = new Set(links.filter((l) => l.metricId === m.id && !l.removedAt).map((l) => l.goalId));
   const held = holdsToNoNumber(m);
-  const moved = goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt && !!g.unmeasuredSince !== held && g.kind !== 'milestone');
+  const moved = goals.filter((g) => ids.has(g.id) && !!g.unmeasuredSince !== held && g.kind !== 'milestone');
   return {
     goals: moved.map((g) => heldToNoNumber(g, held, x.now)),
     changes: moved.map((g) => heldChange(x, g, m, held)),
@@ -86,7 +87,8 @@ function heldChange(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, g: Goal, 
 export function heldOnSwitch(x: Pick<ActionContext, 'actor' | 'now' | 'newId' | 'snapshot' | 'full'>, on: boolean, metrics: readonly Metric[], links: readonly MetricLink[]): { goals: Goal[]; changes: Change[] } | null {
   const goals = (x.full ?? x.snapshot).goals;
   if (!on) {
-    const held = goals.filter((g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt);
+    // Stopped and removed goals too, so one restarted or restored later is held as its metric says then (#503 review).
+    const held = goals.filter((g) => !!g.unmeasuredSince);
     if (!held.length) return null;
     return {
       goals: held.map((g) => heldToNoNumber(g, false, x.now)),
