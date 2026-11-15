@@ -1158,7 +1158,7 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 ### WORKSPACE-ADMIN
 
-Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
+Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. Only an admin may Start over, in the shared example as in a workspace of someone’s own (deep dive, 15 Nov).
 
 - **Copy:** build it as Faro does.
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)

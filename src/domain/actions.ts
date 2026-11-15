@@ -605,11 +605,12 @@ export function removeTeam(x: ActionContext, id: string, moveTo?: string | null)
 }
 
 /**
- * Who may Start over (Lane, 12 Nov): in the shared example anyone may (it only resets this browser's copy); in a
- * workspace of someone's own, Start over removes it, so only an admin.
+ * Who may Start over: an admin, in every workspace (deep dive, 15 Nov). It is a workspace-wide reset, drafts included:
+ * in the example it undoes every change in this browser's copy, and in a workspace of someone's own it removes it. Until
+ * 15 Nov anyone could start the example over (12 Nov), so a member who owns nothing was offered it.
  */
-export function mayStartOver(actor: Pick<Person, 'admin'>, kind: 'own' | 'example'): boolean {
-  return kind === 'example' || !!actor.admin;
+export function mayStartOver(actor: Pick<Person, 'admin'>, _kind?: 'own' | 'example'): boolean {
+  return !!actor.admin;
 }
 export const START_OVER_ADMINS = 'Only an admin can start this workspace over.';
 

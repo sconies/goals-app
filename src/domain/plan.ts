@@ -106,6 +106,28 @@ export function planAt(plan: MetricPlan, week: number, weeks: number): number {
   return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, end - from);
 }
 
+/**
+ * The plan as it is published, one number a week (deep dive, 15 Nov): each week from `from` to the plan's end, with the
+ * number planned for it. The plan table prints these numbers and the charts draw them as steps, each held through its
+ * week, so the chart never shows a line the table doesn't say. One source for both.
+ */
+export function planSteps(plan: MetricPlan, weeks: number, from = 0): Point[] {
+  const end = Math.max(weeks, planEnd(plan, weeks));
+  const out: Point[] = [];
+  for (let w = Math.max(0, from); w <= end; w++) out.push({ week: w, value: planAt(plan, w, weeks) });
+  return out;
+}
+
+/** The steps as a line's corners: flat through each week, then straight up or down to the next week's number. */
+export function stepCorners(steps: readonly Point[]): Point[] {
+  const out: Point[] = [];
+  steps.forEach((p, i) => {
+    if (i > 0) out.push({ week: p.week, value: steps[i - 1]!.value });
+    out.push(p);
+  });
+  return out;
+}
+
 /** The checkpoints a plan table shows: every week for a short plan; every four weeks and each quarter's end for a longer one; and the end. */
 export function planCheckpoints(from: number, end: number): number[] {
   const step = end - from > 16 ? 4 : 1;

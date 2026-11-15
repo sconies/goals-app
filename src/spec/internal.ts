@@ -104,7 +104,7 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Make an MCP token for someone', who: 'Admins', code: [`${A}createToken`] },
   { area: 'People, teams and the workspace', what: 'Revoke an MCP token', who: 'An admin, or the token’s person. A token is never changed, only revoked.', code: [`${A}revokeToken`] },
   { area: 'People, teams and the workspace', what: 'Send feedback about the app', who: 'Anyone, as themselves; it is always New (okr_feedback_add)', code: [`${A}sendFeedback`] },
-  { area: 'People, teams and the workspace', what: 'Start over: reset the shared example in this browser, or remove a workspace of your own', who: 'Anyone in the example; admins in a workspace of their own', code: [`${A}mayStartOver`] },
+  { area: 'People, teams and the workspace', what: 'Start over: reset the shared example in this browser, or remove a workspace of your own', who: 'Admins only, in the example and in a workspace of their own', code: [`${A}mayStartOver`] },
   { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage'] },
   { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked'] },
   { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked', `${MX}removeMetric`, `${MX}canEditMetric`] },

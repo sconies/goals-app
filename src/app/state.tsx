@@ -775,6 +775,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       resetExample: async () => {
         const demo = examplesOf(store);
         if (!demo) throw new Error('Only the demo has an example to reset.');
+        // Start over is an admin's, in the example as everywhere (the rule, not just the panel).
+        if (!A.mayStartOver(viewer, 'example')) throw new Error(A.START_OVER_ADMINS);
         const s = await demo.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
         // Everything else the demo keeps in this browser goes too: drafts, what's been seen, walkthroughs, layouts.
         forgetDemoBrowser();
