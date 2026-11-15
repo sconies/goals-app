@@ -7488,7 +7488,7 @@ journey('U177', ['TAGS-FILTER', 'SAVED-VIEWS'], 'Goals filtered by a workspace�
   await p.context().close();
 });
 
-journey('U176', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it', 14, async (h, device) => {
+journey('U178', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await seedStage(p);
   await p.goto(url('/data/import'));
