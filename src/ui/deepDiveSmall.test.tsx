@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /* Deep dive, 15 Nov: the map's words for screen readers (item 5) and a two-sided range in the Goals table (item 7). */
 import { render } from '@testing-library/react';
-import { MAP_ARIA } from './GoalMap';
-import { TargetWords } from './GoalTable';
+import { MAP_ARIA } from '../screens/GoalMap';
+import { TargetWords } from '../screens/GoalTable';
 
 describe('deep dive, small fixes', () => {
   it('never tells a screen reader that Delete removes a goal from the map: it does nothing there (item 5)', () => {
