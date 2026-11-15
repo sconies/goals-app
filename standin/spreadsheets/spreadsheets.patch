@@ -1,0 +1,841 @@
+diff --git a/package.json b/package.json
+index c911d62..6d9d6bf 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+     "drill": "node scripts/drill.mjs",
+-    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "build:standin": "FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,tags,watching,wrap-up} VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,tags,watching,wrap-up} vite build -c vite.platform.config.ts --logLevel warn",
+     "standin": "node platform/dist/server.mjs",
+     "standin:seed": "node platform/dist/server.mjs seed"
+   },
+diff --git a/platform/importJobs.ts b/platform/importJobs.ts
+new file mode 100644
+index 0000000..a54926d
+--- /dev/null
++++ b/platform/importJobs.ts
+@@ -0,0 +1,263 @@
++/* A large import as a job on the stand-in platform's server (R11, R-L1 to R-L6; stage 9). Faro checks and saves an
++   import in the browser; here the file goes up once (the files API), the server reads it with Faro's own reader
++   (domain/sheets readTables) and checks it with Faro's change engine (planChangesInChunks, via "spreadsheet"), as the
++   person signed in, a chunk at a time so the server keeps answering, and keeps the preview with the job. Saving checks
++   the file again on the server (R-L3), refuses while a Must fix or a question is open, and writes everything in one
++   SQLite transaction (R-L2), through the same guard as every save (R1 rule 4). The file is removed when the job ends
++   (R-L6). Nothing here restates a rule: the groups, counts and sentences are the engine's. Server-only. */
++import type { DatabaseSync } from 'node:sqlite';
++import { planChangesInChunks, describe, sheetCounts, type Answer, type Answers, type ChangeSet, type PlanProgress } from '../src/domain/changeset';
++import { parseDelimited, readLine, readTables, sheetsIn, type NamedGrid, type ReadTables } from '../src/domain/sheets';
++import { tooLarge } from '../src/domain/importLimits';
++import { currentCycle, scopeToCycle } from '../src/domain/cycle';
++import { currentWeek } from '../src/domain/plan';
++import { withRecarry } from '../src/domain/recarry';
++import { goalSheetsOn, loadSheetPlanners, MODULE_RECORDS, recordsOn, sheetHeadsFor } from '../src/core/records';
++import { newId, withExpectations, type Commit } from '../src/data/store';
++import { importEntry, importUndone } from '../src/domain/removal';
++import type { Person, Snapshot } from '../src/domain/types';
++import type { SqliteStore } from '../src/adapters/standin/sqliteStore';
++import { refusal } from '../src/adapters/standin/guard';
++
++export type JobState = 'checking' | 'checked' | 'saving' | 'saved' | 'stopped' | 'failed' | 'expired';
++export interface JobFiles { put(p: string, b: Blob, type?: string): Promise<void>; bytes(p: string): Promise<Uint8Array | null>; remove(p: string): Promise<boolean> }
++export interface Job {
++  id: string; workspaceId: string; personId: string; fileName: string; bytes: number; state: JobState;
++  done: number; total: number; answers: Answers; reason: string | null; preview: Preview | null;
++  importId: string | null; error: string | null; createdAt: string; updatedAt: string; endedAt: string | null; endedBy: string | null;
++}
++/** What the job's preview says, in the order Faro's does (R-L1): sheets read, counts by sheet, Must fix, Check, changes. */
++export interface Preview {
++  read: string;
++  summary: string;
++  sheets: { sheet: string; added: number; changed: number; stopped: number; unchanged: number; must: number; check: number }[];
++  mustFix: { id: string; kind: string; sheet: string; where: string; rows: number; title: string; example: string }[];
++  check: { id: string; kind: string; sheet: string; where: string; rows: number; title: string; answers: { choice: string; label: string }[] }[];
++  changes: number;
++  unchanged: number;
++  examples: number;
++  needsReason: boolean;
++  ready: boolean;
++}
++
++/** When a job that was never saved ends by itself, and its file with it (R-L6): a day. */
++export const JOB_KEEP_MS = 24 * 3600 * 1000;
++/** How long an import can still be undone (R-L4's suggested 90 days). */
++export const UNDO_DAYS = 90;
++export const undoTooLate = (at: string, now: Date) => now.getTime() - new Date(at).getTime() > UNDO_DAYS * 86_400_000
++  ? `This import was saved more than ${UNDO_DAYS} days ago, so it can no longer be undone.` : null;
++
++const isText = (name: string) => /\.(csv|tsv|txt)$/i.test(name);
++/** Every sheet in an uploaded file, as named grids of text: the same three kinds the app reads (src/app/spreadsheet.ts). */
++export async function gridsOf(name: string, bytes: Uint8Array): Promise<NamedGrid[]> {
++  if (isText(name)) return [{ name, rows: parseDelimited(new TextDecoder().decode(bytes).replace(/^﻿/, ''), { keepBlank: true, ...(/\.tsv$/i.test(name) ? { sep: '\t' as const } : {}) }) }];
++  const dec = new TextDecoder();
++  if (/\.zip$/i.test(name)) {
++    const { unzipFiles } = await import('../src/app/zip');
++    return (await unzipFiles(bytes)).filter((f) => isText(f.name)).map((f) => ({ name: f.name.replace(/^.*\//, ''), rows: parseDelimited(dec.decode(f.data).replace(/^﻿/, ''), { keepBlank: true }) }));
++  }
++  if (!/\.xlsx$/i.test(name)) throw new Error(`${name} isn’t a file Faro reads: use a workbook (.xlsx), a zip of CSVs, or one CSV.`);
++  const { default: readXlsx } = await import('read-excel-file/node');
++  const { gridOf } = await import('../src/domain/sheets');
++  const sheets = (await (readXlsx as unknown as (b: Buffer) => Promise<{ sheet: string; data: unknown[][] }[]>)(Buffer.from(bytes)));
++  return sheets.map((s) => ({ name: s.sheet, rows: gridOf(s.data) }));
++}
++
++type Row = Record<string, string | number | null>;
++const json = <T>(s: unknown, d: T): T => { try { return s == null ? d : JSON.parse(String(s)) as T; } catch { return d; } };
++const toJob = (r: Row): Job => ({
++  id: String(r.id), workspaceId: String(r.workspace_id), personId: String(r.person_id), fileName: String(r.file_name), bytes: Number(r.bytes),
++  state: r.state as JobState, done: Number(r.done), total: Number(r.total), answers: json(r.answers, {}), reason: (r.reason as string) ?? null,
++  preview: json(r.preview, null), importId: (r.import_id as string) ?? null, error: (r.error as string) ?? null,
++  createdAt: String(r.created_at), updatedAt: String(r.updated_at), endedAt: (r.ended_at as string) ?? null, endedBy: (r.ended_by as string) ?? null,
++});
++
++export class JobRefused extends Error { constructor(readonly status: number, message: string) { super(message); } }
++
++export class ImportJobs {
++  /** Checks running now, by job: Stop ends one between two chunks. */
++  private running = new Map<string, { stop: boolean }>();
++  constructor(private db: DatabaseSync, private store: SqliteStore, private files: JobFiles, private now: () => Date = () => new Date(),
++    private modulesOff: (ws: string) => string[] = () => []) {}
++
++  get(id: string): Job | null { const r = this.db.prepare('select * from import_jobs where id = ?').get(id) as Row | undefined; return r ? toJob(r) : null; }
++  /** Someone's own jobs; an admin's list has everyone's. */
++  list(ws: string, me: Person): Job[] {
++    const rows = this.db.prepare('select * from import_jobs where workspace_id = ? order by created_at desc').all(ws) as Row[];
++    return rows.map(toJob).filter((j) => me.admin || j.personId === me.id);
++  }
++  /** A job this person may see and act on (its starter or an admin), or a refusal that says nothing of others' jobs. */
++  mine(ws: string, id: string, me: Person): Job {
++    const j = this.get(id);
++    if (!j || j.workspaceId !== ws || (j.personId !== me.id && !me.admin)) throw new JobRefused(404, 'There’s no such import.');
++    return j;
++  }
++  private set(id: string, patch: Record<string, string | number | null>) {
++    const keys = Object.keys(patch);
++    this.db.prepare(`update import_jobs set ${keys.map((k) => `${k} = ?`).join(', ')}, updated_at = ? where id = ?`).run(...keys.map((k) => patch[k]!), this.now().toISOString(), id);
++  }
++  private filePath = (j: { workspaceId: string; id: string }) => `imports/${j.workspaceId}/${j.id}`;
++
++  /** Uploads a file and starts checking it (R-L1): answers at once with the job; the check carries on on the server. */
++  async start(ws: string, me: Person, fileName: string, bytes: Uint8Array): Promise<Job> {
++    // R-L6: limited in size before anything is kept (the same limit and words as Import's, domain/importLimits).
++    const big = tooLarge(fileName, { bytes: bytes.length });
++    if (big) throw new JobRefused(413, big);
++    if (!fileName.trim() || /[/\\]/.test(fileName)) throw new JobRefused(400, 'Give the file’s name.');
++    const id = newId('job');
++    const at = this.now().toISOString();
++    const job = { id, workspaceId: ws };
++    await this.files.put(this.filePath(job), new Blob([bytes as BlobPart]), 'application/octet-stream');
++    this.db.prepare('insert into import_jobs (id, workspace_id, person_id, file_name, file_path, bytes, state, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)')
++      .run(id, ws, me.id, fileName, this.filePath(job), bytes.length, 'checking', at, at);
++    void this.check(id, me).catch((e) => this.set(id, { state: 'failed', error: e instanceof Error ? e.message : String(e) }));
++    return this.get(id)!;
++  }
++
++  /** The engine's input, as the person signed in, from the workspace as stored now (what MCP's bulk_change gives it). */
++  private async input(ws: string, actor: Person, read: ReadTables, j: Job) {
++    const all = await this.store.load(ws);
++    const now = this.now();
++    const cycle = currentCycle(all.cycles, now);
++    if (!cycle) throw new JobRefused(409, 'This workspace has no cycle yet.');
++    const w = { modulesOff: this.modulesOff(ws) };
++    if (read.tables.modules) await loadSheetPlanners();
++    return { all, cycle, x: {
++      tables: read.tables, snapshot: scopeToCycle(all, cycle, MODULE_RECORDS), full: all, cycle, week: currentWeek(cycle, now), actor, now: now.toISOString(), newId,
++      via: 'spreadsheet' as const, answers: j.answers, ...(j.reason ? { reason: j.reason } : {}), records: recordsOn(w), goalSheets: goalSheetsOn(w), file: { name: j.fileName, leftOut: 0 },
++    } };
++  }
++
++  /** Reads the job's file and runs the change engine over it a chunk at a time, keeping progress and then the preview. */
++  async check(id: string, actor: Person, opts: { forSave?: boolean } = {}): Promise<{ cs: ChangeSet; all: Snapshot } | null> {
++    const j = this.get(id)!;
++    const bytes = await this.files.bytes(this.filePath(j));
++    if (!bytes) throw new JobRefused(410, 'The file for this import is no longer kept. Upload it again.');
++    const read = readTables(await gridsOf(j.fileName, bytes), sheetHeadsFor({ modulesOff: this.modulesOff(j.workspaceId) }));
++    const rows = sheetsIn(read.tables).length ? (read.tables.goals?.length ?? 0) + (read.tables.plan?.length ?? 0) + (read.tables.checkIns?.length ?? 0) + (read.tables.people?.length ?? 0) + Object.values(read.tables.modules ?? {}).reduce((n, r) => n + r.length, 0) : 0;
++    const big = tooLarge(j.fileName, { rows });
++    if (big) { this.end(id, 'failed', null, big); return null; }
++    const { all, x } = await this.input(j.workspaceId, actor, read, j);
++    const flag = { stop: false };
++    this.running.set(id, flag);
++    if (!opts.forSave) this.set(id, { state: 'checking', done: 0, total: rows, error: null });
++    try {
++      const gen = planChangesInChunks(x);
++      let step = gen.next();
++      while (!step.done) {
++        const p: PlanProgress = step.value;
++        if (!opts.forSave) this.set(id, { done: p.done, total: p.total });
++        // Between two chunks, the server answers others (and this job's progress), and Stop is heard.
++        await new Promise((r) => setImmediate(r));
++        if (flag.stop) return null;
++        step = gen.next();
++      }
++      const cs = step.value;
++      if (!opts.forSave) this.set(id, { state: 'checked', done: rows, total: rows, preview: JSON.stringify(previewOf(cs, read)), goal_ids: JSON.stringify(goalsOf(cs.commit)) });
++      return { cs, all };
++    } finally { this.running.delete(id); }
++  }
++
++  /** Answers a question group (or a reason) and checks the file again. */
++  async answer(ws: string, id: string, me: Person, given: Record<string, string | Answer>, reason?: string): Promise<Job> {
++    // An answer by its choice ("use"), or in full ({ choice, value }), as MCP's bulk_change takes them.
++    const answers: Answers = Object.fromEntries(Object.entries(given ?? {}).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : v]));
++    const j = this.mine(ws, id, me);
++    if (j.state !== 'checked') throw new JobRefused(409, j.state === 'checking' ? 'This import is still being checked.' : 'This import has ended.');
++    if (j.personId !== me.id) throw new JobRefused(403, 'Only whoever started this import can answer its questions.');
++    this.set(id, { answers: JSON.stringify({ ...j.answers, ...answers }), ...(reason !== undefined ? { reason } : {}), state: 'checking' });
++    await this.check(id, me);
++    return this.get(id)!;
++  }
++
++  /** Stop: ends the job, keeps nothing, removes the file (“Stopped. Nothing was saved.”). */
++  async stop(ws: string, id: string, me: Person): Promise<Job> {
++    const j = this.mine(ws, id, me);
++    if (['saved', 'stopped', 'failed', 'expired'].includes(j.state)) throw new JobRefused(409, 'This import has ended.');
++    if (j.state === 'saving') throw new JobRefused(409, 'This import is being saved and can’t be stopped now.');
++    const r = this.running.get(id); if (r) r.stop = true;
++    await this.end(id, 'stopped', me.id);
++    return this.get(id)!;
++  }
++
++  /** Saves the job: checked again here (R-L3), one transaction (R-L2), one at a time per goal (R-L5), file removed (R-L6). */
++  async save(ws: string, id: string, me: Person): Promise<Job> {
++    const j = this.mine(ws, id, me);
++    if (j.personId !== me.id) throw new JobRefused(403, 'Only whoever started this import can save it.');
++    if (j.state !== 'checked') throw new JobRefused(409, j.state === 'checking' ? 'This import is still being checked.' : 'This import has ended.');
++    // R-L5: another save running in this workspace that writes one of these goals holds them; this one is refused, with who.
++    const goalIdsOf = (jid: string) => json<string[]>((this.db.prepare('select goal_ids from import_jobs where id = ?').get(jid) as Row | undefined)?.goal_ids, []);
++    const mineGoals = new Set(goalIdsOf(id));
++    const holding = (this.db.prepare("select * from import_jobs where workspace_id = ? and state = 'saving' and id <> ?").all(ws, id) as Row[]).map(toJob)
++      .find((o) => goalIdsOf(o.id).some((g) => mineGoals.has(g)));
++    if (holding) {
++      const all = await this.store.load(ws);
++      throw new JobRefused(409, `${all.people.find((p) => p.id === holding.personId)?.name ?? 'Someone'} is saving an import that changes the same goals. Try again once it is saved.`);
++    }
++    this.set(id, { state: 'saving' });
++    try {
++      const checked = await this.check(id, me, { forSave: true });
++      if (!checked) { this.set(id, { state: 'checked' }); throw new JobRefused(409, 'This import was stopped.'); }
++      const { cs, all } = checked;
++      this.set(id, { preview: JSON.stringify(previewOf(cs, null, this.get(id)!.preview?.read ?? '')) });
++      if (!cs.commit) {
++        this.set(id, { state: 'checked' });
++        throw new JobRefused(409, cs.issues.some((i) => i.level === 'must') ? 'Not saved: some rows must be fixed first.' : cs.needsReason ? 'Not saved: give a reason for the plan changes.' : 'Not saved: answer the questions first.');
++      }
++      const first = cs.commit.changes[0];
++      const c: Commit = withRecarry(all, cs.commit, { now: first?.at ?? this.now().toISOString(), actorId: me.id, newId, records: MODULE_RECORDS });
++      // The same guard as every save (R1 rule 4): the server's check, not the browser's.
++      const why = refusal(all, c, me);
++      if (why) { this.set(id, { state: 'checked' }); throw new JobRefused(403, why); }
++      await this.store.commit(ws, withExpectations(c, all));
++      const importId = c.changes.find((x) => x.action === 'imported')?.entityId ?? null;
++      await this.end(id, 'saved', me.id, null, importId);
++      return this.get(id)!;
++    } catch (e) {
++      if (this.get(id)!.state === 'saving') this.set(id, { state: 'checked' });
++      throw e;
++    }
++  }
++
++  private async end(id: string, state: JobState, by: string | null, error: string | null = null, importId: string | null = null) {
++    const j = this.get(id)!;
++    await this.files.remove(this.filePath(j)).catch(() => false);
++    this.set(id, { state, file_path: null, ended_at: this.now().toISOString(), ended_by: by, error, ...(importId ? { import_id: importId } : {}) });
++  }
++
++  /** The timer's job: a job nobody saved within a day ends, and its file goes (R-L6). */
++  async sweep(): Promise<number> {
++    const cutoff = new Date(this.now().getTime() - JOB_KEEP_MS).toISOString();
++    const old = (this.db.prepare("select * from import_jobs where state in ('checking', 'checked') and updated_at < ?").all(cutoff) as Row[]).map(toJob);
++    for (const j of old) await this.end(j.id, 'expired', null, 'Nobody saved it within a day, so its file was removed.');
++    return old.length;
++  }
++}
++
++/** The goals a commit writes, by id: what two saves mustn't both hold (R-L5). */
++const goalsOf = (c: Commit | null) => [...new Set([...(c?.goals ?? []).map((g) => g.id), ...(c?.checkIns ?? []).map((x) => x.goalId)])];
++
++/** The preview, from the engine's change set: nothing restated, only kept (R-L1). */
++export function previewOf(cs: ChangeSet, read: ReadTables | null, readWas = ''): Preview {
++  const sheets = [...new Set([...cs.items.map((i) => i.sheet), ...cs.issues.map((i) => i.sheet), ...Object.keys(cs.unchangedBy)])] as Parameters<typeof sheetCounts>[1][];
++  return {
++    read: read ? readLine(read, cs.examples) : readWas,
++    summary: describe(cs),
++    sheets: sheets.map((s) => ({ sheet: s, ...sheetCounts(cs, s) })),
++    mustFix: cs.groups.filter((g) => g.level === 'must').map((g) => ({ id: g.id, kind: g.kind, sheet: g.sheet, where: g.where, rows: g.count, title: g.title, example: g.example })),
++    check: cs.groups.filter((g) => g.level === 'check').map((g) => ({ id: g.id, kind: g.kind, sheet: g.sheet, where: g.where, rows: g.count, title: g.title, answers: g.answers.map((a) => ({ choice: a.choice, label: a.label })) })),
++    changes: cs.items.length, unchanged: cs.unchanged, examples: cs.examples, needsReason: cs.needsReason, ready: !!cs.commit,
++  };
++}
++
++/** Why the server refuses an import's undo (R-L4 and IMPORT-UNDO), in the app's words; null when it may. The undo itself
++    is Faro's (domain/removal undoImport); the server checks who and when, on the stored change log. */
++export function undoRefusal(stored: Snapshot, c: Commit, actor: Person, now: Date): string | null {
++  const undo = c.changes.find((x) => x.action === 'undone' && x.entity === 'workspace');
++  if (!undo) return null;
++  const entry = importEntry(stored, undo.entityId);
++  if (!entry) return null;
++  if (entry.actorId !== actor.id && !actor.admin) return 'Only whoever made the import, or an admin, can undo it.';
++  if (importUndone(stored, undo.entityId)) return 'That import has already been undone.';
++  return undoTooLate(entry.at, now);
++}
+diff --git a/platform/migrations/0003_spreadsheets.sql b/platform/migrations/0003_spreadsheets.sql
+new file mode 100644
+index 0000000..d0c02b5
+--- /dev/null
++++ b/platform/migrations/0003_spreadsheets.sql
+@@ -0,0 +1,32 @@
++-- The spreadsheets module on the stand-in platform (stage 9). Faro's module keeps no tables of its own: an import is
++-- rows in Faro's own tables, its summary a change-log entry (okr_changes.import_id, with Undo's before-images). What
++-- this adds is the platform's: a large import as a job on the server (R11, R-L1 to R-L6), so it survives a closed tab,
++-- is checked by the server with the change engine, saved in one transaction, and its file is gone when the job ends.
++create table if not exists import_jobs (
++  id text primary key,
++  workspace_id text not null,
++  -- Who started it: only they (or an admin) see, answer, save or stop it.
++  person_id text not null,
++  file_name text not null,
++  -- Where the uploaded file is on the files API while the job runs; null once the job has ended (R-L6).
++  file_path text,
++  bytes integer not null,
++  -- checking, checked, saving, saved, stopped, failed, expired
++  state text not null,
++  -- How far the check has got: rows done of rows in the file.
++  done integer not null default 0,
++  total integer not null default 0,
++  answers text not null default '{}',
++  reason text,
++  -- The preview (sheets read, counts, Must fix, Check, changes) as JSON: the same groups and counts as Faro's (R-L1).
++  preview text,
++  -- The goals this job's save writes: two saves touching one goal don't interleave (R-L5).
++  goal_ids text not null default '[]',
++  import_id text,
++  error text,
++  created_at text not null,
++  updated_at text not null,
++  ended_at text,
++  ended_by text
++);
++create index if not exists import_jobs_ws on import_jobs (workspace_id, created_at);
+diff --git a/platform/prove-spreadsheets.mjs b/platform/prove-spreadsheets.mjs
+new file mode 100644
+index 0000000..d1b15c2
+--- /dev/null
++++ b/platform/prove-spreadsheets.mjs
+@@ -0,0 +1,144 @@
++/* Stage 9 (Spreadsheets) on the stand-in platform, proved against the running server (drill item 11). Starts the built
++   server on a fresh data folder, seeds it, and checks through the API: an import as a job on the server (R11) by its
++   starter only, its file never served and gone once the job ends, a member's rows on someone else's goal refused, the
++   switch (an admin only; off: Import and its saves answer the module-off sentence, MCP's export refuses; back on works),
++   and an import's undo refused to a member who didn't make it. With `out` (a build with spreadsheets left out): the
++   import's addresses aren't there and a spreadsheet's rows are refused.
++   Usage: npm run build:standin && node platform/prove-spreadsheets.mjs [in|out] [port]. */
++import { spawn } from 'node:child_process';
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++
++const MODE = process.argv[2] || 'in';
++const PORT = Number(process.argv[3] || 47920);
++const B = `http://localhost:${PORT}`;
++const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-sheets-'));
++const ENV = { ...process.env, STANDIN_PORT: String(PORT), STANDIN_DATA: DATA, NODE_NO_WARNINGS: '1' };
++const PASSWORD = 'faro-standin';
++const WS = 'ws_platform';
++const results = [];
++const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`); };
++function run(args) { return new Promise((res, rej) => { const p = spawn(process.execPath, ['platform/dist/server.mjs', ...args], { env: ENV, stdio: 'ignore' }); p.on('exit', (c) => (c ? rej(new Error('exit ' + c)) : res())); }); }
++async function start() {
++  const p = spawn(process.execPath, ['platform/dist/server.mjs'], { env: ENV, stdio: ['ignore', 'pipe', 'inherit'] });
++  await new Promise((res) => p.stdout.on('data', (d) => { if (/stand-in platform/.test(String(d))) res(); }));
++  return p;
++}
++const stop = (p) => new Promise((res) => { p.on('exit', res); p.kill(); });
++function client() {
++  let cookie = '';
++  const c = async (method, url, body, headers = {}) => {
++    const raw = body instanceof Uint8Array;
++    const r = await fetch(B + url, { method, redirect: 'manual', headers: { ...(cookie ? { cookie } : {}), ...(body !== undefined && !raw ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body === undefined ? undefined : raw ? body : JSON.stringify(body) });
++    const set = r.headers.get('set-cookie'); if (set) cookie = set.split(';')[0];
++    const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* not json */ }
++    return { status: r.status, json, text };
++  };
++  c.signIn = (email) => c('POST', '/api/signin', { email, password: PASSWORD });
++  return c;
++}
++const csv = (rows) => new TextEncoder().encode(rows.map((r) => r.join(',')).join('\n'));
++const HEAD = ['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'];
++let n = 0;
++const change = (actor, entity, entityId, summary, extra = {}) => ({ id: `chg_sheets${++n}`, at: new Date().toISOString(), actorId: actor, goalId: null, entity, entityId, action: 'edited', summary, diffs: [], ...extra });
++const settle = async (c, id) => { for (let i = 0; i < 600; i++) { const r = await c('GET', `/api/workspaces/${WS}/imports/${id}`); if (r.json?.state !== 'checking') return r.json; await new Promise((x) => setTimeout(x, 50)); } return null; };
++const importFiles = (job = '') => { const d = path.join(DATA, 'files', 'imports', WS, job); if (job) return fs.existsSync(d) ? 1 : 0; return fs.existsSync(d) ? fs.readdirSync(d, { recursive: true }).filter((f) => fs.statSync(path.join(d, String(f))).isFile()).length : 0; };
++
++await run(['seed', PASSWORD]);
++const server = await start();
++try {
++  const amara = client(); await amara.signIn('amara.nwosu@example.com');
++  const pavel = client(); await pavel.signIn('pavel.novak@example.com');
++  const rhea = client(); await rhea.signIn('rhea.kapoor@example.com');
++  const snap = (await amara('GET', `/api/workspaces/${WS}`)).json;
++  const rheas = snap.goals.find((g) => g.ownerId === 'rhea' && g.key && !g.removedAt);
++
++  if (MODE === 'out') {
++    let r = await amara('POST', `/api/workspaces/${WS}/imports?name=x.csv`, csv([HEAD, ['One', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']]));
++    check('left out: the import’s server addresses aren’t there', r.status === 404, `${r.status} ${r.json?.error}`);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...rheas, title: 'From a sheet' }], changes: [change('amara', 'goal', rheas.id, 'Edited', { goalId: rheas.id, diffs: [{ field: 'Via', from: '—', to: 'Spreadsheet' }] })] });
++    check('left out: a save marked as from a spreadsheet is refused', r.status === 403 && /Spreadsheets is switched off/.test(r.json?.error ?? ''), r.json?.error);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...rheas, title: 'Renamed by an admin' }], changes: [change('amara', 'goal', rheas.id, 'Edited', { goalId: rheas.id })] });
++    check('left out: the core still saves', r.status === 200, r.json?.error);
++  } else {
++    // ---------- An import as a job on the server (R11) ----------
++    const rows14 = Array.from({ length: 14 }, (_, i) => [`Pipeline goal ${i + 1}`, 'CI/DC', 'Rhea Kapoor', 'metric', 'min', '20', '10']);
++    let r = await amara('POST', `/api/workspaces/${WS}/imports?name=ci.csv`, csv([HEAD, ...rows14]));
++    check('R-L1: a file goes up once and its check runs on the server', r.status === 202 && r.json?.state === 'checking', `${r.status} ${r.json?.state}`);
++    const jobId = r.json?.id;
++    check('R-L6: while the job runs its file is on the files API, and never served by it', importFiles() === 1 && (await amara('GET', `/api/files/imports/${WS}/${jobId}`)).status === 404);
++    let job = await settle(amara, jobId);
++    const q = job?.preview?.check?.[0];
++    check('exit 8: 14 rows with one typo are one question, “Use CI/CD”', job?.state === 'checked' && job.preview.check.length === 1 && q.rows === 14 && q.answers.some((a) => a.label === 'Use CI/CD'), q?.title);
++    r = await pavel('GET', `/api/workspaces/${WS}/imports/${jobId}`);
++    const r2 = await pavel('POST', `/api/workspaces/${WS}/imports/${jobId}/save`);
++    const r3 = await pavel('GET', `/api/workspaces/${WS}/imports`);
++    check('a member sees, answers and saves only their own jobs (refused as Pavel)', r.status === 404 && r2.status === 404 && !r3.json?.some((j) => j.id === jobId), `${r.status} ${r2.status}`);
++    r = await amara('POST', `/api/workspaces/${WS}/imports/${jobId}/save`);
++    check('R-L3: saving with a question open is refused by the server', r.status === 409 && /answer the questions/.test(r.json?.error ?? ''), r.json?.error);
++    job = (await amara('POST', `/api/workspaces/${WS}/imports/${jobId}/answers`, { answers: { [q.id]: 'use' } })).json;
++    r = await amara('POST', `/api/workspaces/${WS}/imports/${jobId}/save`);
++    const after = (await amara('GET', `/api/workspaces/${WS}`)).json;
++    const added = after.goals.filter((g) => g.title.startsWith('Pipeline goal'));
++    check('answered once, all 14 save as CI/CD in one save, with one import entry (R-L2)', r.json?.state === 'saved' && added.length === 14 && added.every((g) => g.teamId === 'cicd') && after.changes.filter((c) => c.action === 'imported' && c.entityId === r.json.importId).length === 1, `${r.json?.state} ${added.length}`);
++    check('R-L6: the file is gone once the job ends', importFiles(jobId) === 0);
++    const importId = r.json?.importId;
++
++    // A member's rows on someone else's goal (U94): shown, and the server won't save them.
++    r = await pavel('POST', `/api/workspaces/${WS}/imports?name=mine.csv`, csv([['Key', 'Target'], [rheas.key, '1']]));
++    job = await settle(pavel, r.json?.id);
++    r = await pavel('POST', `/api/workspaces/${WS}/imports/${job?.id}/save`);
++    const still = (await pavel('GET', `/api/workspaces/${WS}`)).json.goals.find((g) => g.id === rheas.id);
++    check('U94: Pavel’s row on Rhea’s goal is a problem in the preview, refused on save, the goal as it was', job?.preview?.ready === false && r.status >= 400 && still.title === rheas.title, `${job?.preview?.mustFix?.[0]?.title ?? job?.preview?.check?.[0]?.title} / ${r.json?.error}`);
++    // Through /commit too: a member's browser can't send another's goal change marked as a spreadsheet's.
++    r = await pavel('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...rheas, title: 'Forged' }], changes: [change('pavel', 'goal', rheas.id, 'Edited', { goalId: rheas.id, diffs: [{ field: 'Via', from: '—', to: 'Spreadsheet' }] })] });
++    check('R1 rule 4: the same change sent to /commit is refused', r.status === 403, r.json?.error);
++    // Stop: nothing saved, file gone.
++    r = await rhea('POST', `/api/workspaces/${WS}/imports?name=stop.csv`, csv([HEAD, ['Stopped goal', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']]));
++    await settle(rhea, r.json?.id);
++    const stopped = await rhea('POST', `/api/workspaces/${WS}/imports/${r.json?.id}/stop`);
++    const none = (await rhea('GET', `/api/workspaces/${WS}`)).json.goals.some((g) => g.title === 'Stopped goal');
++    check('Stop saves nothing and removes the file', stopped.json?.state === 'stopped' && !none && importFiles(r.json?.id) === 0);
++    r = await amara('POST', `/api/workspaces/${WS}/imports?name=big.csv`, new Uint8Array(21 * 1024 * 1024));
++    check('R-L6: a file over 20 MB is refused before it is kept, in Faro’s words', r.status === 413 && /larger than 20 MB/.test(r.json?.error ?? ''), r.json?.error);
++
++    // Undo (IMPORT-UNDO, R-L4): a member who didn't make the import can't undo it, even with a hand-made save.
++    r = await pavel('POST', `/api/workspaces/${WS}/commit`, { changes: [{ ...change('pavel', 'workspace', importId, 'Undid an import'), action: 'undone' }] });
++    check('undo: refused to a member who didn’t make the import', r.status === 403 && /Only whoever made the import, or an admin/.test(r.json?.error ?? ''), r.json?.error);
++
++    // ---------- The switch ----------
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modulesOff: ['spreadsheets'], changes: [change('rhea', 'workspace', WS, 'Switched Spreadsheets off')] });
++    check('switching Spreadsheets off: admins only (refused to Rhea)', r.status === 403, r.json?.error);
++    // A token for the MCP check, made while it's on.
++    r = await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: 'tok_sheets', personId: 'amara', name: 'Proof', createdBy: 'amara', createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null }], changes: [] });
++    const secret = r.json?.secret;
++    const mcp = async (method, params) => (await fetch(B + '/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}`, Accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method, params }) }).then((x) => x.json()));
++    let m = await mcp('tools/call', { name: 'export', arguments: { format: 'goals_csv' } });
++    check('on: MCP export answers with the Goals sheet', !m.result?.isError && /^Key,|Goal/.test(m.result?.content?.[0]?.text ?? ''), (m.result?.content?.[0]?.text ?? '').slice(0, 40));
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { modulesOff: ['spreadsheets'], changes: [change('amara', 'workspace', WS, 'Switched Spreadsheets off')] });
++    check('an admin switches Spreadsheets off', r.status === 200, r.json?.error);
++    r = await amara('POST', `/api/workspaces/${WS}/imports?name=x.csv`, csv([HEAD, ['Off goal', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']]));
++    check('off: Import on the server answers the module-off sentence', r.status === 403 && r.json?.error === 'Spreadsheets is switched off in Platform Engineering, so Import can’t be used there. An admin can switch it on in Workspace, under Features.', r.json?.error);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...rheas, title: 'From a sheet' }], changes: [change('amara', 'goal', rheas.id, 'Edited', { goalId: rheas.id, diffs: [{ field: 'Via', from: '—', to: 'Spreadsheet' }] })] });
++    check('off: a save marked as from a spreadsheet is refused, even an admin’s', r.status === 403 && /switched off/.test(r.json?.error ?? ''), r.json?.error);
++    m = await mcp('tools/call', { name: 'export_table', arguments: { table: 'goals' } });
++    const m2 = await mcp('tools/call', { name: 'export', arguments: { format: 'json' } });
++    check('off: MCP export and export_table refuse with the module-off sentence', m.result?.isError && m2.result?.isError && /Spreadsheets is switched off in Platform Engineering, so export_table can’t be used there/.test(m.result?.content?.[0]?.text ?? ''), m.result?.content?.[0]?.text);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...rheas, title: 'An admin’s rename' }], changes: [change('amara', 'goal', rheas.id, 'Edited', { goalId: rheas.id })] });
++    const kept = (await amara('GET', `/api/workspaces/${WS}`)).json;
++    check('off: the core still saves, and what was imported stays', r.status === 200 && kept.goals.filter((g) => g.title.startsWith('Pipeline goal')).length === 14, r.json?.error);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { modulesOff: [], changes: [change('amara', 'workspace', WS, 'Switched Spreadsheets on')] });
++    const back = await amara('POST', `/api/workspaces/${WS}/imports?name=back.csv`, csv([HEAD, ['Back on goal', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']]));
++    const backJob = await settle(amara, back.json?.id);
++    const saved = await amara('POST', `/api/workspaces/${WS}/imports/${back.json?.id}/save`);
++    check('back on: Import works again', r.status === 200 && backJob?.state === 'checked' && saved.json?.state === 'saved', `${saved.status} ${saved.json?.error ?? ''}`);
++    r = await amara('GET', `/api/workspaces/${WS}/imports`);
++    check('Past imports on the server: the admin’s list has the jobs, each with its state', Array.isArray(r.json) && r.json.some((j) => j.state === 'saved') && r.json.some((j) => j.state === 'stopped'), `${r.json?.length} jobs`);
++  }
++} finally {
++  await stop(server);
++}
++const failed = results.filter((x) => !x.ok);
++console.log(`\n${results.length - failed.length}/${results.length} checks pass${failed.length ? '; failing: ' + failed.map((f) => f.name).join('; ') : ''}`);
++process.exitCode = failed.length ? 1 : 0;
+diff --git a/platform/server.ts b/platform/server.ts
+index 5ed2935..21f129f 100644
+--- a/platform/server.ts
++++ b/platform/server.ts
+@@ -12,7 +12,11 @@ import { openDatabase } from '../src/adapters/standin/migrate';
+ import { Refused, SqliteStore } from '../src/adapters/standin/sqliteStore';
+ import { standinDeps } from '../src/adapters/standin/deps';
+ import { folderFiles } from '../src/adapters/standin/files';
+-import { refusal } from '../src/adapters/standin/guard';
++import { refusal, viaOf } from '../src/adapters/standin/guard';
++import { ImportJobs, JobRefused, undoRefusal } from './importJobs';
++import { isModuleOn, moduleById } from '../src/core/registry';
++import { moduleOffSentence } from '../src/mcp/moduleOff';
++import { tooLarge } from '../src/domain/importLimits';
+ import { matchSignIn } from '../src/adapters/signIn';
+ import { isStale } from '../src/ports/store';
+ import { personFromRow, type PersonRow } from '../src/data/rows';
+@@ -33,6 +37,18 @@ const store = new SqliteStore(db);
+ const auth = new Auth(db);
+ const files = folderFiles(path.join(DATA, 'files'));
+ const deps = standinDeps(store, () => new Date(), (email) => auth.hasLeft(email));
++/** The feature modules an admin has switched off in a workspace (Workspace, Features). */
++const modulesOff = (ws: string): string[] => JSON.parse((db.prepare('select modules_off from okr_workspaces where id = ?').get(ws) as { modules_off: string | null } | undefined)?.modules_off ?? '[]') as string[];
++const wsName = (ws: string) => (db.prepare('select name from okr_workspaces where id = ?').get(ws) as { name: string } | undefined)?.name ?? 'this workspace';
++// Large imports as jobs on the server (R11): only when this build has the spreadsheets module.
++const imports = moduleById('spreadsheets') ? new ImportJobs(db, store, files, () => new Date(), modulesOff) : null;
++/** Why a save the spreadsheets module owns is refused (stage 9), in the app's words; null when it may. */
++function spreadsheetsRefusal(ws: string, stored: Snapshot, c: Commit, me: Person): string | null {
++  // A spreadsheet's rows come only through Import: with the module off (or left out of the build), never.
++  if (viaOf(c) === 'spreadsheet' && !isModuleOn({ modulesOff: modulesOff(ws) }, 'spreadsheets')) return moduleOffSentence('Spreadsheets', wsName(ws), 'Import');
++  // Undoing an import: whoever made it or an admin, once, and within 90 days (IMPORT-UNDO, R-L4).
++  return undoRefusal(stored, c, me, new Date());
++}
+ 
+ // ---------- Small helpers ----------
+ 
+@@ -134,7 +150,8 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
+     if (rest === '/history' && req.method === 'POST') return send(res, 200, await store.history(ws, await input(req)));
+     if (rest === '/commit' && req.method === 'POST') {
+       const c = await input<Commit>(req);
+-      const why = refusal(await store.load(ws), c, me);
++      const stored = await store.load(ws);
++      const why = refusal(stored, c, me) ?? spreadsheetsRefusal(ws, stored, c, me);
+       if (why) throw new HttpError(403, why);
+       // Revoking a token: the store checks that it's the token's person or an admin, as the actor the change names.
+       try { await store.commit(ws, c); } catch (e) { refuse(e); }
+@@ -154,10 +171,36 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
+     }
+   }
+ 
++  // Imports as server-side jobs (R11): upload, progress, preview, answers, save, stop. The starter or an admin only.
++  const im = p.match(/^\/api\/workspaces\/([^/]+)\/imports(?:\/([A-Za-z0-9_-]+))?(?:\/(answers|save|stop))?$/);
++  if (im) {
++    if (!imports) throw new HttpError(404, 'There’s nothing at that address.');
++    const ws = decodeURIComponent(im[1]!);
++    const me = member(ws, s);
++    if (!isModuleOn({ modulesOff: modulesOff(ws) }, 'spreadsheets')) throw new HttpError(403, moduleOffSentence('Spreadsheets', wsName(ws), 'Import'));
++    const [, , id, verb] = im;
++    try {
++      if (!id && req.method === 'GET') return send(res, 200, imports.list(ws, me));
++      if (!id && req.method === 'POST') {
++        // R-L6: a file over the limit is refused by its size before any of it is kept (Faro's words, domain/importLimits).
++        const big = tooLarge(url.searchParams.get('name') || 'This file', { bytes: Number(req.headers['content-length'] ?? 0) });
++        if (big) { req.resume(); await new Promise((r) => req.on('end', r)); throw new HttpError(413, big); }
++        return send(res, 202, await imports.start(ws, me, url.searchParams.get('name') ?? '', new Uint8Array(await body(req))));
++      }
++      if (id && !verb && req.method === 'GET') return send(res, 200, imports.mine(ws, id, me));
++      if (id && verb === 'answers' && req.method === 'POST') { const a = await input<{ answers?: Record<string, unknown>; reason?: string }>(req); return send(res, 200, await imports.answer(ws, id, me, (a.answers ?? {}) as never, a.reason)); }
++      if (id && verb === 'save' && req.method === 'POST') return send(res, 200, await imports.save(ws, id, me));
++      if (id && verb === 'stop' && req.method === 'POST') return send(res, 200, await imports.stop(ws, id, me));
++    } catch (e) { if (e instanceof JobRefused) throw new HttpError(e.status, e.message); refuse(e); }
++    throw new HttpError(404, 'There’s nothing at that address.');
++  }
++
+   // Files: a local folder behind put, get and delete (anything Faro keeps as a file: markup pictures, exports).
+   const f = p.match(/^\/api\/files\/(.+)$/);
+   if (f) {
+     const name = decodeURIComponent(f[1]!);
++    // An import's uploaded file is the import job's alone (R-L6): never served, replaced or removed here.
++    if (name.startsWith('imports/')) throw new HttpError(404, 'There’s no such file.');
+     if (req.method === 'GET') { const b = await files.bytes(name); if (!b) throw new HttpError(404, 'There’s no such file.'); res.writeHead(200, { 'Content-Type': 'application/octet-stream' }); return res.end(b); }
+     if (req.method === 'PUT') { try { await files.put(name, new Blob([new Uint8Array(await body(req))]), String(req.headers['content-type'] ?? '')); } catch (e) { throw new HttpError(409, e instanceof Error ? e.message : String(e)); } return send(res, 200, { ok: true }); }
+     if (req.method === 'DELETE') return send(res, (await files.remove(name)) ? 200 : 404, { ok: true });
+@@ -240,6 +283,8 @@ const server = http.createServer(async (req, res) => {
+ const jobs = [
+   // Sessions that expired, and every session of someone the directory marks as left.
+   { every: 60_000, run: () => auth.sweep() },
++  // Import jobs nobody saved within a day end, and their files go (R-L6).
++  ...(imports ? [{ every: 60_000, run: () => void imports.sweep() }] : []),
+ ];
+ 
+ /** Seeds a workspace from the demo's example (as a workspace of its own, kind "own") and signs everyone in it up: a
+diff --git a/platform/ui-spreadsheets.mjs b/platform/ui-spreadsheets.mjs
+new file mode 100644
+index 0000000..9375a3a
+--- /dev/null
++++ b/platform/ui-spreadsheets.mjs
+@@ -0,0 +1,74 @@
++/* Stage 9 through the app's screens on the stand-in server (drill item 11): Goals' Export these goals saves one workbook
++   named {workspace}-goals-all-{date}.xlsx; that workbook loaded back through Data → Import says nothing would change;
++   a CSV with a new goal is previewed and saved through the HTTP store, and lands in SQLite. With `off` (after an admin
++   switches Spreadsheets off) or `out` (left out of the build): Data has no Import and /data/import isn't Import.
++   Usage: node platform/ui-spreadsheets.mjs <base> <mode on|off|out> [shots folder]. Prints a JSON line. */
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { chromium } from 'playwright';
++const [B, MODE = 'on', SHOTS] = process.argv.slice(2);
++const out = {};
++const browser = await chromium.launch();
++const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
++const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
++const shot = (n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.png` }) : null);
++const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-ui-sheets-'));
++try {
++  await page.goto(B + '/data');
++  await page.fill('input[name=email]', 'amara.nwosu@example.com');
++  await page.fill('input[name=password]', 'faro-standin');
++  await page.click('button[type=submit]');
++  await page.waitForURL(/\/data/, { timeout: 15000 });
++  await page.waitForTimeout(1500);
++  out.dataImport = await page.locator('a.data-import').count();
++  await shot(`data-${MODE}`);
++  await page.goto(B + '/data/import');
++  await page.waitForTimeout(1500);
++  out.importPage = await page.getByRole('button', { name: 'Choose a file' }).count();
++  out.importText = (await page.locator('main').innerText()).slice(0, 200);
++  await shot(`import-${MODE}`);
++  if (MODE === 'on') {
++    // Exit 3: one press saves one workbook, named for the workspace, what, scope and date.
++    await page.goto(B + '/goals');
++    await page.waitForTimeout(1500);
++    await page.locator('.views-menu > summary').click();
++    await page.getByRole('group', { name: 'Views' }).getByRole('button', { name: 'Export these goals' }).click();
++    await page.waitForTimeout(800);
++    await shot('export-sheet');
++    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.getByRole('button', { name: /Export \.xlsx/ }).click()]);
++    out.exportName = dl.suggestedFilename();
++    const file = path.join(tmp, out.exportName);
++    await dl.saveAs(file);
++    // Exit 4 through the screens: the workbook straight back changes nothing.
++    await page.goto(B + '/data/import');
++    await page.waitForTimeout(1000);
++    await page.setInputFiles('input[type=file]', file);
++    await page.waitForURL(/\/data\/import\/check/, { timeout: 30000 });
++    await page.waitForTimeout(3000);
++    out.roundTrip = (await page.locator('main').innerText()).match(/Nothing would change[^\n]*/)?.[0] ?? (await page.locator('main').innerText()).slice(0, 300);
++    await shot('roundtrip');
++    // A new goal through the screens: preview, Save, Imported; saved through the HTTP store.
++    const csv = path.join(tmp, 'one-goal.csv');
++    fs.writeFileSync(csv, 'Goal,Team,Owner,Type,Unit,Start,Target\nRunbooks reviewed (ui proof),CI/CD,Rhea Kapoor,metric,%,20,90\n');
++    await page.goto(B + '/data/import');
++    await page.waitForTimeout(1000);
++    await page.setInputFiles('input[type=file]', csv);
++    await page.waitForURL(/\/data\/import\/check/, { timeout: 30000 });
++    await page.waitForTimeout(1500);
++    await shot('preview');
++    await page.getByRole('button', { name: /^Save/ }).first().click();
++    await page.waitForURL(/\/data\/import\/done\//, { timeout: 30000 });
++    await page.waitForTimeout(1000);
++    out.imported = (await page.locator('main').innerText()).slice(0, 200);
++    out.importId = new URL(page.url()).pathname.split('/').pop();
++    await shot('imported');
++    await page.goto(B + '/data/imports');
++    await page.waitForTimeout(1500);
++    out.pastImports = (await page.locator('main').innerText()).includes('one-goal.csv');
++    await shot('past-imports');
++  }
++} catch (e) { out.failed = String(e).slice(0, 300); await shot('failed'); }
++out.errors = errs;
++await browser.close();
++console.log(JSON.stringify(out));
+diff --git a/src/adapters/standin/importJobs.test.ts b/src/adapters/standin/importJobs.test.ts
+new file mode 100644
+index 0000000..a36540b
+--- /dev/null
++++ b/src/adapters/standin/importJobs.test.ts
+@@ -0,0 +1,193 @@
++// @vitest-environment node
++/* Stage 9 on the stand-in platform: a large import as a job on the server (R11, R-L1 to R-L6), run with Faro's own
++   reader and change engine as the person signed in, on the SQLite store. Real .xlsx bytes made the way the app makes
++   them; every sentence asserted is the engine's. */
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import writeXlsxFile from 'write-excel-file/node';
++import { excelSheets } from '../../app/files';
++import { buildPlatformOrg } from '../../data/platformOrg';
++import { currentCycle, scopeToCycle } from '../../domain/cycle';
++import { workbook } from '../../domain/export';
++import { currentWeek } from '../../domain/plan';
++import { exportOn, MODULE_RECORDS } from '../../core/records';
++import { undoImport } from '../../domain/removal';
++import { newId, withExpectations } from '../../data/store';
++import type { Person, Workspace } from '../../domain/types';
++import { openDatabase } from './migrate';
++import { SqliteStore } from './sqliteStore';
++import { folderFiles } from './files';
++import { ImportJobs, JOB_KEEP_MS, undoRefusal, type Job } from '../../../platform/importJobs';
++import { refusal } from './guard';
++
++const MIGRATIONS = path.resolve(__dirname, '../../../platform/migrations');
++const today = new Date('2026-11-11T12:00:00Z');
++const WS: Workspace = { id: 'ws_platform', name: 'Platform Engineering', kind: 'own', createdAt: today.toISOString() };
++
++async function setup() {
++  const db = openDatabase(':memory:', MIGRATIONS);
++  const store = new SqliteStore(db);
++  const s = buildPlatformOrg(today);
++  await store.createWorkspace(WS, { ...s, tokens: [], feedback: [] });
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-jobs-'));
++  let clock = today;
++  const jobs = new ImportJobs(db, store, folderFiles(dir), () => clock);
++  const who = (id: string) => s.people.find((p) => p.id === id)! as Person;
++  return { db, store, s, jobs, dir, who, tick: (ms: number) => { clock = new Date(clock.getTime() + ms); } };
++}
++type Env = Awaited<ReturnType<typeof setup>>;
++const settle = async (e: Env, id: string): Promise<Job> => { for (let i = 0; i < 2000; i++) { const j = e.jobs.get(id)!; if (j.state !== 'checking') return j; await new Promise((r) => setTimeout(r, 5)); } throw new Error('never checked'); };
++const csv = (rows: string[][]) => new TextEncoder().encode(rows.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n'));
++const filesLeft = (dir: string) => (fs.existsSync(path.join(dir, 'imports')) ? fs.readdirSync(path.join(dir, 'imports'), { recursive: true }).filter((f) => fs.statSync(path.join(dir, 'imports', String(f))).isFile()).length : 0);
++async function exported(e: Env) {
++  const all = await e.store.load(WS.id);
++  const cycle = currentCycle(all.cycles, today)!;
++  const book = workbook({ ws: WS, snapshot: scopeToCycle(all, cycle, MODULE_RECORDS), cycle, week: currentWeek(cycle, today), today, ...exportOn(WS) });
++  // eslint-disable-next-line @typescript-eslint/no-explicit-any
++  return new Uint8Array(await (writeXlsxFile as any)(excelSheets(book)).toBuffer() as Buffer);
++}
++
++describe('A large import as a job on the server (R11)', () => {
++  it('a workbook exported and loaded straight back changes nothing (exit 4), and its file is gone once the job ends (R-L6)', async () => {
++    const e = await setup();
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('amara'), 'platform-engineering-goals-all-2026-11-11.xlsx', await exported(e))).id);
++    expect(j.state).toBe('checked');
++    expect(j.preview!.changes).toBe(0);
++    expect(j.preview!.mustFix).toEqual([]);
++    expect(j.preview!.unchanged).toBeGreaterThan(1000);
++    expect(j.preview!.read).toMatch(/^Read /);
++    await e.jobs.stop(WS.id, j.id, e.who('amara'));
++    expect(e.jobs.get(j.id)!.state).toBe('stopped');
++    expect(filesLeft(e.dir)).toBe(0);
++  }, 60_000);
++
++  it('one wrong row saves nothing, and the preview names the row and the problem (exit 5); the server checks again before it saves (R-L3)', async () => {
++    const e = await setup();
++    const before = (await e.store.load(WS.id)).goals.length;
++    const file = csv([['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'], ['Faster builds', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10'], ['Nobody’s goal', 'CI/CD', '', 'metric', 'min', '20', '10']]);
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('amara'), 'goals.csv', file)).id);
++    expect(j.preview!.ready).toBe(false);
++    expect(j.preview!.mustFix.length).toBe(1);
++    expect(j.preview!.mustFix[0]!.where).toMatch(/row 3/);
++    await expect(e.jobs.save(WS.id, j.id, e.who('amara'))).rejects.toThrow(/must be fixed/);
++    expect((await e.store.load(WS.id)).goals.length).toBe(before);
++  }, 60_000);
++
++  it('fourteen rows with one typo are one question; answered, all fourteen save as the team, in one transaction (exit 8)', async () => {
++    const e = await setup();
++    const rows = Array.from({ length: 14 }, (_, i) => [`Pipeline goal ${i + 1}`, 'CI/DC', 'Rhea Kapoor', 'metric', 'min', '20', '10']);
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('amara'), 'ci.csv', csv([['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'], ...rows]))).id);
++    expect(j.preview!.check.length).toBe(1);
++    const q = j.preview!.check[0]!;
++    expect(q.rows).toBe(14);
++    const use = q.answers.find((a) => /^Use CI\/CD/.test(a.label))!;
++    expect(use).toBeTruthy();
++    const answered = await e.jobs.answer(WS.id, j.id, e.who('amara'), { [q.id]: use.choice } as never);
++    expect(answered.preview, JSON.stringify(answered.preview)).toMatchObject({ ready: true });
++    // Only its starter answers or saves it; another member doesn't even see it.
++    expect(() => e.jobs.mine(WS.id, j.id, e.who('pavel'))).toThrow(/no such import/);
++    await expect(e.jobs.save(WS.id, j.id, e.who('grace'))).rejects.toThrow(/Only whoever started/);
++    const saved = await e.jobs.save(WS.id, j.id, e.who('amara'));
++    expect(saved.state).toBe('saved');
++    expect(saved.importId).toBeTruthy();
++    const after = await e.store.load(WS.id);
++    const added = after.goals.filter((g) => g.title.startsWith('Pipeline goal'));
++    expect(added.length).toBe(14);
++    expect(new Set(added.map((g) => g.teamId))).toEqual(new Set(['cicd']));
++    expect(after.changes.filter((c) => c.importId === saved.importId).length).toBeGreaterThanOrEqual(14);
++    expect(filesLeft(e.dir)).toBe(0);
++  }, 60_000);
++
++  it('a member’s rows that change someone else’s goal are refused by the server, never saved (U94, R1 rule 4)', async () => {
++    const e = await setup();
++    const all = await e.store.load(WS.id);
++    const rheas = all.goals.find((g) => g.ownerId === 'rhea' && g.key && !g.removedAt)!;
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('pavel'), 'mine.csv', csv([['Key', 'Target'], [rheas.key!, '1']]))).id);
++    expect(j.preview!.ready).toBe(false);
++    expect([...j.preview!.mustFix, ...j.preview!.check].map((g) => g.title).join(' ')).toMatch(/don’t own|own/);
++    await expect(e.jobs.save(WS.id, j.id, e.who('pavel'))).rejects.toThrow();
++    expect((await e.store.load(WS.id)).goals.find((g) => g.id === rheas.id)).toEqual(rheas);
++  }, 60_000);
++
++  it('6,000 new goals: checked on the server with progress, Stop saves nothing; checked again, saved in one transaction (R-L1, R-L2, R-L5)', async () => {
++    const e = await setup();
++    const rows = Array.from({ length: 6000 }, (_, i) => [`Bulk goal ${i + 1}`, 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']);
++    const file = csv([['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'], ...rows]);
++    const first = await e.jobs.start(WS.id, e.who('amara'), 'bulk.csv', file);
++    // Progress is kept while it runs; Stop ends it between two chunks.
++    for (let i = 0; i < 400 && e.jobs.get(first.id)!.done === 0; i++) await new Promise((r) => setTimeout(r, 5));
++    expect(e.jobs.get(first.id)!.total).toBe(6000);
++    await e.jobs.stop(WS.id, first.id, e.who('amara'));
++    await new Promise((r) => setTimeout(r, 50));
++    expect(e.jobs.get(first.id)!.state).toBe('stopped');
++    expect((await e.store.load(WS.id)).goals.some((g) => g.title === 'Bulk goal 1')).toBe(false);
++    const t0 = Date.now();
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('amara'), 'bulk.csv', file)).id);
++    const checkedIn = Date.now() - t0;
++    expect(j.preview!.ready).toBe(true);
++    expect(checkedIn).toBeLessThan(30_000);
++    const saved = await e.jobs.save(WS.id, j.id, e.who('amara'));
++    expect(saved.state).toBe('saved');
++    expect((await e.store.load(WS.id)).goals.filter((g) => g.title.startsWith('Bulk goal')).length).toBe(6000);
++  }, 120_000);
++
++  it('a job nobody saves ends after a day, and its file goes (R-L6)', async () => {
++    const e = await setup();
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('amara'), 'x.csv', csv([['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'], ['One', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']]))).id);
++    expect(filesLeft(e.dir)).toBe(1);
++    e.tick(JOB_KEEP_MS + 60_000);
++    expect(await e.jobs.sweep()).toBe(1);
++    expect(e.jobs.get(j.id)!.state).toBe('expired');
++    expect(filesLeft(e.dir)).toBe(0);
++    await expect(e.jobs.save(WS.id, j.id, e.who('amara'))).rejects.toThrow(/ended/);
++  }, 60_000);
++
++  it('undo: whoever made the import or an admin, once, and within 90 days (IMPORT-UNDO, R-L4)', async () => {
++    const e = await setup();
++    const j = await settle(e, (await e.jobs.start(WS.id, e.who('rhea'), 'r.csv', csv([['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'], ['Rhea’s new goal', 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']]))).id);
++    const saved = await e.jobs.save(WS.id, j.id, e.who('rhea'));
++    const all = await e.store.load(WS.id);
++    const cycle = currentCycle(all.cycles, today)!;
++    const x = (actor: Person, now = today) => ({ snapshot: scopeToCycle(all, cycle, MODULE_RECORDS), full: all, cycle, week: currentWeek(cycle, now), actor, now: now.toISOString(), newId });
++    // Pavel isn't its maker or an admin: the server refuses his undo even if his browser made one.
++    const forged = { changes: [{ id: 'chg_forged', at: today.toISOString(), actorId: 'pavel', goalId: null, entity: 'workspace' as const, entityId: saved.importId!, action: 'undone' as const, summary: 'Undid an import', diffs: [] }] };
++    expect(undoRefusal(all, forged as never, e.who('pavel'), today)).toBe('Only whoever made the import, or an admin, can undo it.');
++    const byAdmin = undoImport(x(e.who('amara')) as never, saved.importId!);
++    expect(undoRefusal(all, byAdmin.commit, e.who('amara'), today)).toBeNull();
++    expect(undoRefusal(all, byAdmin.commit, e.who('amara'), new Date(today.getTime() + 91 * 86_400_000))).toMatch(/more than 90 days ago/);
++  }, 60_000);
++
++  it('exit 13: 5 goals and 10 check-ins imported, Rhea checks in on one since: Undo puts 14 back, keeps hers, naming her', async () => {
++    const e = await setup();
++    const sheet = (rows: string[][]) => rows.map((r) => r.join(',')).join('\n');
++    const goals = Array.from({ length: 5 }, (_, i) => [`g${i}`, `Undo goal ${i + 1}`, 'CI/CD', 'Rhea Kapoor', 'metric', 'min', '20', '10']);
++    const cis = goals.flatMap(([ref]) => [[ref!, '44', '18'], [ref!, '45', '17']]);
++    const { zipFiles } = await import('../../app/zip');
++    const enc = new TextEncoder();
++    const zip = zipFiles([{ name: 'Goals.csv', data: enc.encode(sheet([['Ref', 'Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target'], ...goals])) }, { name: 'Check-ins.csv', data: enc.encode(sheet([['Goal ref', 'Week', 'Value'], ...cis])) }]);
++    let j = await settle(e, (await e.jobs.start(WS.id, e.who('amara'), 'undo.zip', zip)).id);
++    for (const q of j.preview!.check) j = await e.jobs.answer(WS.id, j.id, e.who('amara'), { [q.id]: q.answers[0]!.choice });
++    expect(j.preview, JSON.stringify(j.preview)).toMatchObject({ ready: true });
++    const saved = await e.jobs.save(WS.id, j.id, e.who('amara'));
++    const one = (await e.store.load(WS.id)).goals.find((g) => g.title === 'Undo goal 1')!;
++    // Rhea posts a check-in on one imported goal (as U90's page script does), through the server's guard.
++    const at = new Date(today.getTime() + 60_000).toISOString();
++    const week = currentWeek(currentCycle((await e.store.load(WS.id)).cycles, today)!, today);
++    const post = { checkIns: [{ id: 'ci_u90', goalId: one.id, authorId: 'rhea', week, postedAt: at, value: 30, stages: null, status: 'on', calculated: 'on', cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false }], changes: [{ id: 'chg_u90', at, actorId: 'rhea', goalId: one.id, entity: 'check-in', entityId: 'ci_u90', action: 'posted', summary: `Checked in for week ${week}`, diffs: [] }] } as never;
++    expect(refusal(await e.store.load(WS.id), post, e.who('rhea'))).toBeNull();
++    await e.store.commit(WS.id, post);
++    const all = await e.store.load(WS.id);
++    const cycle = currentCycle(all.cycles, today)!;
++    const x = { snapshot: scopeToCycle(all, cycle, MODULE_RECORDS), full: all, cycle, week: currentWeek(cycle, today), actor: e.who('amara'), now: new Date(today.getTime() + 3600_000).toISOString(), newId };
++    const undo = undoImport(x as never, saved.importId!);
++    expect([undo.restored, undo.skipped.length]).toEqual([14, 1]);
++    expect(all.people.find((p) => p.id === undo.skipped[0]!.by)?.name).toBe('Rhea Kapoor');
++    expect(undoRefusal(all, undo.commit, e.who('amara'), today)).toBeNull();
++    await e.store.commit(WS.id, withExpectations(undo.commit, all));
++    const after = await e.store.load(WS.id);
++    expect(after.goals.filter((g) => g.title.startsWith('Undo goal') && !g.removedAt).map((g) => g.title)).toEqual(['Undo goal 1']);
++    expect(after.checkIns.filter((c) => c.goalId === one.id && !c.removedAt).map((c) => c.id)).toEqual(['ci_u90']);
++    expect(undoRefusal(after, undo.commit, e.who('amara'), today)).toBe('That import has already been undone.');
++  }, 60_000);
++});
