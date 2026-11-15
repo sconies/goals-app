@@ -28,6 +28,8 @@ Which week it is, and what a goal’s plan says its number should be in any week
   - **stepped:** three equal steps, landing in week ⌊*n*/3⌋ + 1, week ⌊2*n*/3⌋ + 1 and week *n*: the count of those reached, divided by 3.
 - The plan for the week is `start + (target − start) × share`.
 
+**The plan as published** (`planSteps`, deep dive 15 Nov). Every place that shows a plan shows the same numbers, one a week, from one source: `planSteps(plan, weeks, from)` gives each week from `from` to the plan's end with its plan for that week. The plan table prints them (its rows are `planCheckpoints` of them); the goal's chart and a row's sparkline draw them as steps (`stepCorners`), each week's number held flat through its week and then straight up or down to the next week's. No chart draws a straight line from the start to the target that the table doesn't say.
+
 **Plans that changed.** When a plan changes after check-ins started, the plan before is kept (`planHistory`, oldest first: each applied to the weeks before its `untilWeek`). The plan *as of* a week is the first kept plan whose `untilWeek` is later than that week, or else the current plan. (Older data keeps only `originalPlan` and `rebaselinedWeek`: read it as one kept plan until that week.) A check-in is always judged against the plan as of its own week.
 
 ## Limits the records hold
@@ -52,12 +54,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A back-loaded plan from 34 to 18 over 13 weeks: the plan in week 4. | `31.27` |
 | A stepped plan over 13 weeks: the share planned in weeks 4, 5, 8, 9, 12 and 13. | `0, 0.333, 0.333, 0.667, 0.667, 1` |
 | A plan from 10 to 50 due in week 13, with a number set by hand of 40 in week 4: the plan in weeks 2, 4 and 8. | `25, 40, 44.444` |
+| A goal set up in week 46 (from week 46), straight from 40 to 70 due in week 53: the numbers published for weeks 46 to 53, as the plan table prints them and the chart draws them, rounded. | `40, 44, 49, 53, 57, 61, 66, 70` |
+| The steps the chart draws for weeks 1 to 3 planned at 10, 12 and 15: its corners, week and value. | `1:10, 2:10, 2:12, 3:12, 3:15` |
 | A goal set up in week 5 (from week 5), straight from 0 to 80 due in week 13: the plan in weeks 3, 5, 9 and 13. | `0, 0, 40, 80` |
 | A goal whose target moved from 75 to 95 in week 6 (the 30→75 plan kept until week 6): the target of the plan as of weeks 4 and 6. | `75, 95` |
 
 ## Where it lives
 
-- [src/domain/plan.ts](../../../src/domain/plan.ts): `currentWeek`, `daysSince`, `weekDate`, `firstWeekFrom`, `shapeProgress`, `planEnd`, `planAt`, `planHistoryOf`, `planAsOf`, `goalAsOf`
+- [src/domain/plan.ts](../../../src/domain/plan.ts): `currentWeek`, `daysSince`, `weekDate`, `firstWeekFrom`, `shapeProgress`, `planEnd`, `planAt`, `planSteps`, `stepCorners`, `planHistoryOf`, `planAsOf`, `goalAsOf`
 - [src/domain/progress.ts](../../../src/domain/progress.ts): `firstDueWeek`, `firstReview`, `reviewDate`
 - [src/domain/review.ts](../../../src/domain/review.ts): `sessionWeek`
 
