@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index c911d62..9c75e9c 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+     "drill": "node scripts/drill.mjs",
+-    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "build:standin": "FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,metrics,reviews,spreadsheets,tags,watching,wrap-up} VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,metrics,reviews,spreadsheets,tags,watching,wrap-up} vite build -c vite.platform.config.ts --logLevel warn",
+     "standin": "node platform/dist/server.mjs",
+     "standin:seed": "node platform/dist/server.mjs seed"
+   },
