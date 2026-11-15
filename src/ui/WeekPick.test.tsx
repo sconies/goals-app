@@ -45,6 +45,19 @@ describe('the week picker (GE9 review)', () => {
     expect(isOpen()).toBe(false);
   });
 
+  it('gives the focus back to To once a week is chosen, unless the person has already moved on (U109, U159)', async () => {
+    pick();
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
+    await frame();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^To/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^To/ }));
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
+    // Before the frame comes, the next field is focused (a fast keyboard, or a slow phone): it keeps the focus.
+    screen.getByRole('button', { name: 'After' }).focus();
+    await frame();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'After' }));
+  });
+
   it('chooses the highlighted week on Enter with nothing typed, and says nothing about an empty week', () => {
     const onChange = pick();
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
