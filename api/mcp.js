@@ -17007,7 +17007,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "AI access, as a feature a workspace can switch off. An admin makes a personal MCP token for someone (shown once, only its hash kept) and anyone revokes their own; an AI tool using the token acts as that person through the MCP server, with that person's rights, every change logged as theirs “via MCP”. The tokens are listed on their own Workspace section, AI access (/workspace/ai, admins), in Settings (your own) and on a person's page (Make an MCP token). Off, the server refuses every token of the workspace with one sentence, but still lists its tools; no token can be made; Workspace, Settings and People show no tokens; /workspace/ai says it is switched off. Tokens are kept, not revoked: switching it back on makes them work again. An admin switches it on Workspace, Features, after a read-back that names the tokens.",
-			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 2).", "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (the AI tools' stage)."],
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 3, the module platform).", "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (stage 3, the module platform); this stage adds the tokens and the switch that shuts its door."],
 			"exit": [
 				"Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.",
 				"Switched off, making a token is refused with “AI access is off in {workspace}.”, and revoking one still works.",
@@ -17071,7 +17071,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "Feedback, as a feature a workspace can switch off. Anyone can send feedback about Faro (a mood and a few words) or mark up the screen they are on (a still picture with marks and a line, from Send feedback or Ctrl+Shift+M), and everything sent goes to the builders' inbox, the page Feedback, which the people who build Faro work through from New to In hand to Closed, and which an AI tool can review. Off, Feedback leaves the menu, Send feedback and Mark up this screen go, Ctrl+Shift+M does nothing, /feedback says it is switched off and who can switch it on, and the inbox's tools and send_feedback refuse. What was sent stays in the builders' inbox.",
-			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2).", "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."],
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform).", "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."],
 			"exit": [
 				"Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U165).",
 				"Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).",
@@ -17343,7 +17343,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "Reviews, as a feature a workspace can switch off. A review walks a set of goals together on a cadence (every 1, 2 or 4 weeks, on a weekday): its agenda puts the goals that need attention first, worst and stalest, and the walk opens each goal's page in turn, where someone in the review marks it reviewed, adds a note, asks the owner a question, agrees a next step with who and by when, or accepts the risk on a goal behind; a goal off track or at risk leaves the walk with a decision. What was said stays on each goal: questions and next steps are asks, open on the owner's Home until answered or done; a held session leads its page with what was said, and prints. Off, Reviews has no menu row or phone tab, no page (its addresses say it is switched off and who can switch it on), no Next review on Home, no Last time we talked or walk on a goal, no review tools for an assistant and no review asked for on Workspace; asks and next steps stay as they are, History keeps what was said, and switching it back on brings every review back as it was. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
-			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."],
 			"exit": [
 				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
 				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing (check N21; src/app/reviewsOffWrites.test.ts).",
@@ -17517,7 +17517,7 @@ var _virtual_faro_modules_default = [
 			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. Goals' Filters sheet has a row per live list field (its values and “Not set”, any of them ticked), the filter line says “Stage is Build” with Remove, and the address carries it as /goals?f.<field id>=Build so a link and a saved view keep it; free text is not a filter. Data's Goals table and every export's Goals sheet have a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, an export loaded straight back changes nothing, and a value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”), which only an admin may add. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields), finds goals by them (find_goals' fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block, no Fields in Workspace's menu, no field filter on Goals and no field column on Data or in an export (a file's are columns nothing reads, named once), /workspace/fields says Fields is switched off and who can switch it on, and the three tools and find_goals' fields refuse; every field and value stays, and comes back when it is switched on.",
 			"entry": [
 				"The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.",
-				"The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).",
+				"The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 3, the module platform).",
 				"What a module adds to Goals loads only when a workspace has something for it (domain/records goalExtras: Fields' extras.ts, once a live field exists; core/records loadGoalExtras): a family of Goals filters (parameters by their start, f.) and its columns on the Goals sheet (written by every export, read back by the change engine, which asks the module's question as its own Check, module-value)."
 			],
 			"exit": [
@@ -17597,7 +17597,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "Watching, as a feature a workspace can switch off. Anyone can watch a goal, a goal and everything feeding it, or every goal at a level; the goals a person's watches cover are on their Home under “Goals you watch” (what needs attention first) and under the Watching tab of Goals, a goal's page has Watch (or Watching) for anyone but its owner, and an AI tool lists, adds and stops watches. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; /watching says it is switched off and who can switch it on; someone who owns no goal is led to every goal that needs attention. Every watch is kept, and switching it back on restores each person's. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
-			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention; Watching reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention; Watching reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."],
 			"exit": [
 				"Switched off, /watching shows Page not found with “Watching is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_watching, watch and unwatch answer “Watching is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” (check N22).",
 				"Switched off, Goals has no Watching tab (a remembered Watching tab opens Mine, or All for someone who owns no goal), Home has no “Goals you watch”, a goal's page has no Watch or Watching and no “Watched by”, and the watch action refuses with “Watching is off in {workspace}.” (journey U164).",
@@ -17635,7 +17635,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "The Wrap-up, as a feature a workspace can switch off: in the last two weeks of the year (and four weeks after) each owner says how each goal landed, one thing learned, and whether it carries on or stops, from Home's wrap-up lead, a goal's “Wrap up this goal” and the page Wrap up. Results, carrying on and starting the next year are the core's and never switch off. Off, nobody is asked how a goal landed: no wrap-up lead on Home, no “See the wrap-up”, no “Wrap up this goal”, /retro says it is switched off, and get_wrap_up and wrap_up_goal refuse; wrap-ups already written stay in History, and an admin still starts the next year from Cycles.",
-			"entry": ["The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"entry": ["The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."],
 			"exit": [
 				"Switched off, /retro and /retro/{goal} show Page not found with “Wrap-up is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and get_wrap_up and wrap_up_goal answer the switched-off module's sentence (check N22).",
 				"Switched off, in the year's last two weeks an owner's Home leads with check-ins as in any other week, never “Wrap up your goals”, and a goal's page has no “Wrap up this goal”; saving a wrap-up refuses with “Wrap-up is off in {workspace}.” (journey U166).",
@@ -25923,6 +25923,7 @@ function systemOverview() {
 		"",
 		"- [Rebuild Faro stage by stage](spec/rebuild/README.md): each stage’s entry and exit criteria, which stages have a drill today, where a rebuild is written and how it is scored",
 		"- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data",
+		"- [The module platform](spec/rebuild/module-platform.md): where a module plugs into the core, how a workspace switches one off, every sentence the core says while one is off, and the AI tools’ server and its door (stage 3 builds it)",
 		"- [Swap the outside parts](spec/rebuild/adapters.md): copy the code and write an adapter per outside part until its contract passes",
 		"- [The ports at company scale](spec/rebuild/ports-at-scale.md): why the goals store is the demo-scale port, and the query and command ports that replace it (the rules stay the same)",
 		"- [Accepting scale](spec/rebuild/scale.md): a generator for a company-size workspace, the week’s turn with its budget and what people see while it runs, and being handled from one goal’s records",
@@ -32569,7 +32570,7 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
-// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -32577,7 +32578,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// node_modules/tslib/tslib.es6.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -32613,12 +32614,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// node_modules/@supabase/functions-js/dist/module/helper.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// node_modules/@supabase/functions-js/dist/module/types.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -32708,7 +32709,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -32961,7 +32962,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// node_modules/@supabase/postgrest-js/dist/index.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -36935,7 +36936,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -37028,7 +37029,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -37062,7 +37063,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -37204,7 +37205,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -37390,7 +37391,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -39085,7 +39086,7 @@ var Socket = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -39172,7 +39173,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -39205,7 +39206,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -39227,7 +39228,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -39329,7 +39330,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -39464,7 +39465,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -40155,7 +40156,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -40266,7 +40267,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -40878,7 +40879,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// node_modules/iceberg-js/dist/index.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -41374,7 +41375,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// node_modules/@supabase/storage-js/dist/index.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -44561,9 +44562,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/version.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -44592,7 +44593,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -44878,7 +44879,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -45081,7 +45082,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -45479,7 +45480,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -45638,13 +45639,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/types.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -46790,7 +46791,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -46822,7 +46823,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -46841,7 +46842,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -46881,7 +46882,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -47071,7 +47072,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -47677,7 +47678,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -53178,9 +53179,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// node_modules/@supabase/supabase-js/dist/index.mjs
+// ../../../../../../tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/pin/node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
