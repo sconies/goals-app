@@ -43,7 +43,8 @@
      --expected <folder>    the conformance data (default: spec/conformance, found from where this file is). A file or
                             contract the folder doesn't hold (core-only/ has stage 3's four files and no contracts) is
                             left out and named once as not scored, so drill.json's "also" and "contracts" can stay as
-                            they are: `--expected spec/conformance/core-only` scores what core-only holds.
+                            they are: `--expected spec/conformance/core-only` scores what core-only holds. A folder
+                            that has contracts/ but not one drill.json or --contracts names fails (exit 2).
      --timeout 600          seconds the command may take (default 600)
      --contracts search     run only these contracts through the shim
      --json                 print the scores as JSON instead of words
@@ -417,11 +418,17 @@ async function main(argv) {
     const all = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort() : [];
     const asked = opt.contracts ?? (Array.isArray(m.contracts) ? m.contracts : all);
     const unknown = asked.filter((n) => !all.includes(n));
-    // A name --contracts gives that the folder's contracts don't have is a typo: say so. Names drill.json lists that a
-    // folder with no such contract lacks (core-only/ has no contracts/ at all) are left out and named once.
-    if (unknown.length && opt.contracts && all.length) { console.error(`No contract ${unknown.join(', ')} in ${dir}; there are ${all.join(', ')}.`); return 2; }
+    // A folder with contracts that lacks a named one (drill.json's "contracts" or --contracts) fails: a typo or a case
+    // slip (Store for store) must never pass by being skipped. Only a folder with no contracts/ at all (core-only/, a
+    // core-only rebuild) leaves drill.json's contracts out, named once.
+    if (unknown.length && all.length) {
+      const why = unknown.map((n) => { const near = all.find((a) => a.toLowerCase() === n.toLowerCase()); return near ? `${n} (the contract is ${near}: names match case)` : n; });
+      const msg = `No contract ${why.join(', ')} in ${dir}; there are ${all.join(', ')}.`;
+      console.error(msg);
+      if (opt.json) console.log(JSON.stringify({ ran, pass: false, error: msg }, null, 2));
+      return 2;
+    }
     if (!all.length) say(`Contracts not run: ${expectedDir} has no contracts folder.`);
-    else if (unknown.length) say(`Not run: contract${unknown.length > 1 ? 's' : ''} ${unknown.join(', ')} (not in ${dir}).`);
     const names = asked.filter((n) => all.includes(n));
     if (names.length) {
       say(`Running the contracts through the shim, in ${target}:\n  ${shim}`);

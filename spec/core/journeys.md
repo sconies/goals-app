@@ -245,7 +245,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.goal-edit` | the goal edit | [U149](journeys/U149.md) |
 | `.goal-edit .edit-part` | the edit part in the goal edit | [U136](journeys/U136.md) |
 | `.goal-proposed` | the goal proposed | [U134](../modules/goal-map/journeys/U134.md), [U163](journeys/U163.md) |
-| `.goal-read-back` | New goal’s read-back (the list named “Read back”, a row per sentence, each with its id) | [U137](journeys/U137.md) |
+| `.goal-read-back` | New goal’s read-back (the list named “Read back”, a row per topic, each with its id and label) | [U137](journeys/U137.md) |
 | `.goal-row, .gtable tbody tr, .tree li` | the goal row, or the table row in the tbody in the gtable, or the list item in the tree | [U66](journeys/U66.md) |
 | `.goals-head` | the goals head | [U135](../modules/goal-map/journeys/U135.md) |
 | `.goals-line` | the Goals count line | [U122](journeys/U122.md), [U123](journeys/U123.md), [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U70](journeys/U70.md), [U73](../modules/watching/journeys/U73.md), [U101](journeys/U101.md), [U134](../modules/goal-map/journeys/U134.md), [U153](journeys/U153.md), [U150](journeys/U150.md) |
@@ -370,7 +370,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.reviews-list` | the list of reviews | [U3](../modules/reviews/journeys/U3.md), [U104](../modules/reviews/journeys/U104.md), [U155](../modules/reviews/journeys/U155.md) |
 | `.rhythm-row` | the rhythm row | [U101](journeys/U101.md), [U102](journeys/U102.md) |
 | `.ring:visible` | the ring | [U12](journeys/U12.md), [U13](../modules/reviews/journeys/U13.md) |
-| `.rr-value` | the row’s sentence | [U137](journeys/U137.md) |
+| `.rr-value` | the row’s words (one sentence or more) | [U137](journeys/U137.md) |
 | `.said` | the said | [U3](../modules/reviews/journeys/U3.md) |
 | `.sc-hit, .goal-chart .c-fc, .goal-chart .c-band` | the sc hit, or the c fc in the goal chart, or the c band in the goal chart | [U44](journeys/U44.md) |
 | `.section-links` | the section links | [U70](journeys/U70.md) |
@@ -396,7 +396,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.step-panel` | the “Respond” form the row opens | [U78](journeys/U78.md) |
 | `.step-panel button[type=submit]` | the button in the “Respond” form the row opens | [U77](journeys/U77.md) |
 | `.step-row` | an ask’s row under “Next steps and asks” | [U3](../modules/reviews/journeys/U3.md), [U33](journeys/U33.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md) |
-| `.step-row.is-settled` | an answered or done row under “Next steps and asks” | [U37](journeys/U37.md), [U78](journeys/U78.md) |
+| `.step-row.is-settled` | a row under “Next steps and asks” that is no longer open (answered or done; a withdrawn ask has no row), kept however old it is | [U37](journeys/U37.md), [U78](journeys/U78.md) |
 | `.steps` | the step counter | [U5](journeys/U5.md), [U11](journeys/U11.md), [U49](../modules/reviews/journeys/U49.md), [U54](journeys/U54.md), [U147](journeys/U147.md), [U86](journeys/U86.md) |
 | `.story-row` | the story row | [U33](journeys/U33.md) |
 | `.stream > li` | an entry in the stream | [U79](../modules/reviews/journeys/U79.md) |
@@ -421,8 +421,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.weekpick-is, .weekpick-is-inline` | the weekpick is, or the weekpick is inline | [U18](journeys/U18.md) |
 | `.weekpick.open` | the open week picker | [U109](journeys/U109.md) |
 | `.welcome .btn.primary` | the main button in the welcome | [U97](journeys/U97.md) |
-| `.why-block` | the goal’s “Why” section | [U78](journeys/U78.md) |
-| `.why-block .why-pointer` | the line pointing to Next steps and asks in the goal’s “Why” section | [U78](journeys/U78.md) |
+| `.why-block` | the goal’s Why section, headed “Why” only while the goal has no check-in (after that, by what the latest one says: “Why it will miss without intervention”, “The latest word” and so on) | [U78](journeys/U78.md) |
+| `.why-block .why-pointer` | the line pointing to Next steps and asks in the goal’s Why section, headed “Why” only while the goal has no check-in (after that, by what the latest one says: “Why it will miss without intervention”, “The latest word” and so on) | [U78](journeys/U78.md) |
 | `.ws-body .btn.primary:visible` | the main button in the ws body | [U51](../modules/feedback/journeys/U51.md) |
 | `.ws-facts` | the workspace facts | [U59](journeys/U59.md), [U61](journeys/U61.md), [U62](../modules/ai-access/journeys/U62.md), [U53](../modules/feedback/journeys/U53.md) |
 | `.ws-facts a` | the link in the ws facts | [U59](journeys/U59.md) |
@@ -471,7 +471,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `input[type=file]` | the file chooser | [U5](journeys/U5.md), [U54](journeys/U54.md), [U147](journeys/U147.md) |
 | `legend` | the legend | [U135](../modules/goal-map/journeys/U135.md) |
 | `li` | the list item | [U23](journeys/U23.md) |
-| `li[data-row="who"] .rr-value` | the row’s sentence in the li | [U137](journeys/U137.md) |
+| `li[data-row="who"] .rr-value` | the row’s words (one sentence or more) in the li | [U137](journeys/U137.md) |
 | `main` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U17](journeys/U17.md), [U33](journeys/U33.md), [U36](../modules/reviews/journeys/U36.md), [U37](journeys/U37.md), [U38](journeys/U38.md), [U40](../modules/feedback/journeys/U40.md), [U41](../modules/feedback/journeys/U41.md), [U58](journeys/U58.md), [U44](journeys/U44.md), [U102](journeys/U102.md), [U154](../modules/reviews/journeys/U154.md), [U155](../modules/reviews/journeys/U155.md), [U170](../modules/metrics/journeys/U170.md) |
 | `main .backlink` | the backlink in the main | [U70](journeys/U70.md) |
 | `main .btn.primary` | the main button in the main | [U179](../modules/metrics/journeys/U179.md) |
