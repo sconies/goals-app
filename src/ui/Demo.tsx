@@ -121,7 +121,7 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
           <span className="field-label">Research</span>
           <Link className="menuitem" to="/research" onClick={onClose}><span className="stack" style={{ gap: 0 }}><span className="strong">Try it as a researcher</span><span className="tiny muted">Tasks to attempt, notes on any screen, and a report at the end</span></span></Link>
         </section>
-        {app.ws.kind === 'example' && (
+        {app.ws.kind === 'example' && mayStartOver(app.viewer, 'example') && (
           <section className="stack" style={{ gap: 4 }} aria-label="Example data">
             <span className="field-label">Example data</span>
             {resetting
