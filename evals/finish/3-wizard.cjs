@@ -31,7 +31,7 @@ const noSideScroll = async (p, where, fail) => {
 module.exports = {
   id: 'F3',
   area: 'wizard',
-  async run({ open }) {
+  async run({ open, url }) {
     const fails = [];
     const f = (m) => fails.push(m);
 
@@ -196,6 +196,44 @@ module.exports = {
         const up = ls.find((l) => /^Upper/.test(l.t)), lo = ls.find((l) => /^Lower/.test(l.t));
         if (!up || !lo) f(`(#300) the published goal’s chart doesn’t label both limits (${ls.map((l) => l.t).join(' / ') || 'no labels'})`);
         else if (up.b > lo.y) f(`(#300) on a narrow band the chart’s labels overlap: Upper ends at ${Math.round(up.b)}, Lower starts at ${Math.round(lo.y)}`);
+      }
+      await c.close();
+    }
+
+    // Deep dive, 15 Nov, item 7: in the Goals table, a range kept between two long limits stays inside Target and never
+    // runs into Gap beside it (as Lane saw it: Gap on, long values on both sides), on a wide screen and on a phone.
+    {
+      const [c, p] = await open(1280, 900, 'mateo', '/goals/new');
+      await name(p, 'Build cache requests served a day'); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p); await team(p); await cont(p);
+      await p.locator('.limits .seg').getByRole('button', { name: 'Between' }).click();
+      await p.getByLabel(/^Unit/).fill('requests');
+      await p.getByLabel('Lower limit').fill('1250000'); await p.getByLabel('Upper limit').fill('1500000');
+      await cont(p);
+      await p.getByRole('button', { name: 'Publish goal' }).click();
+      await p.waitForURL(/\/goals\/[^/?]+\?published=1/, { timeout: 10000 }).catch(() => {});
+      const goalPath = new URL(p.url()).pathname.replace(/^\/demo/, '');
+      for (const [w, h] of [[1920, 1000], [1440, 900], [390, 844]]) {
+        await p.setViewportSize({ width: w, height: h });
+        await p.goto(url('/goals?scope=all&view=table&group=none&q=Build%20cache%20requests'));
+        const row = p.locator(`.gtable tbody tr:has(a[href$="${goalPath}"])`).first();
+        await row.waitFor({ timeout: 10000 }).catch(() => {});
+        const r = await row.evaluate((tr) => {
+          const heads = [...tr.closest('table').querySelectorAll('thead th')].map((t) => t.textContent.trim());
+          const ti = heads.indexOf('Target');
+          const td = tr.children[ti];
+          if (!td || getComputedStyle(td).display === 'none') return { shown: false, heads };
+          const rg = document.createRange(); rg.selectNodeContents(td);
+          const rects = [...rg.getClientRects()];
+          const box = td.getBoundingClientRect();
+          const next = td.nextElementSibling && getComputedStyle(td.nextElementSibling).display !== 'none' ? td.nextElementSibling : null;
+          const nl = next ? (() => { const r2 = document.createRange(); r2.selectNodeContents(next); return Math.min(...[...r2.getClientRects()].map((x) => x.left)); })() : Infinity;
+          return { shown: true, heads, text: td.textContent, right: Math.max(...rects.map((x) => x.right)), left: Math.min(...rects.map((x) => x.left)), cellL: box.left, cellR: box.right, next: next ? heads[ti + 1] : null, nextLeft: nl };
+        }).catch(() => null);
+        if (!r) { f(`(7, deep dive) at ${w} the new range goal isn’t in the Goals table`); continue; }
+        if (w >= 1900 && !r.heads.includes('Gap')) f(`(7, deep dive) at ${w} the Goals table shows no Gap column`);
+        if (!r.shown) continue;
+        if (r.right > r.cellR + 0.5 || r.left < r.cellL - 0.5) f(`(7, deep dive) at ${w} the target “${r.text}” runs outside its cell (${Math.round(r.left)}–${Math.round(r.right)} in ${Math.round(r.cellL)}–${Math.round(r.cellR)})`);
+        if (r.next && r.right > r.nextLeft - 4) f(`(7, deep dive) at ${w} the target “${r.text}” runs into ${r.next}`);
       }
       await c.close();
     }

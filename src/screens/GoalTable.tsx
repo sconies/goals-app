@@ -24,13 +24,14 @@ type ColId = 'goal' | 'owner' | 'status' | 'now' | 'target' | 'gap' | 'trend';
  * have no order of their own.
  */
 /**
- * A target in the Target column: a range kept between two limits ("1,200 ms–1,500 ms") may break after its dash, each
- * limit whole, so it never runs into Gap beside it (deep dive, 15 Nov). Exported for its test.
+ * A target in the Target column: a range kept between two limits ("1,200 ms–1,500 ms") breaks after its dash first,
+ * and a limit wider than the column wraps between its number and unit, so it never runs into Gap beside it (deep dive,
+ * 15 Nov; check F3). Exported for its test.
  */
 export function TargetWords({ text }: { text: string }) {
   const at = text.indexOf('–');
   if (at < 0) return <>{text}</>;
-  return <><span className="nb">{text.slice(0, at + 1)}</span><wbr /><span className="nb">{text.slice(at + 1)}</span></>;
+  return <>{text.slice(0, at + 1)}<wbr />{text.slice(at + 1)}</>;
 }
 
 const COLS: [ColId, SortKey | null, string, string][] = [

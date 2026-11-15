@@ -277,6 +277,6 @@
 /* On the Map, room under the count line keeps the map's controls clear of the tour card (F6, Map 5 at 853×533). */
 .goals-page.full .goals-line { margin-bottom: var(--s4); }
 
-/* A range kept between two limits wraps after its dash, each limit whole, so Target never runs into Gap (deep dive, 15 Nov). */
+/* A target wraps: a range kept between two limits first after its dash, then, when a limit with its unit is wider than
+   the column ("1,250,000 requests"), between its number and unit, so Target never runs into Gap (deep dive, 15 Nov). */
 .gtable td.num.gt-target { white-space: normal; }
-.gtable td.gt-target .nb { white-space: nowrap; }
