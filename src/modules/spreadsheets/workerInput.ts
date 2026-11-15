@@ -2,7 +2,7 @@
    data both ways: the two functions in the engine's input are made on the worker's side. */
 import type { ChangeInput, ChangeSet, PlanProgress } from '../../domain/changeset';
 import type { GoalMeasure, ModuleRecords } from '../../domain/records';
-import { goalExtrasOf } from '../../core/records';
+import { goalExtrasOf, MODULE_RECORDS } from '../../core/records';
 
 /** What the page sends: the engine's input without its functions, and what measures each goal. */
 export interface CheckRequest {
@@ -10,6 +10,8 @@ export interface CheckRequest {
   measures: Record<string, GoalMeasure>;
   /** The modules on here that read their own columns on Goals (Fields), by id: their readers are loaded in the worker. */
   goalSheets?: string[];
+  /** The modules whose own sheet the file has (MI: Metrics); the worker takes their records from the build. */
+  planners?: string[];
 }
 /** What the worker sends back: progress as it goes, then the change set, or why it couldn't. */
 export type CheckReply = { type: 'progress'; progress: PlanProgress } | { type: 'items'; items: ChangeSet['items'] } | { type: 'issues'; issues: ChangeSet['issues'] } | { type: 'done'; cs: ChangeSet } | { type: 'error'; message: string };
@@ -24,6 +26,7 @@ const newId = (prefix: string) => prefix + '_' + Math.random().toString(36).slic
 export function inputOf(req: CheckRequest): ChangeInput {
   const records: ModuleRecords[] = [
     { module: 'measures', records: [], measures: (_s, goalId) => req.measures[goalId] ?? null },
+    ...MODULE_RECORDS.filter((m) => req.planners?.includes(m.module)),
   ];
   // The modules' own Goals columns, loaded here first (core/records loadGoalExtras).
   const goalSheets = goalExtrasOf(new Set(req.goalSheets ?? [])).flatMap((x) => (x.sheet ? [x.sheet] : []));

@@ -46,10 +46,11 @@ import { asksOf, requestsAfterCheckIn } from './asks';
 import { asksFollowOwner, openAsksDiff } from './askHandover';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { reportedIn, stagesFromNow } from './templates';
-import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
-import { applyModuleRows, goalMeasureOf, hasModuleRows, type ModuleGoalColumns, type ModuleRecords, type ModuleRows } from './records';
+import { headerMatch, recordsOf, parseDelimited, type CoreTableKey, type Rec, type Tables } from './sheets';
+import { applyModuleRows, goalMeasureOf, hasModuleRows, mergeModuleRows, type ModuleGoalColumns, type ModuleRecords, type ModuleRows } from './records';
+import type { SheetPlanResult } from './sheetPlan';
 import { CHUNK } from './importLimits';
-import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
+import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, sheetOrder, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, CheckInReading, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { keptReading, readingProblem, sameAtPlaces } from './reading';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
@@ -79,7 +80,7 @@ const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
     never a question. The decimal-comma Check is a file's (import spec, section 4). */
 const TYPED_ON_SCREEN: Via[] = ['bulk', 'form'];
 
-export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left';
+export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left' | 'new record' | 'record';
 export interface Item {
   sheet: Sheet;
   row: number;
@@ -118,7 +119,7 @@ export interface ChangeSet {
   needsConfirm: boolean;
   /** Ready to save: null while a Must fix or an unanswered Check remains, or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed". */ records?: { one: string; many: string; added: number; changed: number }[] };
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
@@ -197,6 +198,7 @@ export function describe(cs: Pick<ChangeSet, 'counts'>): string {
     c.stopped && `${plural(c.stopped, 'goal')} ${lower({ label: STOPPED })}`,
     c.deleted && `${plural(c.deleted, 'goal')} deleted`,
     c.left && `${plural(c.left, 'person', 'people')} ${lower({ label: LEFT })}`,
+    ...(c.records ?? []).flatMap((r) => [r.added && `${r.added} new ${r.added === 1 ? r.one : r.many}`, r.changed && `${plural(r.changed, r.one, r.many)} changed`]),
   ].filter(Boolean);
   return parts.length ? parts.join(', ') : 'No changes';
 }
@@ -244,7 +246,7 @@ function fileDiffs(file: ChangeInput['file'], changed: number, unchanged: number
   return [{ field: 'File', from: '—', to: file.name }, { field: 'Rows', from: '—', to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ''}` }];
 }
 
-const TABLE_SHEETS: [keyof Tables, 'goals' | 'plan' | 'checkIns' | 'people', Sheet][] = [['goals', 'goals', 'Goals'], ['plan', 'plan', 'Plan'], ['checkIns', 'checkIns', 'Check-ins'], ['people', 'people', 'People']];
+const TABLE_SHEETS: [CoreTableKey, 'goals' | 'plan' | 'checkIns' | 'people', Sheet][] = [['goals', 'goals', 'Goals'], ['plan', 'plan', 'Plan'], ['checkIns', 'checkIns', 'Check-ins'], ['people', 'people', 'People']];
 /** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
 function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: string) => boolean, whichOf: (sheet: Sheet, as: string, headers: string[]) => string | null): Tables {
   const out: Tables = { ...t };
@@ -285,7 +287,7 @@ function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: stri
 export interface PlanProgress { done: number; total: number; added: number; changed: number; mustFix: number }
 
 /** What a row's change counts as on the Reading panel ("So far: {a} would be added, {c} changed"). */
-const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
+const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in', 'new record']);
 const STOPS: ReadonlySet<ItemKind> = new Set<ItemKind>(['stop goal', 'delete goal', 'person left']);
 /** What a change does, as the preview groups it (spec 2.3's counts by sheet, 2.4's Show): adds, changes, or stops (or
     marks someone as left). Said once: the counts, the changes list and the progress all read it. */
@@ -297,7 +299,7 @@ export const showOf = (kind: ItemKind): ChangeShow => (ADDS.has(kind) ? 'added' 
 export function sheetCounts(cs: Pick<ChangeSet, 'items' | 'issues' | 'unchangedBy'>, sheet: Sheet): Record<ChangeShow | 'unchanged' | 'must' | 'check', number> {
   const rows = (level: 'must' | 'check') => new Set(cs.issues.filter((i) => i.sheet === sheet && i.level === level).map((i) => i.row));
   const must = rows('must');
-  const out = { added: 0, changed: 0, stopped: 0, unchanged: cs.unchangedBy[sheet], must: must.size, check: rows('check').size };
+  const out = { added: 0, changed: 0, stopped: 0, unchanged: cs.unchangedBy[sheet] ?? 0, must: must.size, check: rows('check').size };
   for (const x of cs.items) if (x.sheet === sheet && !must.has(x.row)) out[showOf(x.kind)]++;
   return out;
 }
@@ -344,6 +346,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   const leftOut: { sheet: Sheet; row: number }[] = [];
   let unchanged = 0;
   const unchangedBy: Record<Sheet, number> = { Goals: 0, Plan: 0, 'Check-ins': 0, People: 0 };
+  for (const k of Object.keys(input.tables.modules ?? {})) unchangedBy[k] = 0;
   /** A row that says what's already there. */
   const same = (sheet: Sheet) => { unchanged++; unchangedBy[sheet]++; };
   let examples = 0;
@@ -366,7 +369,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
   // Progress (rule 10): rows read so far, of every row in the file, and what the rows read so far found, counted as they come.
-  const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0);
+  const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0) + Object.values(input.tables.modules ?? {}).reduce((n, r) => n + r.length, 0);
   let done = 0, seenItems = 0, seenIssues = 0;
   const so = { added: 0, changed: 0, mustFix: 0 };
   const tick = () => ++done % CHUNK === 0;
@@ -714,6 +717,26 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
   }
   if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === 'must')) raise('required-empty', 'People', 1, '', 'Add at least one person.', { column: 'Name' });
+
+  /* ---------- a module's own sheets (MI): Metrics before goals, through the module's planner and its own rules ---------- */
+  const planned: { sheet: string; module: string; result: SheetPlanResult }[] = [];
+  for (const [sheet, recs] of Object.entries(input.tables.modules ?? {})) {
+    const owner = (input.records ?? []).find((m) => m.sheets?.some((x) => x.spec.name === sheet && x.plan));
+    const plan = owner?.sheets?.find((x) => x.spec.name === sheet)?.plan;
+    // A module that's off (or not in this build) plans nothing: its sheet was said once as not read (domain/sheets).
+    if (!owner || !plan || create) continue;
+    const rows = recs.map((r, i) => ({ r, row: rowOf(r, i) })).filter(({ r }) => !blankRow(r) && !(fold(val(r, 'action')) === 'example' && ++examples));
+    done += recs.length;
+    const x: ActionContext = { snapshot: s, cycle, week, actor, now, newId, ...(input.full ? { full: input.full } : {}), ...(input.records ? { records: input.records } : {}) };
+    const result = plan({
+      sheet, rows, x, val, has, same: () => same(sheet),
+      raise: (kind, row, name, message, extra = {}) => raise(kind, sheet, row, name, message, extra),
+      ask: (kind, row, name, message, extra) => ask(kind, sheet, row, name, message, extra),
+    });
+    planned.push({ sheet, module: owner.module, result });
+    for (const it of result.items) items.push({ sheet, row: it.row, goalId: '', goal: it.name, kind: it.act === 'added' ? 'new record' : 'record', summary: it.summary, diffs: it.diffs });
+    if (tick()) yield progress();
+  }
 
   /* ---------- goals ---------- */
   // The working set: goals as they will be after this change, by id. Wherever a goal's ID is asked for, its key will do.
@@ -1790,7 +1813,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   if (via !== 'form') for (const ch of changes) ch.diffs.push({ field: 'Via', from: '—', to: VIA_LABEL[via] });
   const corrects = (input.posts ?? []).some((p) => p.mode === 'correct');
   // Issues carry their row, in the file's order (C13): by sheet, then row. Groups (rule 6) gather them by kind.
-  issues.sort((a, b) => SHEET_ORDER.indexOf(a.sheet) - SHEET_ORDER.indexOf(b.sheet) || a.row - b.row);
+  issues.sort((a, b) => sheetOrder(a.sheet) - sheetOrder(b.sheet) || a.row - b.row);
   const counts = {
     newGoals: items.filter((x) => x.kind === 'new goal').length,
     goals: items.filter((x) => x.kind === 'goal').length,
@@ -1804,6 +1827,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     stopped: items.filter((x) => x.kind === 'stop goal').length,
     deleted: items.filter((x) => x.kind === 'delete goal').length,
     left: items.filter((x) => x.kind === 'person left').length,
+    ...(planned.length ? { records: planned.map((p) => { const mine = items.filter((x) => x.sheet === p.sheet); return { one: p.result.noun[0], many: p.result.noun[1], added: mine.filter((x) => x.kind === 'new record').length, changed: mine.filter((x) => x.kind === 'record').length }; }) } : {}),
   };
   const needsConfirm = issues.some((x) => x.kind === 'plan-question');
   // Saved only with no Must fix and every Check answered (rule 7), a reason where one is needed, and something to save.
@@ -1830,6 +1854,11 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const importId = newId('imp');
     // Every row's change carries the import's id, and the summary keeps what each record was before, so "Undo this
     // import" can put every row back (domain/removal undoImport).
+    // A module's own sheet's rows and log go in the same commit, under the same import (one Undo).
+    for (const p of planned) changes.push(...(p.result.commit.changes ?? []));
+    const moduleRowsOut = planned.reduce<ModuleRows | undefined>((m, p) => mergeModuleRows(m, p.result.commit.modules), undefined);
+    const moduleUndo = planned.flatMap((p) => p.result.undo);
+    const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
     for (const ch of changes) ch.importId = importId;
     const requestsBefore = asksOf(s);
     const summary: Change = {
@@ -1842,15 +1871,18 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         requests: [...reqOut.values()].map((r) => ({ id: r.id, before: requestsBefore.find((x) => x.id === r.id) ?? null })),
         ...(reviewsOut.size ? { reviews: [...reviewsOut.keys()].map((id) => ({ id, before: reviewsBefore.get(id) ?? null })) } : {}),
         ...(teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({ id, before: savedTeam.get(id) ?? null })) } : {}),
+        ...(moduleUndo.length ? { moduleRows: moduleUndo } : {}),
       },
     };
+    // A module's goals (a metric's gap holding its goals' numbers) after the file's own, each kept as it was for Undo.
+    for (const g of moduleGoals) summary.undo!.goals.push({ id: g.id, before: savedGoal.get(g.id) ?? null });
     result.commit = {
       ...(peopleOut.size ? { people: [...peopleOut.values()] } : {}),
       ...(teamsOut.size ? { teams: [...teamsOut.values()] } : {}),
-      goals: ordered, checkIns: ciOut,
+      goals: [...ordered, ...moduleGoals], checkIns: ciOut,
       ...(reqOut.size ? { requests: [...reqOut.values()] } : {}),
       ...(reviewsOut.size ? { reviews: [...reviewsOut.values()] } : {}),
-      ...(moduleOut && hasModuleRows(moduleOut) ? { modules: moduleOut } : {}),
+      ...((m) => (m ? { modules: m } : {}))(mergeModuleRows(moduleRowsOut, moduleOut && hasModuleRows(moduleOut) ? moduleOut : undefined)),
       changes: [...changes, summary],
     };
   }

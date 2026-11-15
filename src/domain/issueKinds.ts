@@ -17,6 +17,9 @@ export interface KindRule {
 }
 
 export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
+  // A module's own sheet (MI): the metric library's Checks, raised by its planner (modules/metrics/sheetPlan).
+  'same-number': { when: 'A Metrics row changes the meaning or source of a metric goals are measured by: is it still the same number?', raisedBy: 'The Metrics sheet’s planner (modules/metrics/sheetPlan.ts): spec/conformance/metrics.csv, rule sheet, case meaning-on-used.' },
+  'aim-changes': { when: 'A Metrics row changes the direction of a metric goals are measured by, so they would aim the other way.', raisedBy: 'The Metrics sheet’s planner (modules/metrics/sheetPlan.ts), tested in modules/metrics/sheetPlan.test.ts.' },
   // Must fix
   'required-empty': { when: 'A column a new row must have is empty: a goal’s name, owner, Start or Target, Limit or Stages for its type; a person’s name or email.' },
   'not-a-number': { when: 'A number column holds text: “six”, “12 days”, an effect that isn’t a number.' },
@@ -38,7 +41,7 @@ export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
   'not-allowed': { when: 'The person loading the file may not make the change: a goal they don’t own and aren’t an admin for, people when they aren’t an admin, a goal at a level only its owner may set.' },
   'removal-refused': { when: 'Stop with no reason, Delete on a goal with check-ins, or Left with no one to take over.' },
   'too-long': { when: 'A cell in a module’s own column on Goals longer than it holds: a field’s free text over 80 characters (TG2).', raisedBy: 'Raised by a module’s own Goals columns (src/modules/tags/sheet.ts), never by the core’s columns: its rows are the tags conformance rows (value, text-long).' },
-  loop: { when: 'A goal that would feed itself, directly or round a loop of Feeds into links.' },
+  loop: { when: 'A goal that would feed itself, directly or round a loop of Feeds into links; on the Metrics sheet, a metric whose Part of is itself or one of the metrics under it.' },
   // Check
   'near-ref': { when: 'A person, team, goal or stage name within reach of exactly one that is here (one edit under 8 folded characters, two from 8).' },
   'near-word': { when: 'A word column’s word within reach of exactly one of its words or their other spellings.' },

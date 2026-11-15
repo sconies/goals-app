@@ -19,8 +19,11 @@ export function requestOf(input: ChangeInput): CheckRequest {
   const { newId: _n, records, goalSheets: _g, ...rest } = input;
   const measures: Record<string, GoalMeasure> = {};
   for (const g of input.snapshot.goals) { const m = goalMeasureOf(records, input.snapshot, g.id); if (m) measures[g.id] = m; }
+  // A module's own sheet (Metrics) is planned by its module's records, which the worker takes from the build.
+  const sheets = Object.keys(input.tables.modules ?? {});
+  const planners = (records ?? []).filter((m) => m.sheets?.some((x) => (x.plan || x.loadPlan) && sheets.includes(x.spec.name))).map((m) => m.module);
   // The modules on here that read their own Goals columns (Fields): the worker loads their readers itself.
-  return { input: rest, measures, goalSheets: (input.goalSheets ?? []).flatMap((g) => (g.module ? [g.module] : [])) };
+  return { input: rest, measures, goalSheets: (input.goalSheets ?? []).flatMap((g) => (g.module ? [g.module] : [])), ...(planners.length ? { planners } : {}) };
 }
 
 /**
