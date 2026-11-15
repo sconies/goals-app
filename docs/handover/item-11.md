@@ -36,7 +36,7 @@ To set up (S = your scratchpad):
 | 7 Metric library + MI | metrics.csv 124/124; 16 of 22; 5 core files | 11 VERIFIED, 9 WEAK, 2 NOT MET; U81 phone fails; ~45 of 124 rows' questions learned from diffs |
 | 8 Reviews | reviews.csv 91/91 first run; 11 of 12 (U103) | 3, 4, 6–10, 12 VERIFIED; 1, 11 WEAK; 2, 5 NOT MET; real gap is the missing `attention` lead and lead order (core-only home.csv leads with attention) |
 | 9 Spreadsheets | **build was running at handover** | |
-| 10 Fields (tags) | **build was running at handover** | |
+| 10 Fields (tags) | tags.csv 25/25 (all from diffs); 8 of 14 met, 6 part; journeys 2/1/1; 6 generic core files | **not reviewed yet: run REVIEWER.md on it** |
 | 11 Watching, 12 Wrap-up; late GR, MQ, SW2, FT1 | Not started (MC deferred, Lane 14 Nov) | |
 
 **If a row above still says "running" and `drill-11-rebuild` has no folder or REVIEW.md for it, that work was lost with the old session: re-run it.** Check `git log origin/drill-11-rebuild` first; the last session saved everything it received.
