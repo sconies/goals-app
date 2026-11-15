@@ -169,7 +169,7 @@ function WhatIsRecorded() {
     <section className="block settings-block" aria-labelledby="set-rec">
       <h2 className="block-title" id="set-rec">Recording</h2>
       <p className="small" style={{ marginTop: 0 }}>{app.ws.recording !== false ? <>Recording is on in {ws}. <Link to="/workspace/privacy">What’s recorded</Link></> : <>Recording is off in {ws}. <Link to="/workspace/privacy">Privacy</Link></>}</p>
-      <p className="hint">A visit’s last steps stay in your browser’s memory either way, and leave it only in a markup you send with them included.</p>
+      <p className="hint">A visit’s last steps and errors stay in your browser’s memory either way, and leave it only in a markup you send with them included.</p>
     </section>
   );
 }
