@@ -35,7 +35,7 @@ To set up (S = your scratchpad):
 | 6 Goal map | 4 of 4 (journeys only partly); 3 core files | 3, 4 VERIFIED; 1 WEAK; 2 NOT MET |
 | 7 Metric library + MI | metrics.csv 124/124; 16 of 22; 5 core files | 11 VERIFIED, 9 WEAK, 2 NOT MET; U81 phone fails; ~45 of 124 rows' questions learned from diffs |
 | 8 Reviews | reviews.csv 91/91 first run; 11 of 12 (U103) | 3, 4, 6–10, 12 VERIFIED; 1, 11 WEAK; 2, 5 NOT MET; real gap is the missing `attention` lead and lead order (core-only home.csv leads with attention) |
-| 9 Spreadsheets | **build was running at handover** | |
+| 9 Spreadsheets | 14 of 14; journeys 9/4/4; 4 core files incl. 5 engine fixes import.csv doesn't cover | **not reviewed yet: run REVIEWER.md on it** |
 | 10 Fields (tags) | tags.csv 25/25 (all from diffs); 8 of 14 met, 6 part; journeys 2/1/1; 6 generic core files | **not reviewed yet: run REVIEWER.md on it** |
 | 11 Watching, 12 Wrap-up; late GR, MQ, SW2, FT1 | Not started (MC deferred, Lane 14 Nov) | |
 
@@ -56,7 +56,7 @@ Modules now build on the core's platform, but each still changes 3 to 8 core fil
 7. Two follow-ups from #543's body: fully portable journeys (about 500 class names) and 18 screens.md buttons without words.
 
 ## Next steps
-1. Collect any results from the old session that didn't land (see above); re-run what's missing: reviews of 5 and 8, builds and reviews of 9 and 10.
+1. Review modules 9 and 10 with REVIEWER.md (both built and saved, not yet reviewed).
 2. Build 11 (Watching) and 12 (Wrap-up), each with a review. Then the late ones.
 3. Write the kit PR for the pattern above, gap by gap against `drill-11-rebuild`'s GAPS and REVIEW files; verify each against the code; merge when green; send to the reviewer.
 4. Re-pin to main after it merges and re-run stage 3, then each module; aim for few or no core changes and many more journeys DONE.
