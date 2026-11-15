@@ -22,6 +22,14 @@ import { heldByLink, measurementProblems, measurementWords } from './rulesMeasur
 import { CONFIDENCE_WORDS, LEVEL_WORDS, structured, structureProblems } from './rulesStructure';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
+import { calcWords, flagOldSource, qualityChanges, qualityProblems, windowWords } from './rulesQuality';
+import type { MetricCalc } from './types';
+
+/** A calculation in full, for the change log: its two fields and each part's counts, filters and exclusions. */
+export const calcText = (c: MetricCalc): string => {
+  const part = (label: string, p?: { counts: string; filters: string; excludes: string }) => (p ? `${label}: counts ${p.counts || '—'}; filters ${p.filters || '—'}; leaves out ${p.excludes || '—'}` : '');
+  return [calcWords(c), part('Counts', c.part), part('Numerator', c.numerator), part('Denominator', c.denominator), c.formula ? `Formula: ${c.formula}` : ''].filter(Boolean).join('. ');
+};
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
 
 /** The module's id, and the keys its records are filed under (records.ts). */
@@ -61,7 +69,7 @@ export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 
 
 /** What someone gives to add or change a metric: everything but the bookkeeping. Left out, a field keeps its value
     (a new metric: empty text, 0 decimals, no refresh, owned by whoever adds it). */
-export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming'>>;
+export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming' | 'calculation' | 'window' | 'sourceLink' | 'sourceQuery' | 'sourceOwnerId' | 'refreshNote' | 'verifiers'>>;
 
 /* ---------- reading ---------- */
 
@@ -74,7 +82,7 @@ export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, '
   return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
 }
 /** A chart's label for a mark (spec 2.7). */
-export const markLabel = (m: { kind: 'definition' | 'direction'; week: number }) => `${m.kind === 'direction' ? 'Direction' : 'Definition'} changed, week ${m.week}`;
+export const markLabel = (m: { kind: 'definition' | 'direction' | 'source'; week: number }) => `${m.kind === 'direction' ? 'Direction' : m.kind === 'source' ? 'Source' : 'Definition'} changed, week ${m.week}`;
 /** Whether any goal has ever been measured by a metric, in force or not (rule 5): such a metric is retired, not deleted. */
 export const everUsed = (metricId: string, links: readonly Pick<MetricLink, 'metricId'>[]) => links.some((l) => l.metricId === metricId);
 /** A live metric by id, or by name (any case). */
@@ -147,7 +155,45 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
     ...(before?.removedAt ? { removedAt: before.removedAt, removedBy: before.removedBy ?? null } : {}),
     ...(before?.retiredAt !== undefined ? { retiredAt: before.retiredAt, retiredBy: before.retiredBy ?? null, retiredWhy: before.retiredWhy ?? '', replacedBy: before.replacedBy ?? null } : {}),
     ...(before?.marks ? { marks: before.marks } : {}),
+    // MQ2 (rulesQuality.ts): each only when said; what the save itself keeps (verification, baselines, lapse…) carries over.
+    ...qualityFrom(input, before, x),
   };
+}
+
+/** Whether a metric stands Verified now (verified, under 12 months, not a Gap), whatever its other parts say. */
+export const standsVerified = (m: Pick<Metric, 'verification' | 'measurement'>, now: string) =>
+  !!m.verification && m.verification.outcome === 'verified' && m.measurement !== 'gap' && now < new Date(new Date(m.verification.at).setUTCMonth(new Date(m.verification.at).getUTCMonth() + 12)).toISOString();
+
+/** MQ2's fields as they would be saved: those typed, the rest as they were. */
+function qualityFrom(input: MetricInput & { reason?: string }, before: Metric | null, x: Pick<ActionContext, 'actor' | 'now'>): Partial<Metric> {
+  const pick = <K extends keyof Metric>(k: K) => (k in input && (input as Record<string, unknown>)[k] !== undefined ? (input as Partial<Metric>)[k] : before?.[k]);
+  const q: Partial<Metric> = {};
+  const calc = pick('calculation'); if (calc) q.calculation = calc;
+  const w = pick('window'); if (w) q.window = w;
+  for (const k of ['sourceLink', 'sourceQuery', 'refreshNote'] as const) { const v = clean(pick(k) as string); if (v) q[k] = v; }
+  const so = pick('sourceOwnerId'); if (so) q.sourceOwnerId = so;
+  const vs = pick('verifiers'); if (vs?.length) q.verifiers = [...new Set(vs)];
+  if (before) for (const k of ['calcChangedBy', 'calcChangedAt', 'baselines', 'verification', 'verifyAttempts', 'lapse', 'handover', 'toConfirm'] as const) if (before[k] != null) (q as Record<string, unknown>)[k] = before[k];
+  // What the change does to Verified (rulesQuality.ts qualityChanges): whoever changes the calculation, window or source
+  // may not verify it; a lapsing change takes Verified back to Defined, with the reason kept; a reworded filter or
+  // exclusion asks the last verifier to confirm; a new source flags the baselines taken from the old one.
+  const after = { ...(before ?? {}), ...q, direction: (input.direction ?? before?.direction) as Metric['direction'], source: clean(input.source !== undefined ? input.source : before?.source ?? '') } as Metric;
+  if (!before) {
+    if (q.calculation || q.window || q.sourceLink) { q.calcChangedBy = x.actor.id; q.calcChangedAt = x.now; }
+    return q;
+  }
+  const ch = qualityChanges(before, after);
+  if (ch.calcChanged) { q.calcChangedBy = x.actor.id; q.calcChangedAt = x.now; }
+  const v = before.verification;
+  if (v && ch.lapses.length && standsVerified(before, x.now)) {
+    delete q.verification;
+    delete q.toConfirm;
+    q.lapse = { at: x.now, by: x.actor.id, kind: 'change', what: ch.lapses, why: (input.reason ?? '').trim(), was: { by: v.by, at: v.at } };
+  } else if (v && ch.confirm.length && standsVerified(before, x.now)) {
+    q.toConfirm = { verifier: v.by, by: x.actor.id, at: x.now, what: ch.confirm };
+  }
+  if (ch.sourceChanged && q.baselines?.length) q.baselines = flagOldSource(q.baselines);
+  return q;
 }
 
 /**
@@ -175,6 +221,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   if (!s.people.some((p) => p.id === m.ownerId)) out.push('The metric’s owner isn’t in this workspace.');
   out.push(...measurementProblems(m));
   out.push(...structureProblems(m, { metrics: metricsOf(s) }));
+  out.push(...qualityProblems(m, s.people));
   for (const [k, label] of [['meaning', 'meaning'], ['source', 'source'], ['sourceOwner', 'source’s owner'], ['caveats', 'caveats']] as const) {
     if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString('en-GB')} characters or fewer.`);
   }
@@ -203,6 +250,14 @@ export function metricFields(m: Metric, s: { people: Person[]; modules?: ModuleR
     'How it relates': m.level ? LEVEL_WORDS[m.level].label : '—',
     Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : '—',
     'How it could be gamed': m.gaming || '—',
+    // MQ2: the structured definition, so a save that changes only these is logged.
+    Calculation: m.calculation ? calcText(m.calculation) : '—',
+    Window: m.window ? windowWords(m.window) : '—',
+    'Source link': m.sourceLink || '—',
+    Query: m.sourceQuery || '—',
+    'Source owner in Faro': m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? (s as { teams?: { id: string; name: string }[] }).teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? '—' : '—',
+    'When it refreshes': m.refreshNote || '—',
+    Verifiers: (m.verifiers ?? []).map((v) => s.people.find((p) => p.id === v)?.name ?? '—').join(', ') || '—',
   };
 }
 
