@@ -1,0 +1,12 @@
+{
+  "U24": {
+    "verdict": "DONE",
+    "steps": [
+      4,
+      4
+    ],
+    "budget": 8,
+    "passes": 3,
+    "fails": []
+  }
+}
