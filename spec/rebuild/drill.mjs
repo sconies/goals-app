@@ -14,7 +14,8 @@
      (in a folder of its own) and the path of a folder to write into (<rebuild folder>/drill-out, emptied first). The command writes the
      stage's files there (stage 1: status.csv, flags.csv, projection.csv, scorecard.csv and checkin.csv), with the columns
      spec/conformance/README.md lists, and exits 0. Beside the copy of workspace.json is change-cases.json: stage 2's
-     cases, input only (who loads which rows into which sheet, the answers, what each starts from).
+     cases, input only (who loads which rows into which sheet, the answers, what each starts from), and screen-cases.json:
+     stage 3's, input only (the addresses and viewers, the searches, the drafts read back, Home's viewers and days).
    The edge-case workspace (spec/conformance/edge, its README section says it in full): whenever any of stage 1's files
    is scored, the harness runs <command> a second time, on a copy of edge/workspace.json, writing into
    <rebuild folder>/drill-out/edge, and scores the same files from it against spec/conformance/edge (as edge/status.csv
@@ -32,7 +33,8 @@
    item and a page's name), import.csv (the change engine's kinds, levels and sentences), changes.csv (what a change set
    would save: its counts, and each item with its fields before and after), readback.csv (New goal's
    read-back, stage 3) and home.csv (Home's lead or quiet line) are not part of stage 1,
-   nor is metrics.csv (the metric library's rules 1 to 3, stage 4): beyond a stage's own files, each is scored only when
+   nor is metrics.csv (the metric library's rules 1 to 3, stage 4), nor any other module's file (module-files.json lists
+   each with its key columns: reviews.csv, tags.csv, watching.csv…): beyond a stage's own files, each is scored only when
    drill.json lists it under "also" ({ "stage": 1, "run": "…", "also": ["find", "goals", "metrics"] }) or --files names it.
 
    Options:
@@ -342,9 +344,13 @@ async function main(argv) {
     else { console.error(`Unknown argument: ${a}`); return 2; }
   }
   if (!opt.target) { console.error('Usage: npm run drill -- <rebuild folder> [--files status,flags] [--diffs 10] (or node spec/rebuild/drill.mjs <rebuild folder>)'); return 2; }
+  const expectedDir = opt.expected ? path.resolve(opt.expected) : defaultExpected();
+  // The feature modules' own files (reviews.csv, tags.csv, watching.csv…), each with its key columns, as the conformance
+  // data lists them in module-files.json: scored like metrics.csv when "also" or --files names them.
+  const mf = path.join(expectedDir, 'module-files.json');
+  if (fs.existsSync(mf)) for (const [name, keys] of Object.entries(JSON.parse(fs.readFileSync(mf, 'utf8')))) { if (!ALSO.includes(name)) ALSO.push(name); KEYS[name] = keys; }
   const bad = (opt.files ?? []).filter((f) => !FILES.includes(f) && !ALSO.includes(f));
   if (bad.length) { console.error(`--files takes ${[...FILES, ...ALSO].join(', ')}; not ${bad.join(', ')}`); return 2; }
-  const expectedDir = opt.expected ? path.resolve(opt.expected) : defaultExpected();
   if (!expectedDir || !fs.existsSync(path.join(expectedDir, 'workspace.json'))) { console.error('Can’t find the conformance data (spec/conformance/workspace.json). Pass --expected <folder>.'); return 2; }
   const target = path.resolve(opt.target);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) { console.error(`No folder at ${target}`); return 2; }
@@ -370,7 +376,9 @@ async function main(argv) {
     fs.copyFileSync(path.join(expectedDir, 'workspace.json'), workspace);
     // Stage 2's cases, input only (the rows, who loads them, the answers, what they start from), beside it: a rebuild
     // reads its cases from here, never from the expected files.
-    if (fs.existsSync(path.join(expectedDir, 'change-cases.json'))) fs.copyFileSync(path.join(expectedDir, 'change-cases.json'), path.join(path.dirname(workspace), 'change-cases.json'));
+    // Stage 3's, the screens' cases (screen-cases.json: the addresses, the searches, the drafts, Home's viewers and days),
+    // likewise.
+    for (const f of ['change-cases.json', 'screen-cases.json']) if (fs.existsSync(path.join(expectedDir, f))) fs.copyFileSync(path.join(expectedDir, f), path.join(path.dirname(workspace), f));
     const cmd = `${m.run} ${quote(workspace)} ${quote(outDir)}`;
     say(`Running in ${target}:\n  ${cmd}`);
     const t0 = Date.now();
