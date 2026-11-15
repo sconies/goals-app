@@ -1,38 +1,31 @@
-# Planning: handover (Sunday 15 November, ~10:45 UTC)
+# Planning: handover (Sunday 15 November, ~16:10 UTC)
 
 Planning was session_012kbr91eefh4gwCAztBncNT. It was opened on the home folder rather than the repository, so `.claude/settings.json` never loaded and every session start asked Lane for approval. **Start the next planning session on the `sconies/goals-app` repository.** Session IDs below were current at handover; run `list_sessions` to confirm them.
 
-## The plan to the handoff (Lane)
+## Where it stands: the plan to the handoff is done
 
-Only **item 11** is left: the full drill, then the doc rewrites. Everything else is parked until after the handoff. That covers PF1–PF2, every review low, MC, FT4, WM, 0c2, 0t, 3a, track 3's leftovers and "Bugs found by the drill (15 Nov)" in the backlog.
+**Item 11 is complete** (#512, #550, #551 merged, 15 Nov). The drill rebuilt the core and all nine modules on a generic stand-in platform (Node http, SQLite, its own sign-in, a stub single sign-on). It had the kit, the running app and the code, and was time-boxed to one pass per stage (Lane, 15 Nov).
 
-**Item 11, redefined by Lane on 15 Nov.** These decisions replace the kit-only drill:
+- `src/domain` and every module's own code ported unchanged. The core rewired 4 Faro files (11 lines) and added about 1,900 platform lines. Modules added 1–905 lines each, mostly server-side checks on their own records. Every module was proved on, off and left out.
+- **Main finding:** on a plain row store, an ordinary member could forge records in most modules until each added its own server check. R1 now says the platform must check every record kind against stored rows. Its "Record kinds the server checks" table says what Faro does, with "A rebuild should also check" in its own column (#551).
+- The write-up is `docs/drill/2026-11-full-drill.md`. `docs/handoff.md`, README and architecture were rewritten from it (#512). `docs/handover/item-11.md` describes the finished state.
+- **Lane's to-do:** paste the GitHub description into the repository's About box: "Faro: a goals (OKR) tool built as a model for an internal team to copy, with its spec, rebuild kit and a demo that needs no sign-in."
 
-- **Time-boxed.** One pass per stage, with no further rounds of kit fixes to chase scores. Note gaps; fix only one-line kit corrections.
-- **The internal team will have the code.** Their problem is rebuilding Faro on their own platform (sign-in and single sign-on, data store, hosting), not on Supabase and Vercel. So the rebuild session gets everything: the kit (`spec/` and `llms.txt`), the running app with its demo, and the code.
-- **Target: a generic stand-in platform** (Lane's pick). A plain stack with no Supabase and no Vercel: its own simple sign-in, an ordinary database behind a plain server, and a stub single sign-on.
-- **What it measures, per stage:**
-  - what ports as-is (`src/domain`);
-  - what has to be rewired to the platform, and how much;
-  - anything Faro needs from the platform that the spec doesn't name;
-  - which rules and conformance rows work on the new platform. Journeys are secondary.
-- **The running app is part of the handoff**, as a reference beside the kit and the code. The handoff docs give its URL and how to sign in to the demo.
-- **Then:** the write-up (`docs/drill/2026-11-full-drill.md`, `docs/handoff.md`), the README, handoff and architecture rewrites, a one-line GitHub description for Lane, and #512 out of draft.
+Nothing is planned beyond this. Everything else waits in the backlog: "Deferred to after the handoff", "Bugs found by the drill (15 Nov)" and the rest. Build only what Lane picks.
 
 ## Open sessions
 
 | Role | Session | State |
 |---|---|---|
-| Item 11 (fifth session) | session_012kbr91AwXu7nDeXjiXt5Q7 | Briefed on the redefinition above. #548 (fixes for #547's three mediums) merged. Next: rewrite the drill brief, BUILDER.md and REVIEWER.md for the stand-in platform, then the core and each module. Reports to planning when done or blocked. Its handover lives in `docs/handover/item-11.md` on `drill-item-11` (#512). |
-| Build reviewer (Fable) | session_012kbr8yEo9vztTkpARWNy66 (fresh 05:57, 15 Nov) | Main reviewed to 6e41c494 (#547); #548 is next. No highs or mediums open apart from #547's, which #548 should close. Hands over after about 20 PRs or 300k tokens. Its note is `docs/handover/reviewer.md` on `build-reviews`. |
+| Build reviewer (Fable) | session_012kbr8yEo9vztTkpARWNy66 | Reviewing #551. No highs open. It can be closed once it reports. Restart it only if building starts again. |
 
-All other tracks are finished and stopped (tracks 1, 2, 3, 4 and 7d, the import fixes and the main fixer). Close them if they still show.
+No build sessions are running.
 
 ## What happened on 15 Nov
 
 - **Track 3** handed over. A Sonnet tail session landed #534 (the reviewer's #520 high and mediums). #541 closed the two remaining mediums.
 - **#546** fixed the U159 and U109 flakes: a focus hand-back race in Pick and WeekPick. U67 and P4 were single misses with other causes. Check the next full runs on main (rolling issue #540).
-- **Item 11** merged #536, #537, #539, #543, #544, #547 and #548. Every stage 3–12 was rebuilt once on the kit-only framing, which Lane has now replaced (see above).
+- **Item 11** merged #536–#551. It ran kit-only first, then on the stand-in platform after Lane's redefinition.
 - **Vercel previews** are off on the orphan drill branch `drill-11-rebuild` (vercel.json). Future drill branches need the same.
 - The old planning session of 12 Nov (session_012kbr939zneZWtAo7UQEHRP) is archived.
 
@@ -48,7 +41,7 @@ All other tracks are finished and stopped (tracks 1, 2, 3, 4 and 7d, the import 
 
 ## Waiting for Lane
 
-Nothing.
+The GitHub About description (above). Nothing else.
 
 ## Habits
 
