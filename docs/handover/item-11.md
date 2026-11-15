@@ -34,7 +34,7 @@ To set up (S = your scratchpad):
 | 5 Feedback | 5 of 5 (FEEDBACK-RAISED part); journeys 5/4/0; 5 core files | **review was running at handover** (see below) |
 | 6 Goal map | 4 of 4 (journeys only partly); 3 core files | 3, 4 VERIFIED; 1 WEAK; 2 NOT MET |
 | 7 Metric library + MI | metrics.csv 124/124; 16 of 22; 5 core files | 11 VERIFIED, 9 WEAK, 2 NOT MET; U81 phone fails; ~45 of 124 rows' questions learned from diffs |
-| 8 Reviews | reviews.csv 91/91 first run; 11 of 12 (U103 vs Home rule 5) | **review was running at handover** |
+| 8 Reviews | reviews.csv 91/91 first run; 11 of 12 (U103) | 3, 4, 6–10, 12 VERIFIED; 1, 11 WEAK; 2, 5 NOT MET; real gap is the missing `attention` lead and lead order (core-only home.csv leads with attention) |
 | 9 Spreadsheets | **build was running at handover** | |
 | 10 Fields (tags) | **build was running at handover** | |
 | 11 Watching, 12 Wrap-up; late GR, MQ, SW2, FT1 | Not started (MC deferred, Lane 14 Nov) | |
@@ -50,7 +50,10 @@ Modules now build on the core's platform, but each still changes 3 to 8 core fil
 3. **Journeys:** several set up through the browser's own store or a fake Supabase the kit never describes; journey runners exit 0 when nothing runs. The kit should say how a journey seeds data on a server rebuild, and the BUILDER brief should require a runner that fails when no journey ran.
 4. **Inputs only in expected files:** find asks, Metrics sheet and `measured` rows (stage 7), tags.csv cases (stage 10). Put inputs in the kit.
 5. **Contradictions:** U103's Home lead with Reviews off vs Home rule 5 (stage 8, G11; check the reviewer's verdict); `list_feedback` and triage access (stage 5); leave-out by name vs Ref and near-header casing (stage 9, old run).
-6. Two follow-ups from #543's body: fully portable journeys (about 500 class names) and 18 screens.md buttons without words.
+6. **The reviewer's two mediums on #543 (planning, 15 Nov; evidence in #543's section on `build-reviews`, 5a203c87), yours, in the next kit PR:**
+   - `scripts/drill.mjs` now skips a contract that drill.json names but the folder lacks, and passes: `"contracts": ["Store"]` (folder has `store`) used to stop with exit 2, now prints "Not run: contract Store" and PASSES, `--json` says pass: true. Restore the failure whenever the folder has `contracts/` but not that one; let through only a folder with no `contracts/` at all (core-only).
+   - Five new sentences in `src/spec/journeySteps.ts` (PIECES and JOURNEY_SET_UP) say what Faro doesn't do: the read-back has a row per topic, not per sentence; `.why-block` is headed "Why" only when there's no check-in; U78's ns-lead has one goal feeding it, not two; "settled" means every non-open row, kept eight weeks; lead-rollback's check-in in U122 is 10 Nov, not that morning.
+7. Two follow-ups from #543's body: fully portable journeys (about 500 class names) and 18 screens.md buttons without words.
 
 ## Next steps
 1. Collect any results from the old session that didn't land (see above); re-run what's missing: reviews of 5 and 8, builds and reviews of 9 and 10.
