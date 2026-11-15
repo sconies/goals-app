@@ -39,6 +39,10 @@ import { ALWAYS_ON } from './alwaysOn';
 import { EDGE_GOALS, EDGE_NOTES, edgeWorkspace } from './edge';
 import { goalsQueryPage } from './goalsQuery';
 import { HOW_TO_READ, journeyDocs, journeyPage, partsAndDays, type JourneyDoc } from './journeySteps';
+import { checkDoc, checkPage } from './checkPages';
+
+/** The F and N checks that have a page of their own (src/spec/checkPages.ts), set as the spec is built. */
+let CHECK_PAGES = new Set<string>();
 import { CORE_HOOKS, CORE_SPOTS, modulePlatformPage } from './modulePlatform';
 
 /** The files of the no-rhythm conformance set (FT1, spec 8). */
@@ -311,7 +315,7 @@ function journeys(r: Repo, mods: ModuleFacts[], docs: Map<string, JourneyDoc>): 
     out.push(table(kind === 'journey' ? ['Id', 'Journey', 'Who', 'Requirements', 'Budget', 'Where'] : ['Id', 'Check', 'Requirements', 'Where'], list.map((c) => {
       const j = ranked.get(c.id);
       return kind === 'journey'
-        ? [docs.has(c.id) ? `[${c.id}](journeys/${c.id}.md)` : c.id, cell(c.title), cell(j?.who ?? ''), c.reqs.map((x) => `\`${x}\``).join(' '), c.budget != null ? String(c.budget) : '', `\`${c.file}\``]
+        ? [docs.has(c.id) || CHECK_PAGES.has(c.id) ? `[${c.id}](journeys/${c.id}.md)` : c.id, cell(c.title), cell(j?.who ?? ''), c.reqs.map((x) => `\`${x}\``).join(' '), c.budget != null ? String(c.budget) : '', `\`${c.file}\``]
         : [c.id, cell(c.title), c.reqs.map((x) => `\`${x}\``).join(' '), `\`${c.file}\``];
     })), '');
   }
@@ -407,7 +411,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '## Journeys and checks',
     '',
     ...(m.journeys.some((id) => docs.has(id)) ? ['Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).', ''] : []),
-    table(['Id', 'What', 'Where'], m.journeys.map((id) => { const c = all.find((x) => x.id === id); return [docs.has(id) ? `[${id}](journeys/${id}.md)` : id, cell(c?.title ?? '(not found)'), c ? `\`${c.file}\`` : '']; })),
+    table(['Id', 'What', 'Where'], m.journeys.map((id) => { const c = all.find((x) => x.id === id); return [docs.has(id) || CHECK_PAGES.has(id) ? `[${id}](journeys/${id}.md)` : id, cell(c?.title ?? '(not found)'), c ? `\`${c.file}\`` : '']; })),
     '',
     '## Help',
     '',
@@ -629,6 +633,15 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   // The change engine's page also has its every sentence, its fields and its log's words, read from the code (stage 2).
   for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText, rule.id === 'change-engine' ? changeEngineSections(root, w) : []);
   const owned = new Set(mods.flatMap((m) => m.journeys));
+  // The F and N checks in words (drill 11: F6, F7, F8, F17, N5 had no steps): a page each, beside the journeys.
+  const checkList = checks(r).filter((x) => !docs.has(x.id) && /^evals\/(finish|notes)\//.test(x.file));
+  CHECK_PAGES = new Set(checkList.map((x) => x.id));
+  for (const x of checkList) {
+    const m = mods.find((y) => y.journeys.includes(x.id));
+    const doc = checkDoc(r, x.id, x.file, x.title);
+    if (m) out[`spec/modules/${m.id}/journeys/${x.id}.md`] = checkPage(doc, '../../../', `the ${m.name} module ([its section](../README.md#journeys-and-checks))`);
+    else out[`spec/core/journeys/${x.id}.md`] = checkPage(doc, '../../', 'the core ([the journeys](../journeys.md))');
+  }
   for (const j of docs.values()) if (!owned.has(j.id)) out[`spec/core/journeys/${j.id}.md`] = journeyPage(j, '../../', 'the core ([the journeys](../journeys.md)); it runs with every module on, and the core journeys run again with each module left out');
   for (const m of mods) {
     const own = RULE_LIST.filter((x) => x.module === m.id);

@@ -45,8 +45,8 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | [U90](journeys/U90.md) | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
 | [U103](journeys/U103.md) | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
 | [U164](journeys/U164.md) | Amara switches Watching off: Features is in its groups, the read-back counts the watches kept, then Goals has no Watching tab, Home no “Goals you watch”, a goal no Watch button, /watching says it is off, and switching it back on brings every watch back | `evals/journeys.cjs` |
-| F1 | Fit and finish, home-watching | `evals/finish/1-home-watching.cjs` |
-| N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
+| [F1](journeys/F1.md) | Fit and finish, home-watching | `evals/finish/1-home-watching.cjs` |
+| [N22](journeys/N22.md) | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
 ## Help
 

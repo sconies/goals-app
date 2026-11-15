@@ -52,10 +52,10 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | [U90](journeys/U90.md) | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
 | [U95](journeys/U95.md) | The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template | `evals/journeys.cjs` |
 | [U96](journeys/U96.md) | Leave a row out and save the rest: as Amara, a file with one goal that has no owner offers “Leave this row out and save the rest”; the sheet names the row and why; left out, the focus goes to Save, the rest saves, and Imported says 1 row was left out and offers it as a download | `evals/journeys.cjs` |
-| F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
-| F8 | Fit and finish, sheets | `evals/finish/8-sheets.cjs` |
-| F17 | The import’s preview on a phone: nothing scrolls sideways, every answer and button is 44 px high, Import’s primary action is on the first screen | `evals/finish/17-import.cjs` |
-| N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
+| [F7](journeys/F7.md) | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
+| [F8](journeys/F8.md) | Fit and finish, sheets | `evals/finish/8-sheets.cjs` |
+| [F17](journeys/F17.md) | The import’s preview on a phone: nothing scrolls sideways, every answer and button is 44 px high, Import’s primary action is on the first screen | `evals/finish/17-import.cjs` |
+| [N5](journeys/N5.md) | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
 | [U72](journeys/U72.md) | One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it; Import’s check and its changes have one too, which goes back to Import | `evals/journeys.cjs` |
 
 ## Help
