@@ -170,6 +170,14 @@ export function headerMatch(kind: SheetKind, header: string): { how: HeaderHow; 
   return { how: 'unknown', as: null };
 }
 
+/** The core Goals column a name is read as (its own header or another name the field table gives it, folding case,
+    accents and punctuation: "owner", "Équipe"… as their columns), or null. A module's own Goals column can't take such a
+    name, or the sheet would have two columns read the same way (TG2 review: Fields' fieldProblem). */
+export const coreGoalsColumn = (name: string): string | null => {
+  const m = headerMatch('goals', name);
+  return (m.how === 'exact' || m.how === 'also') && m.as ? m.as.charAt(0).toUpperCase() + m.as.slice(1) : null;
+};
+
 /** A header cell any sheet reads, as that sheet's column name ("Goal name" → Goal); null when no sheet reads it. */
 const anyName = (cell: string): string | null => {
   const f = fold(cell);

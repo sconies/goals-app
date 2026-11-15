@@ -27,7 +27,7 @@ const help: Article[] = [
       { heading: 'Finding goals by a field', list: [
         'Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.',
         'The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.',
-        'A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort, filter or edit like any other.',
+        'A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort or filter by. To change values there, change them on each goal’s page, or in an exported Goals sheet loaded back.',
       ] },
       { heading: 'In a spreadsheet', list: [
         'Every export’s Goals sheet has a column for each field, headed with its name: the goal’s value, or empty for none.',
