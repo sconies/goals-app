@@ -91,6 +91,6 @@ Faro was built in about a week by many AI sessions working side by side (`docs/r
 In backlog order (8g and 0c are done: drill 1's gaps are closed, and Faro keeps to its own schema, `faro`, in a shared project rather than a project of its own):
 
 1. **AX:** the architecture readiness review's items (`docs/reviews/2026-11-11-architecture-readiness.md`): every change through the dispatcher (AX2), the query port's first cut (AX5), a stale save run again (AX6), the database as it is in the kit (AX8), browser state behind the ports (AX9).
-2. **11:** the full drill is done (15 November): Faro was moved onto a stand-in platform, core first and then each of nine modules, and its report is `docs/drill/2026-11-full-drill.md`. Still to do: the kit's R1 section on the record kinds the server checks (the kit PR), and the larger gaps the report lists (a shared row-check function, the browser-to-server API, per-module schema files), which are on the backlog.
+2. **11:** the full drill is done (15 November): Faro was moved onto a stand-in platform, core first and then each of nine modules, and its report is `docs/drill/2026-11-full-drill.md`. Still to do: the kit's R1 section on the record kinds the server checks (the kit PR), and the larger gaps the report lists (a shared row-check function, the browser-to-server API, per-module schema files), which planning places on the backlog.
 
 This page is written by hand. Keep it in step when one of those items ships; `src/docPaths.test.ts` checks that every file it names exists.
