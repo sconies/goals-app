@@ -25,7 +25,7 @@ const help: Article[] = [
       { heading: 'What’s sent', list: [
         'The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.',
         'Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.',
-        'Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.',
+        'Only if you tick to include them: your last 20 steps on this visit (the pages you opened and the buttons you pressed, never what you typed) and any errors or saves that didn’t go through. The form lists them first, and the box starts unticked.',
         'In the demo, markups are sent too, marked as from the demo. Anyone can read them in the inbox on Workspace, picture included: Faro holds no real data, so nothing on your screen should be private.',
       ] },
     ],

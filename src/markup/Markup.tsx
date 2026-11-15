@@ -11,7 +11,7 @@ import { appRouteFor, latestNewsId } from '../help/lookup';
 import { recentProblems, recentSteps, telemetry } from '../telemetry';
 import { captureScreen, type Capture } from './capture';
 import { HALO, HALO_WIDTH, INK, WIDTH, arrowHead, makePictures, noteLabel, penPath, type Pictures } from './ink';
-import { MOODS, PIN, STEPS_MAX, buildMarkup, stepText, partsUnder, strokeBox, type Mood, type Pt, type Stroke, type Tool } from './model';
+import { MOODS, PIN, STEPS_MAX, buildMarkup, problemText, stepText, partsUnder, strokeBox, type Mood, type Pt, type Stroke, type Tool } from './model';
 import { newMarkupId, sendMarkup } from './backend';
 
 const TOOLS: { id: Tool; label: string; key: string }[] = [
@@ -82,6 +82,8 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
   // The steps start unticked, and are shown before sending (Lane, 15 Nov): they go only when chosen.
   const [steps, setSteps] = useState(false);
   const [visit, setVisit] = useState<ReturnType<typeof recentSteps>>([]);
+  // The visit's errors and failed saves go with the steps, under the same box (Lane, 15 Nov).
+  const [problems, setProblems] = useState<ReturnType<typeof recentProblems>>([]);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pics, setPics] = useState<(Pictures & { preview: string }) | null>(null);
@@ -154,6 +156,7 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
     if (!cap) return;
     setNote(null); setDraft(null);
     setVisit(recentSteps().slice(-STEPS_MAX));
+    setProblems(recentProblems());
     setPhase('send');
     setPics(await makePictures(cap.image, strokes, cap.width, cap.height, cap.scale));
   }, [cap, strokes]);
@@ -218,7 +221,7 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
         id, line, mood, includeSteps: steps, strokes, parts: cap.parts, pathname, search, route: appRouteFor(pathname) ?? pathname,
         workspace: { id: app.ws.id, name: app.ws.name }, demo: app.mode === 'demo', person: { id: app.viewer.id, name: app.viewer.name },
         context: { viewport: { w: cap.width, h: cap.height, dpr: Math.round((window.devicePixelRatio || 1) * 100) / 100 }, theme: dark ? 'dark' : 'light', themeChoice: look.theme, accent: look.accent, appVersion: latestNewsId() ?? 'unknown', sessionId: telemetry.sessionId, userAgent: navigator.userAgent.slice(0, 200), host: location.host },
-        steps: visit, errors: recentProblems(), pictures: ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'], now: app.stamp(),
+        steps: visit, errors: problems, pictures: ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'], now: app.stamp(),
       });
       await sendMarkup(m, pics);
       app.toast('Sent. You’ll hear when it’s fixed.');
@@ -230,7 +233,6 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
   };
 
   const shown = useMemo(() => (draft ? [...strokes, draft] : strokes), [strokes, draft]);
-  const errors = useMemo(() => recentProblems().length, []);
 
   if (!cap) {
     return createPortal(<div className="markup-root taking" role="status" aria-live="polite"><span className="mk-taking">Taking a picture of this screen…</span></div>, document.body);
@@ -299,13 +301,13 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
             </figure>
             <label className="check">
               <input type="checkbox" checked={steps} onChange={(e) => setSteps(e.target.checked)} />
-              <span>Include my last {visit.length || STEPS_MAX} steps on this visit</span>
+              <span>Include my last {visit.length || STEPS_MAX} steps on this visit{problems.length ? `, and its ${problems.length === 1 ? 'error' : `${problems.length} errors`}` : ''}</span>
             </label>
-            {/* Exactly the steps that would be sent, shown before choosing (Lane, 15 Nov). */}
-            {visit.length > 0
-              ? <details className="mk-steps"><summary className="small">See the {visit.length === 1 ? 'step' : `${visit.length} steps`}</summary><ol className="small">{visit.map((s, i) => <li key={i}>{stepText(s)}</li>)}</ol></details>
+            {/* Exactly the steps and errors that would be sent, shown before choosing (Lane, 15 Nov). */}
+            {visit.length + problems.length > 0
+              ? <details className="mk-steps"><summary className="small">See the {visit.length === 1 ? 'step' : `${visit.length} steps`}{problems.length ? ` and ${problems.length === 1 ? 'error' : 'errors'}` : ''}</summary><ol className="small">{visit.map((s, i) => <li key={i}>{stepText(s)}</li>)}{problems.map((e, i) => <li key={'e' + i}>{problemText(e)}</li>)}</ol></details>
               : <p className="hint">No steps on this visit yet.</p>}
-            <p className="hint">Sent with your name, this page ({appRouteFor(pathname) ?? pathname}), your screen size, light or dark, accent and the app’s version{errors ? `, and the ${errors === 1 ? 'error' : `${errors} errors`} on this visit` : ''}. <Link to="/help/feedback" target="_blank" rel="noopener">What’s sent, and who sees it</Link></p>
+            <p className="hint">Sent with your name, this page ({appRouteFor(pathname) ?? pathname}), your screen size, light or dark, accent and the app’s version. The steps and errors go only if ticked. <Link to="/help/feedback" target="_blank" rel="noopener">What’s sent, and who sees it</Link></p>
             <div className="sheet-foot mk-foot">
               <button type="button" className="btn ghost" onClick={() => { setPhase('drawing'); setPics(null); }}>Back</button>
               <span className="row" style={{ gap: 'var(--s2)' }}>

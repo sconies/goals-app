@@ -75,10 +75,10 @@ describe('what a markup carries', () => {
     expect(m.context).toMatchObject({ theme: 'dark', accent: 'faro', appVersion: 'markup-inbox' });
     expect(m.status).toBe('new');
   });
-  it('leaves the steps out when the sender unticks them; errors still come', () => {
+  it('leaves the steps and the errors out unless the sender ticks to include them: one box covers both (Lane, 15 Nov)', () => {
     const m = buildMarkup(input({ includeSteps: false }));
     expect(m.steps).toEqual([]);
-    expect(m.errors).toHaveLength(1);
+    expect(m.errors).toEqual([]);
   });
   it('needs a line saying what should change, and keeps it short', () => {
     expect(() => buildMarkup(input({ line: '   ' }))).toThrow(MarkupError);

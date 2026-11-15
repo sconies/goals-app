@@ -30,7 +30,7 @@ The core also draws for it while it is on, as Faro’s core code that asks wheth
 4. Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).
 5. Switched off, sending feedback refuses with “Feedback is off in {workspace}.”; what was sent before stays in the builders' inbox, and switching it back on brings the row, the page and the key back.
 6. A sender always sees what they sent (deep dive, 15 Nov): feedback kept only where it was sent (the demo's, beside a shared inbox) is listed in the inbox for its sender alone, marked as kept in this browser, with no status to change; the inbox stays everyone's and only an admin triages.
-7. A markup's form starts with Include my last 20 steps unticked and lists the steps it would send before sending (Lane, 15 Nov; R7 rule 8).
+7. A markup's form starts with Include my last 20 steps unticked and lists the steps and errors it would send before sending; one box covers both, and unticked a markup carries neither (Lane, 15 Nov; R7 rule 8).
 
 ## Gaps in the kit
 
