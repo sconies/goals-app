@@ -734,7 +734,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a metric’s measurement status (MS) › holds a goal linked to a gap, and lets go of it when it is unlinked
 - a metric’s measurement status (MS) › round-trips through the rows: the status and the goal’s hold always written, null when not held
 - a metric’s measurement status (MS) › re-works the hold when its metric is retired, brought back or merged (MS review, medium 4)
-- a metric’s measurement status (MS) › a goal stopped while held comes back as its metric says now, measured again or the library off in between (#503 review)
+- a metric’s measurement status (MS) › a goal stopped while held comes back as its metric says now: measured again, the library off, or merged into a measured metric in between (#503 review)
 - a metric’s measurement status (MS) › lets go of every held goal when the library is switched off, and holds them again when it is on (MS review, medium 4)
 - a metric’s measurement status (MS) › keeps the hold when the goal’s own form is saved (MS review, medium 3)
 - a metric’s measurement status (MS) › says so in the export: held to no number, and the word for it

@@ -169,7 +169,8 @@ export function mergeMetrics(x: ActionContext, fromId: string, intoId: string, w
   const moved: MetricLink[] = moving.map((l) => ({ ...l, metricId: into.id, linkedBy: x.actor.id, linkedAt: x.now }));
   // MS: each goal moved is held as `into` holds it: to no number if it has a gap, to its plan if it is measured.
   const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
-  const holds = moved.flatMap((l) => { const g = goals.get(l.goalId); const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null; return h ? [h] : []; });
+  // Stopped and removed goals too, so one restarted or restored later is held as `into` says (#503 review).
+  const holds = moved.flatMap((l) => { const g = goals.get(l.goalId); const h = g ? heldByLink(x, g, into) : null; return h ? [h] : []; });
   return {
     ...metricRows({ metrics: [{ ...from, retiredAt: x.now, retiredBy: x.actor.id, retiredWhy: w, replacedBy: into.id, updatedAt: x.now }], metricLinks: moved }),
     ...(holds.length ? { goals: holds.map((h) => h.goal) } : {}),
