@@ -1,0 +1,1264 @@
+[
+  {
+    "case": "required-empty",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "No owner",
+        "Unit": "%",
+        "Start": "1",
+        "Target": "2"
+      }
+    ]
+  },
+  {
+    "case": "required-empty-start",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "",
+        "Target": "50"
+      }
+    ]
+  },
+  {
+    "case": "baseline-provisional",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Baseline period": "June to September 2026",
+        "Baseline is": "provisional"
+      }
+    ]
+  },
+  {
+    "case": "baseline-period-long",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Baseline period": "The whole of the summer quarter and most of the autumn one, 2026"
+      }
+    ]
+  },
+  {
+    "case": "baseline-is-unknown",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Baseline period": "Q3 2026",
+        "Baseline is": "maybe"
+      }
+    ]
+  },
+  {
+    "case": "proposed-target-not-set",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "",
+        "State": "proposed"
+      }
+    ]
+  },
+  {
+    "case": "active-target-empty",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "",
+        "State": "active"
+      }
+    ]
+  },
+  {
+    "case": "proposed-start-empty",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "",
+        "Target": "50",
+        "State": "proposed"
+      }
+    ]
+  },
+  {
+    "case": "not-a-number",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-14",
+        "Week": "45",
+        "Value": "six"
+      }
+    ]
+  },
+  {
+    "case": "formula",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "=20+2"
+      }
+    ]
+  },
+  {
+    "case": "precision",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-14",
+        "Week": "45",
+        "Value": "6.25"
+      }
+    ]
+  },
+  {
+    "case": "impossible-number",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-31",
+        "Week": "45",
+        "Value": "-4"
+      }
+    ]
+  },
+  {
+    "case": "unknown-word",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Level": "vp"
+      }
+    ]
+  },
+  {
+    "case": "unknown-ref",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Team": "Infra Guild"
+      }
+    ]
+  },
+  {
+    "case": "conflicting-refs",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Owner ID": "tunde"
+      }
+    ]
+  },
+  {
+    "case": "bad-key",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "12",
+        "Goal": "x"
+      }
+    ]
+  },
+  {
+    "case": "bad-key-none",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-999",
+        "Goal": "x"
+      }
+    ]
+  },
+  {
+    "case": "duplicate",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Target": "24"
+      },
+      {
+        "Key": "G-1",
+        "Target": "24"
+      }
+    ]
+  },
+  {
+    "case": "type-unclear",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Stages": "Design@50"
+      }
+    ]
+  },
+  {
+    "case": "plan-order",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Due week": "10"
+      }
+    ]
+  },
+  {
+    "case": "stage-format",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Stages goal",
+        "Owner": "Rhea Kapoor",
+        "Type": "milestone",
+        "Stages": "Design; Pilot@50"
+      }
+    ]
+  },
+  {
+    "case": "week-wrong",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-14",
+        "Week": "49",
+        "Value": "6"
+      }
+    ]
+  },
+  {
+    "case": "checkin-incomplete",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-14",
+        "Week": "45",
+        "Call": "Off track",
+        "Path to green": ""
+      }
+    ]
+  },
+  {
+    "case": "cant-change",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Type": "milestone"
+      }
+    ]
+  },
+  {
+    "case": "not-allowed",
+    "actor": "tunde",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Target": "23",
+        "Reason": "Agreed at the review"
+      }
+    ]
+  },
+  {
+    "case": "has-words",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "12 days",
+        "Target": "50"
+      }
+    ]
+  },
+  {
+    "case": "same-as-start",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "10"
+      }
+    ]
+  },
+  {
+    "case": "stage-twice",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Stages goal",
+        "Owner": "Rhea Kapoor",
+        "Type": "milestone",
+        "Stages": "Design@50; design@51"
+      }
+    ]
+  },
+  {
+    "case": "effect-not-number",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Feeds into key": "G-14",
+        "Effect": "lots"
+      }
+    ]
+  },
+  {
+    "case": "for-someone-else",
+    "actor": "tunde",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A north star for Rhea",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Level": "north star"
+      }
+    ]
+  },
+  {
+    "case": "over-100-and-hundredfold",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "1500"
+      }
+    ]
+  },
+  {
+    "case": "over-100-answered",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "50",
+        "Target": "150"
+      }
+    ],
+    "answers": {
+      "odd-number:goals:target:over-100": "right"
+    }
+  },
+  {
+    "case": "margin-wide",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "",
+        "Target": "",
+        "Type": "range",
+        "Limit": "12",
+        "Margin": "20"
+      }
+    ]
+  },
+  {
+    "case": "no-unit-cleared",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Unit": ""
+      }
+    ]
+  },
+  {
+    "case": "feeds-lower",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Level": "north star",
+        "Feeds into key": "G-14"
+      }
+    ]
+  },
+  {
+    "case": "to-before-from",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "From": "2026-W46",
+        "To": "2026-W40"
+      }
+    ]
+  },
+  {
+    "case": "week-unknown",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "To": "2027-W53"
+      }
+    ]
+  },
+  {
+    "case": "from-pair-disagrees",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "From": "2026-W46",
+        "Plan from week": "40"
+      }
+    ]
+  },
+  {
+    "case": "to-next-year",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "From": "2026-W46",
+        "To": "2027-W13"
+      }
+    ]
+  },
+  {
+    "case": "removal-refused",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-14",
+        "Action": "Stop"
+      }
+    ]
+  },
+  {
+    "case": "loop",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Feeds into key": "G-1"
+      }
+    ]
+  },
+  {
+    "case": "near-ref",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Team": "CI/DC"
+      }
+    ]
+  },
+  {
+    "case": "near-ref-answered",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Team": "CI/DC"
+      }
+    ],
+    "answers": {
+      "near-ref:goals:team:ci-dc": "use"
+    }
+  },
+  {
+    "case": "near-ref-person",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50"
+      }
+    ]
+  },
+  {
+    "case": "near-word",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Type": "numbr"
+      }
+    ]
+  },
+  {
+    "case": "same-person",
+    "actor": "amara",
+    "sheet": "people",
+    "rows": [
+      {
+        "Name": "Rhea Kapor",
+        "Email": "rhea.k@example.com",
+        "Team": "CI/CD"
+      }
+    ]
+  },
+  {
+    "case": "same-goal",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Pipeline queue wait (p90)",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Team": "CI/CD"
+      }
+    ]
+  },
+  {
+    "case": "other-goal",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Goal": "Net revenue retention",
+        "Target": "110"
+      }
+    ]
+  },
+  {
+    "case": "past-stage",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "P1 stages in the past",
+        "Owner": "Rhea Kapoor",
+        "Type": "milestone",
+        "Stages": "Design@2; Pilot@6; All services@10"
+      }
+    ]
+  },
+  {
+    "case": "past-plan",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Plan from week": "1",
+        "Due week": "10"
+      }
+    ]
+  },
+  {
+    "case": "odd-number",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "ms",
+        "Start": "3",
+        "Target": "3000"
+      }
+    ]
+  },
+  {
+    "case": "plan-question",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Target": "80",
+        "Reason": "Measured the other way round"
+      }
+    ]
+  },
+  {
+    "case": "no-unit",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "",
+        "Start": "10",
+        "Target": "50"
+      }
+    ]
+  },
+  {
+    "case": "decimal-comma",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "1,5",
+        "Target": "50"
+      }
+    ]
+  },
+  {
+    "case": "replaces-others",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "ID": "ci_lead-ci-time_41",
+        "Goal ID": "lead-ci-time",
+        "Week": "41",
+        "Next step": "Next step number 0"
+      },
+      {
+        "ID": "ci_ci-shard_41",
+        "Goal ID": "ci-shard",
+        "Week": "41",
+        "Next step": "Next step number 1"
+      },
+      {
+        "ID": "ci_ci-docker_41",
+        "Goal ID": "ci-docker",
+        "Week": "41",
+        "Next step": "Next step number 2"
+      },
+      {
+        "ID": "ci_dep-gates_41",
+        "Goal ID": "dep-gates",
+        "Week": "41",
+        "Next step": "Next step number 3"
+      },
+      {
+        "ID": "ci_ns-lead_42",
+        "Goal ID": "ns-lead",
+        "Week": "42",
+        "Next step": "Next step number 4"
+      },
+      {
+        "ID": "ci_lead-flaky_42",
+        "Goal ID": "lead-flaky",
+        "Week": "42",
+        "Next step": "Next step number 5"
+      },
+      {
+        "ID": "ci_lead-ci-time_42",
+        "Goal ID": "lead-ci-time",
+        "Week": "42",
+        "Next step": "Next step number 6"
+      },
+      {
+        "ID": "ci_ci-shard_42",
+        "Goal ID": "ci-shard",
+        "Week": "42",
+        "Next step": "Next step number 7"
+      },
+      {
+        "ID": "ci_ci-docker_42",
+        "Goal ID": "ci-docker",
+        "Week": "42",
+        "Next step": "Next step number 8"
+      },
+      {
+        "ID": "ci_dep-gates_42",
+        "Goal ID": "dep-gates",
+        "Week": "42",
+        "Next step": "Next step number 9"
+      }
+    ]
+  },
+  {
+    "case": "many-admins",
+    "actor": "amara",
+    "sheet": "people",
+    "rows": [
+      {
+        "ID": "rhea",
+        "Admin": "yes"
+      },
+      {
+        "ID": "tunde",
+        "Admin": "yes"
+      },
+      {
+        "ID": "samir",
+        "Admin": "yes"
+      }
+    ]
+  },
+  {
+    "case": "totals-row",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "TOTAL",
+        "Start": "10",
+        "Target": "550"
+      }
+    ]
+  },
+  {
+    "case": "big-removal",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "ID": "ns-lead",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      },
+      {
+        "ID": "lead-flaky",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      },
+      {
+        "ID": "lead-ci-time",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      },
+      {
+        "ID": "ci-shard",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      },
+      {
+        "ID": "ci-dedupe",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      }
+    ]
+  },
+  {
+    "case": "ref-twice",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Register top",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Ref": "top"
+      },
+      {
+        "Goal": "Register part",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Ref": "top"
+      }
+    ]
+  },
+  {
+    "case": "ref-unknown",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Ref": "part",
+        "Feeds into ref": "top"
+      }
+    ]
+  },
+  {
+    "case": "ambiguous-ref",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Shared name",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Team": "CI/CD"
+      },
+      {
+        "Goal": "Shared name",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Team": "Observability"
+      },
+      {
+        "Goal": "Feeds the shared name",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Feeds into": "Shared name"
+      }
+    ]
+  },
+  {
+    "case": "near-header",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Targett": "50"
+      }
+    ]
+  },
+  {
+    "case": "two-columns",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50",
+        "Goal name": "Another name"
+      }
+    ]
+  },
+  {
+    "case": "date-as-week",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-14",
+        "Week": "2026-11-04",
+        "Value": "6"
+      }
+    ]
+  },
+  {
+    "case": "left-alone",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-14",
+        "Target": "1"
+      }
+    ],
+    "given": {
+      "stopped": [
+        "G-14"
+      ]
+    }
+  },
+  {
+    "case": "unknown-owner-setup",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Night shift rota",
+        "Owner email": "nia@example.com",
+        "Owner": "Nia Okoro",
+        "Team": "CI/CD",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50"
+      }
+    ],
+    "given": {
+      "mode": "create",
+      "sheets": {
+        "people": [
+          {
+            "Name": "Ines Novak",
+            "Email": "ines@example.com",
+            "Team": "CI/CD"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "past-stage-setup",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Rota agreed",
+        "Owner email": "ines@example.com",
+        "Team": "CI/CD",
+        "Type": "milestone",
+        "Stages": "Draft@2; Agreed@6; Live@50"
+      }
+    ],
+    "given": {
+      "mode": "create",
+      "sheets": {
+        "people": [
+          {
+            "Name": "Ines Novak",
+            "Email": "ines@example.com",
+            "Team": "CI/CD"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "past-stage-setup-answered",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Rota agreed",
+        "Owner email": "ines@example.com",
+        "Team": "CI/CD",
+        "Type": "milestone",
+        "Stages": "Draft@2; Agreed@6; Live@50"
+      }
+    ],
+    "given": {
+      "mode": "create",
+      "sheets": {
+        "people": [
+          {
+            "Name": "Ines Novak",
+            "Email": "ines@example.com",
+            "Team": "CI/CD"
+          }
+        ]
+      }
+    },
+    "answers": {
+      "past-stage:goals:stages:": "from-now"
+    }
+  },
+  {
+    "case": "ended-cycle",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "ID": "ci_dep-gates_42",
+        "Goal ID": "dep-gates",
+        "Week": "42",
+        "Next step": "Corrected after the year closed"
+      }
+    ],
+    "given": {
+      "at": "2027-02-02T00:00:00.000Z"
+    }
+  },
+  {
+    "case": "as-recorded",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal": "Cache hit rate",
+        "Week": "20",
+        "Value": "12",
+        "Call": "On track"
+      }
+    ],
+    "given": {
+      "mode": "create",
+      "sheets": {
+        "goals": [
+          {
+            "Goal": "Cache hit rate",
+            "Owner email": "ines@example.com",
+            "Team": "CI/CD",
+            "Unit": "%",
+            "Start": "10",
+            "Target": "50",
+            "Plan from week": "1",
+            "Due week": "40"
+          }
+        ],
+        "people": [
+          {
+            "Name": "Ines Novak",
+            "Email": "ines@example.com",
+            "Team": "CI/CD"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "corrects-keeps-author",
+    "actor": "amara",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "ID": "ci_ns-lead_45",
+        "Goal ID": "ns-lead",
+        "Week": "45",
+        "Next step": "Corrected from the source data"
+      }
+    ],
+    "given": {
+      "reason": "The tracker had last week’s number in it"
+    }
+  },
+  {
+    "case": "saves-check-in",
+    "actor": "rhea",
+    "sheet": "checkIns",
+    "rows": [
+      {
+        "Goal key": "G-22",
+        "Week": "45",
+        "Value": "85",
+        "Next step": "Roll the runner image out to the last two teams"
+      }
+    ]
+  },
+  {
+    "case": "saves-plan-with-reason",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-1",
+        "Target": "23",
+        "Reason": "Agreed at the quarterly review"
+      }
+    ]
+  },
+  {
+    "case": "saves-new-goal",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Goal": "Runbooks for every paging service",
+        "Owner": "Rhea Kapoor",
+        "Team": "CI/CD",
+        "Unit": "%",
+        "Start": "40",
+        "Target": "90"
+      }
+    ]
+  },
+  {
+    "case": "saves-person",
+    "actor": "amara",
+    "sheet": "people",
+    "rows": [
+      {
+        "ID": "rhea",
+        "Team": "Build & Release"
+      }
+    ]
+  },
+  {
+    "case": "saves-stop",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-14",
+        "Action": "Stop",
+        "Reason": "Folded into the platform goal this quarter."
+      }
+    ]
+  },
+  {
+    "case": "saves-tree-by-ref",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Ref": "top",
+        "Goal": "Register: incidents closed in time",
+        "Owner": "Rhea Kapoor",
+        "Team": "CI/CD",
+        "Unit": "%",
+        "Start": "60",
+        "Target": "90"
+      },
+      {
+        "Ref": "mid",
+        "Goal": "Register: runbooks reviewed",
+        "Owner": "Rhea Kapoor",
+        "Team": "CI/CD",
+        "Unit": "%",
+        "Start": "40",
+        "Target": "80",
+        "Feeds into ref": "top"
+      },
+      {
+        "Ref": "leaf",
+        "Goal": "Register: alerts with an owner",
+        "Owner": "Rhea Kapoor",
+        "Team": "CI/CD",
+        "Unit": "%",
+        "Start": "50",
+        "Target": "95",
+        "Feeds into ref": "mid"
+      }
+    ]
+  }
+]

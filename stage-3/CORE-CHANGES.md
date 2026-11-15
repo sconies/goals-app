@@ -1,0 +1,7 @@
+# Changes to the stage 1–2 core
+
+1. **E-16, a check-in with no number after weeks with one** (rebuild/rules.mjs, `metricCalc`): with no number now the calculation stays `none`, but the projection is made from the earlier weeks' numbers (core/rules/projection.md, “Where it is used”). Before: no projection. Fixed edge/projection.csv (8 rows) and edge/scorecard.csv (2 rows).
+2. **E-18, guardrails** (`guardBreach`, used by `evaluate`): the check-in's calculated call is the worse of the goal's own and its worst guard's breach (at risk out once, off track out two weeks running), and a breach that makes it worse asks why (`reason-behind`). Before: guards were not read. Fixed edge/checkin.csv e18-5.
+3. **main.mjs split** into `rules.mjs` (`makeS1(W)`: every stage 1 rule bound to a workspace, no files) and a thin `main.mjs` that writes the CSVs. The app and the screens' rules call `makeS1`; the drill output is unchanged. `S1` now also carries `asOf`, `goalStatus`, `flagsFor`, `handledFor`, `assessPosted`, `firstDueWeek`, `latestPosted` and the cycle's constants.
+4. **The change engine takes an `idTag`** for the ids it gives new records (default `c`, so changes.csv is unchanged); the app passes a fresh one per save so two saves never share an id.
+5. **drill.json** is stage 3, keeping stages 1 and 2 scored with `"also": ["changes", "import", "status", "flags", "projection", "scorecard", "checkin"]` and the store contract through the shim.
