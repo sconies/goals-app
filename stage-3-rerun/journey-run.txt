@@ -1,0 +1,74 @@
+FAIL U137   on      phone   steps 10/30  checks 14/15
+       not met: After you publish: the reviews it joins, who sees it, how long it can be taken back
+FAIL U137   on      desktop steps 10/30  checks 14/15
+       not met: After you publish: the reviews it joins, who sees it, how long it can be taken back
+PART U2     on      phone   steps 1/1  checks 10/10
+PART U2     on      desktop steps 1/1  checks 10/10
+PART U58    on      phone   steps 6/12  checks 28/28
+PART U58    on      desktop steps 6/12  checks 28/28
+PART U59    on      phone   steps 2/8  checks 14/14
+PART U59    on      desktop steps 1/8  checks 11/11
+PART U65    on      phone   steps 2/6  checks 18/18
+PART U65    on      desktop steps 2/6  checks 19/19
+PART U66    on      phone   steps 2/4  checks 8/8
+PART U66    on      desktop steps 2/4  checks 8/8
+FAIL U69    on      phone   steps 0/1  checks 3/5
+       not met: every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)
+       not met: every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”; /people/rhea: lit “People”, want “More”; /teams/cicd: lit “People”, want “More”)
+FAIL U69    on      desktop steps 0/1  checks 3/5
+       not met: every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)
+       not met: every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”)
+PART U70    on      phone   steps 6/9  checks 13/13
+PART U70    on      desktop steps 6/9  checks 13/13
+DONE MOD1   on      phone   steps 4/6  checks 11/11
+DONE MOD1   on      desktop steps 4/6  checks 12/12
+FAIL U137   off     phone   steps 10/30  checks 14/15
+       not met: After you publish: the reviews it joins, who sees it, how long it can be taken back
+FAIL U137   off     desktop steps 10/30  checks 14/15
+       not met: After you publish: the reviews it joins, who sees it, how long it can be taken back
+PART U2     off     phone   steps 1/1  checks 10/10
+PART U2     off     desktop steps 1/1  checks 10/10
+PART U58    off     phone   steps 6/12  checks 28/28
+PART U58    off     desktop steps 6/12  checks 28/28
+PART U59    off     phone   steps 2/8  checks 14/14
+PART U59    off     desktop steps 1/8  checks 11/11
+PART U65    off     phone   steps 2/6  checks 18/18
+PART U65    off     desktop steps 2/6  checks 19/19
+PART U66    off     phone   steps 2/4  checks 8/8
+PART U66    off     desktop steps 2/4  checks 8/8
+FAIL U69    off     phone   steps 0/1  checks 3/5
+       not met: every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)
+       not met: every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”; /people/rhea: lit “People”, want “More”; /teams/cicd: lit “People”, want “More”)
+FAIL U69    off     desktop steps 0/1  checks 3/5
+       not met: every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)
+       not met: every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”)
+PART U70    off     phone   steps 6/9  checks 13/13
+PART U70    off     desktop steps 6/9  checks 13/13
+DONE MOD1   off     phone   steps 0/6  checks 2/2
+DONE MOD1   off     desktop steps 0/6  checks 2/2
+FAIL U137   without phone   steps 10/30  checks 14/15
+       not met: After you publish: the reviews it joins, who sees it, how long it can be taken back
+FAIL U137   without desktop steps 10/30  checks 14/15
+       not met: After you publish: the reviews it joins, who sees it, how long it can be taken back
+PART U2     without phone   steps 1/1  checks 10/10
+PART U2     without desktop steps 1/1  checks 10/10
+PART U58    without phone   steps 6/12  checks 28/28
+PART U58    without desktop steps 6/12  checks 28/28
+PART U59    without phone   steps 2/8  checks 14/14
+PART U59    without desktop steps 1/8  checks 11/11
+PART U65    without phone   steps 2/6  checks 18/18
+PART U65    without desktop steps 2/6  checks 19/19
+PART U66    without phone   steps 2/4  checks 8/8
+PART U66    without desktop steps 2/4  checks 8/8
+FAIL U69    without phone   steps 0/1  checks 3/5
+       not met: every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)
+       not met: every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”; /people/rhea: lit “People”, want “More”; /teams/cicd: lit “People”, want “More”)
+FAIL U69    without desktop steps 0/1  checks 3/5
+       not met: every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)
+       not met: every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”)
+PART U70    without phone   steps 6/9  checks 13/13
+PART U70    without desktop steps 6/9  checks 13/13
+DONE MOD1   without phone   steps 0/6  checks 2/2
+DONE MOD1   without desktop steps 0/6  checks 2/2
+
+54 journey runs, 42 passed (6 DONE, 36 PART), 12 failed. Results: tests/journeys/out/results.json

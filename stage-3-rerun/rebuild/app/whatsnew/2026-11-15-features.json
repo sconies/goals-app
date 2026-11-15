@@ -1,0 +1,1 @@
+{ "id": "features-switches", "date": "15 Nov 2026", "title": "Switch a feature off for the workspace", "lines": ["An admin switches a feature on or off on Workspace, Features.", "Off, it leaves every screen and keeps what it saved."], "help": ["features"], "fixes": [] }

@@ -1,0 +1,1 @@
+{ "id": "next-year", "date": "14 Nov 2026", "title": "Start the next year", "lines": ["Cycles shows each year and how it stands.", "Start the next year reads back what carries on, finishes and stops, and can be undone.", "Each goal finishes the year Met, Met late or Not met."], "help": ["cycles"], "fixes": [] }

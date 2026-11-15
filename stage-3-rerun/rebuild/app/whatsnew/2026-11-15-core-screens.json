@@ -1,0 +1,1 @@
+{ "id": "core-screens", "date": "15 Nov 2026", "title": "The core screens, rebuilt", "lines": ["Home, Goals, a goal’s page, Check-in and New goal, each at its own address.", "Find from anywhere with Ctrl K.", "New goal reads the goal back before you publish it."], "help": ["home", "goals", "new-goal", "find"], "fixes": [] }

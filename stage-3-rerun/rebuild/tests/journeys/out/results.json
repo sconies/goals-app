@@ -1,0 +1,5084 @@
+{
+ "at": "2026-11-15T10:56:37.287Z",
+ "modes": [
+  "on",
+  "off",
+  "without"
+ ],
+ "widths": [
+  "phone",
+  "desktop"
+ ],
+ "results": [
+  {
+   "journey": "U137",
+   "title": "Read back before it’s saved",
+   "mode": "on",
+   "device": "phone",
+   "budget": 30,
+   "steps": 10,
+   "checks": [
+    {
+     "desc": "the address matches /\\/goals\\/new\\/what$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a progress indicator is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/who$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/check$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Nothing is saved until you publish.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Publish goal button is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "What reads back the number to move",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Measured by says No metric",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the first check-in and the plan",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the reviews it joins, who sees it, how long it can be taken back",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Continue after Change goes back to Check",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the expected sentences of the read-back rows are cut short on the page (“want”); the owner-in-another-team question (“Keep it in CI/CD”) and the review line need the Reviews module and a question step this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 1,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U137",
+   "title": "Read back before it’s saved",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 30,
+   "steps": 10,
+   "checks": [
+    {
+     "desc": "the address matches /\\/goals\\/new\\/what$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a progress indicator is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/who$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/check$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Nothing is saved until you publish.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Publish goal button is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "What reads back the number to move",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Measured by says No metric",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the first check-in and the plan",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the reviews it joins, who sees it, how long it can be taken back",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Continue after Change goes back to Check",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the expected sentences of the read-back rows are cut short on the page (“want”); the owner-in-another-team question (“Keep it in CI/CD”) and the review line need the Reviews module and a question step this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 1,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U2",
+   "title": "What needs me? Home",
+   "mode": "on",
+   "device": "phone",
+   "budget": 1,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "“Your goals” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“N needs attention” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the ring in the hero is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "an attention card for Rhea’s own goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "attention rows have a reason and a status icon",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the first attention card’s title is on the first screen",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“What’s the number this week?” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "finish",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U2",
+   "title": "What needs me? Home",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 1,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "“Your goals” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“N needs attention” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the ring in the hero is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "an attention card for Rhea’s own goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "attention rows have a reason and a status icon",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the first attention card’s title is on the first screen",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“What’s the number this week?” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "finish",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U58",
+   "title": "Anyone finds a person and a team",
+   "mode": "on",
+   "device": "phone",
+   "budget": 12,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "the address matches /\\/people$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the people rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field “Find by name, job title or team” is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the count line: N people, A to Z. Showing 1 to 50.",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“1 person matches.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is in the address",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “See Rhea’s N goals” link is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Rhea’s facts say she leads CI/CD and is a member",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*owner=rhea/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Rhea Kapoor” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading, after Back",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the team rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “CI/CD” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*team=cicd/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is offered no change",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=cicd leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=- leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/teams leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the finish check compares with Goals’ By team (/goals?show=teams), whose code the page cuts short and which this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U58",
+   "title": "Anyone finds a person and a team",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 12,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "the address matches /\\/people$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the people rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field “Find by name, job title or team” is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the count line: N people, A to Z. Showing 1 to 50.",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“1 person matches.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is in the address",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “See Rhea’s N goals” link is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Rhea’s facts say she leads CI/CD and is a member",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*owner=rhea/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Rhea Kapoor” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading, after Back",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the team rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “CI/CD” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*team=cicd/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is offered no change",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=cicd leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=- leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/teams leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the finish check compares with Goals’ By team (/goals?show=teams), whose code the page cuts short and which this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U59",
+   "title": "Workspace opens on About",
+   "mode": "on",
+   "device": "phone",
+   "budget": 8,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts are in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the role line says you’re an admin here",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts lead to their sections",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "nothing about another workspace",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the sections list shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts come before the sections",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Workspace link shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show for a member",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is told whom to ask, and sees nothing to sort out",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "its finish check’s list of the facts’ links is cut short on the page (“…”), so the runner checks the six sections it names"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U59",
+   "title": "Workspace opens on About",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 8,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts are in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the role line says you’re an admin here",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts lead to their sections",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "nothing about another workspace",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show for a member",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is told whom to ask, and sees nothing to sort out",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "its finish check’s list of the facts’ links is cut short on the page (“…”), so the runner checks the six sections it names"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U65",
+   "title": "Find from anywhere",
+   "mode": "on",
+   "device": "phone",
+   "budget": 6,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is focused when Find opens",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Find shows what to type",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Goals · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/[^/?]+/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Find dialog goes away",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on G-48 opened G-48",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“People · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the core’s three kinds, in order (Goals · 8, People · 1, Teams · 1)",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "People shows Rhea Kapoor",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Goals shows three rows and See all 8 goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "See all opens Goals with the search",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on CI/CD opens /teams/cicd",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Escape closes Find",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U65",
+   "title": "Find from anywhere",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 6,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Find” button in the sidebar is visible",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is focused when Find opens",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Find shows what to type",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Goals · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/[^/?]+/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Find dialog goes away",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on G-48 opened G-48",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“People · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the core’s three kinds, in order (Goals · 8, People · 1, Teams · 1)",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "People shows Rhea Kapoor",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Goals shows three rows and See all 8 goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "See all opens Goals with the search",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on CI/CD opens /teams/cicd",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Escape closes Find",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U66",
+   "title": "A near miss",
+   "mode": "on",
+   "device": "phone",
+   "budget": 4,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the “Find a goal” search field is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“No goal matches “rolback”. Showing goals that match “rollback”.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goals matching “rollback” are shown",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field keeps what was typed",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address changes",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Clear the search clears it",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U66",
+   "title": "A near miss",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 4,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the “Find a goal” search field is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“No goal matches “rolback”. Showing goals that match “rollback”.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goals matching “rollback” are shown",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field keeps what was typed",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address changes",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Clear the search clears it",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U69",
+   "title": "A page says where it is",
+   "mode": "on",
+   "device": "phone",
+   "budget": 1,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)",
+     "point": "entry",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”; /people/rhea: lit “People”, want “More”; /teams/cicd: lit “People”, want “More”)",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "six goals, six titles",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 2,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U69",
+   "title": "A page says where it is",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 1,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)",
+     "point": "entry",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”)",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "six goals, six titles",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 2,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U70",
+   "title": "Back agrees",
+   "mode": "on",
+   "device": "phone",
+   "budget": 9,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "a new tab’s back link goes to the page’s parent ()",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals(\\?|$)/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link says Back to Goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/edit$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goal’s summary bar shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the browser’s Back steps over the form to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "after saving, Back went to Goals",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Forward returns to the goal",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link goes to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U70",
+   "title": "Back agrees",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 9,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "a new tab’s back link goes to the page’s parent ()",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals(\\?|$)/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link says Back to Goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/edit$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goal’s summary bar shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the browser’s Back steps over the form to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "after saving, Back went to Goals",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Forward returns to the goal",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link goes to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "MOD1",
+   "title": "A module on, switched off and left out",
+   "mode": "on",
+   "device": "phone",
+   "budget": 6,
+   "steps": 4,
+   "checks": [
+    {
+     "desc": "its part is drawn on a goal’s page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“A note from the example module” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Example is off in Platform Engineering. Nothing it saved is lost.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Off until Example is on.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its part is gone",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its menu row is gone",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Example is switched off in Platform Engineering. An admin can switch it on in Workspace, Features.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Example is switched off in Platform Engineering. An admin can switch it on in Workspace, Features.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the switch is in the log, with what went with it",
+     "point": "logged",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“A note from the example module” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Features is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "DONE"
+  },
+  {
+   "journey": "MOD1",
+   "title": "A module on, switched off and left out",
+   "mode": "on",
+   "device": "desktop",
+   "budget": 6,
+   "steps": 4,
+   "checks": [
+    {
+     "desc": "its menu row shows in Look up",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its part is drawn on a goal’s page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“A note from the example module” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Example is off in Platform Engineering. Nothing it saved is lost.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Off until Example is on.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its part is gone",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its menu row is gone",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Example is switched off in Platform Engineering. An admin can switch it on in Workspace, Features.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Example is switched off in Platform Engineering. An admin can switch it on in Workspace, Features.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the switch is in the log, with what went with it",
+     "point": "logged",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“A note from the example module” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Features is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "DONE"
+  },
+  {
+   "journey": "U137",
+   "title": "Read back before it’s saved",
+   "mode": "off",
+   "device": "phone",
+   "budget": 30,
+   "steps": 10,
+   "checks": [
+    {
+     "desc": "the address matches /\\/goals\\/new\\/what$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a progress indicator is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/who$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/check$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Nothing is saved until you publish.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Publish goal button is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "What reads back the number to move",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Measured by says No metric",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the first check-in and the plan",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the reviews it joins, who sees it, how long it can be taken back",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Continue after Change goes back to Check",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the expected sentences of the read-back rows are cut short on the page (“want”); the owner-in-another-team question (“Keep it in CI/CD”) and the review line need the Reviews module and a question step this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 1,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U137",
+   "title": "Read back before it’s saved",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 30,
+   "steps": 10,
+   "checks": [
+    {
+     "desc": "the address matches /\\/goals\\/new\\/what$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a progress indicator is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/who$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/check$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Nothing is saved until you publish.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Publish goal button is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "What reads back the number to move",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Measured by says No metric",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the first check-in and the plan",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the reviews it joins, who sees it, how long it can be taken back",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Continue after Change goes back to Check",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the expected sentences of the read-back rows are cut short on the page (“want”); the owner-in-another-team question (“Keep it in CI/CD”) and the review line need the Reviews module and a question step this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 1,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U2",
+   "title": "What needs me? Home",
+   "mode": "off",
+   "device": "phone",
+   "budget": 1,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "“Your goals” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“N needs attention” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the ring in the hero is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "an attention card for Rhea’s own goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "attention rows have a reason and a status icon",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the first attention card’s title is on the first screen",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“What’s the number this week?” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "finish",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U2",
+   "title": "What needs me? Home",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 1,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "“Your goals” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“N needs attention” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the ring in the hero is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "an attention card for Rhea’s own goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "attention rows have a reason and a status icon",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the first attention card’s title is on the first screen",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“What’s the number this week?” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "finish",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U58",
+   "title": "Anyone finds a person and a team",
+   "mode": "off",
+   "device": "phone",
+   "budget": 12,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "the address matches /\\/people$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the people rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field “Find by name, job title or team” is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the count line: N people, A to Z. Showing 1 to 50.",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“1 person matches.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is in the address",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “See Rhea’s N goals” link is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Rhea’s facts say she leads CI/CD and is a member",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*owner=rhea/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Rhea Kapoor” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading, after Back",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the team rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “CI/CD” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*team=cicd/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is offered no change",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=cicd leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=- leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/teams leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the finish check compares with Goals’ By team (/goals?show=teams), whose code the page cuts short and which this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U58",
+   "title": "Anyone finds a person and a team",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 12,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "the address matches /\\/people$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the people rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field “Find by name, job title or team” is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the count line: N people, A to Z. Showing 1 to 50.",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“1 person matches.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is in the address",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “See Rhea’s N goals” link is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Rhea’s facts say she leads CI/CD and is a member",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*owner=rhea/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Rhea Kapoor” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading, after Back",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the team rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “CI/CD” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*team=cicd/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is offered no change",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=cicd leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=- leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/teams leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the finish check compares with Goals’ By team (/goals?show=teams), whose code the page cuts short and which this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U59",
+   "title": "Workspace opens on About",
+   "mode": "off",
+   "device": "phone",
+   "budget": 8,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts are in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the role line says you’re an admin here",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts lead to their sections",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "nothing about another workspace",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the sections list shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts come before the sections",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Workspace link shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show for a member",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is told whom to ask, and sees nothing to sort out",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "its finish check’s list of the facts’ links is cut short on the page (“…”), so the runner checks the six sections it names"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U59",
+   "title": "Workspace opens on About",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 8,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts are in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the role line says you’re an admin here",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts lead to their sections",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "nothing about another workspace",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show for a member",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is told whom to ask, and sees nothing to sort out",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "its finish check’s list of the facts’ links is cut short on the page (“…”), so the runner checks the six sections it names"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U65",
+   "title": "Find from anywhere",
+   "mode": "off",
+   "device": "phone",
+   "budget": 6,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is focused when Find opens",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Find shows what to type",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Goals · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/[^/?]+/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Find dialog goes away",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on G-48 opened G-48",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“People · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the core’s three kinds, in order (Goals · 8, People · 1, Teams · 1)",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "People shows Rhea Kapoor",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Goals shows three rows and See all 8 goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "See all opens Goals with the search",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on CI/CD opens /teams/cicd",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Escape closes Find",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U65",
+   "title": "Find from anywhere",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 6,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Find” button in the sidebar is visible",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is focused when Find opens",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Find shows what to type",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Goals · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/[^/?]+/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Find dialog goes away",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on G-48 opened G-48",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“People · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the core’s three kinds, in order (Goals · 8, People · 1, Teams · 1)",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "People shows Rhea Kapoor",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Goals shows three rows and See all 8 goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "See all opens Goals with the search",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on CI/CD opens /teams/cicd",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Escape closes Find",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U66",
+   "title": "A near miss",
+   "mode": "off",
+   "device": "phone",
+   "budget": 4,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the “Find a goal” search field is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“No goal matches “rolback”. Showing goals that match “rollback”.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goals matching “rollback” are shown",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field keeps what was typed",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address changes",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Clear the search clears it",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U66",
+   "title": "A near miss",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 4,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the “Find a goal” search field is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“No goal matches “rolback”. Showing goals that match “rollback”.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goals matching “rollback” are shown",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field keeps what was typed",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address changes",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Clear the search clears it",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U69",
+   "title": "A page says where it is",
+   "mode": "off",
+   "device": "phone",
+   "budget": 1,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)",
+     "point": "entry",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”; /people/rhea: lit “People”, want “More”; /teams/cicd: lit “People”, want “More”)",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "six goals, six titles",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 2,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U69",
+   "title": "A page says where it is",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 1,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)",
+     "point": "entry",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”)",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "six goals, six titles",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 2,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U70",
+   "title": "Back agrees",
+   "mode": "off",
+   "device": "phone",
+   "budget": 9,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "a new tab’s back link goes to the page’s parent ()",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals(\\?|$)/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link says Back to Goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/edit$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goal’s summary bar shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the browser’s Back steps over the form to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "after saving, Back went to Goals",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Forward returns to the goal",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link goes to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U70",
+   "title": "Back agrees",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 9,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "a new tab’s back link goes to the page’s parent ()",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals(\\?|$)/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link says Back to Goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/edit$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goal’s summary bar shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the browser’s Back steps over the form to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "after saving, Back went to Goals",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Forward returns to the goal",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link goes to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "MOD1",
+   "title": "A module on, switched off and left out",
+   "mode": "off",
+   "device": "phone",
+   "budget": 6,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "“Example is switched off in Platform Engineering. An admin can switch it on in Workspace, Features.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its switch says Off",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "DONE"
+  },
+  {
+   "journey": "MOD1",
+   "title": "A module on, switched off and left out",
+   "mode": "off",
+   "device": "desktop",
+   "budget": 6,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "“Example is switched off in Platform Engineering. An admin can switch it on in Workspace, Features.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its switch says Off",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "DONE"
+  },
+  {
+   "journey": "U137",
+   "title": "Read back before it’s saved",
+   "mode": "without",
+   "device": "phone",
+   "budget": 30,
+   "steps": 10,
+   "checks": [
+    {
+     "desc": "the address matches /\\/goals\\/new\\/what$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a progress indicator is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/who$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/check$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Nothing is saved until you publish.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Publish goal button is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "What reads back the number to move",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Measured by says No metric",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the first check-in and the plan",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the reviews it joins, who sees it, how long it can be taken back",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Continue after Change goes back to Check",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the expected sentences of the read-back rows are cut short on the page (“want”); the owner-in-another-team question (“Keep it in CI/CD”) and the review line need the Reviews module and a question step this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 1,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U137",
+   "title": "Read back before it’s saved",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 30,
+   "steps": 10,
+   "checks": [
+    {
+     "desc": "the address matches /\\/goals\\/new\\/what$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a progress indicator is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/who$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/check$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Nothing is saved until you publish.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Publish goal button is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "What reads back the number to move",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Measured by says No metric",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the first check-in and the plan",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "After you publish: the reviews it joins, who sees it, how long it can be taken back",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “check”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/new\\/measure/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Continue after Change goes back to Check",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the expected sentences of the read-back rows are cut short on the page (“want”); the owner-in-another-team question (“Keep it in CI/CD”) and the review line need the Reviews module and a question step this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 1,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U2",
+   "title": "What needs me? Home",
+   "mode": "without",
+   "device": "phone",
+   "budget": 1,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "“Your goals” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“N needs attention” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the ring in the hero is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "an attention card for Rhea’s own goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "attention rows have a reason and a status icon",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the first attention card’s title is on the first screen",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“What’s the number this week?” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "finish",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U2",
+   "title": "What needs me? Home",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 1,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "“Your goals” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“N needs attention” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “home”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the ring in the hero is visible",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "an attention card for Rhea’s own goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "attention rows have a reason and a status icon",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the first attention card’s title is on the first screen",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“What’s the number this week?” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "finish",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U58",
+   "title": "Anyone finds a person and a team",
+   "mode": "without",
+   "device": "phone",
+   "budget": 12,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "the address matches /\\/people$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the people rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field “Find by name, job title or team” is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the count line: N people, A to Z. Showing 1 to 50.",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“1 person matches.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is in the address",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “See Rhea’s N goals” link is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Rhea’s facts say she leads CI/CD and is a member",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*owner=rhea/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Rhea Kapoor” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading, after Back",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the team rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “CI/CD” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*team=cicd/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is offered no change",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=cicd leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=- leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/teams leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the finish check compares with Goals’ By team (/goals?show=teams), whose code the page cuts short and which this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U58",
+   "title": "Anyone finds a person and a team",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 12,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "the address matches /\\/people$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the people rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field “Find by name, job title or team” is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the count line: N people, A to Z. Showing 1 to 50.",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “people”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“1 person matches.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is in the address",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “See Rhea’s N goals” link is in view",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Rhea’s facts say she leads CI/CD and is a member",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “person”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*owner=rhea/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Rhea Kapoor” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Rhea Kapoor” heading, after Back",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the team rows show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “teams”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “CI/CD” heading",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “team”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\?.*team=cicd/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is offered no change",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=cicd leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/people?team=- leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "/workspace/teams leads to a page",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "the finish check compares with Goals’ By team (/goals?show=teams), whose code the page cuts short and which this rebuild doesn’t draw"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U59",
+   "title": "Workspace opens on About",
+   "mode": "without",
+   "device": "phone",
+   "budget": 8,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts are in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the role line says you’re an admin here",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts lead to their sections",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "nothing about another workspace",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the sections list shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts come before the sections",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Workspace link shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show for a member",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is told whom to ask, and sees nothing to sort out",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "its finish check’s list of the facts’ links is cut short on the page (“…”), so the runner checks the six sections it names"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U59",
+   "title": "Workspace opens on About",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 8,
+   "steps": 1,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts are in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the role line says you’re an admin here",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the facts lead to their sections",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "nothing about another workspace",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “about”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the workspace facts show for a member",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "a member is told whom to ask, and sees nothing to sort out",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)",
+    "its finish check’s list of the facts’ links is cut short on the page (“…”), so the runner checks the six sections it names"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U65",
+   "title": "Find from anywhere",
+   "mode": "without",
+   "device": "phone",
+   "budget": 6,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is focused when Find opens",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Find shows what to type",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Goals · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/[^/?]+/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Find dialog goes away",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on G-48 opened G-48",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“People · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the core’s three kinds, in order (Goals · 8, People · 1, Teams · 1)",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "People shows Rhea Kapoor",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Goals shows three rows and See all 8 goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "See all opens Goals with the search",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on CI/CD opens /teams/cicd",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Escape closes Find",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U65",
+   "title": "Find from anywhere",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 6,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the menu shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the “Find” button in the sidebar is visible",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the search is focused when Find opens",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Find shows what to type",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “find”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“Goals · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/[^/?]+/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the Find dialog goes away",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on G-48 opened G-48",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“People · 1”",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the core’s three kinds, in order (Goals · 8, People · 1, Teams · 1)",
+     "point": "attention",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "People shows Rhea Kapoor",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Goals shows three rows and See all 8 goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "See all opens Goals with the search",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “rhea”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Enter on CI/CD opens /teams/cicd",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Escape closes Find",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U66",
+   "title": "A near miss",
+   "mode": "without",
+   "device": "phone",
+   "budget": 4,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the “Find a goal” search field is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“No goal matches “rolback”. Showing goals that match “rollback”.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goals matching “rollback” are shown",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field keeps what was typed",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address changes",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Clear the search clears it",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U66",
+   "title": "A near miss",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 4,
+   "steps": 2,
+   "checks": [
+    {
+     "desc": "the “Find a goal” search field is in view without scrolling",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "“No goal matches “rolback”. Showing goals that match “rollback”.” is shown",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goals matching “rollback” are shown",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the field keeps what was typed",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “near miss”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address changes",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Clear the search clears it",
+     "point": "progress",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U69",
+   "title": "A page says where it is",
+   "mode": "without",
+   "device": "phone",
+   "budget": 1,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)",
+     "point": "entry",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”; /people/rhea: lit “People”, want “More”; /teams/cicd: lit “People”, want “More”)",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "six goals, six titles",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 2,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U69",
+   "title": "A page says where it is",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 1,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "every address names itself in the title (/goals/ns-lead?review=weekly: Lead time for changes · Platform Engineering · Faro; /reviews/weekly: Review not found · Platform Engineering · Faro)",
+     "point": "entry",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "every address lights one place (/goals/ns-lead?review=weekly: lit “Goals”, want “Reviews”; /reviews/weekly: lit “”, want “Reviews”)",
+     "point": "attention",
+     "ok": false,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “titles”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "six goals, six titles",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 2,
+   "result": "FAIL"
+  },
+  {
+   "journey": "U70",
+   "title": "Back agrees",
+   "mode": "without",
+   "device": "phone",
+   "budget": 9,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "a new tab’s back link goes to the page’s parent ()",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals(\\?|$)/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link says Back to Goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/edit$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goal’s summary bar shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the browser’s Back steps over the form to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "after saving, Back went to Goals",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Forward returns to the goal",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link goes to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "U70",
+   "title": "Back agrees",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 9,
+   "steps": 6,
+   "checks": [
+    {
+     "desc": "a new tab’s back link goes to the page’s parent ()",
+     "point": "entry",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: at most one main button in view",
+     "point": "one-action",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Checkpoint “new tabs”: no sideways scrolling, every control named, the main button 44px on a phone",
+     "point": "a11y",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals(\\?|$)/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link says Back to Goals",
+     "point": "finish",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/edit$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the address matches /\\/goals\\/ns-lead$/",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the goal’s summary bar shows",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the browser’s Back steps over the form to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "after saving, Back went to Goals",
+     "point": "errors",
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "Forward returns to the goal",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "the back link goes to Goals",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [
+    "axe-core’s serious and critical faults (axe-core is not available offline; the runner checks names, reflow and target size itself)"
+   ],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "PART"
+  },
+  {
+   "journey": "MOD1",
+   "title": "A module on, switched off and left out",
+   "mode": "without",
+   "device": "phone",
+   "budget": 6,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "Features shows no switch for a module left out",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its address is Page not found, with no sentence",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "DONE"
+  },
+  {
+   "journey": "MOD1",
+   "title": "A module on, switched off and left out",
+   "mode": "without",
+   "device": "desktop",
+   "budget": 6,
+   "steps": 0,
+   "checks": [
+    {
+     "desc": "Features shows no switch for a module left out",
+     "point": null,
+     "ok": true,
+     "note": ""
+    },
+    {
+     "desc": "its address is Page not found, with no sentence",
+     "point": null,
+     "ok": true,
+     "note": ""
+    }
+   ],
+   "cannot": [],
+   "error": null,
+   "overBudget": false,
+   "failed": 0,
+   "result": "DONE"
+  }
+ ]
+}
