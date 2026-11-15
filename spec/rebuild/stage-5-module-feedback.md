@@ -12,7 +12,7 @@ Send feedback about Faro, or mark up a screen. It goes to the people who build F
 - The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform).
 - The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on.
-- What’s new (a list of releases, each with a stable id: [stage 3](stage-3-core-screens.md)) is the core’s; Feedback names an entry when something is marked fixed. The inbox’s store is its own, outside the workspace: markups and feedback, each with `status` (new, in-hand, fixed, wont-fix), `status_by`, `status_at`, `issue_url`, `fixed_in` and `wont_fix_reason`, and every triage change kept ([set-ups a rebuild does its own way](../core/journeys.md#set-ups-a-rebuild-does-its-own-way), `fakeSupabase`).
+- What’s new (a list of releases, each with a stable id: [stage 3](stage-3-core-screens.md)) is the core’s; Feedback names an entry when something is marked fixed. The inbox’s store is its own, outside the workspace: markups and feedback, each with `status` (new, in-hand, fixed, wont-fix), `status_by`, `status_at`, `fixed_in` and `wont_fix_reason`, and markups also `issue_url` (feedback has none), and every triage change kept ([set-ups a rebuild does its own way](../core/journeys.md#set-ups-a-rebuild-does-its-own-way), `fakeSupabase`).
 
 ## What to build
 
