@@ -1110,6 +1110,18 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
 
 **The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (\`wrapUpOpen\`), or, once it's open, how many goals are still to wrap up; once the year's last day is past, when it ended and until when the wrap-up stays open; a cycle not begun says when its week 1 starts.`,
     examples: [
+      { given: 'Set-up in week 46: Grace (team Atlas) sets up the outcome, a goal owned by Ana (team Alpha) with Today 40 and target 70, and a range Ben (Alpha) keeps between 1 and 5 %. The teams of the three goals, Ana’s goal’s number before any check-in, and the range.', then: 'Atlas, Alpha, Alpha; 40 (baseline, As at set-up, 15 Nov 2026); between 1 and 5', run: () => {
+        const people = ['Name\tEmail\tJob title\tTeam\tAdmin\tTeam objective', 'Grace Achterberg\tgrace@example.com\t\tAtlas\tyes\t', 'Ana Alpha\tana@example.com\t\tAlpha\t\t', 'Ben Alpha\tben@example.com\t\tAlpha\t\t'].join('\n');
+        const goals = ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition\tBaseline period',
+          'Customer satisfaction score\t\tgrace@example.com\tGrace Achterberg\tmetric\tpoints\t40\t70\tstraight\t\t\t\t\t\tnorth star\t\t\t\tAs at set-up, 15 Nov 2026',
+          'Faster support replies\t\tana@example.com\tAna Alpha\tmetric\t%\t40\t70\tstraight\t\t\t\t\tCustomer satisfaction score\tteam\t\t\t\tAs at set-up, 15 Nov 2026',
+          'Error rate in a safe band\t\tben@example.com\tBen Alpha\trange\t%\t\t\t\t1 to 5\tbetween\t\t\tCustomer satisfaction score\tteam\t\t\t\t'].join('\n');
+        const s = buildWorkspace({ name: 'Throwaway', startDate: '2025-12-29', reviewDay: 3, people, goals, now: new Date('2026-11-15T10:00:00Z'), idSuffix: 'x' }).snapshot;
+        const team = (g: (typeof s.goals)[number]) => s.teams.find((t) => t.id === g.teamId)!.name;
+        const ana = s.goals.find((g) => g.title === 'Faster support replies')!, ben = s.goals.find((g) => g.title === 'Error rate in a safe band')!;
+        const b = ana.kind === 'metric' ? ana.baseline : null;
+        return `${s.goals.map(team).join(', ')}; ${b ? `${b.value} (baseline, ${b.period})` : 'none'}; ${ben.kind === 'range' ? `${ben.range.bound} ${ben.range.lower} and ${ben.range.limit}` : ''}`;
+      } },
       { given: 'A new workspace: one cycle, no goals, no check-ins.', then: 'No goals and no check-ins yet; it’s the only cycle, so it stays', run: () => cycleStanding({ ...workspace([]), goals: [] }, CYCLE.id).says },
       { given: 'The same workspace with a second cycle nobody has checked in to.', then: 'No goals and no check-ins yet: it can be deleted', run: () => cycleStanding({ ...workspace([]), goals: [], cycles: [CYCLE, { ...CYCLE, id: 'c2', name: 'Next' }] }, 'c2').says },
       { given: 'One goal with two check-ins, in the only cycle.', then: '1 goal, 2 check-ins: it stays', run: () => cycleStanding(workspace([ci('m', 1, 32), ci('m', 2, 34)]), CYCLE.id).says },

@@ -33,6 +33,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
+| Set-up in week 46: Grace (team Atlas) sets up the outcome, a goal owned by Ana (team Alpha) with Today 40 and target 70, and a range Ben (Alpha) keeps between 1 and 5 %. The teams of the three goals, Ana’s goal’s number before any check-in, and the range. | `Atlas, Alpha, Alpha; 40 (baseline, As at set-up, 15 Nov 2026); between 1 and 5` |
 | A new workspace: one cycle, no goals, no check-ins. | `No goals and no check-ins yet; it’s the only cycle, so it stays` |
 | The same workspace with a second cycle nobody has checked in to. | `No goals and no check-ins yet: it can be deleted` |
 | One goal with two check-ins, in the only cycle. | `1 goal, 2 check-ins: it stays` |
