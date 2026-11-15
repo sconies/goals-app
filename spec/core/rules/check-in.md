@@ -21,7 +21,8 @@ A check-in is one week's report on one goal, by its owner only (R1; an admin may
 
 **Judging the draft** (`evaluate`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with `planned` and `none` counting as `on`. The owner's call defaults to it.
 
-- *greener*: the owner's call ranks better than the calculated one.
+- *greener*: the owner's call ranks better than the calculated one, by the ranks in [the status](status.md): a call of `done` (rank 0) against a calculation of `on` (rank 1) is greener, so it asks why.
+- Guards past their limit in the check-in's week make the calculated call worse ([the status](status.md), Guardrails); being held to no number doesn't change it ([a goal held to no number](unmeasured.md)).
 - *reason* needed: for a number to move, **ahead** when well ahead (ratio ≥ 1.2) and **behind** when behind (ratio < 0.95); for the others, **behind** when the calculation is `risk` or `off`.
 - *a new target* may be proposed when a number goal is well ahead.
 - *a path to green* is needed when the owner's call is `risk` or `off`.

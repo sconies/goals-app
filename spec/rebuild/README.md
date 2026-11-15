@@ -80,6 +80,8 @@ node spec/rebuild/drill.mjs rebuild --files status          one file while you w
 node spec/rebuild/drill.mjs rebuild --diffs 30              more of the first differences
 ```
 
+`drill.json` may also name more files to score beside its stage’s own, `"also": [...]`: any of status, flags, projection, scorecard, checkin, scorecard-words, find, goals, navigation, import, changes, metrics, readback, home and zone. A later stage keeps an earlier one scored this way: `{ "stage": 2, "run": "node main.mjs", "also": ["status", "flags", "projection", "scorecard", "checkin"] }`.
+
 From Faro’s own repository the same harness is `npm run drill -- <rebuild folder>`. It runs `drill.json`’s command, scores the files its stage writes, file by file and column by column, prints the first differences (with the week, the goal and the column), and exits 0 only at 100%.
 
 ### The rules of the drill

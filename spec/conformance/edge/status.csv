@@ -13,6 +13,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 0,E-13,metric,planned,planned,no,,3
 0,E-14,metric,planned,planned,no,,3
 0,E-15,metric,unmeasured,none,no,,3
+0,E-16,metric,planned,planned,no,,3
+0,E-17,metric,planned,planned,no,,3
+0,E-18,metric,planned,planned,no,,3
 1,E-1,range,on,on,no,1,2
 1,E-2,range,on,on,no,1,2
 1,E-3,range,on,on,no,1,2
@@ -27,6 +30,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 1,E-13,metric,none,none,no,,10
 1,E-14,metric,on,risk,yes,1,2
 1,E-15,metric,unmeasured,none,no,,10
+1,E-16,metric,on,on,no,1,2
+1,E-17,metric,on,on,no,1,2
+1,E-18,metric,none,none,no,,10
 2,E-1,range,on,risk,yes,2,2
 2,E-2,range,on,on,no,2,2
 2,E-3,range,on,on,no,2,2
@@ -41,6 +47,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 2,E-13,metric,on,off,yes,2,2
 2,E-14,metric,on,on,no,2,2
 2,E-15,metric,unmeasured,none,no,,17
+2,E-16,metric,on,on,no,2,2
+2,E-17,metric,on,on,no,1,9
+2,E-18,metric,stale,none,no,,17
 3,E-1,range,on,risk,yes,3,2
 3,E-2,range,on,risk,yes,3,2
 3,E-3,range,on,risk,yes,3,2
@@ -56,6 +65,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 3,E-13,metric,on,off,yes,2,9
 3,E-14,metric,on,on,no,2,9
 3,E-15,metric,unmeasured,none,no,3,2
+3,E-16,metric,on,on,no,2,9
+3,E-17,metric,risk,risk,no,3,2
+3,E-18,metric,stale,none,no,,24
 4,E-1,range,on,risk,yes,4,2
 4,E-2,range,on,risk,yes,4,2
 4,E-3,range,on,risk,yes,4,2
@@ -71,6 +83,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 4,E-13,metric,stale,off,yes,2,16
 4,E-14,metric,stale,on,no,2,16
 4,E-15,metric,unmeasured,none,no,3,9
+4,E-16,metric,on,on,no,4,2
+4,E-17,metric,risk,risk,no,3,9
+4,E-18,metric,on,on,no,4,1
 5,E-1,range,on,risk,yes,5,2
 5,E-2,range,off,risk,no,5,2
 5,E-3,range,off,risk,no,5,2
@@ -86,6 +101,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 5,E-13,metric,risk,off,yes,5,2
 5,E-14,metric,stale,on,no,2,23
 5,E-15,metric,unmeasured,none,no,3,16
+5,E-16,metric,on,none,no,5,2
+5,E-17,metric,stale,risk,no,3,16
+5,E-18,metric,on,on,yes,5,1
 6,E-1,range,off,risk,no,6,2
 6,E-2,range,on,risk,yes,6,2
 6,E-3,range,off,risk,no,5,9
@@ -100,6 +118,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 6,E-12,metric,off,off,no,4,13
 6,E-14,metric,stale,on,no,2,30
 6,E-15,metric,unmeasured,none,no,3,23
+6,E-16,metric,on,none,no,5,9
+6,E-17,metric,on,on,no,6,2
+6,E-18,metric,on,on,no,6,1
 7,E-1,range,off,off,no,7,2
 7,E-2,range,on,risk,yes,6,9
 7,E-3,range,stale,risk,no,5,16
@@ -114,6 +135,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 7,E-12,metric,risk,off,yes,7,2
 7,E-14,metric,stale,on,no,2,37
 7,E-15,metric,unmeasured,none,no,3,30
+7,E-16,metric,stale,none,no,5,16
+7,E-17,metric,on,on,no,6,9
+7,E-18,metric,on,on,no,6,8
 8,E-1,range,on,risk,yes,8,2
 8,E-2,range,stale,risk,yes,6,16
 8,E-3,range,stale,risk,no,5,23
@@ -128,6 +152,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 8,E-12,metric,risk,off,yes,7,9
 8,E-14,metric,stale,on,no,2,44
 8,E-15,metric,unmeasured,none,no,3,37
+8,E-16,metric,stale,none,no,5,23
+8,E-17,metric,stale,on,no,6,16
+8,E-18,metric,stale,on,no,6,15
 9,E-1,range,on,risk,yes,8,9
 9,E-2,range,stale,risk,yes,6,23
 9,E-3,range,stale,risk,no,5,30
@@ -142,6 +169,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 9,E-12,metric,stale,off,yes,7,16
 9,E-14,metric,stale,on,no,2,51
 9,E-15,metric,unmeasured,none,no,3,44
+9,E-16,metric,stale,none,no,5,30
+9,E-17,metric,stale,on,no,6,23
+9,E-18,metric,stale,on,no,6,22
 10,E-1,range,stale,risk,yes,8,16
 10,E-2,range,stale,risk,yes,6,30
 10,E-3,range,stale,risk,no,5,37
@@ -156,6 +186,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 10,E-12,metric,stale,off,yes,7,23
 10,E-14,metric,stale,on,no,2,58
 10,E-15,metric,unmeasured,none,no,3,51
+10,E-16,metric,stale,none,no,5,37
+10,E-17,metric,stale,on,no,6,30
+10,E-18,metric,stale,on,no,6,29
 11,E-1,range,stale,risk,yes,8,23
 11,E-2,range,stale,risk,yes,6,37
 11,E-3,range,stale,risk,no,5,44
@@ -170,6 +203,9 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 11,E-12,metric,stale,off,yes,7,30
 11,E-14,metric,stale,on,no,2,65
 11,E-15,metric,unmeasured,none,no,3,58
+11,E-16,metric,stale,none,no,5,44
+11,E-17,metric,stale,on,no,6,37
+11,E-18,metric,stale,on,no,6,36
 12,E-1,range,stale,risk,yes,8,30
 12,E-2,range,stale,risk,yes,6,44
 12,E-3,range,stale,risk,no,5,51
@@ -184,3 +220,6 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 12,E-12,metric,stale,off,yes,7,37
 12,E-14,metric,stale,on,no,2,72
 12,E-15,metric,unmeasured,none,no,3,65
+12,E-16,metric,stale,none,no,5,51
+12,E-17,metric,stale,on,no,6,44
+12,E-18,metric,stale,on,no,6,43

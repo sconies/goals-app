@@ -13,7 +13,9 @@ A goal whose number isn’t measured yet has no status from its plan, nothing du
 
 **Its status** (`goalStatus`). Done if the owner's latest check-in calls it done; otherwise Not measured yet (`unmeasured`), in week 0 too, whatever its plan or check-ins say, and never No recent update: nothing on it goes quiet. Its calculation is `none`, and it is never greener than the numbers. It projects nothing (`projects`): no projected year-end number. In a group it ranks with Not started and Done, below On track.
 
-**Nothing due** (`flagsFor`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead. The export says `unmeasured: { since }` and the status `unmeasured`, labelled Not measured yet.
+**Nothing due** (`flagsFor`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead.
+
+**Only those rules read it.** `goalStatus` (the status, its calculation and *greener*), `flagsFor` and `projects` are the only rules that read the field. The calculation itself (`assessPosted`), the projection, the scorecard (`goalScorecard`, its `hit` cell too) and the check-in's judgement (`evaluate`, so what a check-in asks for and its stored `calculated`) judge the goal by its plan as any other: in the conformance data, status.csv and flags.csv hold it to no number, while projection.csv, scorecard.csv and checkin.csv don't (the edge workspace's E-15). And like every field it is read as it is now, not as of the week judged: a goal held from some day on is held in every week's rows, the weeks before that day too. The export says `unmeasured: { since }` and the status `unmeasured`, labelled Not measured yet.
 
 ## Worked examples
 
