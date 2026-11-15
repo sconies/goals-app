@@ -64,7 +64,9 @@
     "remove_metric",
     "retire_metric",
     "merge_metrics",
-    "link_goal_metric"
+    "link_goal_metric",
+    "save_baselines",
+    "verify_metric"
   ],
   "help": [
     "metrics",
@@ -196,7 +198,7 @@
   ],
   "toSortOut": true,
   "parity": {
-    "Metrics": ["list_metrics", "get_metric", "save_metric", "remove_metric", "restore_removed"],
+    "Metrics": ["list_metrics", "get_metric", "save_metric", "remove_metric", "restore_removed", "save_baselines", "verify_metric"],
     "MetricPlaces": ["get_goal", "get_metric", "list_metrics"],
     "MeasuredBy": ["list_metrics", "save_metric", "link_goal_metric"],
     "GoalFilterSheet": ["list_metrics"],

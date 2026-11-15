@@ -8,6 +8,8 @@
 import type { DemoBuild } from '../../domain/records';
 import { saveMetric, type MetricInput } from './rules';
 import { linkGoalMetric } from './rulesLink';
+import { saveBaselines, verifyMetric } from './rulesVerify';
+import type { MetricCalc, MetricPart, MetricWindow } from './types';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -19,6 +21,41 @@ export interface MetricSpec extends MetricInput {
   /** The goals it measures, each for the whole company (null) or a team's slice, and optionally one part of it (MT2). */
   measures: [goalId: string, teamId: string | null, part?: string][];
 }
+
+/* MQ2: the demo's stages, as the sketches draw them (docs/design/mq2 sketch 1). Verified: change failure rate,
+   production deploys and time to restore; Defined: lead time, CI pipeline time, queue wait, first review and cloud
+   cost; Draft: flaky tests (no link), cache hit rate (no window, no exclusions), time to detect (no type), CI compute
+   cost (no link) and developer satisfaction (no link). A baseline and a verifier's figure where the sketches give one. */
+const part = (counts: string, filters: string, excludes: string, name?: string): MetricPart => ({ ...(name ? { name } : {}), counts, filters, excludes });
+const roll = (days: number): MetricWindow => ({ kind: 'rolling', days });
+interface QualitySpec { calculation?: MetricCalc; window?: MetricWindow; sourceLink?: string; baseline?: [value: number, period: string, how: string]; verified?: [by: string, figure: number, note: string] }
+const QUALITY: Record<string, QualitySpec> = {
+  cfr: {
+    calculation: { measure: 'ratio', aggregate: null, numerator: part('Production deploys tied to an incident, a rollback or a hotfix', 'Every deployable service; P1–P3 incidents', 'Incidents with no deploy in the 24 hours before', 'Failed changes'), denominator: part('Successful production deploys', 'Every deployable service', 'Rollbacks (a rollback is not a deploy)', 'Production deploys') },
+    window: roll(28), sourceLink: 'https://four-keys.example.com/change-failure-rate?services=all',
+    baseline: [11.8, 'Jul–Sep 2026', 'Four Keys query, all services'],
+    verified: ['amara', 11.8, 'Checked against the September incident list with Lucía. Two hotfixes had been counted twice; Four Keys fixed that on 30 Oct.'],
+  },
+  deploys: {
+    calculation: { measure: 'count', aggregate: 'mean', per: 'day', part: part('Successful production deploys on a working day', 'Every deployable service', 'Rollbacks; weekends') },
+    window: roll(28), sourceLink: 'https://four-keys.example.com/deployment-frequency?services=all',
+    baseline: [96, 'Jul–Sep 2026', 'Four Keys query, all services'], verified: ['amara', 96, 'Matches the deploy log for September.'],
+  },
+  mttr: {
+    calculation: { measure: 'duration', aggregate: 'mean', part: part('Minutes from a P1 or P2 incident opening to service restored', 'P1 and P2 incidents', 'Incidents closed as duplicates') },
+    window: roll(28), sourceLink: 'https://incidents.example.com/reports/time-to-restore?sev=1,2',
+    baseline: [62, 'Jul–Sep 2026', 'Incident tracker report, P1 and P2'], verified: ['grace', 62, 'Two September incidents were closed late; the report already leaves them as they were.'],
+  },
+  'lead-time': { calculation: { measure: 'duration', aggregate: 'median', part: part('Hours from a change’s first commit to running in production', 'Every deployable service', 'None: reverts count as changes') }, window: roll(28), sourceLink: 'https://four-keys.example.com/lead-time?services=all', baseline: [31, 'Jul–Sep 2026', 'Four Keys query, all services'] },
+  'ci-time': { calculation: { measure: 'duration', aggregate: 'percentile', percentile: 90, part: part('Wall-clock minutes from push to a finished pipeline on main', 'Branch is main; queue time included', 'Cancelled runs') }, window: roll(7), sourceLink: 'https://ci.example.com/pipelines/main/duration-p90?window=7d', baseline: [22, 'Aug–Oct 2026', 'CI analytics, p90 over the three months'] },
+  'queue-wait': { calculation: { measure: 'duration', aggregate: 'percentile', percentile: 90, part: part('Minutes a pipeline job waits for a runner', 'Every runner pool', 'Jobs cancelled before they start') }, window: roll(7), sourceLink: 'https://ci.example.com/runners/queue-wait-p90?window=7d' },
+  'first-review': { calculation: { measure: 'duration', aggregate: 'median', part: part('Working hours from a pull request opening to its first review', 'Every repository', 'Draft pull requests; bots') }, window: roll(28), sourceLink: 'https://git.example.com/insights/time-to-first-review' },
+  'cost-per-request': { calculation: { measure: 'ratio', aggregate: null, numerator: part('Cloud spend, USD', 'Production accounts', 'Credits and refunds', 'Cloud spend'), denominator: part('Requests served, in thousands', 'Production edge', 'Health checks', 'Requests (thousands)') }, window: { kind: 'period', period: 'month' }, sourceLink: 'https://finops.example.com/unit-costs/per-1000-requests' },
+  'flaky-rate': { calculation: { measure: 'ratio', aggregate: null, numerator: part('Test runs on main that fail, then pass on a retry of the same commit', 'Branch is main; CI runs only', 'Quarantined tests'), denominator: part('Test runs on main', 'Branch is main; CI runs only', 'Quarantined tests; cancelled runs') }, window: roll(7) },
+  'cache-hit': { calculation: { measure: 'ratio', aggregate: null, numerator: part('Remote cache hits', 'Every build on CI', ''), denominator: part('Remote cache lookups', 'Every build on CI', '') } },
+  'ci-cost': { calculation: { measure: 'ratio', aggregate: null, numerator: part('CI compute spend, USD', 'CI accounts', 'Credits'), denominator: part('Pipeline runs', 'Every pipeline', 'Cancelled runs') }, window: { kind: 'period', period: 'month' } },
+  devsat: { calculation: { measure: 'value', aggregate: 'mean', part: part('Pulse survey score, 0 to 100', 'Engineers who answered', 'Answers with no score') }, window: { kind: 'period', period: 'quarter' } },
+};
 
 export const METRICS: MetricSpec[] = [
   {
@@ -126,6 +163,16 @@ export function addDemoMetrics(b: DemoBuild) {
     const mid = (p: string) => (p === 'metric' ? `metric_${m.slug}` : `${p}_metric_${m.slug}_${++k}`);
     const when = new Date(startMs - 3 * DAY + i * HOUR);
     b.save(saveMetric(b.act(m.ownerId, when, mid), m).commit!);
+    // MQ2: its structured definition, its company baseline, and its verification, in that order, as people would.
+    const q = QUALITY[m.slug];
+    if (q) {
+      const id = `metric_${m.slug}`;
+      const at = (h: number) => new Date(when.getTime() + h * HOUR);
+      const def = saveMetric(b.act(m.ownerId, at(1), mid), { id, ...(q.calculation ? { calculation: q.calculation } : {}), ...(q.window ? { window: q.window } : {}), ...(q.sourceLink ? { sourceLink: q.sourceLink } : {}) } as Parameters<typeof saveMetric>[1]).commit;
+      if (def) b.save(def);
+      if (q.baseline) b.save(saveBaselines(b.act(m.ownerId, at(2), mid), id, [{ teamId: null, value: q.baseline[0], period: q.baseline[1], takenOn: at(2).toISOString().slice(0, 10), how: q.baseline[2] }]).commit);
+      if (q.verified && q.baseline) b.save(verifyMetric(b.act(q.verified[0], at(3), mid), id, { period: q.baseline[1], figure: q.verified[1], note: q.verified[2], openedLink: true, outcome: 'verified' }).commit);
+    }
     for (const [goalId, teamId, part] of m.measures) {
       const { goal, createdAt } = b.goal(goalId);
       const linkedAt = new Date(Math.max(when.getTime(), Date.parse(createdAt)) + HOUR);

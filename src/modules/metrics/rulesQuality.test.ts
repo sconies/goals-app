@@ -41,7 +41,7 @@ const RATIO: MetricCalc = {
 };
 const P90: MetricCalc = { measure: 'duration', aggregate: 'percentile', percentile: 90, part: { counts: 'Wall-clock minutes from push to a finished pipeline on main', filters: 'Branch is main', excludes: 'Cancelled runs' } };
 /** The fields that take the demo's CI pipeline time from Draft to Defined. */
-const FULL = { calculation: P90, window: { kind: 'rolling' as const, days: 7 }, sourceLink: 'https://ci.example.com/pipelines/main/p90' };
+const FULL = { calculation: P90, window: { kind: 'rolling' as const, days: 7 }, sourceLink: 'https://ci.example.com/pipelines/main/duration-p90?window=7d' };
 
 describe('the stage (MQ2)', () => {
   const at = '2026-11-15T12:00:00Z';
@@ -106,7 +106,7 @@ describe('saving the structured definition (MQ2)', () => {
     expect(m).toMatchObject({ ...FULL, calcChangedBy: 'daniel' });
     expect(V.stageNow(w.x('daniel'), m).stage).toBe('defined');
     expect(metricFromRow(metricToRow('ws', m))).toMatchObject(FULL);
-    expect(Object.keys(metricFromRow(metricToRow('ws', w.metric('lead-time')))).filter((k) => ['calculation', 'window', 'baselines', 'verification'].includes(k))).toEqual([]);
+    expect(Object.keys(metricFromRow(metricToRow('ws', w.metric('mttd')))).filter((k) => ['window', 'baselines', 'verification', 'sourceLink'].includes(k))).toEqual([]);
   });
   it('refuses a link that isn’t a web address, and an unknown window', () => {
     const w = world();
@@ -193,28 +193,28 @@ describe('lapsing (MQ2)', () => {
 describe('baselines per slice (MQ2)', () => {
   it('need all four parts; a new figure for the same period needs a reason; the old one moves to History', () => {
     const w = world();
-    refused(() => V.saveBaselines(w.x('marisol'), 'metric_cfr', [{ teamId: null, value: 11.8, period: '', takenOn: '2026-10-01', how: '' }]), /Say the period it covers.*Say how it was taken/);
-    refused(() => V.saveBaselines(w.x('tariq'), 'metric_cfr', [{ teamId: null, value: 11.8, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]), /Only Marisol Duarte or an admin/);
-    w.apply(V.saveBaselines(w.x('marisol'), 'metric_cfr', [{ teamId: null, value: 11.8, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys query, all services' }]).commit);
-    refused(() => V.saveBaselines(w.x('marisol'), 'metric_cfr', [{ teamId: null, value: 12, period: 'Jul–Sep 2026', takenOn: '2026-10-02', how: 'Four Keys' }]), /Say why the figure for Jul–Sep 2026 changes from 11\.8/);
-    w.apply(V.saveBaselines(w.x('marisol'), 'metric_cfr', [{ teamId: null, value: 10.9, period: 'Oct–Dec 2026', takenOn: '2027-01-02', how: 'Four Keys' }]).commit);
-    const bs = w.metric('cfr').baselines!;
+    refused(() => V.saveBaselines(w.x('tariq'), 'metric_first-review', [{ teamId: null, value: 11.8, period: '', takenOn: '2026-10-01', how: '' }]), /Say the period it covers.*Say how it was taken/);
+    refused(() => V.saveBaselines(w.x('rhea'), 'metric_first-review', [{ teamId: null, value: 11.8, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]), /Only Tariq Haddad or an admin/);
+    w.apply(V.saveBaselines(w.x('tariq'), 'metric_first-review', [{ teamId: null, value: 11.8, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys query, all services' }]).commit);
+    refused(() => V.saveBaselines(w.x('tariq'), 'metric_first-review', [{ teamId: null, value: 12, period: 'Jul–Sep 2026', takenOn: '2026-10-02', how: 'Four Keys' }]), /Say why the figure for Jul–Sep 2026 changes from 11\.8/);
+    w.apply(V.saveBaselines(w.x('tariq'), 'metric_first-review', [{ teamId: null, value: 10.9, period: 'Oct–Dec 2026', takenOn: '2027-01-02', how: 'Four Keys' }]).commit);
+    const bs = w.metric('first-review').baselines!;
     expect(bs.map((b) => [b.value, b.replacedWhy ?? null])).toEqual([[11.8, 'Replaced by Oct–Dec 2026'], [10.9, null]]);
-    expect(Q.baselineFor(w.metric('cfr'), { teamId: null })!.value).toBe(10.9);
+    expect(Q.baselineFor(w.metric('first-review'), { teamId: null })!.value).toBe(10.9);
   });
   it('a figure changed from the one read carries its reason into how it was taken', () => {
     const w = world();
-    refused(() => V.saveBaselines(w.x('marisol'), 'metric_cfr', [{ teamId: null, value: 12, read: 11.8, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]), /Say why you changed the figure read \(11\.8\)/);
-    w.apply(V.saveBaselines(w.x('marisol'), 'metric_cfr', [{ teamId: null, value: 12, read: 11.8, reason: 'Two hotfixes counted twice', period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]).commit);
-    expect(w.metric('cfr').baselines![0]!.how).toBe('Four Keys; Two hotfixes counted twice');
+    refused(() => V.saveBaselines(w.x('tariq'), 'metric_first-review', [{ teamId: null, value: 12, read: 11.8, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]), /Say why you changed the figure read \(11\.8\)/);
+    w.apply(V.saveBaselines(w.x('tariq'), 'metric_first-review', [{ teamId: null, value: 12, read: 11.8, reason: 'Two hotfixes counted twice', period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]).commit);
+    expect(w.metric('first-review').baselines![0]!.how).toBe('Four Keys; Two hotfixes counted twice');
   });
   it('a new source flags the baselines in force as taken from the old source, to retake', () => {
     const w = world();
-    w.apply(V.saveBaselines(w.x('rhea'), 'metric_lead-time', [{ teamId: null, value: 31, period: 'Jul–Sep 2026', takenOn: '2026-10-01', how: 'Four Keys' }]).commit);
     w.apply(saveMetricAsked(w.x('rhea'), { id: 'metric_lead-time', source: 'Deploy pipeline events', comparable: true, reason: 'Four Keys stops at the merge.' }).commit);
     const m = w.metric('lead-time');
     expect(Q.liveBaselines(m)[0]!.oldSource).toBe(true);
-    expect(m.marks!.at(-1)).toMatchObject({ kind: 'source', now: 'Deploy pipeline events', why: 'Four Keys stops at the merge.' });
+    expect(m.marks!.at(-1)).toMatchObject({ kind: 'source', why: 'Four Keys stops at the merge.' });
+    expect(m.marks!.at(-1)!.now).toMatch(/^Deploy pipeline events/);
     expect(M.markLabel(m.marks!.at(-1)!)).toMatch(/^Source changed, week \d+$/);
     expect(Q.sortOutOf(m, { stage: V.stageNow(w.x('rhea'), m), nameOf: (id) => id })[0]).toMatchObject({ kind: 'oldSource', words: 'Retake 1 baseline from the new source' });
   });

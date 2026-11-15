@@ -62,7 +62,9 @@ describe('metric library tools', () => {
     expect(await names({ unused: true })).toEqual(['CI compute cost per pipeline run']);
     expect((await names({ sort: 'goals' })).at(-1)).toBe('CI compute cost per pipeline run');
     const mine = (await call('list_metrics', { sort_out: true })).structuredContent!.metrics as { name: string; needs: { id: string }[] }[];
-    expect(mine).toMatchObject([{ name: 'CI compute cost per pipeline run', needs: [{ id: 'unused' }] }]);
+    // Rule 3's needs and MQ2's loose ends together: CI compute cost needs a goal and (a Draft) a source link.
+    expect(mine).toContainEqual(expect.objectContaining({ name: 'CI compute cost per pipeline run', needs: [{ id: 'unused', sentence: 'No goal uses it' }], stage: 'draft', missing: 'needs a source link' }));
+    expect(mine.every((r) => (r as { needs: unknown[]; sortOut: unknown[] }).needs.length + (r as { sortOut: unknown[] }).sortOut.length > 0)).toBe(true);
     expect((await call('get_metric', { metric: 'metric_ci-cost' })).structuredContent).toMatchObject({ goals: [], needs: [{ id: 'unused', sentence: 'No goal uses it' }] });
     expect((await call('list_metrics', { team: 'Nowhere' })).isError).toBe(true);
   });
@@ -76,7 +78,7 @@ describe('metric library tools', () => {
     expect(metricsOf(data()).some((x) => x.name === 'Build time')).toBe(false);
     const r = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily', answers: { name: 'keep:metric_cache-hit' } });
     expect(r.isError, r.content[0]!.text).toBe(false);
-    expect(r.content[0]!.text).toMatch(/Still to say: what it means, where the number comes from, who owns that source\.$/);
+    expect(r.content[0]!.text).toMatch(/Still to say: what it means, where the number comes from, who owns that source\. Stage: Draft\./);
     const m = metricsOf(data()).find((x) => x.name === 'Build time')!;
     expect(m).toMatchObject({ ownerId: 'oskar', refresh: 'daily', decimals: 0 });
     const log = data().changes.find((c) => c.entityId === m.id)!;
@@ -231,5 +233,60 @@ describe('metric library tools', () => {
     expect(sc.proposed.map((x) => x.goalId)).toEqual([goalId]);
     expect(sc.goals.some((x) => x.goalId === goalId)).toBe(false);
     expect(one.content[0]!.text).toMatch(/Proposed \(1\), not judged: /);
+  });
+  /* MQ2 (docs/design/mq2 sketch 13): every journey through MCP, by the same rules as the screens. */
+  describe('metric quality through MCP', () => {
+    it('lists stages, refresh and window, and filters by stage and to_verify', async () => {
+      const { call } = await setup('amara');
+      const v = (await call('list_metrics', { stage: 'verified' })).structuredContent!.metrics as { name: string; stage: string; refreshWords: string; window: string }[];
+      expect(v.map((m) => m.name)).toEqual(['Change failure rate', 'Mean time to restore (P1 and P2)', 'Production deploys per day']);
+      expect(v[0]).toMatchObject({ stage: 'verified', refreshWords: 'Refreshed weekly', window: 'Rolling 28 days' });
+      const tv = (await call('list_metrics', { to_verify: true })).structuredContent!.metrics as { name: string; stage: string }[];
+      expect(tv.every((m) => m.stage === 'defined')).toBe(true);
+      expect(tv.map((m) => m.name)).toContain('CI pipeline time on main (p90)');
+    });
+    it('get_metric returns the calculation, baselines per slice and the verification record', async () => {
+      const { call } = await setup('amara');
+      const d = (await call('get_metric', { metric: 'Change failure rate' })).structuredContent as Record<string, any>;
+      expect(d).toMatchObject({ stage: 'verified', calculationWords: 'Ratio', windowWords: 'Rolling 28 days', baselines: [{ slice: 'The whole company', value: 11.8, period: 'Jul–Sep 2026' }], verification: { by: 'Amara Nwosu', figure: 11.8, stored: 11.8, storedFrom: 'baseline' } });
+      expect(d.calculation.numerator.name).toBe('Failed changes');
+    });
+    it('verify_metric refuses the owner in words, and verifies for someone else with the comparison', async () => {
+      const owner = await setup('daniel');
+      const no = await owner.call('verify_metric', { metric: 'CI pipeline time on main (p90)', period: 'Aug–Oct 2026', figure: 21, opened_link: true, outcome: 'verified', note: 'Matches.' });
+      expect(no.isError).toBe(true);
+      expect(no.content[0]!.text).toMatch(/You own this metric, so someone else must verify it\. Ask an admin, someone in Developer Experience/);
+      const { call } = await setup('amara');
+      const ok = await call('verify_metric', { metric: 'CI pipeline time on main (p90)', period: 'Aug–Oct 2026', figure: 21, opened_link: true, outcome: 'verified', note: 'Matches apart from rounding.' });
+      expect(ok.structuredContent).toMatchObject({ saved: true, stage: 'verified', stored: 22, storedFrom: 'baseline' });
+      expect(ok.content[0]!.text).toMatch(/Your 21 min against 22 min stored \(1 min lower\)/);
+    });
+    it('save_metric returns the stage before and after, and asks before lapsing Verified', async () => {
+      const { call } = await setup('marisol');
+      const asked = await call('save_metric', { id: 'Change failure rate', window: 'rolling 14 days' });
+      expect(asked.structuredContent).toMatchObject({ saved: false, checks: [{ field: 'lapse', answers: [{ answer: 'go' }] }] });
+      const done = await call('save_metric', { id: 'Change failure rate', window: 'rolling 14 days', answers: { lapse: 'go' }, reason: 'Fortnightly reviews.' });
+      expect(done.structuredContent).toMatchObject({ saved: true, stageBefore: 'verified', stageAfter: 'defined' });
+      const draft = await setup('rhea');
+      const r = await draft.call('save_metric', { id: 'Flaky test rate', source_link: 'https://ci.example.com/tests/flaky' });
+      expect(r.structuredContent).toMatchObject({ stageBefore: 'draft', stageAfter: 'defined', missing: [] });
+    });
+    it('save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving', async () => {
+      const { call } = await setup('tariq');
+      const bad = await call('save_baselines', { metric: 'Time to first review', baselines: [{ value: 9, period: 'Jul–Sep 2026', taken_on: '2026-10-01', how: 'PR data', read: 8.5 }] });
+      expect(bad.isError).toBe(true);
+      expect(bad.content[0]!.text).toMatch(/Say why you changed the figure read/);
+      const ok = await call('save_baselines', { metric: 'Time to first review', baselines: [{ value: 9, period: 'Jul–Sep 2026', taken_on: '2026-10-01', how: 'PR data', read: 8.5, reason: 'Bots left out' }] });
+      expect(ok.structuredContent).toMatchObject({ saved: true, stage: 'defined', baselines: [{ slice: 'The whole company', value: 9 }] });
+      const fill = await call('save_baselines', { metric: 'Time to first review', from_readings: true });
+      expect(fill.structuredContent).toMatchObject({ saved: false });
+    });
+    it('refuses every quality tool with the module-off sentence when Metrics is switched off', async () => {
+      const { call } = await setup('amara', ['metrics']);
+      for (const [tool, args] of [['verify_metric', { metric: 'x' }], ['save_baselines', { metric: 'x' }]] as const) {
+        const r = await call(tool, args);
+        expect(r.isError).toBe(true);
+      }
+    });
   });
 });
