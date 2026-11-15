@@ -21887,6 +21887,7 @@ var CORE_ARTICLES = [
 				"Set up from inside the app (from the workspace switcher or Workspace), the first step says “Setting up as” you, in one line; Change opens your name, email and team.",
 				"Under the first step, How you’ll work says the usual in one paragraph: check-ins every week, by the review’s day; a weekly review on Thursdays; the year starting in January; Recording off. Change how you’ll work opens a sheet for the month the goal year starts, the review day and whether to record how the app is used (off unless you tick it). Changed, the panel says so. Check has the same Change.",
 				"Goals offers three ways to start. Add your own (chosen to begin with) shows the outcome and up to four goals that feed it, to type in. Import a spreadsheet takes the template or a workbook (Choose a spreadsheet; a file with goals uploaded on People is used straight away). Later finishes with no goals: each owner adds theirs from New goal. Not sure what a good goal looks like? The link there opens the demo’s goals in a new tab, and your set-up is kept.",
+				"Each goal you add there takes its owner’s team, so a teammate’s goal counts for their team. Set-up doesn’t ask for a team; change it on the goal later if it belongs elsewhere. A number goal’s Today figure is its number until the first check-in, marked as the baseline as at the day you set up. A goal kept in range can stay at most, at least or between two limits, as in New goal.",
 				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.",
 				"On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.",
 				"If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.",
@@ -24127,6 +24128,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "setup-goals-owner-team",
+		date: "2026-11-15",
+		title: "Set-up’s goals count for their owner’s team",
+		points: [
+			"A goal set up for a teammate now takes their team, not yours, so their team’s page and Home count it. Change a goal’s team on the goal if it belongs elsewhere.",
+			"The Today figure you give in set-up is the goal’s number until its first check-in, marked as the baseline.",
+			"A goal kept in range can stay between two limits in set-up too, as it can in New goal."
+		],
+		articles: ["set-up"]
+	},
 	{
 		id: "fields-import-undo",
 		date: "2026-11-15",

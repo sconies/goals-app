@@ -721,8 +721,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Today …” | text | `g.kind === 'metric'` |
 | “Target …” | text | `g.kind === 'metric'` |
 | “Unit” | text | `g.kind === 'metric'` |
-| “Must stay At most At least” | select | `!(g.kind === 'metric')` and `g.kind === 'range'` |
-| “Limit …” | text | `!(g.kind === 'metric')` and `g.kind === 'range'` |
+| “Must stay At most At least Between” | select | `!(g.kind === 'metric')` and `g.kind === 'range'` |
+| “Lower limit …” | text | `!(g.kind === 'metric')` and `g.kind === 'range'` and `g.bound === 'between'` |
+| “Upper limit / Limit …” | text | `!(g.kind === 'metric')` and `g.kind === 'range'` |
 | “Warn within” | text | `!(g.kind === 'metric')` and `g.kind === 'range'` |
 | “Unit” | text | `!(g.kind === 'metric')` and `g.kind === 'range'` |
 | “How it’s measured optional” | text | `g.kind !== 'milestone'` |
