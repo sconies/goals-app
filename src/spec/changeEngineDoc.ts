@@ -153,7 +153,7 @@ function fieldsSection(w: ConformanceWorkspace): string[] {
     '',
     `Via is the door, one of ${Object.values(VIA_LABEL).map((v) => `\`${v}\``).join(', ')}: every change through a door but the check-in form carries it, last.`,
     '',
-    '**Whole items**, as the conformance cases make them (changes.csv’s `diffs`). A new goal lists the fields it fills, and also these, whose value is the goal’s own though it reads like nothing: Feeds into (`— → Nothing`), Level, Role, Guardrail, Decimals and Plan from week (this week, when the row gives no From). Target due is left out when it is the cycle’s end. Plan from week and Target due are the bare week of the cycle’s own count, `Week 66` for a week in the next goal year ([years and weeks](years-and-weeks.md)). A goal stopped carries Status, then Why, then Via. Baseline is `Baseline, {period}`, then `, provisional` when it is.',
+    '**Whole items**, as the conformance cases make them (changes.csv’s `diffs`). A new goal lists the fields it fills, and also these, whose value is the goal’s own though it reads like nothing: Feeds into (`— → Nothing`), Level, Role, Guardrail, Decimals, Plan shape (a number goal), Warning margin (a range) and Plan from week (this week, when the row gives no From). Target due is left out when it is the cycle’s end. Plan from week and Target due are the bare week of the cycle’s own count, `Week 66` for a week in the next goal year, and so are the weeks in Plan numbers (`wk 4: 60`) and Stages (`Pilot (wk 8)`) ([years and weeks](years-and-weeks.md)). A goal stopped carries Status, then Why, then Via. Baseline is `Baseline, {period}`, then `, provisional` when it is.',
     '',
     table(['Case', 'Item', 'Diffs'], whole),
     '',

@@ -17,7 +17,7 @@ A module is a folder with its facts as plain data (Faro’s `module.json`, typed
 | `group` | Its group on Features: `together` (Working together), `tools` (Tools), `beyond` (Beyond this workspace); `tools` when it says none. |
 | `needs` | The modules it can’t work without. It is off whenever one of them is off or left out. |
 | `routes`, `redirects` | Its pages (each with a Help article), and old addresses that lead to one of them. |
-| `navigation`, `menu.waitsFor` | Its menu rows, each in a group (`work`, after Reviews; `lookup`, after Data, the default; also under More on a phone); a row can wait until the module has a first record. |
+| `navigation`, `menu.waitsFor` | Its menu rows, each in a group (`work`, after Reviews; `lookup`, the default, after People and before Activity and Data; also under More on a phone); a row can wait until the module has a first record. |
 | `places` | The places on core screens it fills (below). |
 | `sections` | Workspace sections it adds: each at `/workspace/<id>`, in Workspace’s menu after the section it names, with a Help article; admins only when it says so. |
 | `finders`, `filters`, `toSortOut` | Kinds of thing it makes findable (find-and-pick and Find, through the `Search` port), filters it adds to Goals (declared as data: a column compared with what is picked), and things to sort out on Workspace’s About without a section of its own. |
@@ -27,7 +27,7 @@ A module is a folder with its facts as plain data (Faro’s `module.json`, typed
 
 ## Where a module plugs in
 
-A place is a spot on a core screen that draws whatever the modules that are on put there, in module order, and nothing at all when none does. Build every place empty in stage 3; a screen renders it as one call (Faro: `<Place name="…" … />`).
+A place is a spot on a core screen that draws whatever the modules that are on put there, in module order (their ids, A to Z), and nothing at all when none does. Build every place empty in stage 3; a screen renders it as one call (Faro: `<Place name="…" … />`).
 
 | Place | Where the core draws it | What a module’s part is given |
 |---|---|---|
@@ -36,7 +36,7 @@ A place is a spot on a core screen that draws whatever the modules that are on p
 | `goal.sections` | A goal’s page, inside About this goal, after its facts | the goal |
 | `data.tools` | Data’s toolbar, after Columns and Saved layouts | the open table’s name, and the table exactly as laid out |
 | `goals.tools` | Goals’ Views menu (the View sheet on a phone), after Copy link | the goals shown now and the view’s name |
-| `goal.measure` | New goal (after “How it’s measured”) and Change a goal (after the name): the “Measured by” field | the goal as saved (none while new), the form’s kind, unit, decimals and team, and `onChange(pick)`: one of the module’s actions and its input, which the form runs after the goal |
+| `goal.measure` | New goal (after “How it’s measured”) and Change a goal (after the name and, for a goal with a number, its “What it measures”): the “Measured by” field | the goal as saved (none while new), the form’s kind, unit, decimals and team, and `onChange(pick)`: one of the module’s actions and its input, which the form runs after the goal |
 | `people.person` | A person’s page in People, after their facts | the person |
 | `people.team` | A team’s page in People, after its people | the team |
 | `help.article` | A Help article, under its title, before its sections | the article’s id, so a module draws only in its own article |
@@ -97,18 +97,19 @@ There are several sentences, each for one door; the stage pages quote them, and 
 | Where | The words | Said by |
 |---|---|---|
 | A page of a switched-off module: its address (Page not found) and its Help article, under the heading | “{Module} is switched off in {workspace}. An admin can switch it on in Workspace, Features.” | `src/ui/SwitchedOff.tsx` |
-| An action of a switched-off module, refused (the app’s `run`, and the AI tools through it); also a save that writes Reviews’ records while Reviews is off | “{Module} is switched off in {workspace}. An admin can switch it on in Workspace, under Features.” | `switchedOffWords` (src/app/reads.ts) |
+| An action of a switched-off module, refused by the app’s `run` (the AI tools don’t go through it: they say the tool’s sentence, below); also a save that writes Reviews’ records while Reviews is off | “{Module} is switched off in {workspace}. An admin can switch it on in Workspace, under Features.” | `switchedOffWords` (src/app/reads.ts) |
 | One of the core’s own actions that belongs to a switch whose code is still the core’s (send feedback, write a wrap-up, make a token), refused; also Watch and Stop watching while Watching is off | “{Module} is off in {workspace}.” | `moduleOffWords` (src/app/reads.ts) |
-| An AI tool of a switched-off module, called (`callTool`); the tool still shows in `tools/list` | “{Module} is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” | `moduleOffSentence` (src/mcp/moduleOff.ts) |
+| An AI tool of a switched-off module, called (`callTool`); the tool still shows in `tools/list`. Also a core tool asked for what a switched-off module adds: find_goals with a module’s filter, post_check_in with `reading_confirmed` or `different_because`, and bulk_change writing Reviews’ records or watches | “{Module} is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” | `moduleOffSentence` (src/mcp/moduleOff.ts) |
 | get_help asked for a switched-off module’s article | “{Module} is switched off in {workspace}, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.” | `src/mcp/workTools.ts` |
 | Every request to the AI tools’ server but `initialize`, `tools/list` and notifications, while AI access is off (the door) | “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.” | `aiAccessShutWords` (src/app/reads.ts) |
 | set_feature switching AI access off: the last thing that connection does | “AI access is off in {workspace}. This connection stops working now. An admin switches it back on in Faro.” | `aiAccessLastWords` (src/app/reads.ts) |
 | The import’s file line, once, when Reviews is off and the file has Reviews’ sheet or column | “Reviews is off in {workspace}, so the Notes sheet and the Review column were not read.” | `reviewsOffReadLine` (src/domain/sheets.ts) |
+| The import’s file line and bulk_change, once for each module sheet the file has whose module is off (today the Metric library’s Metrics sheet) | “{Module} is off in {workspace}, so the {sheet} sheet was not read.” | `moduleOffLine` (src/domain/sheets.ts) |
 | Workspace → Features, after a switch is turned off (a message with Undo) | “{Module} is off in {workspace}. Nothing it saved is lost.” | `src/screens/Workspace.tsx` |
 | Workspace → Features, after a switch is turned on (a message with Undo) | “{Module} is on in {workspace}.” | `src/screens/Workspace.tsx` |
 | Workspace → Features, a module whose needs are off (under its name) | “Off until {the modules it needs} is on.” | `src/screens/Workspace.tsx` |
 
-The import says once, in its file line, what it didn’t read because a module is off: today Reviews’ sheet and column (the row above). The file line’s “Not read: …” names every other sheet it didn’t read. A module whose records are not in the spreadsheet format (AI access’s tokens, Feedback’s inbox) has nothing for the import to say.
+The import says once, in its file line, what it didn’t read because a module is off: today Reviews’ sheet and column, and the Metric library’s Metrics sheet (the two rows above). The file line’s “Not read: …” names every other sheet it didn’t read. A module whose records are not in the spreadsheet format (AI access’s tokens, Feedback’s inbox) has nothing for the import to say.
 
 ## The AI tools’ server and its door
 
@@ -139,11 +140,11 @@ One endpoint (Faro: `/api/mcp`) answering JSON-RPC 2.0 over HTTP POST, the Model
 | `tools/list` | Every tool, the core’s and every installed module’s, on or off: `name`, `title`, `description`, `inputSchema`, `annotations`. A switched-off module’s tools stay listed, so an assistant learns why a call refuses. |
 | `tools/call` | `{ name, arguments }`: `{ content: [{ type: "text", text }, …images], structuredContent?, isError }`. An unknown name is error -32602 “Unknown tool: {name}”. |
 | `prompts/list`, `prompts/get` | The server’s prompts (Feedback’s `review_inbox`); an unknown one is -32602 “Unknown prompt: {name}”. |
-| a notification (no `id`), any `notifications/…` | No reply. A body with nothing to reply is answered 202 with no body. |
+| a notification (no `id`), any `notifications/…` | No reply, except that `initialize`, `tools/list`, `prompts/list`, `prompts/get` and `tools/call` are answered even with no `id` (`id: null`); only `ping`, `notifications/…` and an unknown method go unanswered. A body with nothing to reply is answered 202 with no body. |
 | anything else | error -32601 “Method not found: {method}”; a message that isn’t JSON-RPC 2.0 is -32600 “Invalid request”. |
 
 - **Batches.** A body may be an array of messages: they run one at a time, in order, so a later call sees what an earlier one saved; the replies come back as an array, notifications left out.
-- **A tool’s refusals** are a result with `isError: true` and the words in `text`, never a JSON-RPC error: an unknown tool inside the call (“There’s no tool called {tool}.”), a switched-off module’s tool (its sentence, above), and a rule saying no, followed by who the token acts as (“This token acts as {name}, who isn’t an admin.”).
+- **A tool’s refusals** are a result with `isError: true` and the words in `text`, never a JSON-RPC error: a switched-off module’s tool, or a core tool asked for what one adds (the tool’s sentence, above), and a rule saying no, followed by who the token acts as (“This token acts as {name}, who isn’t an admin.”). A name with no tool is refused before any tool runs, as the JSON-RPC error -32602 “Unknown tool: {name}” (the methods, above).
 - **Stale saves.** A save refused because someone else changed the same goal or review since the request loaded it runs the tool again on the latest, up to twice more; a re-run that saved starts its text “Someone else changed this a moment ago, so it ran again on the latest and was saved as follows. If you checked it first with a dry run, check what it says now.”, and one refused every time says “Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.”
 - **Dry runs.** Every tool that writes and takes `dry_run` (9 today: `post_check_in`, `update_goal`, `make_goal_active`, `make_goal_proposed`, `create_goal`, `set_plan_numbers`, `start_next_cycle`, `undo_import`, `set_goal_fields`) checks and says what it would save with `dry_run: true`, and saves nothing; `bulk_change` previews unless given `apply`. A dry run follows the same rules and refusals as the save.
 

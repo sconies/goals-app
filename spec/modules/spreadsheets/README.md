@@ -55,6 +55,7 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | F8 | Fit and finish, sheets | `evals/finish/8-sheets.cjs` |
 | F17 | The import’s preview on a phone: nothing scrolls sideways, every answer and button is 44 px high, Import’s primary action is on the first screen | `evals/finish/17-import.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
+| [U72](journeys/U72.md) | One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it; Import’s check and its changes have one too, which goes back to Import | `evals/journeys.cjs` |
 
 ## Help
 

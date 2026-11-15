@@ -378,7 +378,6 @@ export function actionsPage(r: Repo, generated: string): string {
 }
 
 const ERRORS_EVERY_TOOL = [
-  'There’s no tool called ….',
   '… is switched off in …, so … can’t be used there. An admin can switch it on in Workspace, under Features.',
 ];
 
@@ -415,7 +414,7 @@ export function toolsPage(r: Repo, tools: readonly ToolDef[], moduleOf: (name: s
     '- **The arguments** are checked against the schema; no argument outside it is accepted (`additionalProperties: false`). A goal is named by its id or its key (`G-12`), a person by name or id.',
     '- **What it gives back:** a text for the assistant to read, in plain words with each status’s code beside its word (“Off track (off)”), and, for most tools, `data` beside it (MCP structured content), typed below. A tool that sends pictures sends them after the text.',
     '- **A change** goes through the same rules as the app’s: the change engine for check-ins, goals, plans, bulk changes and spreadsheets, so it raises [the same issues](import-issues.md) and asks the same questions. `dry_run: true` shows what would change and saves nothing; `confirm: true` goes ahead past a question once the person has said so; `answers` answers the engine’s questions. Every change is logged as the token’s person, marked via MCP, and can be undone as the app’s can.',
-    `- **A refusal** comes back as a tool error (\`isError\`) with words to show; nothing is saved. A refusal by a rule ends with who the token acts as: ${quote('This token acts as …, who is an admin.')} or ${quote('… who isn’t an admin.')} Every tool can also say: ${ERRORS_EVERY_TOOL.map(quote).join('; ')}. Its own refusals are listed under each tool, and the refusals of the actions it does the same as are on [the actions](actions.md).`,
+    `- **A refusal** comes back as a tool error (\`isError\`) with words to show; nothing is saved. A refusal by a rule ends with who the token acts as: ${quote('This token acts as …, who is an admin.')} or ${quote('… who isn’t an admin.')} Every tool can also say: ${ERRORS_EVERY_TOOL.map(quote).join('; ')}. A name the server has no tool for is not a tool error but JSON-RPC error -32602, ${quote('Unknown tool: …')}. Its own refusals are listed under each tool, and the refusals of the actions it does the same as are on [the actions](actions.md).`,
     '- **The hints** (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) are MCP annotations: shown below as reads, changes, or changes and removes something.',
     '',
     table(['Tool', 'Title', 'Kind', 'Actions it does the same as'], tools.map((t) => [
