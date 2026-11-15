@@ -1,1 +1,0 @@
-{ "stage": 3, "run": "node main.mjs", "shim": "node shim.mjs", "contracts": ["store"], "also": ["status", "flags", "projection", "scorecard", "checkin", "changes", "import", "reviews"] }

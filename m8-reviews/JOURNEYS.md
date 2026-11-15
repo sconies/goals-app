@@ -1,63 +1,31 @@
-# Stage 3: the core journeys, tallied
+# Reviews' journeys and checks, against this build
 
-App: `node app/server.mjs 4173` (server-rendered, no packages; the stage 1–2 rules underneath). The viewer is the `as` cookie (or `?as=`), the day `?today=` (default 5 Nov 2026). Scripts: `node journeys/run.cjs [ids]` drives each scripted journey on a phone (390×844) and a desktop (1440×900), following its page's steps and checks, counting steps against the budget and scoring each checkpoint (at most one main button in view, no sideways scroll, 44px main button on a phone, every status shape beside its word). Results: `journeys/results.json`.
+Driven in a real browser at both widths by `modules/reviews/journeys.mjs` (exit 1 on any failed check; no filtering, no stale results). Criterion 2's test runs it.
 
-**73 core journey pages: DONE 13 · PART 24 · NOT BUILT 36.** 18 scripted in Playwright (13 DONE, 5 PART); the other 55 by written walk-through against the running rebuild.
-
-## Scripted (Playwright)
-
-| Id | Tally | Steps (phone, desktop / budget) | What fails, and why |
-|---|---|---|---|
-| U2 | DONE | 1, 1 / 1 | — |
-| U24 | DONE | 4, 4 / 8 | — (version check on save) |
-| U25 | DONE | 12, 12 / 12 | — |
-| U64 | DONE | 6, 6 / 10 | — |
-| U65 | DONE | 2, 2 / 6 | — |
-| U66 | DONE | 2, 2 / 4 | — |
-| U69 | DONE | 0, 0 / 1 | Checked over my own list of 13 addresses: the journey's `PAGES` list isn't in the kit. `rel-cfr` (one of the "six goals") isn't in the demo workspace; it gives "Goal not found", so six titles still hold |
-| U71 | DONE | 8, 8 / 10 | — |
-| U77 | DONE | 7, 7 / 10 | — |
-| U78 | DONE | 3, 3 / 6 | — |
-| U123 | DONE | 2, 2 / 4 | — |
-| U137 | DONE | 16, 16 / 26 | The "Stage 1: due" week picker is a select here, not a typed picker (U109's) |
-| U141 | DONE | 2, 2 / 4 | — |
-| U1 | PART | 11, 11 / 17 | The first-check-in-off-plan offer ("Keep … and say why", cause buttons "Change landed early", field "What happened") isn't built: the kit names the buttons, not the screen. One question per screen (Continue, then "Still true" as a button) is one form here. Everything else holds: verdict "ahead of plan" + "planned for week 45", "Check-in saved", Next:, draft back on Home, receipt, "Check in again" kept alongside, "Type this week’s number", "Still asking:" |
-| U6 | PART | 4, 4 / 3 | `.diffs ins` needs a change in the goal's log, and the demo's change log isn't in workspace.json. Over budget: the page lists 6 counted steps against a budget of 3 |
-| U58 | PART | 6, 6 / 12 | Says the address becomes `/demo/people` (every other journey uses `/people`); Goals' "By team" (`show=teams`) has no screen words; the `old` address table isn't in the kit. Rest holds |
-| U70 | PART | 6, 6 / 9 | Saved views ("Save this view…") and Settings' `.section-links` aren't built. Back links, stepping Back over the edit form after Save, Forward, and Page not found's Find all hold |
-| U122 | PART | 3, 3 / 6 | Wednesday 11 Nov expects "both are in (the example posts them)". The kit's workspace stops at 5 Nov, so nothing is posted. Monday's and Friday's checks and the count links hold |
-
-## Walk-throughs (by hand against the running app)
-
-| Id | Tally | Why |
+| Id | Tally | What happens |
 |---|---|---|
-| U4 | PART | Wizard, read-back and publish work. Plan shape by hand and History's full entry aren't built |
-| U12 | PART | Switch person (Demo panel) works. Start over isn't built |
-| U15 | PART | The call is chosen on the check-in. The status sheet and "greener" reason aren't built |
-| U21 | PART | The one-table check-in posts. Bulk change isn't built |
-| U32 | PART | Search, filter (in the address) and Clear work. Layouts, sort menu, saved views and sharing aren't built |
-| U33 | PART | Respond, Answer and Ask for an update work. "What threatens the north star" and the table compare aren't built |
-| U37 | PART | Answering a decision works. Linking several goals to one decision isn't built |
-| U38 | PART | Asking for an update works. Quarters, week inspector, Undo of an ask and double-post guard aren't built |
-| U57 | PART | Week said, kept-alongside check-in, newest on goal page. "2 of 2" after reload and the table sharing the draft are partial |
-| U59 | PART | About with facts that link to sections. Member/admin variants and sections aren't built |
-| U72 | PART | Each form has one closing control in words. Ask-first dialog on New review and Import's check aren't built |
-| U84 | PART | Four steps with addresses, Back steps back, draft picked up. Suggestions are shown as text, not chosen |
-| U91 | PART | Edit page picks owner, team and feeds-into by typing. The "lower goal can't feed it" refusal and the Data owner cell aren't built |
-| U92 | PART | People and Data search and count in the list bar's words. Feedback inbox, sort in address and old sort links aren't built |
-| U93 | PART | Owner sentence, "Everything here is needed…", "2 things to fix above: Baseline and Target." and the over-100 Check are built. "Kept as whole numbers…", the "Is it under way?" group, Add a stage, per-stage faults and `.focus-foot` Back aren't |
-| U109 | PART | Weeks are picked with their dates and named weeks. Not a typed picker ("14 Dec" → week 51) |
-| U136 | PART | One page, anchors, "Close and keep the draft", Save held at the foot. The question-focus case isn't built |
-| U151 | PART | The receipt is built. The reached-target panel and History mark aren't |
-| U153 | PART | "N of M goals are checked in so far" and the no-check-in link are built. The row of 8 weeks and the team panel aren't |
-| U5, U11, U17, U54, U61, U86, U97, U147 | NOT BUILT | Set-up, workspaces, Welcome and the import screens aren't built (stage 2's engine is there, with no screens) |
-| U14, U43, U60, U176 | NOT BUILT | Admin screens (Access, people, leaving, the workspace line) |
-| U18, U23, U115, U117 | NOT BUILT | Plan points by hand, quarters, and the year's start and end |
-| U27, U28, U29 | NOT BUILT | Walkthroughs and research sessions |
-| U35, U45, U98 | NOT BUILT | Data tables editing, import undo, large import |
-| U44, U142, U149, U150 | NOT BUILT | Stop, delete, correct a check-in, proposed type, stopped list |
-| U85, U111 | NOT BUILT | Stage-already-past question and look-wrong number check on the check-in |
-| U101, U102 | NOT BUILT | No rhythm switch (Features) |
-| U124 | NOT BUILT | Leader's Home table of teams, "Changed since" |
-| U148 | NOT BUILT | Propose in a review |
-| U161, U162, U163, U171 | NOT BUILT | Number sources, baselines, guardrails |
+| U103 | PART | Driven. Every check passes but one: with Reviews off, Amara's Home lead is “Needs your response” (Rhea's decision ask, open since 28 Jul, leads by core/rules/home.md rule 5 and core-only home.csv), not “Goals you watch · {n} need attention” (GAPS G11). Read-back, Cancel, switch off, menu and tabs, no review cell, addresses off, History keeps “Platform leadership weekly”, the next step stays on Home, logged, Undo: pass. |
+| U104 | DONE | Driven, both widths pass. |
+| U154 | PART | Driven: the read-back's due-day line and no accepted-risk line, then nine pages Rhea opens with no deadline or session named as a review: pass. Her two check-ins and the receipt (the core's step-by-step check-in) are not driven. |
+| U155 | DONE | Driven, both widths pass: off Monday 2 Nov, on Friday 6 Nov; neither Reviews nor Home says Not held yet; the weekly says “Next on Thu 12 Nov”. |
+| U13 | PART | Driven, both widths pass, but people are typed as ids (“jun, mateo”), not found with the picker (U63 not built); levels are tick boxes. |
+| N21 | DONE | Driven, both widths pass: the read-back counts what stays; five review addresses say the switched-off sentence. |
+| U3 | PART | Not driven. Built: the agenda (needs attention first, then worst and stalest), Start review, the walk on each goal page with Previous/Next, Mark reviewed, a note, a question to the owner, a next step with who and by week, accepting the risk, a goal behind can't be marked reviewed without a decision, the summary (“What was said”). Not built: the reviewbar, the healthy group (“Nothing flagged”), the Finish dialog, “Questions for you” on Home. |
+| U30 | NOT BUILT | A review set-up that survives a refresh: no draft is kept. |
+| U36 | NOT BUILT | Not tried. |
+| U47 | NOT BUILT | The feedback inbox (another module). |
+| U49 | NOT BUILT | Workspace set-up is not in this build. |
+| U63 | NOT BUILT | The find-and-pick picker. |
+| U67 | PART | The menu groups and phone tabs are the core's (navigation.csv at 100%, with Reviews on and off); not driven here. |
+| U79 | PART | History names the review a note was said in and filters “Said in reviews”; missed weeks and links to an entry not tried. |
+| U80 | NOT BUILT | Watch and comments' words (Watching / core). |
+| U72 | PART | The review set-up has one closing control, “Close without saving”; it doesn't ask first when something is typed. |
+| N1 | NOT BUILT | Its steps are in evals/notes/1-reviews.cjs, not in the kit. |
+
+Tally: 3 DONE, 7 PART, 7 NOT BUILT (of 17).
+
+The core's own journeys (`tests/journeys.mjs`, 10 journeys × 2 widths) with Reviews on, switched off (`FARO_OFF=reviews`) and left out (`FARO_WITHOUT=reviews`): see the last run below.
+
+Last run of the core's journeys: Reviews on, every journey run passed (exit 0); switched off, every journey run passed (exit 0); left out, every journey run passed (exit 0). U69 now reads the switch (CORE-CHANGES.md).
+
+Last run of `node --test modules/reviews/exit.test.mjs`: 11 pass, 1 fail (criterion 2, from U103's Home-lead check).

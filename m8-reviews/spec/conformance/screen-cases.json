@@ -1,0 +1,306 @@
+{
+  "workspaceName": "Platform Engineering",
+  "navigation": {
+    "viewers": [
+      "rhea",
+      "oskar"
+    ],
+    "addresses": [
+      "/",
+      "/check-in",
+      "/check-in/lead-mq",
+      "/quick-check-in",
+      "/goals",
+      "/goals?scope=mine",
+      "/watching",
+      "/goals/new",
+      "/goals/lead-mq",
+      "/goals/lead-mq/edit",
+      "/goals/lead-mq?review=weekly",
+      "/goals/nowhere",
+      "/reviews/weekly",
+      "/people/rhea",
+      "/teams/cicd",
+      "/activity",
+      "/data",
+      "/workspace/people",
+      "/settings",
+      "/help/check-in",
+      "/whats-new",
+      "/retro",
+      "/retro/x",
+      "/research",
+      "/nowhere"
+    ],
+    "module": {
+      "id": "example",
+      "to": "/example",
+      "label": "Example",
+      "group": "lookup"
+    },
+    "moduleAddresses": [
+      "/example",
+      "/example/one"
+    ],
+    "switchedOff": [
+      {
+        "address": "/ (Reviews off)",
+        "off": [
+          "reviews"
+        ]
+      },
+      {
+        "address": "/ (Feedback off)",
+        "off": [
+          "feedback"
+        ]
+      },
+      {
+        "address": "/ (every feature off)",
+        "off": "all"
+      }
+    ]
+  },
+  "find": [
+    {
+      "kind": "goal",
+      "q": "G-48"
+    },
+    {
+      "kind": "goal",
+      "q": "g48"
+    },
+    {
+      "kind": "goal",
+      "q": "48"
+    },
+    {
+      "kind": "goal",
+      "q": "G-4"
+    },
+    {
+      "kind": "goal",
+      "q": "tunde"
+    },
+    {
+      "kind": "goal",
+      "q": "one click roll"
+    },
+    {
+      "kind": "goal",
+      "q": "off track"
+    },
+    {
+      "kind": "goal",
+      "q": "back"
+    },
+    {
+      "kind": "goal",
+      "q": "rollback"
+    },
+    {
+      "kind": "goal",
+      "q": "rolback"
+    },
+    {
+      "kind": "goal",
+      "q": "kafak"
+    },
+    {
+      "kind": "goal",
+      "q": "qeue wait"
+    },
+    {
+      "kind": "goal",
+      "q": "piplin"
+    },
+    {
+      "kind": "goal",
+      "q": "zzzz"
+    },
+    {
+      "kind": "goal",
+      "q": ""
+    },
+    {
+      "kind": "person",
+      "q": "tunde"
+    },
+    {
+      "kind": "person",
+      "q": "rhea"
+    },
+    {
+      "kind": "person",
+      "q": "LUCIA"
+    },
+    {
+      "kind": "person",
+      "q": "kapor"
+    },
+    {
+      "kind": "person",
+      "q": ""
+    },
+    {
+      "kind": "team",
+      "q": "ci"
+    },
+    {
+      "kind": "team",
+      "q": "rhea"
+    },
+    {
+      "kind": "team",
+      "q": ""
+    }
+  ],
+  "readback": {
+    "blank": {
+      "kind": "metric",
+      "title": "",
+      "teamId": "",
+      "ownerId": "",
+      "io": "input",
+      "level": "team",
+      "guardrail": false,
+      "parentId": "",
+      "effect": "",
+      "whyHelps": "",
+      "alsoHelps": [],
+      "endWeek": "",
+      "points": {},
+      "source": "",
+      "definition": "",
+      "unit": "",
+      "decimals": "",
+      "start": "",
+      "target": "",
+      "shape": "straight",
+      "bound": "atMost",
+      "limit": "",
+      "lower": "",
+      "margin": "",
+      "stages": [
+        {
+          "id": "s1",
+          "name": "",
+          "dueWeek": ""
+        }
+      ]
+    },
+    "cases": [
+      {
+        "case": "number-own",
+        "viewer": "tunde",
+        "draft": {
+          "ownerId": "tunde",
+          "teamId": "build",
+          "parentId": "ns-mttr",
+          "title": "Signed artifacts in staging",
+          "unit": "%",
+          "start": "40",
+          "target": "90"
+        }
+      },
+      {
+        "case": "number-for-someone-else",
+        "viewer": "tunde",
+        "draft": {
+          "ownerId": "amara",
+          "teamId": "build",
+          "title": "Signed artifacts in staging",
+          "unit": "%",
+          "start": "40",
+          "target": "90"
+        }
+      },
+      {
+        "case": "number-answered",
+        "viewer": "tunde",
+        "draft": {
+          "ownerId": "tunde",
+          "teamId": "build",
+          "title": "Runbook coverage",
+          "unit": "%",
+          "start": "50",
+          "target": "150",
+          "decimals": "0",
+          "fromWeek": "40",
+          "endWeek": "66",
+          "shape": "back"
+        }
+      },
+      {
+        "case": "range",
+        "viewer": "tunde",
+        "draft": {
+          "ownerId": "tunde",
+          "teamId": "build",
+          "kind": "range",
+          "title": "Change failure rate",
+          "unit": "%",
+          "limit": "12"
+        }
+      },
+      {
+        "case": "stages",
+        "viewer": "tunde",
+        "draft": {
+          "ownerId": "tunde",
+          "teamId": "build",
+          "kind": "milestone",
+          "title": "Signing rolled out",
+          "stages": [
+            {
+              "id": "s1",
+              "name": "Pilot",
+              "dueWeek": "50"
+            }
+          ]
+        }
+      },
+      {
+        "case": "north-star",
+        "viewer": "amara",
+        "draft": {
+          "ownerId": "amara",
+          "teamId": "office",
+          "level": "north-star",
+          "title": "Developer happiness",
+          "unit": "pts",
+          "start": "30",
+          "target": "40",
+          "guardrail": true,
+          "alsoHelps": [
+            "ns-mttr"
+          ]
+        }
+      }
+    ]
+  },
+  "home": {
+    "viewers": [
+      "tunde",
+      "rhea",
+      "amara",
+      "oskar"
+    ],
+    "days": [
+      "2026-10-23T12:00:00.000Z",
+      "2026-10-24T12:00:00.000Z",
+      "2026-10-25T12:00:00.000Z",
+      "2026-10-26T12:00:00.000Z",
+      "2026-10-27T12:00:00.000Z",
+      "2026-10-28T12:00:00.000Z",
+      "2026-10-29T12:00:00.000Z",
+      "2026-10-30T12:00:00.000Z",
+      "2026-10-31T12:00:00.000Z",
+      "2026-11-01T12:00:00.000Z",
+      "2026-11-02T12:00:00.000Z",
+      "2026-11-03T12:00:00.000Z",
+      "2026-11-04T12:00:00.000Z",
+      "2026-11-05T12:00:00.000Z"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const s = spawn(process.execPath, ['app/server.mjs', '47851'], { stdio: ['ignore', 'pipe', 'inherit'] });
+await new Promise((r) => s.stdout.once('data', r));
+const b = await chromium.launch(); const p = await b.newPage();
+await p.goto('http://localhost:47851/reviews/new?as=jun');
+await p.getByRole('button', { name: 'Set up the review' }).click();
+console.log(p.url(), (await p.locator('main').innerText()).slice(0, 200));
+await p.goBack(); console.log(p.url());
+console.log(await p.getByLabel('Name').count(), (await p.locator('main').innerText()).slice(0, 200));
+await b.close(); s.kill();
