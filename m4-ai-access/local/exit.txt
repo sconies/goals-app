@@ -1,0 +1,143 @@
+TAP version 13
+# Subtest: criterion 1: MCP-TOKENS, TOKENS-SERVER-ONLY and AI-ACCESS-OPTIONAL hold
+    # Subtest: on
+    ok 1 - on
+      ---
+      duration_ms: 202.366403
+      type: 'test'
+      ...
+    # Subtest: off
+    ok 2 - off
+      ---
+      duration_ms: 48.314894
+      type: 'test'
+      ...
+    # Subtest: built without the module: the server stays open and only the token tools are missing
+    ok 3 - built without the module: the server stays open and only the token tools are missing
+      ---
+      duration_ms: 124.639713
+      type: 'test'
+      ...
+    1..3
+ok 1 - criterion 1: MCP-TOKENS, TOKENS-SERVER-ONLY and AI-ACCESS-OPTIONAL hold
+  ---
+  duration_ms: 462.425465
+  type: 'test'
+  ...
+# Subtest: criterion 2: its journeys and checks can be done (U22, U62, U175)
+ok 2 - criterion 2: its journeys and checks can be done (U22, U62, U175)
+  ---
+  duration_ms: 3164.738474
+  type: 'test'
+  ...
+# PASS U22 phone\\nPASS U22 desktop\\nPASS U62 phone\\nPASS U62 desktop\\nPASS U175 phone\\nPASS U175 desktop\\nEvery journey run passed.
+# Subtest: criterion 3: switched off, the door refuses every request but initialize and tools/list, and lastUsedAt does not move
+    # Subtest: on
+    ok 1 - on
+      ---
+      duration_ms: 24.73088
+      type: 'test'
+      ...
+    # Subtest: off
+    ok 2 - off
+      ---
+      duration_ms: 40.612585
+      type: 'test'
+      ...
+    1..2
+ok 3 - criterion 3: switched off, the door refuses every request but initialize and tools/list, and lastUsedAt does not move
+  ---
+  duration_ms: 66.135278
+  type: 'test'
+  ...
+# Subtest: criterion 4: switched off, making a token is refused with its words, and revoking one still works
+    # Subtest: on
+    ok 1 - on
+      ---
+      duration_ms: 20.909052
+      type: 'test'
+      ...
+    # Subtest: off
+    ok 2 - off
+      ---
+      duration_ms: 36.794257
+      type: 'test'
+      ...
+    1..2
+ok 4 - criterion 4: switched off, making a token is refused with its words, and revoking one still works
+  ---
+  duration_ms: 58.439659
+  type: 'test'
+  ...
+# Subtest: criterion 5: switched off, no AI access section, no “Your MCP tokens”, no Make an MCP token
+    # Subtest: on
+    ok 1 - on
+      ---
+      duration_ms: 28.960216
+      type: 'test'
+      ...
+    # Subtest: off
+    ok 2 - off
+      ---
+      duration_ms: 37.076265
+      type: 'test'
+      ...
+    1..2
+ok 5 - criterion 5: switched off, no AI access section, no “Your MCP tokens”, no Make an MCP token
+  ---
+  duration_ms: 66.545698
+  type: 'test'
+  ...
+# Subtest: criterion 6: switching off reads back the tokens and MCP changes (aiAccessReadBack); back on names those kept; none acts at once
+    # Subtest: the rule, on its worked examples
+    ok 1 - the rule, on its worked examples
+      ---
+      duration_ms: 0.809204
+      type: 'test'
+      ...
+    # Subtest: on: switching off asks first, with a live token
+    ok 2 - on: switching off asks first, with a live token
+      ---
+      duration_ms: 76.024698
+      type: 'test'
+      ...
+    # Subtest: off: switching back on names the tokens kept
+    ok 3 - off: switching back on names the tokens kept
+      ---
+      duration_ms: 6.683448
+      type: 'test'
+      ...
+    1..3
+ok 6 - criterion 6: switching off reads back the tokens and MCP changes (aiAccessReadBack); back on names those kept; none acts at once
+  ---
+  duration_ms: 84.053552
+  type: 'test'
+  ...
+# Subtest: criterion 7: set_feature switching AI access off answers its last words
+    # Subtest: on
+    ok 1 - on
+      ---
+      duration_ms: 25.769613
+      type: 'test'
+      ...
+    # Subtest: off
+    ok 2 - off
+      ---
+      duration_ms: 27.565962
+      type: 'test'
+      ...
+    1..2
+ok 7 - criterion 7: set_feature switching AI access off answers its last words
+  ---
+  duration_ms: 53.783395
+  type: 'test'
+  ...
+1..7
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4024.275914

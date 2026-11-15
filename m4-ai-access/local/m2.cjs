@@ -1,0 +1,3 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); for (const vp of [{width:390,height:844},{width:1440,height:900}]) { const p = await b.newPage({ viewport: vp }); await p.goto('http://localhost:47102/workspace/features?as=amara');
+ const r = await p.evaluate(() => [...document.querySelectorAll('main > *, main h2, .feature')].map(e => `${e.tagName}.${e.className}:${Math.round(e.getBoundingClientRect().y)}+${Math.round(e.getBoundingClientRect().height)} ${(e.innerText||'').slice(0,30).replace(/\n/g,' ')}`)); console.log(vp.width, r.join('\n')); } await b.close(); })();

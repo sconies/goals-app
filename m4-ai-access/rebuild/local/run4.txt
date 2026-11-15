@@ -1,0 +1,10 @@
+Running in /tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/s2/rebuild:
+  node main.mjs '/tmp/faro-drill-qkse0x/workspace.json' '/tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/s2/rebuild/drill-out'
+Finished in 0.5 s.
+
+changes.csv: 135 of 135 rows match (100.0%)
+  case 100.0% · row 100.0% · actor 100.0% · sheet 100.0% · line 100.0% · rows 100.0% · answers 100.0% · given 100.0% · target 100.0% · name 100.0% · kind 100.0% · diffs 100.0% · counts 100.0% · unchanged 100.0% · needs_reason 100.0% · saves 100.0% · author 100.0%
+import.csv: 70 of 70 rows match (100.0%)
+  case 100.0% · actor 100.0% · sheet 100.0% · rows 100.0% · answers 100.0% · given 100.0% · kind 100.0% · level 100.0% · group 100.0% · message 100.0% · must 100.0% · questions 100.0% · saves 100.0% · kinds 100.0%
+
+Score: 100.0% of cells (3275 of 3275); 205 of 205 rows. PASS: every row and column matches.

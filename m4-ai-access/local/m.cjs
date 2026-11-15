@@ -1,0 +1,2 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); for (const vp of [{width:390,height:844},{width:1440,height:900}]) { const p = await b.newPage({ viewport: vp }); await p.goto('http://localhost:47102/workspace/features?as=amara'); const bb = await p.getByRole('switch',{name:'AI access'}).boundingBox(); console.log(vp.width, JSON.stringify(bb)); } await b.close(); })();

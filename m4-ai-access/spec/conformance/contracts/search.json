@@ -1,0 +1,1060 @@
+{
+  "port": "search",
+  "about": "The Search port: one search per kind of thing (goal, person, team, and any a module registers), answered a page at a time; what a list bar, a picker and Find ask. `given` is a workspace (`SearchSeed`: workspace.json’s records, with each person’s job title `role` and `leftAt`), searched as it stands at its `builtFor`. A row is `{ kind, id, name, detail, status?, key? }`; an answer `{ total, rows, next, near? }`.",
+  "ops": {
+    "given": "Start a fresh search over this workspace. Answers null.",
+    "kinds": "The kinds it answers, core first.",
+    "search": "(kind, { q, filters?, sort?, after?, size? }) One page of the things of this kind that match, in the kind’s order: `{ total, rows, next, near? }`. Refuses a kind nobody registered.",
+    "suggest": "(kind, viewerId, recents) Up to 6 rows offered before anything is typed: you first, then your team, then those chosen lately (`recents`: `[{ kind, id }]`).",
+    "byIds": "(kind, ids) The rows for things already chosen, in the words a search gives and the order asked, someone marked as left included; an id it can’t find is left out."
+  },
+  "given": {
+    "about": "A small workspace for the search contract: three teams, eight people (Oskar Lindgren marked as left, Sam Okafor in no team) and six goals, one in each status a search ranks. Made at Thursday 5 November 2026, noon UTC: week 45 of the 2026 cycle, its review day.",
+    "builtFor": "2026-11-05T12:00:00.000Z",
+    "cycle": {
+      "id": "cycle",
+      "name": "2026",
+      "startDate": "2025-12-22",
+      "weeks": 53,
+      "reviewDay": 3
+    },
+    "people": [
+      {
+        "id": "ana",
+        "name": "Ana Souza",
+        "role": "Engineering Manager, Build & Release",
+        "teamId": "build",
+        "admin": true
+      },
+      {
+        "id": "tunde",
+        "name": "Tunde Bakare",
+        "role": "Staff Engineer",
+        "teamId": "build",
+        "admin": false
+      },
+      {
+        "id": "mei",
+        "name": "Mei Chen",
+        "role": "Software Engineer",
+        "teamId": "build",
+        "admin": false
+      },
+      {
+        "id": "oskar",
+        "name": "Oskar Lindgren",
+        "role": "Software Engineer",
+        "teamId": "build",
+        "admin": false,
+        "leftAt": "2026-11-01T09:00:00.000Z"
+      },
+      {
+        "id": "kofi",
+        "name": "Kofi Mensah",
+        "role": "Engineering Manager, Observability",
+        "teamId": "obs",
+        "admin": false
+      },
+      {
+        "id": "priya",
+        "name": "Priya Nair",
+        "role": "Site Reliability Engineer",
+        "teamId": "obs",
+        "admin": false
+      },
+      {
+        "id": "lucia",
+        "name": "Lucía Ortega",
+        "role": "Security Lead",
+        "teamId": "sec",
+        "admin": false
+      },
+      {
+        "id": "sam",
+        "name": "Sam Okafor",
+        "role": "Product Manager",
+        "teamId": null,
+        "admin": false
+      }
+    ],
+    "teams": [
+      {
+        "id": "build",
+        "name": "Build & Release",
+        "leadId": "ana",
+        "objective": "Ship safely, many times a day"
+      },
+      {
+        "id": "obs",
+        "name": "Observability",
+        "leadId": "kofi",
+        "objective": "Know before the customer does"
+      },
+      {
+        "id": "sec",
+        "name": "Security",
+        "leadId": "lucia",
+        "objective": "Close the gaps that matter first"
+      }
+    ],
+    "goals": [
+      {
+        "id": "rollback",
+        "key": "G-1",
+        "cycleId": "cycle",
+        "teamId": "build",
+        "ownerId": "tunde",
+        "title": "One-click rollback for every service",
+        "io": "output",
+        "level": "team",
+        "guardrail": false,
+        "parentId": null,
+        "effect": null,
+        "source": "The team’s own dashboard",
+        "definition": "Share of services that roll back in one click",
+        "createdAt": "2025-12-20T09:00:00.000Z",
+        "kind": "range",
+        "unit": "%",
+        "decimals": 0,
+        "range": {
+          "bound": "atLeast",
+          "limit": 90,
+          "margin": 5
+        }
+      },
+      {
+        "id": "deploy-time",
+        "key": "G-2",
+        "cycleId": "cycle",
+        "teamId": "build",
+        "ownerId": "ana",
+        "title": "Deploys finish within ten minutes",
+        "io": "output",
+        "level": "team",
+        "guardrail": false,
+        "parentId": null,
+        "effect": null,
+        "source": "The team’s own dashboard",
+        "definition": "Share of deploys that finish within ten minutes",
+        "createdAt": "2025-12-20T09:00:00.000Z",
+        "kind": "range",
+        "unit": "%",
+        "decimals": 0,
+        "range": {
+          "bound": "atLeast",
+          "limit": 90,
+          "margin": 5
+        }
+      },
+      {
+        "id": "alert-noise",
+        "key": "G-3",
+        "cycleId": "cycle",
+        "teamId": "obs",
+        "ownerId": "priya",
+        "title": "Alerts that need a person",
+        "io": "output",
+        "level": "team",
+        "guardrail": false,
+        "parentId": null,
+        "effect": null,
+        "source": "The team’s own dashboard",
+        "definition": "Share of alerts that someone acted on",
+        "createdAt": "2025-12-20T09:00:00.000Z",
+        "kind": "range",
+        "unit": "%",
+        "decimals": 0,
+        "range": {
+          "bound": "atLeast",
+          "limit": 90,
+          "margin": 5
+        }
+      },
+      {
+        "id": "tracing",
+        "key": "G-4",
+        "cycleId": "cycle",
+        "teamId": "obs",
+        "ownerId": "kofi",
+        "title": "Tracing across every service",
+        "io": "output",
+        "level": "team",
+        "guardrail": false,
+        "parentId": null,
+        "effect": null,
+        "source": "The team’s own dashboard",
+        "definition": "Share of services that send traces",
+        "createdAt": "2025-12-20T09:00:00.000Z",
+        "kind": "range",
+        "unit": "%",
+        "decimals": 0,
+        "range": {
+          "bound": "atLeast",
+          "limit": 90,
+          "margin": 5
+        }
+      },
+      {
+        "id": "patching",
+        "key": "G-5",
+        "cycleId": "cycle",
+        "teamId": "sec",
+        "ownerId": "lucia",
+        "title": "Critical patches within a week",
+        "io": "output",
+        "level": "team",
+        "guardrail": false,
+        "parentId": null,
+        "effect": null,
+        "source": "The team’s own dashboard",
+        "definition": "Share of critical patches applied within seven days",
+        "createdAt": "2025-12-20T09:00:00.000Z",
+        "kind": "range",
+        "unit": "%",
+        "decimals": 0,
+        "range": {
+          "bound": "atLeast",
+          "limit": 90,
+          "margin": 5
+        }
+      },
+      {
+        "id": "contract-tests",
+        "key": "G-40",
+        "cycleId": "cycle",
+        "teamId": "build",
+        "ownerId": "tunde",
+        "title": "Contract tests before each rollback",
+        "io": "output",
+        "level": "team",
+        "guardrail": false,
+        "parentId": null,
+        "effect": null,
+        "source": "The team’s own dashboard",
+        "definition": "Share of rollbacks covered by a contract test",
+        "createdAt": "2025-12-20T09:00:00.000Z",
+        "kind": "range",
+        "unit": "%",
+        "decimals": 0,
+        "range": {
+          "bound": "atLeast",
+          "limit": 90,
+          "margin": 5
+        }
+      }
+    ],
+    "checkIns": [
+      {
+        "id": "ci_rollback_45",
+        "goalId": "rollback",
+        "authorId": "tunde",
+        "week": 45,
+        "postedAt": "2026-11-04T10:00:00.000Z",
+        "value": 93,
+        "stages": null,
+        "status": "on",
+        "calculated": "on",
+        "cause": null,
+        "why": "Two services left, both booked for next week.",
+        "greenerWhy": "",
+        "proposeTarget": null,
+        "pathToGreen": null,
+        "next": "",
+        "dataFlagged": false
+      },
+      {
+        "id": "ci_deploy-time_44",
+        "goalId": "deploy-time",
+        "authorId": "ana",
+        "week": 44,
+        "postedAt": "2026-10-28T10:00:00.000Z",
+        "value": 86,
+        "stages": null,
+        "status": "risk",
+        "calculated": "risk",
+        "cause": null,
+        "why": "The image cache misses on cold runners.",
+        "greenerWhy": "",
+        "proposeTarget": null,
+        "pathToGreen": null,
+        "next": "",
+        "dataFlagged": false
+      },
+      {
+        "id": "ci_alert-noise_45",
+        "goalId": "alert-noise",
+        "authorId": "priya",
+        "week": 45,
+        "postedAt": "2026-11-04T11:00:00.000Z",
+        "value": 61,
+        "stages": null,
+        "status": "off",
+        "calculated": "off",
+        "cause": null,
+        "why": "Half the pages still come from disk alerts.",
+        "greenerWhy": "",
+        "proposeTarget": null,
+        "pathToGreen": null,
+        "next": "",
+        "dataFlagged": false
+      },
+      {
+        "id": "ci_tracing_38",
+        "goalId": "tracing",
+        "authorId": "kofi",
+        "week": 38,
+        "postedAt": "2026-09-16T10:00:00.000Z",
+        "value": 92,
+        "stages": null,
+        "status": "on",
+        "calculated": "on",
+        "cause": null,
+        "why": "Every service sends traces.",
+        "greenerWhy": "",
+        "proposeTarget": null,
+        "pathToGreen": null,
+        "next": "",
+        "dataFlagged": false
+      },
+      {
+        "id": "ci_contract-tests_45",
+        "goalId": "contract-tests",
+        "authorId": "tunde",
+        "week": 45,
+        "postedAt": "2026-11-04T12:00:00.000Z",
+        "value": 40,
+        "stages": null,
+        "status": "off",
+        "calculated": "off",
+        "cause": null,
+        "why": "Waiting on the test harness.",
+        "greenerWhy": "",
+        "proposeTarget": null,
+        "pathToGreen": null,
+        "next": "",
+        "dataFlagged": false
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "answers the core kinds, and refuses a kind nobody registered",
+      "steps": [
+        {
+          "when": {
+            "op": "kinds"
+          },
+          "then": {
+            "includes": [
+              "goal",
+              "person",
+              "team"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "nonsense",
+              {
+                "q": "",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "throws": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "finds a goal by its key, however it is typed, and a key finds only its own goal",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "G-40",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "contract-tests"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "g40",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "contract-tests"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "g-40",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "contract-tests"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "40",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "contract-tests"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "G-4",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "tracing"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "matches the words on the row: each word typed starts one of its words, ignoring case and accents",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "tunde",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "contract-tests",
+              "rollback"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "one click roll",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "rollback"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "llback",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": []
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "off track",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "total",
+            "equals": 2
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "person",
+              {
+                "q": "tunde",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "tunde"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "person",
+              {
+                "q": "LUCIA",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "lucia"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "team",
+              {
+                "q": "kofi",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "obs"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "lists rows in two lines: a goal with its status and key, a person with their job and team, a team with its lead",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "G-1",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[0]",
+            "has": {
+              "kind": "goal",
+              "id": "rollback",
+              "name": "One-click rollback for every service",
+              "detail": "G-1 · Tunde Bakare · Build & Release",
+              "status": "on",
+              "key": "G-1"
+            }
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "person",
+              {
+                "q": "ana",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[0]",
+            "has": {
+              "kind": "person",
+              "id": "ana",
+              "name": "Ana Souza",
+              "detail": "Engineering Manager, Build & Release · Build & Release"
+            }
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "team",
+              {
+                "q": "Build",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[0]",
+            "has": {
+              "kind": "team",
+              "id": "build",
+              "name": "Build & Release",
+              "detail": "Led by Ana Souza · 3 people"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes a Goals link’s filters and sort, and orders goals worst first when unsorted",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "",
+                "size": 200,
+                "filters": {
+                  "status": "off"
+                }
+              }
+            ]
+          },
+          "then": {
+            "select": "total",
+            "equals": 2
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows[].status",
+                "ordered": {
+                  "rank": {
+                    "off": 3,
+                    "risk": 2,
+                    "stale": 2,
+                    "on": 1,
+                    "done": 0,
+                    "planned": 0,
+                    "none": 0
+                  }
+                }
+              },
+              {
+                "select": "total",
+                "equals": 6
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "tunde",
+                "size": 200,
+                "sort": "title"
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].name",
+            "ordered": "text",
+            "length": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "pages by key: every row once and none twice, with the total on every page",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "person",
+              {
+                "q": "",
+                "size": 3
+              }
+            ]
+          },
+          "pages": {
+            "arg": 1,
+            "max": 10,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 7
+                },
+                {
+                  "select": "rows",
+                  "maxLength": 3
+                }
+              ]
+            }
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows[].id",
+                "length": 7,
+                "distinct": true
+              },
+              {
+                "select": "pages",
+                "equals": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "never gives a picker someone marked as left",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "person",
+              {
+                "q": "oskar",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": []
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "person",
+              {
+                "q": "",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "select": "rows[].id",
+            "excludes": [
+              "oskar"
+            ],
+            "length": 7
+          }
+        }
+      ]
+    },
+    {
+      "name": "suggests, before anything is typed, you first, then your team, then those chosen lately",
+      "steps": [
+        {
+          "when": {
+            "op": "suggest",
+            "args": [
+              "person",
+              "ana",
+              []
+            ]
+          },
+          "then": {
+            "select": "[].id",
+            "all": [
+              {
+                "select": "[0].id",
+                "equals": "ana"
+              }
+            ],
+            "includes": [
+              "tunde",
+              "mei"
+            ],
+            "excludes": [
+              "oskar"
+            ],
+            "distinct": true
+          }
+        },
+        {
+          "when": {
+            "op": "suggest",
+            "args": [
+              "person",
+              "ana",
+              [
+                {
+                  "kind": "person",
+                  "id": "oskar"
+                },
+                {
+                  "kind": "person",
+                  "id": "lucia"
+                }
+              ]
+            ]
+          },
+          "then": {
+            "select": "[].id",
+            "includes": [
+              "lucia"
+            ],
+            "excludes": [
+              "oskar"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "suggest",
+            "args": [
+              "team",
+              "kofi",
+              []
+            ]
+          },
+          "then": {
+            "select": "[0].id",
+            "equals": "obs"
+          }
+        },
+        {
+          "when": {
+            "op": "suggest",
+            "args": [
+              "goal",
+              "tunde",
+              []
+            ]
+          },
+          "then": {
+            "select": "[].id",
+            "includes": [
+              "rollback",
+              "contract-tests"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "gives the rows for things already chosen by id, in the words a search gives, someone marked as left included",
+      "steps": [
+        {
+          "when": {
+            "op": "byIds",
+            "args": [
+              "person",
+              [
+                "oskar",
+                "ana",
+                "nobody"
+              ]
+            ]
+          },
+          "then": {
+            "has": [
+              {
+                "kind": "person",
+                "id": "oskar",
+                "name": "Oskar Lindgren"
+              },
+              {
+                "kind": "person",
+                "id": "ana",
+                "name": "Ana Souza",
+                "detail": "Engineering Manager, Build & Release · Build & Release"
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "byIds",
+            "args": [
+              "goal",
+              [
+                "rollback"
+              ]
+            ]
+          },
+          "then": {
+            "equals": [
+              {
+                "kind": "goal",
+                "id": "rollback",
+                "name": "One-click rollback for every service",
+                "detail": "G-1 · Tunde Bakare · Build & Release",
+                "status": "on",
+                "key": "G-1"
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "byIds",
+            "args": [
+              "team",
+              [
+                "obs"
+              ]
+            ]
+          },
+          "then": {
+            "has": [
+              {
+                "name": "Observability",
+                "detail": "Led by Kofi Mensah · 2 people"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "may offer a near miss when nothing matches, and says nothing when nothing is near",
+      "steps": [
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "rolback",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "all": [
+                  {
+                    "select": "near",
+                    "equals": "rollback"
+                  },
+                  {
+                    "select": "rows[].id",
+                    "includes": [
+                      "rollback"
+                    ]
+                  }
+                ]
+              },
+              {
+                "select": "total",
+                "equals": 0
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "search",
+            "args": [
+              "goal",
+              {
+                "q": "zzzz",
+                "size": 200
+              }
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "has": {
+                  "total": 0,
+                  "rows": [],
+                  "next": null
+                }
+              },
+              {
+                "select": "near",
+                "absent": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
