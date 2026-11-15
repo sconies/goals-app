@@ -16,7 +16,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session â
 
 - **Last merge fully reviewed:** `752d6c97` (#539), the head of main at 05:55 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #531, #493, #520, #533, #536, #537, #534 and #539, at the end, under "The reviewer of 15 November". Docs-only merges (#535) have neither.
 - **Merged since, not reviewed:** none.
-- **Since this note (15 Nov, 06:25 UTC; reviewer session â€¦ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, one low logged. #543 (`2811e0ae`) is reviewed too: two mediums, sent to planning at 07:45 UTC (the drill passes when `drill.json` names a contract the folder lacks; five journey sentences that say what Faro doesn't do) and one low. Those two are the only mediums open. Last merge fully reviewed is now `2811e0ae`.
+- **Since this note (15 Nov, 06:25 UTC; reviewer session â€¦ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, one low logged. #543 (`2811e0ae`) is reviewed too: two mediums, sent to planning at 07:45 UTC (the drill passes when `drill.json` names a contract the folder lacks; five journey sentences that say what Faro doesn't do) and one low. #544 (`096920f4`) closes both, so no medium is open. Last merge fully reviewed is now `096920f4`. Lesson: before quoting a limit from a function's comment, grep for its caller (`actionList` in `src/domain/goalPage.ts` is called by nothing).
 - **Highs open:** none. #520's (Undo this import removed a goal of another year) was closed by #534.
 - **Mediums open:** two, with planning since 05:40 UTC, both left by #534:
   - A goals sheet headed with another name for Goal ("Title", "Goal name", "Objective") beside Metric and Unit is read as the Metrics sheet; before MI it was Goals. `isMetricsHeader` (`src/modules/metrics/sheet.ts`) stands aside for Goal or Key only. Track 3.
@@ -291,6 +291,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session â
 | #539 Kit words: the reviewer's findings on #536 and #537 | item 11 | 0 | 0 | 0 |
 | #541 Import review: #534's two mediums | 3 | 0 | 0 | 1 |
 | #543 Kit: stage 3 drill gaps | item 11 | 0 | 2 | 1 |
+| #544 Kit: the drill's contract check and journey wording (#543's two mediums) | item 11 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2544,3 +2545,12 @@ Read at `2811e0ae`: `scripts/drill.mjs`, the test fix and the generators by me; 
 - **Low. Smaller ones in the same words.** The goal page's standing button is given as "Check in again" only; with no set rhythm and no check-in this week it is "Check in for week {n}" (`standingAction`, `src/domain/goalPage.ts`; `src/spec/screenFacts.ts`). The Respond form is "a text box and a submit button": a decision's also has "Answer it / Ask the owner first" and "Leave it open", and the button reads "Record the answer". `.home-mine` is "The team's goals" with one team, `.after-publish` "After you propose it" for a proposed goal. `TONES` has no word for planned, none or unmeasured (no journey uses one). "A session is held â€¦ the session's own date when there are none" can't happen: an empty walk is never held.
 
 The test fix (`vi.resetModules()` round `query.test.ts`'s added parameters) was read and run beside the spec tests in one process, which pass; the order that failed on CI was not forced.
+
+### #544 Kit: the drill's contract check, journey wording, backlog 0v (item 11, merged 15 Nov)
+
+Read against #543's two mediums, at `096920f4`. `npx vitest run src/spec` passes (112), with the new cases in `src/spec/rebuild.test.ts`.
+
+- **The drill and a contract the folder lacks: closed.** A folder with `contracts/` that lacks a name from `drill.json` or `--contracts` stops again with exit 2, says a case slip as one ("Store (the contract is store: names match case)"), and `--json` gives `pass: false` with the error. Only a folder with no `contracts/` at all leaves them out, named once. The PR's own test runs the three cases; read, and run with the suite.
+- **The five journey sentences: closed, and one of them was mine to correct.** The read-back is "a row per topic, each with its id and label", its value "one sentence or more"; `.why-block` says when the heading is "Why"; U78 names `lead-ci-time` and `lead-runners` and what each feeds; U122 gives Tuesday for `lead-rollback`. **On "settled and stays" the finding was wrong in part:** the goal page's rows come from `goalPage.ts`'s step rows, which keep every answered or done ask however old; the eight weeks is `actionList`'s, which nothing calls. I had read the comment on `actionList` and not looked for its caller. The page now says "kept however old it is", which is what the screen does.
+
+No findings. `docs/backlog.md` gains 0v (a goal whose plan hasn't started shows a negative number of days without an update), a line only.
