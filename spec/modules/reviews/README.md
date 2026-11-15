@@ -15,6 +15,7 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `home.lead`, `people.person (with the viewer)`, `features.line`, `features.readBack`, `menu.count`, `writesWhenOff`, `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |

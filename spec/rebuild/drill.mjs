@@ -33,7 +33,7 @@
    item and a page's name), import.csv (the change engine's kinds, levels and sentences), changes.csv (what a change set
    would save: its counts, and each item with its fields before and after), readback.csv (New goal's
    read-back, stage 3) and home.csv (Home's lead or quiet line) are not part of stage 1,
-   nor is metrics.csv (the metric library's rules 1 to 3, stage 4), nor any other module's file (module-files.json lists
+   nor is metrics.csv (the metric library's rules 1 to 3, its own stage), nor any other module's file (module-files.json lists
    each with its key columns: reviews.csv, tags.csv, watching.csv…): beyond a stage's own files, each is scored only when
    drill.json lists it under "also" ({ "stage": 1, "run": "…", "also": ["find", "goals", "metrics"] }) or --files names it.
 

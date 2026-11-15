@@ -39,7 +39,7 @@ import { ALWAYS_ON } from './alwaysOn';
 import { EDGE_GOALS, EDGE_NOTES, edgeWorkspace } from './edge';
 import { goalsQueryPage } from './goalsQuery';
 import { HOW_TO_READ, journeyDocs, journeyPage, partsAndDays, type JourneyDoc } from './journeySteps';
-import { modulePlatformPage } from './modulePlatform';
+import { CORE_HOOKS, CORE_SPOTS, modulePlatformPage } from './modulePlatform';
 
 /** The files of the no-rhythm conformance set (FT1, spec 8). */
 export const NO_RHYTHM_FILES = ['status', 'flags', 'scorecard', 'projection'] as const;
@@ -391,6 +391,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
       row('Old addresses', m.redirects.map(([a, b]) => `\`${a}\` → \`${b}\``).join(', ')),
       row('Navigation', m.navigation.join(', ')),
       row('Places on core screens', m.places.map((x) => `\`${x}\``).join(', ')),
+      row('Drawn for it by the core while it is on', [...CORE_SPOTS, ...CORE_HOOKS].filter((x) => x.modules.includes(m.id)).map((x) => `\`${x.name}\``).join(', ') + (CORE_SPOTS.some((x) => x.modules.includes(m.id)) || CORE_HOOKS.some((x) => x.modules.includes(m.id)) ? ' ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook)' : '')),
       row('Workspace sections', (m.sections ?? []).map((x) => `\`/workspace/${x}\``).join(', ')),
       row('Database tables', m.tables.map((t) => `\`${t.name}\` (${t.migration}): ${t.purpose}`).join('; ')),
       row('Its own records', (m.records ?? []).map((x) => `${x.name} (\`${x.table}\`, filed under \`modules.${m.id}.${x.key}\`${x.removable ? '; removable and restorable' : ''})`).join('; ')),

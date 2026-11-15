@@ -19,6 +19,8 @@ AI access, as a feature a workspace can switch off. An admin makes a personal MC
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/ai-access/README.md#what-it-adds-to-the-core).
 
+The core also draws for it while it is on, as Faro’s core code that asks whether it is on: `settings.you`, `people.person (with the viewer)`, `features.line`, `features.readBack` ([what each is](module-platform.md#what-a-module-needs-that-faros-core-still-draws)). A core that never names a module has each as a place or a hook from stage 3; this stage fills them.
+
 ## Exit criteria
 
 1. Its requirements hold: `MCP-TOKENS`, `TOKENS-SERVER-ONLY`, `AI-ACCESS-OPTIONAL` (words in [its section](../modules/ai-access/README.md#requirements)).

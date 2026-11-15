@@ -19,6 +19,8 @@ Reviews, as a feature a workspace can switch off. A review walks a set of goals 
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/reviews/README.md#what-it-adds-to-the-core).
 
+The core also draws for it while it is on, as Faro’s core code that asks whether it is on: `home.lead`, `people.person (with the viewer)`, `features.line`, `features.readBack`, `menu.count`, `writesWhenOff`, `drill` ([what each is](module-platform.md#what-a-module-needs-that-faros-core-still-draws)). A core that never names a module has each as a place or a hook from stage 3; this stage fills them.
+
 ## Exit criteria
 
 1. Its requirements hold: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-SPEAK`, `REVIEW-DECIDE`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK` (words in [its section](../modules/reviews/README.md#requirements)).

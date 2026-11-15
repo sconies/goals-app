@@ -1110,6 +1110,128 @@
     }
   },
   {
+    "case": "stop-whole-row",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-14",
+        "Goal": "Pipeline queue wait (p90)",
+        "Owner": "Rhea Kapoor",
+        "Team": "CI/CD",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      }
+    ]
+  },
+  {
+    "case": "stop-row-changed",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-14",
+        "Goal": "A different name",
+        "Action": "Stop",
+        "Reason": "No longer needed this year."
+      }
+    ]
+  },
+  {
+    "case": "people-unchanged-not-admin",
+    "actor": "tunde",
+    "sheet": "people",
+    "rows": [
+      {
+        "ID": "amara",
+        "Name": "Amara Nwosu",
+        "Team": "Office of the VP",
+        "Admin": "yes"
+      },
+      {
+        "ID": "grace",
+        "Name": "Grace Achterberg",
+        "Team": "Office of the VP",
+        "Admin": "yes"
+      },
+      {
+        "ID": "hamid",
+        "Name": "Hamid Rezaei",
+        "Team": "Office of the VP",
+        "Admin": "yes"
+      }
+    ]
+  },
+  {
+    "case": "people-one-changed-not-admin",
+    "actor": "tunde",
+    "sheet": "people",
+    "rows": [
+      {
+        "ID": "amara",
+        "Name": "Amara Nwosu",
+        "Team": "Office of the VP",
+        "Admin": "yes"
+      },
+      {
+        "ID": "grace",
+        "Name": "Grace Achterberg Jr",
+        "Team": "Office of the VP",
+        "Admin": "yes"
+      },
+      {
+        "ID": "hamid",
+        "Name": "Hamid Rezaei",
+        "Team": "Office of the VP",
+        "Admin": "yes"
+      }
+    ]
+  },
+  {
+    "case": "example-row",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Action": "Example",
+        "Goal": "An example goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50"
+      },
+      {
+        "Goal": "A new goal",
+        "Owner": "Rhea Kapoor",
+        "Unit": "%",
+        "Start": "10",
+        "Target": "50"
+      }
+    ]
+  },
+  {
+    "case": "long-name-unedited",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-48",
+        "Goal": "On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows"
+      }
+    ]
+  },
+  {
+    "case": "long-name-edited",
+    "actor": "amara",
+    "sheet": "goals",
+    "rows": [
+      {
+        "Key": "G-48",
+        "Goal": "On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows, and the weekend"
+      }
+    ]
+  },
+  {
     "case": "as-recorded",
     "actor": "amara",
     "sheet": "checkIns",

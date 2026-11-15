@@ -15,6 +15,7 @@ Module id `watching`, in [src/modules/watching/](../../../src/modules/watching/m
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `goals.scopes`, `goal.buttons`, `home.lead`, `cycles.start`, `features.line`, `features.readBack`, `activity.entry`, `writesWhenOff`, `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |

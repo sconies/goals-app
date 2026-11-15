@@ -20,6 +20,8 @@ Fields, as a feature a workspace can switch off: a workspace defines up to six o
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/tags/README.md#what-it-adds-to-the-core).
 
+The core also draws for it while it is on, as Faro’s core code that asks whether it is on: `drill` ([what each is](module-platform.md#what-a-module-needs-that-faros-core-still-draws)). A core that never names a module has each as a place or a hook from stage 3; this stage fills them.
+
 It keeps records of its own, which the core stores without knowing what they are: field (`goal_fields`), field value (`goal_field_values`). Every field is in [its records](../modules/tags/records.md); how the core keeps a module’s records is stage 2’s (`src/domain/records.ts`): declared rows each way, what a new cycle carries, and how a removed one comes back, saved with the core’s in one transaction.
 
 ## Exit criteria

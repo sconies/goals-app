@@ -15,6 +15,7 @@ Module id `tags`, in [src/modules/tags/](../../../src/modules/tags/module.json).
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | `goal.sections` |
+| Drawn for it by the core while it is on | `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | `/workspace/fields` |
 | Database tables | `goal_fields` (0052_goal_fields.sql): A workspace's own fields on goals: name, kind (list or text), a list's values, position; never deleted (retired_at when retired). 0054 holds that free text has no values.; `goal_field_values` (0052_goal_fields.sql): A goal's value for one field: one row per goal and field (id {goal_id}:{field_id}); empty when cleared. |
 | Its own records | field (`goal_fields`, filed under `modules.tags.fields`); field value (`goal_field_values`, filed under `modules.tags.fieldValues`) |

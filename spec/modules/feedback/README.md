@@ -15,6 +15,7 @@ Module id `feedback`, in [src/modules/feedback/](../../../src/modules/feedback/m
 | Old addresses | `/workspace/inbox` → `/feedback`, `/inbox` → `/feedback` |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `menu.count` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |
