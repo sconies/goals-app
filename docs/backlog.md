@@ -29,6 +29,33 @@ Found by the full rebuild drill. Wording only; none is fixed here.
 - Settings' "On this page" links to "Your MCP tokens" while AI access is off.
 - R1's access table said "Anyone" for what is said in a review, where REVIEW-SPEAK says someone in the review or an admin (fixed in the spec by this PR; the stand-in showed the server must enforce it).
 
+## Deep dive, 15 Nov
+
+Lane's outside deep-dive test of the live app. Taken by the fix track (`docs/handover/fix-track.md`), highs first, each with a test that fails without its fix.
+
+**Highs (merged releases broken):**
+
+1. The goal chart drew a straight line where the plan table steps week by week. Both now read one source (`planSteps`), and the chart draws the steps. Also seen in review session mode.
+2. "Start over" was offered to a member (Oskar in the example). Admins only, everywhere (`mayStartOver`).
+
+**Clear bugs:**
+
+3. Setup gave every goal the creator's team. Lane: a goal takes its owner's team by default; setup doesn't ask, and the team can be changed on the goal later. The import, New goal and MCP follow the same rule.
+4. Setup's "Today" values never became current values: every setup goal opened with "No value yet".
+5. The map said "Press delete to remove it", but Delete does nothing there now.
+6. Setup offered one limit for a range goal; New goal offers two (13 Nov What's new).
+7. Table view: a range row's Target and Gap cells overlap.
+8. A member never saw the feedback they had sent. Senders see their own; the inbox stays everyone's, and status changes stay an admin's.
+9. The status on the goal page looked like a control and did nothing.
+
+**Recording (Lane: "Explain it"):** seeded feedback shows a "Steps before it" page log while the Recording setting says nothing about usage is recorded. If steps are captured only when someone sends feedback, the setting says exactly that, and the feedback form shows the steps before sending, with a way to leave them out. If they are captured at any other time, report to planning first.
+
+**Ideas from the deep dive, not placed and not built:**
+
+- Setup's four-goal cap.
+- No titles or team leads in setup.
+- No per-goal team choice in setup.
+
 ## Build, in order
 
 | # | Item | Why here | Effort | Depends on | Source |

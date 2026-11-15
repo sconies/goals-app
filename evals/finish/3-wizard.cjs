@@ -73,7 +73,10 @@ module.exports = {
       if (Math.min(...gaps) < 44) f(`(2) week ticks ${Math.min(...gaps).toFixed(0)}px apart at 1280`);
       const plan = await p.locator('.chart .c-plan').getAttribute('points');
       const pts = plan.split(' ').map((s) => s.split(',').map(Number));
-      if (pts[0][1] === pts[1][1]) f('(2) the plan line starts flat');
+      // The plan is drawn as the plan table's weekly steps (deep dive, 15 Nov): it holds through the first week, then
+      // rises at the next week's line, never flat for longer than that.
+      const rise = pts.findIndex((q, i) => i > 0 && q[1] !== pts[i - 1][1]);
+      if (rise < 0 || rise > 2 || (rise === 2 && pts[2][0] !== pts[1][0])) f('(2) the plan line starts flat');
       if (!(await p.locator('.chart .c-target').count()) || !(await p.locator('.chart .c-today').count())) f('(2) the target line or the Now marker is gone');
       // (15) real numbers in the text colour, not placeholders
       const pi = p.getByLabel(/^Plan for week \d+/).first();
