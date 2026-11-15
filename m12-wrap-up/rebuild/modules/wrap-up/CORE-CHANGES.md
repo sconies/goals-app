@@ -1,0 +1,18 @@
+# Core changes for stage 12 (the Wrap-up)
+
+8 core files changed (one new). The stage-3 core had one cycle, no Cycles, no start of the next year and no retros, though stage 12's entry criteria say those are the core's; most of what follows is that core, not the module.
+
+| File | What changed | Why |
+|---|---|---|
+| `app/cycles.mjs` (new) | `currentCycle`, `cycleState`, `nextCycleShape`, `viewOf` (one cycle's records), `carryKind`, `startReadBack`, `canStart`, `startNextCycle`; Workspace → Cycles (`.cycles-block`) and Start {next year} (`/workspace/cycles/next`). | Criterion 6 and U10: an admin starts the next year from Cycles, on or off. The core had none of it. |
+| `app/state.mjs` | Loads the wrap-up module; a code module's facts replace its row in `INSTALLED` (no duplicate); `W.cycles` and `W.retros`; `rebind()` works out the cycle everyone is in today and gives the rules that cycle's records (`app.V`); `goal()` and the engine read `app.V`; the dispatcher refuses a module action marked `offWords: 'core'` with “{Module} is off in {workspace}.”, merges a module action's `change` into its log entry and rebinds; a `startNextCycle` core action; `FARO_OFF` test hook (start with modules switched off). | Two years at once (U10 ends in 2027); saving a wrap-up is one of the core's own actions behind a switch (criterion 4's words); retros are logged as `entity: 'retro'` (U10's `logged`). |
+| `app/server.mjs` | Rebinds on every request (the day picks the cycle); module routes may have `:params` and a `post` handler; removed the core's `/retro` placeholder; `/workspace/cycles` and `/workspace/cycles/next` (GET, POST); Help guide articles marked “from the {id} module” belong to that module (left out while it is off, their address and `get_help` say its sentence); switching a module off reads back first when the module has `offReadBack` (then `confirm`); `/api/state` adds `retros`, `cycles`, `goalsAll`; Find and goal pages read `app.V`. | `/retro/:goalId` and its form; N22 (no Help article while off); criterion 5 (the read-back); the journeys' state checks. |
+| `app/pages.mjs` | Draws two new places (`goals.header` on Goals, `cycles.cycle` on each Cycles row); `goal.sections` is given the viewer; Workspace has Cycles; a Features row shows the module's third line (`featureLine`) and the read-back sheet. | Goals' “Wrap up”, Cycles' “Open the wrap-up”, “Wrap up this goal” only for its owner or an admin, U166's “Opens on …”. |
+| `app/mcp.mjs` | `start_next_cycle` (dry run unless `confirm`; answers before the wrap-up opens with `canStart: false`); `get_help` finds a guide article's module; lists read `app.V`. | Criterion 6: starting the next year works with the Wrap-up off, also through the AI tools. |
+| `platform.mjs` | `PLACES` adds `goals.header` and `cycles.cycle`. | The kit has no place for the Wrap-up's links on Goals and Cycles (“still the core's screens asking whether it is on”); places keep the core from naming the module. |
+| `home.mjs` | Home's wrap-up lead reads `W.retros` of the current cycle (it read `W.wrapUps`, which is in no data model). | The lead disappears once an owner's goals are wrapped up. |
+| `tests/platform.mjs` | Port from `PLATFORM_PORT`. | Agents share the machine; ports 474xx. |
+
+Stages 1 to 3 still pass with the module in (on), switched off (`FARO_OFF=wrap-up`) and left out (`FARO_WITHOUT=wrap-up`).
+
+Note: across six full runs of the core journeys, U64 (Back after a search, on Activity) failed once with the module switched off and once with it left out (one width each), and passed on every rerun (4 of 4 each way). It is a timing race in the core's client-side Back, seen with other agents loading the machine; this stage changed nothing on Activity or in `client.js`.
