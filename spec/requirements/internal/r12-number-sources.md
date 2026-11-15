@@ -54,7 +54,7 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 
 ## Nearest rebuild stage
 
-[Stage 4: Metric library](../../rebuild/stage-4-module-metrics.md): the number step, rule 1’s states and rule 4’s words are the metric library module’s; the rebuild plugs its connectors in behind the same `NumberSource` port.
+[Stage 7: Metric library](../../rebuild/stage-7-module-metrics.md): the number step, rule 1’s states and rule 4’s words are the metric library module’s; the rebuild plugs its connectors in behind the same `NumberSource` port.
 
 ## Decided while writing it
 

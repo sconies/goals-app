@@ -97,7 +97,8 @@ function loopsAround(src: string, at: number, consts: Map<string, unknown>): { n
     const brace = /^\s*\{/.exec(src.slice(head + 1));
     if (brace) bodyEnd = closing(src, head + 1 + brace[0].length - 1);
     if (at < head || at > bodyEnd) continue;
-    const list = src.slice(m.index! + m[0].length, head).trim();
+    // A comment may sit between `of` and the list (N2: `of // (Rhea has checked in…)` then the rows on the next line).
+    const list = src.slice(m.index! + m[0].length, head).replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
     const items = consts.has(list) ? consts.get(list) : literal(list);
     if (!Array.isArray(items)) continue;
     const names = m[1]!.startsWith('[') ? args(m[1]!.slice(1, -1)) : [m[1]!];
@@ -131,11 +132,14 @@ function reporters(src: string): Map<string, { msg: number; ok: number | null }>
   return out;
 }
 
-/** The limits a failure's condition holds to that its words don't already say: `foot.f.h > 64`, `near(d.w, 240)`. */
+/** The limits a failure's condition holds to that its words don't already say: `foot.f.h > 64`, `near(d.w, 240)`,
+    `w <= 390 - 32`. A call may be chained (`page.locator(x).count()`) and hold one more call; the number may have
+    arithmetic after it, which belongs to the limit. */
 function limits(cond: string, text: string): string[] {
   const said = new Set(text.replace(/\{[^}]*\}/g, '').match(/\d+(\.\d+)?/g) ?? []);
-  const operand = String.raw`[\w.$]+(?:\([^()]*\))?(?:\[[^\]]*\])?`;
-  const found = cond.match(new RegExp(String.raw`${operand}(?:\s*[-+*/]\s*${operand})*\s*(?:[<>]=?|[!=]==?)\s*-?\d+(?:\.\d+)?\b|!?\bnear\([^()]*,\s*\d+(?:\.\d+)?\)`, 'g')) ?? [];
+  const call = String.raw`\((?:[^()]|\([^()]*\))*\)`;
+  const operand = String.raw`[\w.$]+(?:${call})?(?:\.[\w$]+(?:${call})?)*(?:\[[^\]]*\])?`;
+  const found = cond.match(new RegExp(String.raw`${operand}(?:\s*[-+*/]\s*${operand})*\s*(?:[<>]=?|[!=]==?)\s*-?\d+(?:\.\d+)?\b(?:\s*[-+*/]\s*${operand})*|!?\bnear\([^()]*,\s*\d+(?:\.\d+)?\)`, 'g')) ?? [];
   return [...new Set(found.map((x) => x.replace(/\s+/g, ' ').trim()))].filter((x) => !said.has(x.match(/(\d+(?:\.\d+)?)\)?$/)?.[1] ?? ''));
 }
 
@@ -148,6 +152,14 @@ function compare(x: string, b: Map<string, unknown>): boolean | undefined {
   return m[2] === '<' ? v < n : m[2] === '<=' ? v <= n : m[2] === '>' ? v > n : v >= n;
 }
 
+/** A run of days a script makes with `Array.from({ length: 14 }, (_, i) => new Date(Date.UTC(2026, 10, 9 + i)).toISOString().slice(0, 10))`,
+    as its dates; undefined for anything else. */
+function days(x: string): string[] | undefined {
+  const m = /^Array\.from\(\{\s*length:\s*(\d+)\s*\},\s*\(_, (\w+)\) => new Date\(Date\.UTC\((\d+),\s*(\d+),\s*(\d+) \+ \2\)\)\.toISOString\(\)\.slice\(0, 10\)\)$/.exec(x.trim());
+  if (!m) return undefined;
+  return Array.from({ length: Number(m[1]) }, (_, i) => new Date(Date.UTC(Number(m[3]), Number(m[4]), Number(m[5]) + i)).toISOString().slice(0, 10));
+}
+
 /** One check's page facts, read from its script. */
 export function checkDoc(r: Repo, id: string, file: string, title: string): CheckDoc {
   const src = read(r, file);
@@ -156,11 +168,16 @@ export function checkDoc(r: Repo, id: string, file: string, title: string): Chec
   const opens = new Set<string>();
   // A value kept in a constant (const MAP = '/goals?view=map') is written as the value; a name a loop binds
   // (for (const [w, h] of [[390, 844], [1440, 900]])) as each value it takes, so every place the loop opens is listed.
-  const consts = new Map<string, unknown>([...src.matchAll(/^const ([A-Za-z_]\w*) = ([^;\n]+);/gm)].flatMap((m) => { const v = literal(m[2]!); return v === undefined ? [] : [[m[1]!, v] as [string, unknown]]; }));
+  const consts = new Map<string, unknown>([...src.matchAll(/^const ([A-Za-z_]\w*) = ([^;\n]+);/gm)].flatMap((m) => { const v = literal(m[2]!) ?? days(m[2]!); return v === undefined ? [] : [[m[1]!, v] as [string, unknown]]; }));
   const value = (x: string, b: Map<string, unknown>): unknown => {
     const t = x.trim();
     if (b.has(t)) return b.get(t);
     if (consts.has(t)) return consts.get(t);
+    // A list's item (`DAYS[0]`) and an address joined from a string and a value (`'/?today=' + DAYS[0]`).
+    const item = /^(\w+)\[(\d+)\]$/.exec(t);
+    if (item) { const list = b.get(item[1]!) ?? consts.get(item[1]!); if (Array.isArray(list) && item[2]! in list) return list[Number(item[2])]; }
+    const joined = /^(['"`])([^'"`$]*)\1\s*\+\s*([^+]+)$/.exec(t);
+    if (joined) { const rest = value(joined[3]!, b); return joined[2] + (rest === undefined ? `{${joined[3]!.trim()}}` : String(rest)); }
     // An address written with its parts (`/goals/${id}`): each part a loop or a constant gives, else {part}.
     if (t.startsWith('`')) return words(t)?.replace(/\{(\w+)\}/g, (all, n: string) => (b.has(n) ? String(b.get(n)) : consts.has(n) ? String(consts.get(n)) : all));
     return literal(t);
@@ -224,7 +241,9 @@ export function checkDoc(r: Repo, id: string, file: string, title: string): Chec
       if (before.endsWith(')')) { const o = opening(before, before.length - 1); if (o > 0 && /\b(?:else\s+)?if\s*$/.test(before.slice(0, o))) cond = before.slice(o + 1, -1); }
     }
     const held = limits(cond, text);
-    const full = held.length ? `${text} (its test: ${held.map((x) => `\`${x}\``).join(', ')})` : text;
+    // A helper's own condition is what must hold (`check(ok, msg)`); an `if (…)` before the push is what is wrong.
+    const when = how?.ok != null ? 'passes when' : 'reported when';
+    const full = held.length ? `${text} (${when} ${held.map((x) => `\`${x}\``).join(', ')})` : text;
     if (!fails.some((f) => f.text === full)) fails.push({ section: sectionAt(m.index!), text: full });
   }
   return { id, file, title, about, opens: [...opens], fails };
