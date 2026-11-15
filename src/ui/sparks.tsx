@@ -1,6 +1,6 @@
 /* The small charts a goal row draws (Spark, StageSpark) and the scale they share with the full charts. Apart from
    charts.tsx so a first visit's Home rows don't download the goal page's charts (backlog FD). */
-import { planAt, type Point } from '../domain/plan';
+import { planSteps, stepCorners, type Point } from '../domain/plan';
 import type { MilestoneAssessment } from '../domain/status';
 import type { MetricGoal, RangeGoal } from '../domain/types';
 
@@ -30,7 +30,7 @@ export function Spark({ goal, weeks, series }: { goal: MetricGoal | RangeGoal; w
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" className="spark">
       {goal.kind === 'metric'
-        ? <polyline className="c-plan-faint" points={line(Array.from({ length: weeks + 1 }, (_, w) => [X(w), Y(planAt(goal.plan, w, weeks))]))} />
+        ? <polyline className="c-plan-faint" points={line(stepCorners(planSteps(goal.plan, weeks).filter((p) => p.week <= weeks)).map((p) => [X(p.week), Y(p.value)]))} />
         : ref.map((v) => <line key={v} className="c-target" x1={2} x2={W - 2} y1={Y(v)} y2={Y(v)} />)}
       {series.length > 1 && <polyline className="c-act thin" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
       {series.length > 0 && <circle className="c-dot" cx={X(series[series.length - 1]!.week)} cy={Y(series[series.length - 1]!.value)} r={2.5} />}

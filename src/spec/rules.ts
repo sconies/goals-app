@@ -26,7 +26,7 @@ import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, p
 import { notStarted } from '../domain/plan';
 import { cycleWeek, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
 import { planSays, readWeek, spanSays, weekChoices } from '../domain/weekChoices';
-import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
+import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, planSteps, stepCorners, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { directionLabel, fmt, gapText, nowText, targetText } from '../domain/format';
 import { assessMetric, assessMilestone, assessPosted, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
@@ -209,7 +209,7 @@ export const RULE_LIST: Rule[] = [
     id: 'weeks-and-plans',
     title: 'Weeks and plans',
     summary: 'Which week it is, and what a goal’s plan says its number should be in any week.',
-    code: [{ file: 'src/domain/plan.ts', names: ['currentWeek', 'daysSince', 'weekDate', 'firstWeekFrom', 'shapeProgress', 'planEnd', 'planAt', 'planHistoryOf', 'planAsOf', 'goalAsOf'] }, { file: 'src/domain/progress.ts', names: ['firstDueWeek', 'firstReview', 'reviewDate'] }, { file: 'src/domain/review.ts', names: ['sessionWeek'] }],
+    code: [{ file: 'src/domain/plan.ts', names: ['currentWeek', 'daysSince', 'weekDate', 'firstWeekFrom', 'shapeProgress', 'planEnd', 'planAt', 'planSteps', 'stepCorners', 'planHistoryOf', 'planAsOf', 'goalAsOf'] }, { file: 'src/domain/progress.ts', names: ['firstDueWeek', 'firstReview', 'reviewDate'] }, { file: 'src/domain/review.ts', names: ['sessionWeek'] }],
     tests: ['src/domain/rules.test.ts#plan', 'src/domain/rules.test.ts#goals', 'src/domain/year.test.ts', 'src/domain/firstWeek.test.ts'],
     reqs: ['PLAN-SHAPE', 'REBASELINE', 'PLAN-CHANGE', 'CALENDAR-WEEKS', 'YEAR'],
     body: `
@@ -234,6 +234,8 @@ export const RULE_LIST: Rule[] = [
   - **stepped:** three equal steps, landing in week ⌊*n*/3⌋ + 1, week ⌊2*n*/3⌋ + 1 and week *n*: the count of those reached, divided by 3.
 - The plan for the week is \`start + (target − start) × share\`.
 
+**The plan as published** (\`planSteps\`, deep dive 15 Nov). Every place that shows a plan shows the same numbers, one a week, from one source: \`planSteps(plan, weeks, from)\` gives each week from \`from\` to the plan's end with its plan for that week. The plan table prints them (its rows are \`planCheckpoints\` of them); the goal's chart and a row's sparkline draw them as steps (\`stepCorners\`), each week's number held flat through its week and then straight up or down to the next week's. No chart draws a straight line from the start to the target that the table doesn't say.
+
 **Plans that changed.** When a plan changes after check-ins started, the plan before is kept (\`planHistory\`, oldest first: each applied to the weeks before its \`untilWeek\`). The plan *as of* a week is the first kept plan whose \`untilWeek\` is later than that week, or else the current plan. (Older data keeps only \`originalPlan\` and \`rebaselinedWeek\`: read it as one kept plan until that week.) A check-in is always judged against the plan as of its own week.`,
     examples: [
       { given: 'The 13-week cycle starts Monday 7 September 2026. What week is Sunday 13 September at 23:00 UTC, and Monday 14 September?', then: '0, 1', run: () => `${currentWeek(CYCLE, at('2026-09-13T23:00:00Z'))}, ${currentWeek(CYCLE, at('2026-09-14T00:00:00Z'))}` },
@@ -244,6 +246,8 @@ export const RULE_LIST: Rule[] = [
       { given: 'A back-loaded plan from 34 to 18 over 13 weeks: the plan in week 4.', then: '31.27', run: () => n(planAt({ start: 34, target: 18, shape: 'back' }, 4, 13), 2) },
       { given: 'A stepped plan over 13 weeks: the share planned in weeks 4, 5, 8, 9, 12 and 13.', then: '0, 0.333, 0.333, 0.667, 0.667, 1', run: () => [4, 5, 8, 9, 12, 13].map((w) => n(shapeProgress('stepped', w, 13))).join(', ') },
       { given: 'A plan from 10 to 50 due in week 13, with a number set by hand of 40 in week 4: the plan in weeks 2, 4 and 8.', then: '25, 40, 44.444', run: () => [2, 4, 8].map((w) => n(planAt({ start: 10, target: 50, shape: 'straight', points: [{ week: 4, value: 40 }] }, w, 13))).join(', ') },
+      { given: 'A goal set up in week 46 (from week 46), straight from 40 to 70 due in week 53: the numbers published for weeks 46 to 53, as the plan table prints them and the chart draws them, rounded.', then: '40, 44, 49, 53, 57, 61, 66, 70', run: () => planSteps({ start: 40, target: 70, shape: 'straight', fromWeek: 46 }, 53, 46).map((p) => String(Math.round(p.value))).join(', ') },
+      { given: 'The steps the chart draws for weeks 1 to 3 planned at 10, 12 and 15: its corners, week and value.', then: '1:10, 2:10, 2:12, 3:12, 3:15', run: () => stepCorners([{ week: 1, value: 10 }, { week: 2, value: 12 }, { week: 3, value: 15 }]).map((p) => `${p.week}:${p.value}`).join(', ') },
       { given: 'A goal set up in week 5 (from week 5), straight from 0 to 80 due in week 13: the plan in weeks 3, 5, 9 and 13.', then: '0, 0, 40, 80', run: () => [3, 5, 9, 13].map((w) => n(planAt({ start: 0, target: 80, shape: 'straight', fromWeek: 5 }, w, 13))).join(', ') },
       { given: 'A goal whose target moved from 75 to 95 in week 6 (the 30→75 plan kept until week 6): the target of the plan as of weeks 4 and 6.', then: '75, 95', run: () => { const g: MetricGoal = { ...g3075, plan: { ...g3075.plan, target: 95 }, planHistory: [{ untilWeek: 6, plan: g3075.plan }] }; return `${planAsOf(g, 4).target}, ${planAsOf(g, 6).target}`; } },
     ],

@@ -1,7 +1,7 @@
 import { fixed } from '../domain/numbers';
 import { isShare } from '../domain/checkin';
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { planAt, planEnd, type Point, type Projection } from '../domain/plan';
+import { planAt, planEnd, planSteps, stepCorners, type Point, type Projection } from '../domain/plan';
 import type { MilestoneAssessment, StageState } from '../domain/status';
 import { fmt } from '../domain/format';
 import type { MetricGoal, RangeGoal } from '../domain/types';
@@ -204,7 +204,8 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
   const f: Frame = { W, H, padL, padR: fromWeek != null ? 20 : marks?.end ? 16 : 12, padT: 24, padB: 20 };
   const { X: X0, Y } = scales(f, weeks - x0, lo, hi);
   const X = (w: number) => X0(w - x0);
-  const planPts = (pl: MetricGoal['plan']) => Array.from({ length: weeks - x0 + 1 }, (_, i) => [X(x0 + i), Y(planAt(pl, x0 + i, weeks))] as [number, number]);
+  // The plan as the plan table publishes it, one number a week, drawn as steps (planSteps: one source for both).
+  const planPts = (pl: MetricGoal['plan']) => stepCorners(planSteps(pl, cycleWeeks, x0)).map((p) => [X(p.week), Y(p.value)] as [number, number]);
   const last = series[series.length - 1];
   const up = betterUp(goal);
   const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}, ${up ? 'higher' : 'lower'} is better`;

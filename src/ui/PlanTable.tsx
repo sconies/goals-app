@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import { fmt } from '../domain/format';
-import { planAt, planCheckpoints, planEnd, weekDates } from '../domain/plan';
+import { planCheckpoints, planEnd, planSteps, weekDates } from '../domain/plan';
 import type { CheckIn, MetricPlan } from '../domain/types';
 import { isYear, quarters } from '../domain/year';
 import { planNote } from '../domain/newGoal';
@@ -53,6 +53,8 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
   const from = plan.fromWeek ?? 0;
   const end = planEnd(plan, cycle.weeks);
   const rows = planCheckpoints(from, end);
+  // The numbers the chart draws as steps (planSteps): one source for both.
+  const steps = new Map(planSteps(plan, cycle.weeks, from).map((p) => [p.week, p.value]));
   const editing = !!onType;
   const edited = editing && Object.values(typed ?? {}).some((v) => v.trim() !== '');
   const qEnd = (w: number) => (isYear(cycle) ? quarters(cycle).find((q) => q.to === w && w !== end) : undefined);
@@ -70,7 +72,7 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
           <tr className="muted-row"><td>{from <= 0 ? 'Start' : `Week ${from}`}</td><td className="pt-date">{from > 0 ? weekDates(cycle, from) : ''}</td><td className="num">{fmt(plan.start, unit)}</td>{actuals && <td />}</tr>
           {rows.map((w) => {
             const isEnd = w === end;
-            const def = planAt(plan, w, cycle.weeks);
+            const def = steps.get(w)!;
             const hand = typed?.[String(w)] ?? '';
             const actual = actuals?.find((c) => c.week === w)?.value;
             return (

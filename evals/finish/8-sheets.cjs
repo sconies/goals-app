@@ -220,7 +220,7 @@ module.exports = {
 
     // #12, #13, #20: the Demo menu.
     await step('Demo menu', async () => {
-      const [c, p] = await open(1280, 800, 'rhea', '/');
+      const [c, p] = await open(1280, 800, 'grace', '/');
       await p.locator('.demo-entry:visible').first().click();
       const sheet = p.getByRole('dialog', { name: 'Demo' });
       await sheet.waitFor();
