@@ -1,0 +1,460 @@
+diff --git a/package.json b/package.json
+index c911d62..fe0cc26 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+     "drill": "node scripts/drill.mjs",
+-    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "build:standin": "FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,wrap-up} VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,wrap-up} vite build -c vite.platform.config.ts --logLevel warn",
+     "standin": "node platform/dist/server.mjs",
+     "standin:seed": "node platform/dist/server.mjs seed"
+   },
+diff --git a/platform/prove-watching.mjs b/platform/prove-watching.mjs
+new file mode 100644
+index 0000000..5fad568
+--- /dev/null
++++ b/platform/prove-watching.mjs
+@@ -0,0 +1,205 @@
++/* Watching on the stand-in platform (stage 11, drill item 11): its exit criteria against the running server, with the
++   module on, switched off, left out of the build, and back. Phases share one data folder, so the rows a phase leaves
++   are the next one's:
++     on   — seeds; the AI tools; who may write a watch (R1, refused through the API as a non-owner and a non-admin);
++            the screens; switching off through Features (read-back); off; back on
++     out  — the same data on a build without the module: loads, saves, refuses watches, keeps every row
++     back — the module built in again: every watch as it was
++   Usage: node platform/prove-watching.mjs <port> <on|out|back> <data folder>. Prints one line per check and a tally. */
++import { spawn, execFileSync } from 'node:child_process';
++import fs from 'node:fs';
++import path from 'node:path';
++import { DatabaseSync } from 'node:sqlite';
++
++const [PORT, PHASE, DATA] = [Number(process.argv[2] || 47220), process.argv[3] || 'on', path.resolve(process.argv[4] || 'proof-data')];
++const B = `http://localhost:${PORT}`;
++const ENV = { ...process.env, STANDIN_PORT: String(PORT), STANDIN_DATA: DATA, NODE_NO_WARNINGS: '1' };
++const PASSWORD = 'faro-standin';
++const WS = 'ws_platform';
++const WSNAME = 'Platform Engineering';
++const OFF_TOOL = (tool) => `Watching is switched off in ${WSNAME}, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
++const results = [];
++const check = (name, ok, detail = '') => { results.push({ ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  [${PHASE}] ${name}${detail ? ' — ' + String(detail).slice(0, 220) : ''}`); };
++const STATE = path.join(DATA, 'watching-proof.json');
++const state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : {};
++const save = () => fs.writeFileSync(STATE, JSON.stringify(state));
++
++function run(args) { return new Promise((res, rej) => { const p = spawn(process.execPath, ['platform/dist/server.mjs', ...args], { env: ENV, stdio: 'inherit' }); p.on('exit', (c) => (c ? rej(new Error('exit ' + c)) : res())); }); }
++async function start() {
++  // Its output goes to a file: the UI checks block this script's event loop, and a pipe nobody drains would stall it.
++  const log = fs.openSync(path.join(DATA, `server-${PHASE}.log`), 'a');
++  const p = spawn(process.execPath, ['platform/dist/server.mjs'], { env: ENV, stdio: ['ignore', log, log] });
++  p.on('exit', (code, sig) => { if (!stopping) console.log(`server exited ${code ?? sig}`); });
++  for (let i = 0; i < 100; i++) { try { await fetch(B + '/signin'); return p; } catch { await new Promise((r) => setTimeout(r, 200)); } }
++  throw new Error('the server did not start');
++}
++let stopping = false;
++const stopServer = (p) => { stopping = true; return stopServerNow(p); };
++const stopServerNow = (p) => new Promise((res) => { p.on('exit', res); p.kill(); });
++function client() {
++  let cookie = '';
++  const c = async (method, url, body, headers = {}) => {
++    const go = () => fetch(B + url, { method, redirect: 'manual', headers: { ...(cookie ? { cookie } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
++    // A kept-alive socket the server closed while a UI check held this script's loop: try once more on a fresh one.
++    const r = await go().catch(() => new Promise((res) => setTimeout(res, 300)).then(go));
++    const set = r.headers.get('set-cookie'); if (set) cookie = set.split(';')[0];
++    const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* html */ }
++    return { status: r.status, json, text };
++  };
++  c.signIn = (email) => c('POST', '/api/signin', { email, password: PASSWORD });
++  return c;
++}
++let n = 0;
++const uid = (p) => `${p}_wproof_${PHASE}_${++n}`;
++const now = () => new Date().toISOString();
++const db = () => new DatabaseSync(path.join(DATA, 'faro.db'));
++const watchRows = () => { const d = db(); try { return d.prepare('select id, person_id, kind, ref, removed_at, removed_by from okr_watches where workspace_id = ? order by id').all(WS).map((r) => ({ ...r })); } finally { d.close(); } };
++const live = (rows) => rows.filter((r) => !r.removed_at);
++const anon = client();
++const mcp = async (method, params, token) => (await anon('POST', '/mcp', { jsonrpc: '2.0', id: ++n, method, params }, { Authorization: `Bearer ${token}`, Accept: 'application/json, text/event-stream' })).json;
++const tool = async (name, args, token) => { const r = await mcp('tools/call', { name, arguments: args }, token); const text = r?.result?.content?.map((x) => x.text).join(' ') ?? r?.error?.message ?? JSON.stringify(r); return { text, isError: !!(r?.result?.isError || r?.error) }; };
++const ui = (email, phase, goal) => JSON.parse(execFileSync(process.execPath, ['platform/ui-watching.mjs', B, email, PASSWORD, phase, goal, process.env.SHOTS ?? ''], { encoding: 'utf8', timeout: 180000 }).trim().split('\n').pop());
++async function tokenFor(amara, person) {
++  const r = await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: 'tok_wproof' + PHASE + (++n), personId: person, name: `${person} proof`, createdBy: 'amara', createdAt: now(), lastUsedAt: null, revokedAt: null }], changes: [] });
++  if (!r.json?.secret) console.log("token:", r.status, r.text.slice(0, 200));
++  return r.json?.secret;
++}
++const setOff = (amara, off) => amara('POST', `/api/workspaces/${WS}/commit`, { modulesOff: off, changes: [{ id: uid('chg'), at: now(), actorId: 'amara', goalId: null, entity: 'workspace', entityId: WS, action: 'edited', summary: off.length ? 'Switched off Watching' : 'Switched on Watching', diffs: [] }] });
++
++if (PHASE === 'on' && !fs.existsSync(path.join(DATA, 'faro.db'))) { fs.mkdirSync(DATA, { recursive: true }); await run(['seed', PASSWORD]); }
++let server = await start();
++try {
++  const amara = client(); await amara.signIn('amara.nwosu@example.com');
++  const rhea = client(); await rhea.signIn('rhea.kapoor@example.com');
++  const pavel = client(); await pavel.signIn('pavel.novak@example.com');
++  const snap = (await rhea('GET', `/api/workspaces/${WS}`)).json;
++  const cycleNow = snap.goals.find((g) => g.id === 'ns-lead')?.cycleId;
++  // A goal of Pavel's that none of Rhea's watches covers (not the goal, a tree above it, or its level), so it offers Watch.
++  const byId = new Map(snap.goals.map((g) => [g.id, g]));
++  const above = (g) => { const ids = []; for (let x = g; x; x = byId.get(x.parentId)) ids.push(x.id); return ids; };
++  const rheas = snap.watches.filter((w) => w.personId === 'rhea' && !w.removedAt);
++  const covered = (g) => rheas.some((w) => (w.kind === 'goal' && w.ref === g.id) || (w.kind === 'tree' && above(g).includes(w.ref)) || (w.kind === 'level' && w.ref === g.level));
++  const pavelGoal = snap.goals.find((g) => g.ownerId === 'pavel' && g.cycleId === cycleNow && !g.removedAt && !covered(g));
++  const pavelWatch = snap.watches.find((w) => w.personId === 'pavel' && !w.removedAt);
++  const rheaWatch = snap.watches.find((w) => w.personId === 'rhea' && !w.removedAt);
++  const commit = (c, body) => c('POST', `/api/workspaces/${WS}/commit`, body);
++
++  if (PHASE === 'on') {
++    const before = watchRows();
++    check('seeded: the demo’s watches are rows in SQLite', live(before).length === 83, `${live(before).length} live watches`);
++    const rheaTok = await tokenFor(amara, 'rhea');
++    const list = (await mcp('tools/list', {}, rheaTok))?.result?.tools?.map((t) => t.name) ?? [];
++    check('/mcp lists list_watching, watch and unwatch', ['list_watching', 'watch', 'unwatch'].every((t) => list.includes(t)), `${list.length} tools`);
++    let t = await tool('list_watching', {}, rheaTok);
++    check('list_watching: Rhea’s watches, from SQLite', !t.isError && t.text.includes(rheaWatch.id), t.text.slice(0, 160));
++    t = await tool('watch', { kind: 'goal', ref: pavelGoal.key }, rheaTok);
++    const made = live(watchRows()).find((w) => w.person_id === 'rhea' && w.ref === pavelGoal.id);
++    check('watch (AI tool): Rhea watches Pavel’s goal; the row is in SQLite', !t.isError && made, t.text.slice(0, 160));
++    t = await tool('watch', { kind: 'level', ref: 'nowhere' }, rheaTok);
++    check('watch: an unknown level is refused in the app’s words', t.isError && /There’s no level called “nowhere” here/.test(t.text), t.text);
++    t = await tool('unwatch', { watch_id: pavelWatch.id }, rheaTok);
++    check('unwatch (AI tool) on Pavel’s watch: “That’s someone else’s watch.”', t.isError && /That’s someone else’s watch\./.test(t.text), t.text);
++    t = await tool('unwatch', { watch_id: made.id }, rheaTok);
++    const stopped = watchRows().find((w) => w.id === made.id);
++    const d = db(); const logged = d.prepare("select summary from okr_changes where workspace_id = ? and entity = 'watch' and entity_id = ?").get(WS, made.id); d.close();
++    check('unwatch: kept as stopped, logged as “Stopped watching …”', !t.isError && stopped?.removed_at && /^Stopped watching /.test(logged?.summary ?? ''), logged?.summary);
++
++    // Who may write a watch: anyone, for their own (R1, Views and watching). Forged saves straight to the API.
++    const forged = [
++      ['Rhea starts a watch for Pavel', rhea, { watches: [{ id: uid('w'), personId: 'pavel', kind: 'goal', ref: pavelGoal.id }], changes: [] }, /That’s someone else’s watch/],
++      ['Rhea stops Pavel’s watch', rhea, { watches: [{ ...pavelWatch, removedAt: now(), removedBy: 'rhea' }], changes: [{ id: uid('chg'), at: now(), actorId: 'rhea', goalId: null, entity: 'watch', entityId: pavelWatch.id, action: 'removed', summary: 'Stopped watching', diffs: [] }] }, /That’s someone else’s watch/],
++      ['Rhea deletes Pavel’s watch', rhea, { unwatch: [pavelWatch.id], changes: [] }, /That’s someone else’s watch/],
++      ['Rhea hands her watch to Pavel', rhea, { watches: [{ ...rheaWatch, personId: 'pavel' }], changes: [] }, /A watch keeps its person/],
++      ['Rhea makes a new goal that brings a watch for Pavel', rhea, { goals: [{ ...pavelGoal, id: uid('g'), key: 'G-999', ownerId: 'rhea', title: 'Forged' }], watches: [{ id: uid('w'), personId: 'pavel', kind: 'goal', ref: 'x' }], changes: [] }, /That’s someone else’s watch/],
++      ['Amara (an admin) stops Pavel’s watch', amara, { watches: [{ ...pavelWatch, removedAt: now(), removedBy: 'amara' }], changes: [{ id: uid('chg'), at: now(), actorId: 'amara', goalId: null, entity: 'watch', entityId: pavelWatch.id, action: 'removed', summary: 'Stopped watching', diffs: [] }] }, /That’s someone else’s watch/],
++    ];
++    forged[4][2].watches[0].ref = forged[4][2].goals[0].id;
++    for (const [what, who, body, words] of forged) { const r = await commit(who, body); check(`R1: ${what}: refused`, r.status === 403 && words.test(r.json?.error ?? ''), `${r.status} ${r.json?.error}`); }
++    check('the refused saves changed no watch', JSON.stringify(watchRows().filter((w) => w.id !== made.id)) === JSON.stringify(before), '');
++    let r = await commit(rhea, { watches: [{ id: uid('w'), personId: 'rhea', kind: 'goal', ref: 'ns-lead' }], changes: [] });
++    check('R1: Rhea starts her own watch through the API: allowed', r.status === 200, r.json?.error);
++    r = await commit(pavel, { watches: [{ ...pavelWatch, removedAt: now(), removedBy: 'pavel' }], changes: [{ id: uid('chg'), at: now(), actorId: 'pavel', goalId: null, entity: 'watch', entityId: pavelWatch.id, action: 'removed', summary: 'Stopped watching', diffs: [] }] });
++    check('R1: Pavel stops his own watch: allowed', r.status === 200, r.json?.error);
++    const back = { watches: [{ ...pavelWatch, removedAt: null, removedBy: null }], changes: [] };
++    r = await commit(rhea, { ...back, changes: [{ id: uid('chg'), at: now(), actorId: 'rhea', goalId: null, entity: 'watch', entityId: pavelWatch.id, action: 'restored', summary: 'Restored', diffs: [] }] });
++    check('R1: Rhea restores the watch Pavel stopped: refused', r.status === 403, r.json?.error);
++    r = await commit(amara, { ...back, changes: [{ id: uid('chg'), at: now(), actorId: 'amara', goalId: null, entity: 'watch', entityId: pavelWatch.id, action: 'restored', summary: 'Restored', diffs: [] }] });
++    check('R1: an admin restores it from Recently removed: allowed (canRestore)', r.status === 200, r.json?.error);
++
++    // The screens, with Watching on.
++    const onRhea = ui('rhea.kapoor@example.com', 'on', pavelGoal.id);
++    check('on: Home has “Goals you watch”; Goals has a Watching tab', onRhea.homeWatch && onRhea.goalsWatchingTab, JSON.stringify(onRhea.goalTabs));
++    check('on: a goal Rhea doesn’t own offers Watch; pressing it saves the watch to SQLite', onRhea.goalWatchButton > 0 && onRhea.afterWatch > 0 && live(watchRows()).some((w) => w.person_id === 'rhea' && w.ref === pavelGoal.id && w.kind === 'goal'), JSON.stringify({ b: onRhea.goalWatchButton, after: onRhea.afterWatch, err: onRhea.error }));
++
++    // Switch off through Features: the read-back first (watchingOffReadBack), then off.
++    const s0 = live(watchRows());
++    const people = new Set(s0.map((w) => w.person_id));
++    const sw = ui('amara.nwosu@example.com', 'switch-off', pavelGoal.id);
++    check('switching off reads back what stays first (people, watches)', sw.readBack && sw.readBack.includes(String(people.size)) && sw.readBack.includes(String(s0.length)), sw.readBack ?? sw.error);
++    check('then “Watching is off in Platform Engineering.”', /Watching is off in Platform Engineering/.test(sw.after ?? ''), sw.after ?? sw.error);
++    const ws = (await amara('GET', '/api/workspaces')).json.find((w) => w.id === WS);
++    check('modulesOff is kept in SQLite', (ws?.modulesOff ?? []).includes('watching'), JSON.stringify(ws?.modulesOff));
++    check('switching off kept every watch', JSON.stringify(live(watchRows())) === JSON.stringify(s0));
++
++    // Off.
++    for (const name of ['list_watching', 'watch', 'unwatch']) {
++      t = await tool(name, name === 'watch' ? { kind: 'goal', ref: pavelGoal.key } : name === 'unwatch' ? { watch_id: rheaWatch.id } : {}, rheaTok);
++      check(`off: ${name} answers the module-off sentence (N22)`, t.text.includes(OFF_TOOL(name)), t.text);
++    }
++    r = await commit(rhea, { watches: [{ id: uid('w'), personId: 'rhea', kind: 'goal', ref: 'ns-lead' }], changes: [] });
++    check('off: a forged watch of her own is refused: “Watching is off in Platform Engineering.”', r.status === 403 && r.json?.error === `Watching is off in ${WSNAME}.`, r.json?.error);
++    r = await commit(rhea, { watches: [{ ...rheaWatch, removedAt: now(), removedBy: 'rhea' }], changes: [{ id: uid('chg'), at: now(), actorId: 'rhea', goalId: null, entity: 'watch', entityId: rheaWatch.id, action: 'removed', summary: 'Stopped watching', diffs: [] }] });
++    check('off: stopping her own watch is refused too', r.status === 403 && /Watching is off/.test(r.json?.error ?? ''), r.json?.error);
++    const offRhea = ui('rhea.kapoor@example.com', 'off', pavelGoal.id);
++    check('off: no Watching tab, no “Goals you watch”', !offRhea.goalsWatchingTab && !offRhea.homeWatch && offRhea.goalTabs.length > 0, JSON.stringify(offRhea.goalTabs));
++    check('off: a goal has no Watch or Watching and no “Watched by”', offRhea.goalWatchButton === 0 && !offRhea.goalWatchedBy);
++    check('off: /watching is Page not found, saying it’s switched off and who can switch it on', offRhea.notFound && !!offRhea.offWords, offRhea.offWords ?? offRhea.watchingPage);
++    const offAmara = ui('amara.nwosu@example.com', 'off', pavelGoal.id);
++    check('off: Amara, who owns no goal, is led to “{n} goals need attention · See them”', !!offAmara.homeLead && !offAmara.homeWatch, offAmara.homeLead);
++    // A core save still works while off.
++    const mine = snap.goals.find((g) => g.ownerId === 'rhea' && g.cycleId === cycleNow && !g.removedAt);
++    r = await commit(rhea, { goals: [{ ...mine, title: mine.title + ' ' }], changes: [{ id: uid('chg'), at: now(), actorId: 'rhea', goalId: mine.id, entity: 'goal', entityId: mine.id, action: 'edited', summary: 'Renamed', diffs: [] }] });
++    check('off: the core still saves (Rhea renames her goal)', r.status === 200, r.json?.error);
++
++    // Back on.
++    r = await setOff(amara, []);
++    t = await tool('list_watching', {}, rheaTok);
++    check('back on: every watch as it was; list_watching answers again (U164)', r.status === 200 && JSON.stringify(live(watchRows())) === JSON.stringify(s0) && !t.isError, t.text.slice(0, 100));
++    const onAmara = ui('amara.nwosu@example.com', 'on', pavelGoal.id);
++    check('back on: Amara’s Home has “Goals you watch” again', onAmara.homeWatch);
++    state.rows = watchRows(); state.goal = pavelGoal.id; save();
++  }
++
++  if (PHASE === 'out') {
++    const rows = watchRows();
++    check('left out: the server starts on the same data; the watches are all still rows', JSON.stringify(rows) === JSON.stringify(state.rows), `${live(rows).length} live`);
++    const tok = await tokenFor(amara, 'rhea');
++    const list = (await mcp('tools/list', {}, tok))?.result?.tools?.map((x) => x.name) ?? [];
++    check('left out: /mcp has no watching tools', list.length > 0 && !list.some((x) => ['list_watching', 'watch', 'unwatch'].includes(x)), `${list.length} tools`);
++    const t = await tool('watch', { kind: 'goal', ref: 'G-1' }, tok);
++    check('left out: calling watch is refused', t.isError, t.text);
++    let r = await commit(rhea, { watches: [{ id: uid('w'), personId: 'rhea', kind: 'goal', ref: 'ns-lead' }], changes: [] });
++    check('left out: a forged watch is refused: “Watching is off in Platform Engineering.”', r.status === 403 && r.json?.error === `Watching is off in ${WSNAME}.`, r.json?.error);
++    const mine = snap.goals.find((g) => g.ownerId === 'rhea' && g.cycleId === cycleNow && !g.removedAt);
++    r = await commit(rhea, { goals: [{ ...mine, title: mine.title.trimEnd() }], changes: [{ id: uid('chg'), at: now(), actorId: 'rhea', goalId: mine.id, entity: 'goal', entityId: mine.id, action: 'edited', summary: 'Renamed', diffs: [] }] });
++    check('left out: the core loads and saves', !!snap.goals.length && r.status === 200, r.json?.error);
++    const u = ui('rhea.kapoor@example.com', 'out', state.goal);
++    check('left out: no Watching tab, no “Goals you watch”, no Watch button', !u.goalsWatchingTab && !u.homeWatch && u.goalWatchButton === 0 && u.goalTabs.length > 0, JSON.stringify(u.goalTabs));
++    check('left out: /watching is Page not found', u.notFound, u.watchingPage.slice(0, 120));
++    check('left out: no page errors', !u.pageErrors.length && !u.error, (u.pageErrors.join(' ') + (u.error ?? '')).slice(0, 200));
++    check('left out: the saves left every watch untouched', JSON.stringify(watchRows()) === JSON.stringify(state.rows));
++  }
++
++  if (PHASE === 'back') {
++    check('built in again: every watch as it was', JSON.stringify(watchRows()) === JSON.stringify(state.rows));
++    const tok = await tokenFor(amara, 'rhea');
++    const t = await tool('list_watching', {}, tok);
++    check('built in again: list_watching lists Rhea’s watches', !t.isError && t.text.includes(rheaWatch.id), t.text.slice(0, 120));
++    const u = ui('rhea.kapoor@example.com', 'on', state.goal);
++    check('built in again: Home “Goals you watch”, Watching tab', u.homeWatch && u.goalsWatchingTab, JSON.stringify(u.goalTabs));
++  }
++} catch (e) { check('ran to the end', false, e.stack); }
++finally { await stopServer(server); }
++const failed = results.filter((r) => !r.ok).length;
++console.log(`\n${results.length - failed}/${results.length} passed (${PHASE})`);
++process.exit(failed ? 1 : 0);
+diff --git a/platform/prove-watching.sh b/platform/prove-watching.sh
+new file mode 100644
+index 0000000..9155e04
+--- /dev/null
++++ b/platform/prove-watching.sh
+@@ -0,0 +1,13 @@
++#!/usr/bin/env bash
++# Watching on the stand-in (stage 11): on, switched off and back (one build), left out (a build without it), back in.
++# Usage: bash platform/prove-watching.sh [port]. One data folder throughout, so each phase reads the last one's rows.
++set -euo pipefail
++PORT=${1:-47220}
++DATA=$(mktemp -d -t faro-watching-XXXX)
++IN=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,wrap-up
++STANDIN_WITHOUT=$IN npm run -s build:standin >/dev/null
++node platform/prove-watching.mjs "$PORT" on "$DATA"
++STANDIN_WITHOUT=$IN,watching npm run -s build:standin >/dev/null
++node platform/prove-watching.mjs "$PORT" out "$DATA"
++STANDIN_WITHOUT=$IN npm run -s build:standin >/dev/null
++node platform/prove-watching.mjs "$PORT" back "$DATA"
+diff --git a/platform/server.ts b/platform/server.ts
+index 5ed2935..5557bab 100644
+--- a/platform/server.ts
++++ b/platform/server.ts
+@@ -13,6 +13,8 @@ import { Refused, SqliteStore } from '../src/adapters/standin/sqliteStore';
+ import { standinDeps } from '../src/adapters/standin/deps';
+ import { folderFiles } from '../src/adapters/standin/files';
+ import { refusal } from '../src/adapters/standin/guard';
++import { watchRefusal } from '../src/adapters/standin/watchGuard';
++import { isModuleOn } from '../src/core/registry';
+ import { matchSignIn } from '../src/adapters/signIn';
+ import { isStale } from '../src/ports/store';
+ import { personFromRow, type PersonRow } from '../src/data/rows';
+@@ -134,7 +136,10 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
+     if (rest === '/history' && req.method === 'POST') return send(res, 200, await store.history(ws, await input(req)));
+     if (rest === '/commit' && req.method === 'POST') {
+       const c = await input<Commit>(req);
+-      const why = refusal(await store.load(ws), c, me);
++      const stored = await store.load(ws);
++      const w = (await store.workspaces()).find((x) => x.id === ws);
++      // Watching's records (stage 11): only one's own watches, and none while Watching is off or left out of the build.
++      const why = refusal(stored, c, me) ?? watchRefusal(stored, c, me, { name: w?.name ?? 'Workspace', on: isModuleOn(w, 'watching') });
+       if (why) throw new HttpError(403, why);
+       // Revoking a token: the store checks that it's the token's person or an admin, as the actor the change names.
+       try { await store.commit(ws, c); } catch (e) { refuse(e); }
+diff --git a/platform/ui-watching.mjs b/platform/ui-watching.mjs
+new file mode 100644
+index 0000000..ccb1b52
+--- /dev/null
++++ b/platform/ui-watching.mjs
+@@ -0,0 +1,65 @@
++/* Watching through the app's screens on the stand-in server (stage 11, U164's steps on the live store). Signs in by
++   password and reads what each screen offers. Prints one JSON object of observations; the proof judges them.
++   Usage: node platform/ui-watching.mjs <base> <email> <password> <phase: on|switch-off|off|out> <goal id> [shots] */
++import { chromium } from 'playwright';
++const [B, EMAIL, PASSWORD, PHASE, GOAL, SHOTS] = process.argv.slice(2);
++const browser = await chromium.launch();
++const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
++const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
++const shot = (n) => SHOTS ? page.screenshot({ path: `${SHOTS}/${PHASE}-${n}.png` }) : null;
++const text = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
++const go = async (path, wait = 1500) => { await page.goto(B + path); await page.waitForTimeout(wait); };
++const out = { phase: PHASE };
++try {
++  await page.goto(B + '/');
++  await page.fill('input[name=email]', EMAIL);
++  await page.fill('input[name=password]', PASSWORD);
++  await page.click('button[type=submit]');
++  await page.waitForTimeout(2500);
++  if (PHASE === 'switch-off') {
++    await go('/workspace/features');
++    out.featuresSays = (await text()).match(/\d+ (people|person) watch(es)? goals here\./)?.[0] ?? null;
++    await page.getByRole('checkbox', { name: /Watching/ }).first().click();
++    const dialog = page.getByRole('dialog');
++    await dialog.waitFor({ timeout: 5000 });
++    out.readBack = (await dialog.innerText()).replace(/\s+/g, ' ');
++    await shot('read-back');
++    await dialog.getByRole('button', { name: /Switch off Watching/ }).click();
++    await page.waitForTimeout(1500);
++    out.after = (await text()).match(/Watching is off in [^.]+\./)?.[0] ?? null;
++  } else {
++    await go('/');
++    await page.getByText(/Goals you watch|goals? needs? attention/).first().waitFor({ timeout: 8000 }).catch(() => {});
++    await page.mouse.wheel(0, 3000); await page.waitForTimeout(500);
++    const home = await text();
++    out.homeWatch = /Goals you watch/.test(home);
++    out.homeLead = home.match(/\d+ goals? needs? attention (· )?See them/)?.[0] ?? null;
++    await shot('home');
++    await go('/goals');
++    out.goalTabs = await page.getByRole('tab').allInnerTexts().catch(() => []);
++    if (!out.goalTabs.length) out.goalTabs = await page.locator('.scope-tabs a, .tabs a, [role=tablist] *').allInnerTexts();
++    out.goalsWatchingTab = out.goalTabs.some((t) => /Watching/.test(t));
++    await go('/goals/' + GOAL);
++    const g = await text();
++    out.goalWatchButton = await page.getByRole('button', { name: /^(Watch|Watching)\b/ }).count();
++    out.goalWatchedBy = /Watched by/.test(g);
++    await shot('goal');
++    if (PHASE === 'on' && out.goalWatchButton) {
++      await page.getByRole('button', { name: /^Watch\b/ }).first().click();
++      await page.waitForTimeout(800);
++      const sheet = page.getByRole('dialog');
++      if (await sheet.count()) { out.watchSheet = (await sheet.innerText()).replace(/\s+/g, ' ').slice(0, 200); await sheet.getByRole('button', { name: /^Watch/ }).first().click(); }
++      await page.waitForTimeout(1500);
++      out.afterWatch = await page.getByRole('button', { name: /^Watching\b/ }).count();
++    }
++    await go('/watching');
++    const w = await text();
++    out.watchingPage = w.slice(0, 300);
++    out.notFound = /Page not found/.test(w);
++    out.offWords = w.match(/Watching is switched off in [^.]+\. An admin can switch it on in Workspace, Features\./)?.[0] ?? null;
++    await shot('watching');
++  }
++} catch (e) { out.error = String(e).slice(0, 300); await shot('error'); }
++out.pageErrors = errs;
++console.log(JSON.stringify(out));
++await browser.close();
+diff --git a/src/adapters/standin/watchGuard.test.ts b/src/adapters/standin/watchGuard.test.ts
+new file mode 100644
+index 0000000..1a5eaed
+--- /dev/null
++++ b/src/adapters/standin/watchGuard.test.ts
+@@ -0,0 +1,55 @@
++// @vitest-environment node
++/* The stand-in server's check on watches (stage 11): anyone, for their own watches (R1, "Views and watching"); someone
++   else's only when restoring what you stopped (or as an admin) or carried along by a save about goals or a cycle; and
++   none of Watching's own saves while it is off. */
++import { describe, expect, it } from 'vitest';
++import { KEEPS_WHAT, SOMEONE_ELSES, watchRefusal } from './watchGuard';
++import type { Commit } from '../../data/store';
++import type { Goal, Person, Snapshot, Watch } from '../../domain/types';
++
++const person = (id: string, admin = false) => ({ id, name: id, admin }) as unknown as Person;
++const ADMIN = person('a', true), MAYA = person('m'), NIK = person('n');
++const goal = (id: string, ownerId: string, cycleId = 'c1', key = 'G-1') => ({ id, ownerId, cycleId, key, title: id }) as unknown as Goal;
++const nikWatch: Watch = { id: 'w1', personId: 'n', kind: 'goal', ref: 'g1' };
++const stored = { people: [ADMIN, MAYA, NIK], goals: [goal('g1', 'm')], cycles: [{ id: 'c1' }], watches: [nikWatch, { id: 'w2', personId: 'm', kind: 'level', ref: 'north-star', removedAt: '2026-11-01', removedBy: 'm' }] } as unknown as Snapshot;
++const ON = { name: 'Platform Engineering', on: true };
++const OFF = { name: 'Platform Engineering', on: false };
++const stop = (w: Watch, by: string): Commit => ({ watches: [{ ...w, removedAt: '2026-11-15', removedBy: by }], changes: [{ id: 'chg', at: '2026-11-15', actorId: by, goalId: null, entity: 'watch', entityId: w.id, action: 'removed', summary: 'Stopped watching g1', diffs: [] }] } as unknown as Commit);
++
++describe('the stand-in server on watches', () => {
++  it('lets anyone start and stop their own watch', () => {
++    expect(watchRefusal(stored, { watches: [{ id: 'w9', personId: 'm', kind: 'goal', ref: 'g1' }], changes: [] }, MAYA, ON)).toBeNull();
++    expect(watchRefusal(stored, stop(nikWatch, 'n'), NIK, ON)).toBeNull();
++  });
++  it('refuses a watch made, stopped or deleted for someone else, admins included', () => {
++    expect(watchRefusal(stored, { watches: [{ id: 'w9', personId: 'n', kind: 'goal', ref: 'g1' }], changes: [] }, MAYA, ON)).toBe(SOMEONE_ELSES);
++    expect(watchRefusal(stored, stop(nikWatch, 'm'), MAYA, ON)).toBe(SOMEONE_ELSES);
++    expect(watchRefusal(stored, stop(nikWatch, 'a'), ADMIN, ON)).toBe(SOMEONE_ELSES);
++    expect(watchRefusal(stored, { unwatch: ['w1'], changes: [] }, MAYA, ON)).toBe(SOMEONE_ELSES);
++  });
++  it('refuses moving a watch to another person or goal', () => {
++    expect(watchRefusal(stored, { watches: [{ ...nikWatch, personId: 'm' }], changes: [] }, MAYA, ON)).toBe(KEEPS_WHAT);
++    expect(watchRefusal(stored, { watches: [{ ...nikWatch, ref: 'g2' }], changes: [] }, NIK, ON)).toBe(KEEPS_WHAT);
++  });
++  it('lets whoever stopped a watch, or an admin, restore it', () => {
++    const back = { watches: [{ ...stored.watches[1]!, removedAt: null, removedBy: null }], changes: [] } as Commit;
++    expect(watchRefusal(stored, back, MAYA, ON)).toBeNull();
++    expect(watchRefusal(stored, back, ADMIN, ON)).toBeNull();
++    expect(watchRefusal(stored, back, NIK, ON)).toBe(SOMEONE_ELSES);
++  });
++  it('lets a save about goals carry their watchers’ watches along, and nothing more', () => {
++    const carry: Commit = { goals: [goal('g1b', 'm', 'c2')], watches: [{ id: 'w7', personId: 'n', kind: 'goal', ref: 'g1b' }], changes: [] };
++    expect(watchRefusal(stored, carry, ADMIN, ON)).toBeNull();
++    expect(watchRefusal(stored, { ...carry, watches: [{ id: 'w7', personId: 'n', kind: 'level', ref: 'north-star' }] }, ADMIN, ON)).toBe(SOMEONE_ELSES);
++    expect(watchRefusal(stored, { ...carry, watches: [{ id: 'w7', personId: 'a', kind: 'goal', ref: 'g1b' }] }, MAYA, ON)).toBe(SOMEONE_ELSES);
++    // A goal made new (not a copy: another key) can't bring someone else's watch with it.
++    expect(watchRefusal(stored, { ...carry, goals: [goal('g1b', 'm', 'c2', 'G-9')] }, MAYA, ON)).toBe(SOMEONE_ELSES);
++    // Undoing a cycle's start stops the watches on its goals.
++    expect(watchRefusal(stored, { cycles: [{ id: 'c1' } as never], watches: [{ ...nikWatch, removedAt: '2026-11-15', removedBy: 'a' }], changes: [] }, ADMIN, ON)).toBeNull();
++  });
++  it('refuses Watching’s own saves while it is off, but not what a goal carries', () => {
++    expect(watchRefusal(stored, { watches: [{ id: 'w9', personId: 'm', kind: 'goal', ref: 'g1' }], changes: [] }, MAYA, OFF)).toBe('Watching is off in Platform Engineering.');
++    expect(watchRefusal(stored, stop(nikWatch, 'n'), NIK, OFF)).toBe('Watching is off in Platform Engineering.');
++    expect(watchRefusal(stored, { goals: [goal('g1b', 'm', 'c2')], watches: [{ id: 'w7', personId: 'n', kind: 'goal', ref: 'g1b' }], changes: [] }, ADMIN, OFF)).toBeNull();
++  });
++});
+diff --git a/src/adapters/standin/watchGuard.ts b/src/adapters/standin/watchGuard.ts
+new file mode 100644
+index 0000000..60f5917
+--- /dev/null
++++ b/src/adapters/standin/watchGuard.ts
+@@ -0,0 +1,54 @@
++/* Who may write a watch, enforced by the stand-in platform's server on every save (stage 11, Watching; R1's "Views and
++   watching": anyone, for their own watches). The browser runs Faro's watch and unwatch and sends the Commit; the server
++   compares it with what it holds. What counts as Watching's own save is the domain's rule (writesWatches), so a save of
++   Watching's records while it is off or left out is refused here too, in the app's words, not only in the dispatcher.
++
++   Someone else's watch may be written only where Faro's own actions write one:
++   - restoring a stopped watch from Recently removed, by an admin or whoever stopped it (canRestore);
++   - a save that is about goals or a cycle and carries watches along (next year's copies, a goal leaving a later year,
++     undoing a cycle's start): the watch's goal is one the same save writes, or is in a cycle it writes, and a new copy
++     follows a live watch the same person already has. The goal or cycle itself is checked by the core guard. Pure. */
++import { writesWatches } from '../../domain/watchWrites';
++import { watchingOffWords } from '../../app/reads';
++import type { Commit } from '../../data/store';
++import type { Person, Snapshot, Watch } from '../../domain/types';
++
++export const SOMEONE_ELSES = 'That’s someone else’s watch.';
++export const KEEPS_WHAT = 'A watch keeps its person and what it watches.';
++
++const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
++
++/** Why the server refuses this save's watches, in the app's words; null when it may. `on`: Watching is in this build
++    and not switched off in the workspace. */
++export function watchRefusal(stored: Snapshot, c: Commit, actor: Person, ws: { name: string; on: boolean }): string | null {
++  const own = writesWatches(c);
++  if (own && !ws.on) return watchingOffWords(ws.name);
++  const watches = new Map((stored.watches ?? []).map((w) => [w.id, w]));
++  for (const id of c.unwatch ?? []) {
++    const w = watches.get(id);
++    if (w && w.personId !== actor.id) return SOMEONE_ELSES;
++  }
++  const goalsWritten = new Set((c.goals ?? []).map((g) => g.id));
++  const cyclesWritten = new Set((c.cycles ?? []).map((x) => x.id));
++  const goalCycle = new Map(stored.goals.map((g) => [g.id, g.cycleId]));
++  const storedKey = new Map(stored.goals.map((g) => [g.id, g.key]));
++  const writtenKey = new Map((c.goals ?? []).map((g) => [g.id, g.key]));
++  const carried = (w: Watch, was: Watch | undefined) => {
++    if (own || w.kind === 'level') return false;
++    if (!goalsWritten.has(w.ref) && !cyclesWritten.has(goalCycle.get(w.ref) ?? '')) return false;
++    if (was) return true;
++    // A new copy follows a live watch its person already has on the goal it was copied from: a carried goal keeps its key.
++    const key = writtenKey.get(w.ref);
++    return !!key && (stored.watches ?? []).some((x) => !x.removedAt && x.personId === w.personId && x.kind === w.kind && x.ref !== w.ref && storedKey.get(x.ref) === key);
++  };
++  for (const w of c.watches ?? []) {
++    const was = watches.get(w.id);
++    if (same(was, w)) continue;
++    if (was && (was.personId !== w.personId || was.kind !== w.kind || was.ref !== w.ref)) return KEEPS_WHAT;
++    if (w.personId === actor.id) continue;
++    const restoring = !!was?.removedAt && !w.removedAt && (!!actor.admin || was.removedBy === actor.id);
++    if (restoring || carried(w, was)) continue;
++    return SOMEONE_ELSES;
++  }
++  return null;
++}
