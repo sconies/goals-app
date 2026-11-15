@@ -25,7 +25,7 @@ import { scaleFiles } from './scaleKit';
 import { readsPage } from './readsPage';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { ZONE_HEADER } from './zones';
-import { changeCases, screenCases, CHECK_IN_MOMENT, EDGE_FILES, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
+import { asOf, changeCases, screenCases, CHECK_IN_MOMENT, EDGE_FILES, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import type { Snapshot } from '../domain/types';
 import { currentWeek } from '../domain/plan';
@@ -551,7 +551,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     `The rows above are made with every feature module on, as Faro is installed (Reviews holds sessions, Feedback has its menu row, Watching and the Wrap-up lead Home). The core must work without any module, so stage 3 has a second set: \`core-only/workspace.json\` is the same workspace with \`modulesOff\` naming every module (${CORE_ONLY_FILES.map((f) => `\`${f}.csv\``).join(', ')} made from it, with the same \`screen-cases.json\`). A core rebuilt without any module scores against it with \`--expected spec/conformance/core-only\`; a rebuild that reads \`modulesOff\` passes both. Each rule takes whether a module is on as an input (the menu without Reviews or Feedback, Home with no review lead, the read-back joining no review); the screens still show a switched-off module’s address as Page not found ([the module platform](../rebuild/module-platform.md)). navigation.csv’s rows don’t score that: its \`page\` is the name the naming rule gives an address (\`pageName\`), which doesn’t read whether a module is on, so here too the rows at a module’s addresses (Watching’s \`/watching\`, Reviews’ \`/reviews/weekly\` and \`?review=weekly\`, the Wrap-up’s \`/retro\`, the example module’s \`/example\`, for each viewer) give the name its page has with the module on.`,
     '',
-    '**module-files.json** lists each feature module’s own file above (reviews.csv, tags.csv, watching.csv…) with its key columns; the harness reads it, so a module’s file is scored when `drill.json` names it under `"also"` or `--files` does.',
+    '**module-files.json** lists each feature module’s own file above (reviews.csv, tags.csv, watching.csv…) with its key columns; the harness reads it, so a module’s file is scored when `drill.json` names it under `"also"` or `--files` does. **module-cases.json** holds, by file, the inputs of the cases a module file’s rows don’t carry themselves (metrics.csv’s searches and Metrics sheet rows, tags.csv’s fields, values, filters and questions); the harness copies it beside `workspace.json`, as it does `change-cases.json`. Read the cases from there, never from the expected files.',
     '',
     '## The edge-case workspace (edge/)',
     '',
@@ -668,6 +668,8 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/conformance/screen-cases.json'] = JSON.stringify(screenCases(w), null, 2) + '\n';
   // Each feature module's conformance file and its key columns, so the harness scores it when asked (drill 11, m8).
   out['spec/conformance/module-files.json'] = JSON.stringify(Object.fromEntries(MODULE_FILES.map((f) => [f.file, f.keys])), null, 2) + '\n';
+  // Each module file's inputs, where its rows don't say them (drill 11, M-1 and T-1): copied beside workspace.json too.
+  out['spec/conformance/module-cases.json'] = JSON.stringify(Object.fromEntries(MODULE_FILES.filter((f) => f.cases).map((f) => [f.file, f.cases!(w, { asOf })])), null, 2) + '\n';
   // The same workspace with no set check-in rhythm (FT1): its cycle has checkInWeeks 0. Its own folder, so the files
   // above stay byte for byte; the drill scores it with --expected spec/conformance/no-rhythm.
   const w0: typeof w = { ...w, cycle: { ...w.cycle, checkInWeeks: 0 } };

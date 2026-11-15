@@ -14,7 +14,9 @@
      stage's files there (stage 1: status.csv, flags.csv, projection.csv, scorecard.csv and checkin.csv), with the columns
      spec/conformance/README.md lists, and exits 0. Beside the copy of workspace.json is change-cases.json: stage 2's
      cases, input only (who loads which rows into which sheet, the answers, what each starts from), and screen-cases.json:
-     stage 3's, input only (the addresses and viewers, the searches, the drafts read back, Home's viewers and days).
+     stage 3's, input only (the addresses and viewers, the searches, the drafts read back, Home's viewers and days), and
+     module-cases.json: the inputs of module files' cases their rows don't carry (metrics.csv's searches and sheet rows,
+     tags.csv's fields, values, filters and questions).
    The edge-case workspace (spec/conformance/edge, its README section says it in full): whenever any of stage 1's files
    is scored, the harness runs <command> a second time, on a copy of edge/workspace.json, writing into
    <rebuild folder>/drill-out/edge, and scores the same files from it against spec/conformance/edge (as edge/status.csv
@@ -382,7 +384,7 @@ async function main(argv) {
     // reads its cases from here, never from the expected files.
     // Stage 3's, the screens' cases (screen-cases.json: the addresses, the searches, the drafts, Home's viewers and days),
     // likewise.
-    for (const f of ['change-cases.json', 'screen-cases.json']) if (fs.existsSync(path.join(expectedDir, f))) fs.copyFileSync(path.join(expectedDir, f), path.join(path.dirname(workspace), f));
+    for (const f of ['change-cases.json', 'screen-cases.json', 'module-cases.json']) if (fs.existsSync(path.join(expectedDir, f))) fs.copyFileSync(path.join(expectedDir, f), path.join(path.dirname(workspace), f));
     const cmd = `${m.run} ${quote(workspace)} ${quote(outDir)}`;
     say(`Running in ${target}:\n  ${cmd}`);
     const t0 = Date.now();

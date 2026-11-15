@@ -53,12 +53,24 @@ export function tagsRows(): string[][] {
   ];
 }
 
+/** Every case's inputs, as data (drill 11, T-1): what tags.csv's rows are computed from. */
+export function tagsCases() {
+  return {
+    about: 'The inputs of tags.csv, by rule and case: `value` (a field and what is typed for a goal), `field` (the field as added or changed, and the workspace’s other fields), `filter` (four goals, g1 and g3 in Build, g2 in Discover, g4 with none, and the filter’s text as a link carries it) and `sheet` (a value Stage doesn’t hold, on so many rows, loaded by an admin or not).',
+    value: VALUES.map(([id, field, typed]) => ({ case: id, field, typed })),
+    field: FIELDS.map(([id, field, others]) => ({ case: id, field, others })),
+    filter: { field: stage, goals: GOALS, held: HELD, cases: FILTERS.map(([id, typed]) => ({ case: id, typed })) },
+    sheet: ASKS.map(([id, rows, admin]) => ({ case: id, field: stage.name, typed: 'Operate', rows, admin })),
+  };
+}
+
 const files: ModuleConformance[] = [{
   file: 'tags',
   header: HEADER,
   keys: ['rule', 'case'],
   about: 'Fields’ rule ([Fields](../modules/tags/README.md), rule tags-fields), not part of stage 1, scored when asked (`"also": ["tags"]`). The demo has no field, so the rows are the rule’s cases on two fields: Stage, a list of Discover, Build and Run, and Programme, free text. Two kinds of row, by `rule`: **value**, a goal’s value as `typed` for `field`, and what it is `kept` as (empty: cleared) or the `problem` that refuses it; **field**, a field named `field` (a list’s values in `typed`, joined by |) and the `problem` that stops it being saved, empty when it saves. **filter** (rule tags-filter), Stage’s filter as a link carries it in `typed` (values joined by commas; “Not set” for no value), over four goals (g1 and g3 in Build, g2 in Discover, g4 with none), and the goals it keeps in `kept`, joined by | (a filter that picks nothing the list holds keeps every goal); **sheet** (rule tags-sheet), the question a Goals sheet’s Stage column asks about “Operate” on the rows in `case`, as `problem`, and the answers it offers in `kept` (add, empty), an admin’s or not. Every other column is empty.',
   rows: () => tagsRows(),
+  cases: () => tagsCases(),
 }];
 
 export default files;

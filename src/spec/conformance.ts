@@ -73,6 +73,9 @@ export interface ModuleConformance {
   /** What the file holds, for the conformance README: Markdown, one paragraph. */
   about: string;
   rows(w: ConformanceWorkspace, kit: { asOf: typeof asOf }): string[][];
+  /** Each case's inputs as data (drill 11, M-1, T-1: they were only in the expected rows), written to
+      module-cases.json under the file's name, which the harness copies beside workspace.json. */
+  cases?(w: ConformanceWorkspace, kit: { asOf: typeof asOf }): unknown;
 }
 /** The modules' conformance files in this build. */
 export const MODULE_FILES: (ModuleConformance & { module: string })[] = MODULE_CONFORMANCE.flatMap((m) => m.part.map((c) => ({ ...c, module: m.id })));

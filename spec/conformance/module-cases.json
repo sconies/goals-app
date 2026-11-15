@@ -1,0 +1,631 @@
+{
+  "metrics": {
+    "about": "The inputs of metrics.csv: `find`, each library search (`ask` is how the address writes it, the row’s key; the fields are the search’s); `sheet`, each Metrics sheet case’s rows as a file gives them, loaded by Amara (`used` is the demo’s first metric any goal was ever measured by, `spare` its first that none was); the `goals`, `needs`, `still`, `parts`, `ends`, `measured` and `reading` rows are one per metric (or link) the workspace holds, so they need no inputs here.",
+    "find": [
+      {
+        "ask": ""
+      },
+      {
+        "ask": "q=min lower",
+        "q": "min lower"
+      },
+      {
+        "ask": "q=rhea",
+        "q": "rhea"
+      },
+      {
+        "ask": "q=dora",
+        "q": "dora"
+      },
+      {
+        "ask": "q=zzzz",
+        "q": "zzzz"
+      },
+      {
+        "ask": "unit=%",
+        "unit": "%"
+      },
+      {
+        "ask": "unit=MIN",
+        "unit": "MIN"
+      },
+      {
+        "ask": "teamId=cicd",
+        "teamId": "cicd"
+      },
+      {
+        "ask": "teamId=company",
+        "teamId": "company"
+      },
+      {
+        "ask": "ownerId=rhea",
+        "ownerId": "rhea"
+      },
+      {
+        "ask": "dir=higher",
+        "dir": "higher"
+      },
+      {
+        "ask": "unused=true",
+        "unused": true
+      },
+      {
+        "ask": "sortout=true",
+        "sortout": true
+      },
+      {
+        "ask": "sort=goals",
+        "sort": "goals"
+      },
+      {
+        "ask": "sort=changed",
+        "sort": "changed"
+      },
+      {
+        "ask": "q=rate&sort=goals",
+        "q": "rate",
+        "sort": "goals"
+      },
+      {
+        "ask": "retired=true",
+        "retired": true
+      }
+    ],
+    "sheet": {
+      "actor": "amara",
+      "used": "metric_lead-time",
+      "spare": "metric_ci-cost",
+      "cases": [
+        {
+          "case": "adds",
+          "rows": [
+            {
+              "Metric": "Retried test share",
+              "Unit": "%",
+              "Direction": "Lower is better"
+            }
+          ]
+        },
+        {
+          "case": "changes-caveats",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Caveats": "Read with the release calendar."
+            }
+          ]
+        },
+        {
+          "case": "unknown-id",
+          "rows": [
+            {
+              "ID": "metric_nope",
+              "Metric": "Nope"
+            }
+          ]
+        },
+        {
+          "case": "name-twice",
+          "rows": [
+            {
+              "Metric": "Queue depth",
+              "Unit": "jobs",
+              "Direction": "Lower is better"
+            },
+            {
+              "Metric": "Queue depth",
+              "Unit": "jobs",
+              "Direction": "Lower is better"
+            }
+          ]
+        },
+        {
+          "case": "direction-unread",
+          "rows": [
+            {
+              "Metric": "Queue depth",
+              "Unit": "jobs",
+              "Direction": "sideways"
+            }
+          ]
+        },
+        {
+          "case": "unit-on-used",
+          "rows": [
+            {
+              "ID": "metric_lead-time",
+              "Unit": "hoursx"
+            }
+          ]
+        },
+        {
+          "case": "meaning-on-used",
+          "rows": [
+            {
+              "ID": "metric_lead-time",
+              "Meaning": "Median hours from a change’s first commit to running in production, over the last 28 days. Counts every change to a deployable service; reverts count as changes. Counted per service."
+            }
+          ]
+        },
+        {
+          "case": "retire-no-reason",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Action": "Retire"
+            }
+          ]
+        },
+        {
+          "case": "retire",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Action": "Retire",
+              "Reason": "Replaced by the new dashboard."
+            }
+          ]
+        },
+        {
+          "case": "bring-back-in-use",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Action": "Bring back"
+            }
+          ]
+        },
+        {
+          "case": "structure",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Part of": "Lead time for changes",
+              "How it relates": "Driver",
+              "Confidence": "Medium",
+              "How it could be gamed": "Retrying until green hides flaky tests."
+            }
+          ]
+        },
+        {
+          "case": "structure-loop",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Part of": "Lead time for changes",
+              "How it relates": "Driver"
+            },
+            {
+              "ID": "metric_lead-time",
+              "Part of": "metric_ci-cost",
+              "How it relates": "Breakdown"
+            }
+          ]
+        },
+        {
+          "case": "level-no-parent",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "How it relates": "Component"
+            }
+          ]
+        },
+        {
+          "case": "relates-unread",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Part of": "Lead time for changes",
+              "How it relates": "sibling",
+              "Confidence": "sure"
+            }
+          ]
+        },
+        {
+          "case": "parent-unknown",
+          "rows": [
+            {
+              "ID": "metric_ci-cost",
+              "Part of": "No such metric"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "tags": {
+    "about": "The inputs of tags.csv, by rule and case: `value` (a field and what is typed for a goal), `field` (the field as added or changed, and the workspace’s other fields), `filter` (four goals, g1 and g3 in Build, g2 in Discover, g4 with none, and the filter’s text as a link carries it) and `sheet` (a value Stage doesn’t hold, on so many rows, loaded by an admin or not).",
+    "value": [
+      {
+        "case": "list-exact",
+        "field": {
+          "id": "f1",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "typed": "Build"
+      },
+      {
+        "case": "list-case",
+        "field": {
+          "id": "f1",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "typed": " build "
+      },
+      {
+        "case": "list-unknown",
+        "field": {
+          "id": "f1",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "typed": "Operate"
+      },
+      {
+        "case": "list-clear",
+        "field": {
+          "id": "f1",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "typed": ""
+      },
+      {
+        "case": "text",
+        "field": {
+          "id": "f2",
+          "name": "Programme",
+          "kind": "text",
+          "options": [],
+          "position": 1
+        },
+        "typed": "Payments uplift"
+      },
+      {
+        "case": "text-long",
+        "field": {
+          "id": "f2",
+          "name": "Programme",
+          "kind": "text",
+          "options": [],
+          "position": 1
+        },
+        "typed": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      {
+        "case": "text-80",
+        "field": {
+          "id": "f2",
+          "name": "Programme",
+          "kind": "text",
+          "options": [],
+          "position": 1
+        },
+        "typed": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      }
+    ],
+    "field": [
+      {
+        "case": "ok",
+        "field": {
+          "id": "new",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "others": []
+      },
+      {
+        "case": "no-name",
+        "field": {
+          "id": "new",
+          "name": "  ",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "others": []
+      },
+      {
+        "case": "name-taken",
+        "field": {
+          "id": "new",
+          "name": "stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "others": [
+          {
+            "id": "f1",
+            "name": "Stage",
+            "kind": "list",
+            "options": [
+              "Discover",
+              "Build",
+              "Run"
+            ],
+            "position": 0
+          }
+        ]
+      },
+      {
+        "case": "name-of-retired",
+        "field": {
+          "id": "new",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Discover",
+            "Build",
+            "Run"
+          ],
+          "position": 0
+        },
+        "others": [
+          {
+            "id": "f1",
+            "name": "Stage",
+            "kind": "list",
+            "options": [
+              "Discover",
+              "Build",
+              "Run"
+            ],
+            "position": 0,
+            "retiredAt": "2026-11-01T00:00:00.000Z"
+          }
+        ]
+      },
+      {
+        "case": "seventh",
+        "field": {
+          "id": "new",
+          "name": "Region",
+          "kind": "text",
+          "options": [],
+          "position": 1
+        },
+        "others": [
+          {
+            "id": "f0",
+            "name": "Field 0",
+            "retiredAt": null
+          },
+          {
+            "id": "f1",
+            "name": "Field 1",
+            "retiredAt": null
+          },
+          {
+            "id": "f2",
+            "name": "Field 2",
+            "retiredAt": null
+          },
+          {
+            "id": "f3",
+            "name": "Field 3",
+            "retiredAt": null
+          },
+          {
+            "id": "f4",
+            "name": "Field 4",
+            "retiredAt": null
+          },
+          {
+            "id": "f5",
+            "name": "Field 5",
+            "retiredAt": null
+          }
+        ]
+      },
+      {
+        "case": "list-empty",
+        "field": {
+          "id": "new",
+          "name": "Stage",
+          "kind": "list",
+          "options": [],
+          "position": 0
+        },
+        "others": []
+      },
+      {
+        "case": "list-twice",
+        "field": {
+          "id": "new",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "Build",
+            "build"
+          ],
+          "position": 0
+        },
+        "others": []
+      },
+      {
+        "case": "list-21",
+        "field": {
+          "id": "new",
+          "name": "Stage",
+          "kind": "list",
+          "options": [
+            "V0",
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V7",
+            "V8",
+            "V9",
+            "V10",
+            "V11",
+            "V12",
+            "V13",
+            "V14",
+            "V15",
+            "V16",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "position": 0
+        },
+        "others": []
+      },
+      {
+        "case": "text-with-values",
+        "field": {
+          "id": "new",
+          "name": "Programme",
+          "kind": "text",
+          "options": [
+            "Build"
+          ],
+          "position": 1
+        },
+        "others": []
+      }
+    ],
+    "filter": {
+      "field": {
+        "id": "f1",
+        "name": "Stage",
+        "kind": "list",
+        "options": [
+          "Discover",
+          "Build",
+          "Run"
+        ],
+        "position": 0
+      },
+      "goals": [
+        {
+          "id": "g1"
+        },
+        {
+          "id": "g2"
+        },
+        {
+          "id": "g3"
+        },
+        {
+          "id": "g4"
+        }
+      ],
+      "held": [
+        {
+          "goalId": "g1",
+          "fieldId": "f1",
+          "value": "Build",
+          "removedAt": null
+        },
+        {
+          "goalId": "g2",
+          "fieldId": "f1",
+          "value": "Discover",
+          "removedAt": null
+        },
+        {
+          "goalId": "g3",
+          "fieldId": "f1",
+          "value": "Build",
+          "removedAt": null
+        }
+      ],
+      "cases": [
+        {
+          "case": "one",
+          "typed": "Build"
+        },
+        {
+          "case": "two",
+          "typed": "Build,Discover"
+        },
+        {
+          "case": "case",
+          "typed": "build"
+        },
+        {
+          "case": "not-set",
+          "typed": "Not set"
+        },
+        {
+          "case": "unknown",
+          "typed": "Operate"
+        },
+        {
+          "case": "nothing",
+          "typed": ""
+        }
+      ]
+    },
+    "sheet": [
+      {
+        "case": "unknown-admin",
+        "field": "Stage",
+        "typed": "Operate",
+        "rows": 4,
+        "admin": true
+      },
+      {
+        "case": "unknown-one-row",
+        "field": "Stage",
+        "typed": "Operate",
+        "rows": 1,
+        "admin": true
+      },
+      {
+        "case": "unknown-not-admin",
+        "field": "Stage",
+        "typed": "Operate",
+        "rows": 4,
+        "admin": false
+      }
+    ]
+  }
+}

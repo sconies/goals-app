@@ -10,9 +10,10 @@ Give goals a workspace’s own fields, such as a stage or a programme, to find a
 
 - Stages 1 to 3 pass their exit criteria.
 - The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
-- The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.
-- The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 3, the module platform).
-- What a module adds to Goals loads only when a workspace has something for it (domain/records goalExtras: Fields' extras.ts, once a live field exists; core/records loadGoalExtras): a family of Goals filters (parameters by their start, f.) and its columns on the Goals sheet (written by every export, read back by the change engine, which asks the module's question as its own Check, module-value).
+- The core keeps a module’s own records (stage 2: rows each way, filed under modules.<id>.<key>, saved in the same save as the core’s), so the module’s two tables need nothing from any core rule.
+- The core offers a Workspace section to a module (`/workspace/<id>`, after the section it names, Page not found with its sentence while off) and the goal page’s `goal.sections` place, given the goal and the viewer, and refuses a switched-off module’s actions and AI tools (stage 3, the module platform).
+- What a module adds to Goals is declared as data and loads only once the workspace has something for it (here, once a live field exists): a family of Goals filters (parameters that start `f.`, read by the query port and find_goals), a row on the Filters sheet, its columns on Data’s Goals table and on every export’s Goals sheet (read back by the change engine, which asks the module’s question as its own Check, `module-value`), and its part of find_goals’ arguments.
+- Saved views and starting the next year are the core’s (stage 3, “The core screens the module stages stand on”), so U177’s saved view and criterion 8 need nothing of this stage’s own. The workbook, the import’s preview and Undo this import are Spreadsheets’ (stage 9): until stage 9 is built, criteria 12 and 13 are proved through the module’s own sheet functions (a Goals sheet’s rows in, the changes and the question out), and journey U178 waits for stage 9.
 
 ## What to build
 
@@ -28,8 +29,8 @@ It keeps records of its own, which the core stores without knowing what they are
 
 1. Its requirements hold: `TAGS-FIELDS`, `TAGS-FILTER`, `TAGS-SHEET`, `TAGS-OFF` (words in [its section](../modules/tags/README.md#requirements)).
 2. Its journeys and checks can be done: U174, U177, U178, N34 ([its section](../modules/tags/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
-3. fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.
-4. The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a value over 80 characters (src/spec/limits.ts).
+3. fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches (its cases’ inputs, the fields, values, filters and questions, are in `module-cases.json`, which the harness puts beside the workspace).
+4. The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a goal’s value over 80 characters (the limits’ table in [its rules](../modules/tags/rules.md); a list’s own values are held to 40 by the rule, not by the database).
 5. As an admin, Workspace → Fields with no field says “No fields yet” and “Add a field”; adding “Stage” with Discover, Build and Run lists it as “A list: Discover, Build, Run”; setting a goal's Stage on its page to Discover and then Build shows “Stage · Build”, and its History says “Stage: Discover → Build” (journey U174).
 6. Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, a name the Goals sheet already reads as one of its own columns (Owner, Team, Type…, whatever the case or accents), and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).
 7. A retired field leaves goals' pages and list_fields' live fields, keeps every value, and brought back shows them again.
@@ -46,3 +47,4 @@ It keeps records of its own, which the core stores without knowing what they are
 - Find doesn't search a free-text field's words: Find searches a goal's own row (its name, key, owner, team, reason and definition), and a module adds a kind to Find, not words to a goal's row.
 - Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); only the Goals sheet asks the question.
 - A field's kind can't be changed once it is added: a list and free text hold values of different shapes.
+- With Fields off, the import names a file’s field columns once on its file line among the columns nothing reads (“Not read: …”), with no sentence of its own (unlike Reviews’ and the Metric library’s lines).

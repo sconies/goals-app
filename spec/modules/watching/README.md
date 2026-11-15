@@ -26,7 +26,7 @@ Module id `watching`, in [src/modules/watching/](../../../src/modules/watching/m
 ## Requirements
 
 - `WATCHING`: Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter. (Copy.)
-- `ONE-WATCHING`: Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block. (Copy.) Tests: `evals/demo-storage.eval.ts`.
+- `ONE-WATCHING`: Watching is one place: a Goals scope (/goals?scope=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block. (Copy.) Tests: `evals/demo-storage.eval.ts`.
 - `WATCHING-OPTIONAL`: An admin switches Watching off for a workspace. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; someone who owns no goal is led to the goals that need attention. Switching it off first says how many people’s watches are kept. Every watch is kept, and switching it on restores each person’s. (Copy.)
 
 ## Journeys and checks

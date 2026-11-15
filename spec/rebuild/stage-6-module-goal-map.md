@@ -10,7 +10,7 @@ See every goal and what feeds it on one canvas, with the path the risk runs alon
 
 - Stages 1 to 3 pass their exit criteria.
 - The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
-- Goals' layouts and the roll-up of what feeds a goal are the core's (stage 3); the map draws them and adds nothing to them.
+- Goals’ layouts (`view=` in the address, with a module’s layout added through `goals.layouts`) and the roll-up of what feeds a goal (a goal and everything under it summed up by one status, the worst) are the core’s (stage 3, “The core screens the module stages stand on”); the map draws them and adds nothing to them. So are the proposed state and the phone’s View sheet with its Group and Views menus, which U134 and U135 step through.
 
 ## What to build
 
@@ -31,3 +31,4 @@ The core also draws for it while it is on, as Faro’s core code that asks wheth
 
 - The Goal map is a switch, not yet a folder of its own (SW5 moves it): its screen (src/screens/GoalMap.tsx), the drawing half of src/domain/map.ts and the Map layout's control in src/screens/GoalsScreen.tsx are still the core's. src/app/reads.ts goalMapOn is the one place that asks whether it is on; the rule that opens the List instead is src/domain/query.ts layoutOn.
 - It has no page of its own yet (/goals/map is SW5's), so its switched-off line is the List's sentence, not a not-found page.
+- U39’s lines about the walkthrough coach are the demo’s (walkthroughs are not built: [don’t copy this](dont-copy.md)); the rest of U39 stands.

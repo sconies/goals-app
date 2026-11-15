@@ -12,6 +12,7 @@ Let Claude or another AI tool read and act here through MCP, as one person, with
 - The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 3, the module platform).
 - The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (stage 3, the module platform); this stage adds the tokens and the switch that shuts its door.
+- Settings (your own page) and Workspace → Access are the core’s (stage 3, “The core screens the module stages stand on”); AI access adds Your MCP tokens there (`settings.you`), Make an MCP token on a person’s page for admins in the live app (`people.person`, given the viewer), its section after Access, Features’ third line and the read-back both ways (`features.line`, `features.readBack`).
 
 ## What to build
 
@@ -30,9 +31,11 @@ The core also draws for it while it is on, as Faro’s core code that asks wheth
 5. Switched off, Workspace has no AI access section (/workspace/ai is Page not found with “AI access is switched off in {workspace}. An admin can switch it on in Workspace, Features.”), Settings has no “Your MCP tokens” and a person's page has no Make an MCP token (journey U175).
 6. Switching off first reads back, from the rule aiAccessReadBack, the tokens that stop working (the first five by person and name, then how many more) and the changes AI tools made here; switching back on, only when tokens were kept, names those that work again. With no token it acts at once.
 7. set_feature switching AI access off answers “AI access is off in {workspace}. This connection stops working now. An admin switches it back on in Faro.”
+8. Revoking a token works while AI access is off (an action that only takes something away runs while its module is off: [the module platform](module-platform.md#where-a-module-plugs-in), Actions); making one is refused with “AI access is off in {workspace}.”.
 
 ## Gaps in the kit
 
 - AI access is a switch, not yet a folder of its own (SW7 moves it): its screens (src/ui/AiAssistants.tsx; the AI access section in src/screens/Workspace.tsx; the tokens in src/screens/Settings.tsx and src/screens/People.tsx), its rules (src/domain/actions.ts createToken and revokeToken; the read-back in src/domain/switchOff.ts) and its table (okr_api_tokens, migration 0010) are still the core's, and so is the door in server/mcp.ts. This folder holds its section, its Help article and its AI tools; src/app/reads.ts aiAccessOn is the one place that asks whether it is on.
 - A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server stays open, answering the core’s tools, and only the token tools are missing.
 - No conformance rows: the demo workspace has no tokens (they work only in the real app), so there is nothing to count.
+- U175’s Connect Claude is Feedback’s inbox (stage 5): with Feedback left out that part of U175 waits, though AI access needs nothing of Feedback. U62 is mostly the core’s Settings (stage 3) with Your MCP tokens on it.
