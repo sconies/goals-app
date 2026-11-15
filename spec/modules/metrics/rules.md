@@ -376,6 +376,13 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 - A metric’s meaning, source, source owner and caveats each have at most 2,000 characters. (`okr_metrics_meaning_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
 - A metric is measured, partly measured or a gap (not measured yet); measured unless someone says otherwise. (`okr_metrics_measurement_ok`)
 - What is missing from a metric’s measurement has at most 300 characters. (`okr_metrics_measurement_note_len`)
+- A metric’s source link starts with http:// or https:// and has at most 500 characters. (`okr_metrics_source_link_ok`)
+- A metric’s query text has at most 4,000 characters. (`okr_metrics_source_query_len`)
+- When in the period a metric refreshes (“Mondays”) has at most 60 characters. (`okr_metrics_refresh_note_len`)
+- A metric’s window is a point in time, rolling N days, per period or cumulative since a date. (`okr_metrics_time_window_ok`)
+- A metric keeps at most 400 baselines, old ones included. (`okr_metrics_baselines_ok`)
+- A metric keeps its last 20 “Couldn’t reproduce” attempts. (`okr_metrics_verify_attempts_ok`)
+- An admin names at most 20 verifiers for a metric. (`okr_metrics_verifiers_ok`)
 
 ### Worked examples
 
