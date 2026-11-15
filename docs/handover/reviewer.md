@@ -4,7 +4,7 @@ The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` bra
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `96b212f7` (#531), the head of main when the reviewer of 15 Nov (session …JXAVxo) started; its section is at the end. Before it: `18ed7cb4` (#532). Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `c874f396` (#493, TG2), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493) are at the end. **Mediums open from it:** #493's three, sent to planning 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.

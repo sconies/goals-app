@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `96b212f7` (#531), the head of main when the reviewer of 15 Nov (session …JXAVxo) started; its section is at the end. Before it: `18ed7cb4` (#532). Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `c874f396` (#493, TG2), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493) are at the end. **Mediums open from it:** #493's three, sent to planning 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
@@ -278,6 +278,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #530 The spec regenerated on main (#529's high) | 3 | 0 | 0 | 0 |
 | #532 A merge re-works stopped and removed goals too (the last door of #503's medium) | 3 | 0 | 0 | 0 |
 | #531 Spec: journey pages name their entry, not a line number (#527's medium) | item 11 | 0 | 0 | 0 |
+| #493 TG2: Fields' filters, sheet columns, import and find_goals | 2 | 0 | 3 | 1 |
 
 **High findings, and where each stands**
 
@@ -2411,3 +2412,14 @@ Read against #527's medium; run on main at `96b212f7`.
 - **#527's medium: closed.** `src/spec/journeySteps.ts` no longer reads a journey's line in `evals/journeys.cjs`; each page's Source line says "the entry for U10". The 145 regenerated pages change in that line only. No other generated page carries a source line number (the `lineOf` in `src/spec/engineWords.ts` feeds error messages and an `at` field nothing writes out). On main `npx vitest run src/spec` passes (107 tests) and `npm run spec` writes nothing. The check after each merge that touches `evals/journeys.cjs` is no longer needed for this cause.
 
 No findings.
+
+### #493 TG2: Fields' filters, Data and sheet columns, import and find_goals' fields (track 2, merged 15 Nov)
+
+Read: the whole diff outside the generated files. Run on main at `c874f396`: throwaway probes over the demo with the change engine (deleted after), and a browser walk on a production build at 1440 and 390 wide, the phone also with the CPU slowed 4×. `npx vitest run src/spec src/modules/tags src/help` passes.
+
+- **Medium: a field named like a core Goals column breaks the round trip.** `fieldProblem` (`src/modules/tags/rules.ts`) refuses no name the Goals sheet already has, so the export writes two columns with one header and the engine reads the core's cell as the field's. Probed, each loaded straight back as exported: a free-text field "Owner" gives 126 changes ("Owner: Not set → Rhea Kapoor"…); a list field "Status" asks "Status says “On track” on 82 rows. Add “On track” to Status…?" and three more; a free-text field "Reason" with a value on one goal gives "Reason: hello → Not set", so confirming clears it; "Targets" asks the two-columns question every time. Help says "A file exported and loaded straight back changes nothing." Status, Type, Team, Level and Owner are likely names for a field. Either refuse a name that is, or reads as, a Goals header, or head the column so it can't collide.
+- **Medium: Undo this import doesn't know about field values, and says so wrongly.** Probed: an import that changed only Stage (or added "Operate" to the list and set it), then Undo: "Nothing to undo: it changed no rows." An import that renamed a goal and set its Stage, then Undo: the name goes back, restored 1, and Stage and the added list value stay, with nothing said. `module.json`'s gaps name this for the rebuild; Help and the Undo's own words don't.
+- **Medium: Help says Data's field column can be edited; it can't.** `src/modules/tags/help.ts`: "Data’s Goals table has a column for every field, to sort, filter or edit like any other" (and `src/app/engineReady.ts`'s comment, "Data's table edits them"). On screen the Stage cell is read-only (`td.dcell.ro`): double-click, type, Enter changes nothing and says nothing.
+- **Low: a value that is one long unbroken word overflows at 390 wide.** A 50-character word with no space: the Filters sheet's option row is wider than the sheet, and once ticked the filter line gives the page a sideways scroll (428 against 390). Values with spaces wrap.
+
+Seen and right: a first load of `/goals?…&f.<id>=Build` is never drawn unfiltered, slow phone included; two values tick to `Build,Run` and "Stage is Build or Run"; Not set; a value with a comma in it; a saved view keeps the filter, and with Fields off lists every goal with no filter line; members see the row; the export's Goals sheet has the column on a first load (10 downloads, CSV only); no stripe, pill or emoji on the new rows. A new goal's row takes its Stage; a non-admin's "add" answer is asked again, not taken (read). Not seen: the xlsx and zip downloads, the MCP tools over HTTP (their unit tests pass).
