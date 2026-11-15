@@ -26,6 +26,7 @@ The core also draws for it while it is on, as Faro’s core code that asks wheth
 2. Its journeys and checks can be done: U26, U30, U34, U39, U90, U134, U135, U165, F6, N22 ([its section](../modules/goal-map/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
 3. Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U165).
 4. Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U165, check N22).
+5. Delete and Backspace do nothing on the map, and nothing on it tells a screen reader they remove a goal: its goals' descriptions say the map never removes one (deep dive, 15 Nov; check F6).
 
 ## Gaps in the kit
 
