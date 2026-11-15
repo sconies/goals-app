@@ -52,7 +52,7 @@ Stage 2’s drill scores the change engine: for each case (rows loaded from a sh
 
 1. `node spec/rebuild/drill.mjs rebuild` prints **PASS** with `"stage": 2`: every row and column of `changes.csv` and `import.csv` match.
 2. The change engine gives what each of [its worked examples](../core/rules/change-engine.md#worked-examples) says.
-3. Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.
+3. Every record in `spec/conformance/workspace.json` loads into the store and reads back the same. Its one `cycle` is the store’s `cycles`, a list of one; `about`, `builtFor`, `edge` and `zone` describe the file and are not records.
 4. A change set that blocks saves nothing; one that saves is undone by one undo.
 5. A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.
 6. A module’s records ride in the same save as the core’s, and a workspace that holds rows of a module the build leaves out loads, saves and keeps them: nothing breaks and nothing is deleted.
@@ -64,3 +64,4 @@ Where the kit doesn’t yet hold what this stage needs, so a rebuild would have 
 - References across workspaces: the rule is in the words (a save naming another workspace’s record is refused whole), but Faro can’t show it: its database checks only each row’s own workspace (migration 0038), and R1’s membership is how the server knows. The store contract’s case “never lets a save to one workspace change another’s records” takes either a refusal or a save that leaves the other workspace as it was.
 - The drill’s CSV files score what the engine would save, not the store. The store contract scores keeping, saving, module records and what Undo puts back; nothing scores that a whole change set saves all or nothing, or the change log’s entries beyond the change engine’s worked examples (the words are on its page).
 - The speed design (chunks, the size limits, splitting a large file) is described on the change engine’s page with the files that hold it; the drill’s cases are small, so a rebuild may leave it until its imports grow.
+- The cases have no door: every one is a spreadsheet load (`via` `spreadsheet`, set-up’s create mode too). The other doors (Data tables and MCP correcting a check-in, the check-in form’s `postCheckIn` with `new`, `again` and `correct`) are proved only by the change engine’s worked examples, by hand.

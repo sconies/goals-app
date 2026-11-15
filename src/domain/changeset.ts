@@ -1858,6 +1858,13 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     for (const p of planned) changes.push(...(p.result.commit.changes ?? []));
     const moduleRowsOut = planned.reduce<ModuleRows | undefined>((m, p) => mergeModuleRows(m, p.result.commit.modules), undefined);
     const moduleUndo = planned.flatMap((p) => p.result.undo);
+    // A module's own Goals columns' rows (TG2: field values, a list's added value) are kept as they were too, so Undo
+    // puts them back with the goals they sit on (TG2 review).
+    for (const [module, keys] of Object.entries(moduleOut ?? {})) for (const [key, rows] of Object.entries(keys)) {
+      if (!rows.length) continue;
+      const saved = (s.modules?.[module]?.[key] ?? []) as { id: string }[];
+      moduleUndo.push({ module, key, rows: (rows as { id: string }[]).map((r) => ({ id: r.id, before: saved.find((x) => x.id === r.id) ?? null })) });
+    }
     const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
     for (const ch of changes) ch.importId = importId;
     const requestsBefore = asksOf(s);

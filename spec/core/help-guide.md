@@ -929,7 +929,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
 - Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.
-- When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other.
+- When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other. Its cells can’t be edited here: change a goal’s values on its page, or in a Goals sheet loaded back.
 - IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.
 
 #### Changing data
@@ -1545,6 +1545,7 @@ Teams track things Faro has no column for: a lifecycle stage (Discover, Build, R
 
 - Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.
 - An admin adds one with Add a field: a name of up to 40 characters, and for a list its values, one per line (1 to 20, each up to 40 characters, none twice). Free text holds up to 80 characters on each goal. A workspace has at most 6 fields.
+- A field can’t be called like a column the Goals sheet already has, such as Owner, Team or Status: the sheet would have two columns of that name.
 - Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.
 - A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.
 - With no field yet, the page says “No fields yet” and offers Add a field to admins.
@@ -1559,7 +1560,7 @@ Teams track things Faro has no column for: a lifecycle stage (Discover, Build, R
 
 - Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.
 - The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.
-- A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort, filter or edit like any other.
+- A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort or filter by. To change values there, change them on each goal’s page, or in an exported Goals sheet loaded back.
 
 #### In a spreadsheet
 
@@ -1567,6 +1568,7 @@ Teams track things Faro has no column for: a lifecycle stage (Discover, Build, R
 - Change a cell and load the file back on Import: the goal takes the value, under the same rules as its page, and History says it. An empty cell clears the value. A file exported and loaded straight back changes nothing.
 - A value a list doesn’t hold is asked once, however many rows say it: “Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?” Only an admin can add it to the list; anyone else leaves those cells empty, or fixes the file.
 - A column headed with a name no field has is named as a column nothing reads.
+- Undo this import, under Past imports, puts back the values the file changed and takes out a value it added to a list.
 
 #### With an AI assistant
 

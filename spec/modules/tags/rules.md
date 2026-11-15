@@ -16,7 +16,7 @@ What a workspace’s own field must say, how many there may be, and what a goal�
 
 ### The rule
 
-A workspace defines up to **6 live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to 20 of them, each 1 to 40 characters, none twice whatever the case) or **free text**, which has no values. A field's **name** is 1 to 40 characters, and no other live field has it, whatever the case. Spaces at either end don't count.
+A workspace defines up to **6 live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to 20 of them, each 1 to 40 characters, none twice whatever the case) or **free text**, which has no values. A field's **name** is 1 to 40 characters, and no other live field has it, whatever the case. It isn't a name the Goals sheet already reads as one of its own columns (Owner, Team, Type, Status, Reason…, whatever the case or accents), or the sheet would have two columns read the same way. Spaces at either end don't count.
 
 **A goal's value.** A goal has at most one value per field. For a list it is one of the list's values, matched whatever the case and kept as the list writes it; for free text, at most 80 characters. Empty clears it.
 
@@ -44,6 +44,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | Stage is a list: Discover, Build, Run. A goal’s Stage is set to “ build ”. | `kept as “Build”` |
 | The same goal’s Stage is set to “Operate”. | `“Operate” isn’t one of Stage’s values: Discover, Build or Run.` |
+| An admin adds a field called “owner”. | `The Goals sheet already has a column called “Owner”. Call the field something else.` |
 | A seventh field, “Region”, is added while six are live. | `A workspace has at most 6 fields. Retire one first.` |
 
 ### Not self-explanatory
@@ -64,6 +65,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 #### [src/modules/tags/rules.test.ts](../../../src/modules/tags/rules.test.ts)
 
 - a field (rule 1) › needs a name of 1 to 40 characters that no other live field has
+- a field (rule 1) › isn’t called like one of the Goals sheet’s own columns, whatever the case or accents (TG2 review)
 - a field (rule 1) › holds at most six live fields
 - a field (rule 1) › gives a list 1 to 20 distinct values of 1 to 40 characters
 - a field (rule 1) › gives free text no values (migration 0054 holds the same)
@@ -174,7 +176,7 @@ Every export's **Goals** sheet (the workbook, Data's Goals table, the MCP export
 
 **Loading back.** A Goals row's cell under a field's header is read as the goal's page would take it (rule tags-fields): a list's value whatever the case, kept as the list writes it; an empty cell clears the value. Only what differs from what is saved changes anything, so **a workbook exported and loaded back changes nothing**. A change is said on the goal's row of the preview and in History as on the goal's page ("Stage: Discover → Build"), via Spreadsheet.
 
-**A value the list doesn't hold** is a Check, asked **once per field and value**, however many rows say it: "Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?" An **admin** may add it (the list changes, in History, and every row takes it); anyone else may only leave those cells empty, or fix the file. Free text over 80 characters is a Must fix; a goal the loader may not change is the core's Must fix.
+**A value the list doesn't hold** is a Check, asked **once per field and value**, however many rows say it: "Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?" An **admin** may add it (the list changes, in History, and every row takes it); anyone else may only leave those cells empty, or fix the file. Free text over 80 characters is a Must fix; a goal the loader may not change is the core's Must fix. **Undo this import** puts the values back as they were, and takes out a list value the import added.
 
 A column headed with a name no live field has is a column nothing reads, named on the file line. With Fields switched off, no export has the columns, a file's are columns nothing reads (named once on the file line), and every value is kept.
 
@@ -186,10 +188,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | An admin loads a Goals sheet whose Stage column says “Operate” on 4 rows. | `Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?` |
 | Someone who isn’t an admin loads the same file. | `empty` |
-
-### Not self-explanatory
-
-- **Not self-explanatory:** Undo this import puts goals, plans and check-ins back, but not a field’s values or an added list value (the core’s import undo keeps no module rows yet).
 
 ### Where it lives
 
@@ -209,6 +207,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the Goals sheet’s field columns › exported and loaded back, changes nothing, and reads every column
 - the Goals sheet’s field columns › changes what differs, in History as the goal’s page says it, and an empty cell clears a value
 - the Goals sheet’s field columns › asks once about a value a list doesn’t hold; an admin may add it, and every row it covers takes it
+- the Goals sheet’s field columns › Undo this import puts field values back, and takes out a list value it added (TG2 review)
 - the Goals sheet’s field columns › anyone but an admin may only leave the cells empty, or fix the file
 - the Goals sheet’s field columns › refuses free text over 80 characters, and a goal its loader may not change
 - the Goals sheet’s field columns › with Fields off: no columns in an export, a file’s are read by nothing, and values stay (the file line: spreadsheets/unread.test.ts)

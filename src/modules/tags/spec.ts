@@ -17,7 +17,7 @@ const rules: Rule[] = [
     tests: ['src/modules/tags/rules.test.ts', 'src/modules/tags/fields.test.ts', 'src/modules/tags/tools.test.ts'],
     reqs: ['TAGS-FIELDS'],
     body: `
-A workspace defines up to **${FIELD_LIMITS.fields} live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to ${FIELD_LIMITS.values} of them, each 1 to ${FIELD_LIMITS.option} characters, none twice whatever the case) or **free text**, which has no values. A field's **name** is 1 to ${FIELD_LIMITS.name} characters, and no other live field has it, whatever the case. Spaces at either end don't count.
+A workspace defines up to **${FIELD_LIMITS.fields} live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to ${FIELD_LIMITS.values} of them, each 1 to ${FIELD_LIMITS.option} characters, none twice whatever the case) or **free text**, which has no values. A field's **name** is 1 to ${FIELD_LIMITS.name} characters, and no other live field has it, whatever the case. It isn't a name the Goals sheet already reads as one of its own columns (Owner, Team, Type, Status, Reason…, whatever the case or accents), or the sheet would have two columns read the same way. Spaces at either end don't count.
 
 **A goal's value.** A goal has at most one value per field. For a list it is one of the list's values, matched whatever the case and kept as the list writes it; for free text, at most ${FIELD_LIMITS.value} characters. Empty clears it.
 
@@ -29,6 +29,7 @@ A workspace defines up to **${FIELD_LIMITS.fields} live fields**, for what Faro 
     examples: [
       { given: 'Stage is a list: Discover, Build, Run. A goal’s Stage is set to “ build ”.', then: 'kept as “Build”', run: () => said(valueProblem(stage, ' build ')) },
       { given: 'The same goal’s Stage is set to “Operate”.', then: '“Operate” isn’t one of Stage’s values: Discover, Build or Run.', run: () => said(valueProblem(stage, 'Operate')) },
+      { given: 'An admin adds a field called “owner”.', then: 'The Goals sheet already has a column called “Owner”. Call the field something else.', run: () => fieldProblem({ id: 'new', name: 'owner', kind: 'text', options: [] }, []) ?? 'saved' },
       { given: 'A seventh field, “Region”, is added while six are live.', then: 'A workspace has at most 6 fields. Retire one first.', run: () => fieldProblem({ id: 'new', name: 'Region', kind: 'text', options: [] }, Array.from({ length: 6 }, (_, i) => ({ id: `f${i}`, name: `Field ${i}` }))) ?? 'saved' },
     ],
     unclear: ['Six fields, twenty values and 80 characters are Lane’s choices (13 Nov, 1a); a rebuild may tune them, keeping the database’s limits in step.'],
@@ -67,14 +68,13 @@ Every export's **Goals** sheet (the workbook, Data's Goals table, the MCP export
 
 **Loading back.** A Goals row's cell under a field's header is read as the goal's page would take it (rule tags-fields): a list's value whatever the case, kept as the list writes it; an empty cell clears the value. Only what differs from what is saved changes anything, so **a workbook exported and loaded back changes nothing**. A change is said on the goal's row of the preview and in History as on the goal's page ("Stage: Discover → Build"), via Spreadsheet.
 
-**A value the list doesn't hold** is a Check, asked **once per field and value**, however many rows say it: "Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?" An **admin** may add it (the list changes, in History, and every row takes it); anyone else may only leave those cells empty, or fix the file. Free text over ${FIELD_LIMITS.value} characters is a Must fix; a goal the loader may not change is the core's Must fix.
+**A value the list doesn't hold** is a Check, asked **once per field and value**, however many rows say it: "Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?" An **admin** may add it (the list changes, in History, and every row takes it); anyone else may only leave those cells empty, or fix the file. Free text over ${FIELD_LIMITS.value} characters is a Must fix; a goal the loader may not change is the core's Must fix. **Undo this import** puts the values back as they were, and takes out a list value the import added.
 
 A column headed with a name no live field has is a column nothing reads, named on the file line. With Fields switched off, no export has the columns, a file's are columns nothing reads (named once on the file line), and every value is kept.`,
     examples: [
       { given: 'An admin loads a Goals sheet whose Stage column says “Operate” on 4 rows.', then: 'Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?', run: () => unknownValue('Stage', 'Operate', 4, true).message },
       { given: 'Someone who isn’t an admin loads the same file.', then: 'empty', run: () => unknownValue('Stage', 'Operate', 4, false).answers.map((a) => a.choice).join(', ') },
     ],
-    unclear: ['Undo this import puts goals, plans and check-ins back, but not a field’s values or an added list value (the core’s import undo keeps no module rows yet).'],
   },
 ];
 

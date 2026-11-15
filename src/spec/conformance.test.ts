@@ -146,4 +146,14 @@ describe('the edge-case workspace (item 11: the cases the demo never has)', () =
     expect(row('flags.csv', '5,E-12,')).toBe('5,E-12,off trend due,action,no,handled');
     expect(row('flags.csv', '6,E-12,')).toBe('6,E-12,off missed-path trend due,,yes,needs');
   });
+
+  // The second full drill's stage 1 guessed these with nothing to score them (gaps 6, 16 and 17).
+  it('a latest check-in with no number still projects; nothing planned yet is never well ahead; a guard counts at the check-in only', () => {
+    expect(row('status.csv', '5,E-16,')).toBe('5,E-16,metric,on,none,no,5,2');
+    expect(row('projection.csv', '5,E-16,')).toMatch(/^5,E-16,metric,13,[\d.]+,[\d.]+,[\d.]+,[\d.]+,1,4,no$/);
+    expect(row('checkin.csv', 'e17-1,')).toBe('e17-1,1,E-17,on,,no,no,,on,no,,');
+    expect(row('checkin.csv', 'e17-3,')).toMatch(/^e17-3,3,E-17,risk,behind,/);
+    expect(row('checkin.csv', 'e18-5,')).toMatch(/^e18-5,5,E-18,risk,behind,.*,on,yes,/);
+    expect(row('status.csv', '5,E-18,')).toBe('5,E-18,metric,on,on,yes,5,1');
+  });
 });

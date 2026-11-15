@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'fields-import-undo',
+    date: '2026-11-15',
+    title: 'Undo puts a spreadsheet’s field values back',
+    points: [
+      'Undo this import now puts back the field values a Goals sheet changed, and takes out a value it added to a list. An import that changed only field values can be undone too.',
+      'A field can’t be called like one of the Goals sheet’s own columns, such as Owner or Status, so a workbook always loads back as it went out.',
+    ],
+    articles: ['fields', 'import'],
+  },
+  {
     id: 'metrics-sheet-in',
     date: '2026-11-14',
     title: 'Import metrics from a spreadsheet',

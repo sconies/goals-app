@@ -15,6 +15,7 @@ const help: Article[] = [
       { heading: 'Workspace, Fields', list: [
         'Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.',
         `An admin adds one with Add a field: a name of up to ${FIELD_LIMITS.name} characters, and for a list its values, one per line (1 to ${FIELD_LIMITS.values}, each up to ${FIELD_LIMITS.option} characters, none twice). Free text holds up to ${FIELD_LIMITS.value} characters on each goal. A workspace has at most ${FIELD_LIMITS.fields} fields.`,
+        'A field can’t be called like a column the Goals sheet already has, such as Owner, Team or Status: the sheet would have two columns of that name.',
         'Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.',
         'A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.',
         'With no field yet, the page says “No fields yet” and offers Add a field to admins.',
@@ -27,13 +28,14 @@ const help: Article[] = [
       { heading: 'Finding goals by a field', list: [
         'Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.',
         'The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.',
-        'A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort, filter or edit like any other.',
+        'A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort or filter by. To change values there, change them on each goal’s page, or in an exported Goals sheet loaded back.',
       ] },
       { heading: 'In a spreadsheet', list: [
         'Every export’s Goals sheet has a column for each field, headed with its name: the goal’s value, or empty for none.',
         'Change a cell and load the file back on Import: the goal takes the value, under the same rules as its page, and History says it. An empty cell clears the value. A file exported and loaded straight back changes nothing.',
         'A value a list doesn’t hold is asked once, however many rows say it: “Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?” Only an admin can add it to the list; anyone else leaves those cells empty, or fixes the file.',
         'A column headed with a name no field has is named as a column nothing reads.',
+        'Undo this import, under Past imports, puts back the values the file changed and takes out a value it added to a list.',
       ] },
       { heading: 'With an AI assistant', list: [
         'list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.',
