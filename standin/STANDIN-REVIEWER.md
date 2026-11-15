@@ -1,0 +1,4 @@
+# Stand-in reviewer (drill item 11)
+S = /tmp/claude-0/-home-user-goals-app/3cc439c9-0574-561d-9193-1337dc611f8d/scratchpad. Read S/PLATFORM.md. Review S/standin/<folder> (REPORT.md and faro/). Don't modify it: copy to S/rev-<folder>/ (exclude node_modules; npm ci there) to run anything. Ports: the range you are given.
+Check: 1. the platform is really the stand-in (no supabase/vercel in server or new adapters; SQLite; access enforced server-side, try a forbidden change through the API as a non-owner). 2. Re-run typecheck, npm test, contract tests, drill; confirm the numbers. 3. Rate each claim in REPORT.md (a)-(d) VERIFIED / WEAK / WRONG with evidence; for (c) check each GAP really isn't in the spec (grep spec/) and each NAMED cite is right. 4. Exit criteria / proofs: VERIFIED / WEAK / NOT MET. 5. Tests honest (break one thing, confirm a non-zero exit).
+Write S/standin/<folder>-REVIEW.md. Reply under 250 words: numbers, ratings compact, wrong claims, top real GAPs.
