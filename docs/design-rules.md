@@ -25,6 +25,7 @@ This app must not look like a default AI-generated interface. These rules are en
 - **Quotes are labelled,** for example "Maya said in week 42", followed by the text at normal weight. There is no rule beside them.
 - **Results** (Completed, Completed late, Did not meet) are words in the status colour, set in small capitals, with no capsule.
 
+- **A status is not a control.** It takes no clicks and looks like none: no hover, no pointer, no hidden handler (deep dive, 15 Nov: the goal page's status once hid an Easter egg, so it seemed to do nothing). Where a status should lead somewhere, the link is its own words beside it.
 - **Status shapes mean a status, and only that.** A flag that isn't a status (a worsening trend, a missed date, no recovery plan) uses the warning mark. Every shape on screen has its status word beside it, checked by P3 and P4.
 
 ## Every screen size

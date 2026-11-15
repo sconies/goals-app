@@ -65,6 +65,16 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
     </div>
   );
 }
+/**
+ * What a screen reader hears about the map's goals and links, in place of React Flow's own words, which said "Press
+ * delete to remove it": the map never removes a goal (outside review, 9 Nov; deep dive, 15 Nov). Exported for its test.
+ */
+export const MAP_ARIA = {
+  'node.a11yDescription.default': 'Press Enter or Space to select a goal. The map never removes a goal: remove one from its own page.',
+  'node.a11yDescription.keyboardDisabled': 'Press Enter or Space to select a goal, then move it with the arrow keys. The map never removes a goal: remove one from its own page.',
+  'edge.a11yDescription.default': 'Press Enter or Space to select a link between goals.',
+} as const;
+
 const nodeTypes = { goal: GoalNode };
 
 /**
@@ -362,7 +372,7 @@ export function GoalMap({ goals, matches, goTo, proposed }: { goals: Goal[]; mat
           <ReactFlow
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={MIN_ZOOM} maxZoom={1.6}
             onInit={(rf) => { flow.current = rf; setReady(true); }}
-            nodesConnectable={false} elementsSelectable deleteKeyCode={null} proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
+            nodesConnectable={false} elementsSelectable deleteKeyCode={null} ariaLabelConfig={MAP_ARIA} proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
             onNodeClick={(_, n) => { if (proposed?.has(n.id)) { nav('/goals/' + n.id); return; } fromKeys.current = null; setSelected(n.id); setFound(null); }} onPaneClick={() => { setSelected(null); setFound(null); }}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
