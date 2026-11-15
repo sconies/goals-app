@@ -136,15 +136,19 @@ describe('a metric’s measurement status (MS)', () => {
     expect(merged.changes.map((c) => c.summary)).toContain(`Held to its plan again, as “${into.name}” is measured`);
   });
 
-  it('a goal stopped while held comes back as its metric says now, measured again or the library off in between (#503 review)', () => {
-    for (const between of ['measured', 'off'] as const) {
+  it('a goal stopped while held comes back as its metric says now: measured again, the library off, or merged into a measured metric in between (#503 review)', () => {
+    for (const between of ['measured', 'off', 'merged'] as const) {
       const w = world();
       w.apply(saveMetricAsked(w.x('rhea'), { id: 'metric_flaky-rate', measurement: 'gap' }).commit);
       expect(isUnmeasured(w.goal('lead-flaky'))).toBe(true);
       const admin = w.full.people.find((p) => p.admin)!;
       w.apply(stopGoal(w.x(admin.id), 'lead-flaky', 'Paused for the runner migration.'));
       if (between === 'measured') w.apply(saveMetricAsked(w.x('rhea'), { id: 'metric_flaky-rate', measurement: 'measured' }).commit);
-      else w.apply(setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws' }, [{ id: 'metrics', name: 'Metric library', needs: [] }], 'metrics', false));
+      else if (between === 'merged') {
+        const flaky = w.metric('metric_flaky-rate');
+        const into = M.metricsOf(w.full).find((m) => m.id !== flaky.id && !m.removedAt && !m.retiredAt && m.unit === flaky.unit && measurementOf(m) === 'measured')!;
+        w.apply(mergeMetrics(w.x(admin.id), flaky.id, into.id));
+      } else w.apply(setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws' }, [{ id: 'metrics', name: 'Metric library', needs: [] }], 'metrics', false));
       expect(isUnmeasured(w.goal('lead-flaky'))).toBe(false);
       w.apply(restoreRemoved({ ...w.x(admin.id), records: MODULE_RECORDS }, 'stopped', 'lead-flaky', MODULE_RECORDS));
       const back = w.goal('lead-flaky');

@@ -14954,7 +14954,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 	const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
 	const holds = moved.flatMap((l) => {
 		const g = goals.get(l.goalId);
-		const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null;
+		const h = g ? heldByLink(x, g, into) : null;
 		return h ? [h] : [];
 	});
 	return {
