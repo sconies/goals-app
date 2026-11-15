@@ -38,7 +38,7 @@ To run a stage (S = your scratchpad):
 | 6 Goal map | 3 of 4 met | 2 NOT MET (3 of 10 journeys run); 1, 3, 4 VERIFIED |
 | 7 Metric library | 7 of 20 met, 13 part; metrics.csv 109/109 | 12 VERIFIED, 6 WEAK, 20 NOT MET |
 | 8 Reviews | 8 of 12 met; reviews.csv 91/91 with a patched harness | 6 VERIFIED, 5 WEAK, 2 NOT MET |
-| 9 Spreadsheets | Was being built at handover in the old session's scratchpad. **If `drill-11-rebuild` has no `m9-spreadsheets` folder, re-run it** | — |
+| 9 Spreadsheets | 12 of 14 met, 10 journeys DONE; an unedited export doesn't load back through the stage 2 engine (M9-3) | **Not yet reviewed** |
 | 10 Fields (tags) | 11 of 13 met, 4 of 4 journeys DONE; tags.csv 25/25 | **Not yet reviewed** |
 | 11 Watching, 12 Wrap-up | Not started | |
 | Late: GR, MQ, SW2, FT1; MI is folded into stage 7 (#520) | Not started. MC deferred (Lane, 14 Nov) | |
@@ -58,6 +58,7 @@ To run a stage (S = your scratchpad):
 - U69 opens `rel-cfr`, which doesn't exist; it passes only because "Goal not found" counts as a distinct title.
 - `evals/run.mjs` needs `node_modules/vite` in the repo root, so it fails in a worktree.
 - Help's core articles name reviews while Reviews is off.
+- An unedited export doesn't load back through the core change engine without four fixes (m9 M9-3). Check whether Faro's engine has the same behaviour.
 - Demo goal G-48 has a 141-character name, so an unchanged export is refused by the change engine (m10 T-14). Check it against the name limit.
 - Backlog 0v (already in): negative days without an update before a plan starts.
 
@@ -65,7 +66,7 @@ To run a stage (S = your scratchpad):
 1. Subscribe to #536 and #537. Mark each ready, merge it when green, and send the numbers to the reviewer. Merge main into the second one as above.
 2. **Re-pin** to main after both merge, then recreate kit/ and pin/.
 3. **Re-run the core from the fixed kit:** stage 3 must now build the module platform and pass the core-only set. Score each stage independently. The aim is many more of the 73 core journeys DONE; record the new tally against 13.
-4. **Re-run every module on the new core**, each with a kit-only reviewer. They should now need few or no core changes; CORE-CHANGES.md shows it. Order: 4 to 12, then module 7 again with MI, then the late ones. Fix gaps in small `[no news]` PRs: the module gaps in each `m*/…/GAPS.md` are mostly words not yet fixed (switched-off words, tool outputs, parts the journeys name, `seedStage` data).
+4. **Re-run every module on the new core**, each with a kit-only reviewer. They should now need few or no core changes; CORE-CHANGES.md shows it. First run the two missing reviews (9 and 10) on the old core if useful; otherwise go straight to: 4 to 12, then module 7 again with MI, then the late ones. Fix gaps in small `[no news]` PRs: the module gaps in each `m*/…/GAPS.md` are mostly words not yet fixed (switched-off words, tool outputs, parts the journeys name, `seedStage` data).
 5. Once every stage on main has passed: update the scorecard `docs/drill/2026-11-full-drill.md` from `RESULTS.md` (it still shows the old pin and the old stage numbers: the kit now numbers AI access 4 … Wrap-up 12). Then do the doc rewrites and the repo description, report to planning, and take #512 out of draft.
 
 ## Ready prompt for the next session
