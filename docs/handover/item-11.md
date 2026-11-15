@@ -49,10 +49,12 @@ To run a stage (S = your scratchpad):
 |---|---|---|
 | #525 | The edge-case workspace | Merged, sent to the reviewer |
 | #531 | Journey pages name their entry, not a line number (main had gone red) | Merged, sent |
-| **#536** | Stage 1–2 words: the 3 wrong guesses, the 14 diff-learned engine behaviours, more edge cases | **Draft, gate green locally, CI running at handover** |
+| #536 | Stage 1–2 words: the 3 wrong guesses, the 14 diff-learned engine behaviours, more edge cases | Merged (5d857a70), sent to the reviewer; one medium back (step 0) |
 | **#537** | The core's module platform (`spec/rebuild/module-platform.md`); stage 3 builds it; `screen-cases.json`; core-only conformance set; harness reads `also` for reviews, tags and watching; journeys a rebuild can follow; read-back words | **Draft, gate green locally, CI running at handover** |
 
 #536 and #537 both touch `src/spec/rules.ts` and `rebuild.ts`. Merge whichever goes green first, then merge main into the other, run `npm run spec`, run the gate, and merge it.
+
+**#512's CI:** the smoke job failed twice on this branch, which is docs-only and identical to main under `spec/`. The failures were `spec/core/goals-query.md` reported stale, and the scale test at 3.08 against < 3 under load. Neither reproduces locally with a clean `npm ci`. #512 is a draft: give it one re-run after the next main merge before digging further.
 
 **Bugs for the backlog** (planning should place them; none are fixed):
 - U69 opens `rel-cfr`, which doesn't exist; it passes only because "Goal not found" counts as a distinct title.
@@ -60,9 +62,21 @@ To run a stage (S = your scratchpad):
 - Help's core articles name reviews while Reviews is off.
 - An unedited export doesn't load back through the core change engine without four fixes (m9 M9-3). Check whether Faro's engine has the same behaviour.
 - Demo goal G-48 has a 141-character name, so an unchanged export is refused by the change engine (m10 T-14). Check it against the name limit.
+- `spec/conformance/home.csv` fails `npm run spec -- --check` under TZ=Pacific/Auckland: the spec depends on the time zone.
 - Backlog 0v (already in): negative days without an update before a plan starts.
 
 ## Next steps
+0. **The reviewer's medium on #536 (planning, 15 Nov), yours to fix in the next kit-words PR.** Eight added sentences say what the code doesn't do:
+   - `saves` is never yes in set-up from a file;
+   - days without an update ignores rhythmFrom when there's no set rhythm;
+   - a row whose plan changed is a `plan` item whatever else it changes (not "alone");
+   - a new goal's item also writes Plan shape and Warning margin;
+   - Stages and Plan numbers write bare weeks too;
+   - new-ID prefixes miss `req` and `ask`;
+   - the near-header case raises a third note (the Type default);
+   - `undo` now has `moduleRows` (#520).
+
+   The evidence is in #536's section of the reviewer's log on `build-reviews` (0a5a5aa9 and the commit after), with two lows and three older sentences beside them. Send the reviewer the PR number when it merges.
 1. Subscribe to #536 and #537. Mark each ready, merge it when green, and send the numbers to the reviewer. Merge main into the second one as above.
 2. **Re-pin** to main after both merge, then recreate kit/ and pin/.
 3. **Re-run the core from the fixed kit:** stage 3 must now build the module platform and pass the core-only set. Score each stage independently. The aim is many more of the 73 core journeys DONE; record the new tally against 13.
