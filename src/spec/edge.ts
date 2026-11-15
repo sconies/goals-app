@@ -7,6 +7,7 @@
    was posted, as the app stores it. `npm run spec` writes it to spec/conformance/edge/; the drill runs a rebuild on it
    as well as on the demo and scores stage 1's files from both. */
 import { evaluate, draftFrom, emptyDraft } from '../domain/checkin';
+import { guardBreaches } from '../domain/guards';
 import { goalAsOf } from '../domain/plan';
 import type { CheckIn, Cycle, Goal, PathToGreen, Status } from '../domain/types';
 import type { ConformanceWorkspace } from './conformance';
@@ -31,7 +32,9 @@ const range = (key: string, id: string, title: string, unit: string, decimals: n
  * and 1.14's order of a range's last numbers); E-4 and E-5 the numbers refused or only questioned for a share (1.9) and a
  * time or money unit below zero, refused or not by its unit (1.7, with E-10, E-11 and E-14); E-6 to E-8 the habit's moment across gaps and corrections (1.2, 1.3); E-9 and
  * E-10 ties in posting time (1.12); E-11 a plan that starts mid-year and a goal added late (1.6); E-12 being handled and
- * a new flag since (1.5); E-13 a goal stopped part-way through the year; E-15 a goal held to no number (1.6).
+ * a new flag since (1.5); E-13 a goal stopped part-way through the year; E-15 a goal held to no number (1.6). E-16 to
+ * E-18 are the cases the full drill's second stage 1 rebuild had to guess with nothing to score them (its gaps 6, 16 and
+ * 17): a latest check-in with no number, a stepped plan before its first step, and a goal guarded by another.
  */
 export const EDGE_GOALS: Goal[] = [
   range('E-1', 'between', 'Availability kept between two bounds', '%', 2, { bound: 'between', lower: 99.5, limit: 99.95, margin: 0.1 }),
@@ -49,6 +52,9 @@ export const EDGE_GOALS: Goal[] = [
   metric('E-13', 'stopped', 'Legacy jobs moved', 'jobs', 0, 0, 20, { stoppedAt: at(6, 2), stoppedBy: 'ada', stopReason: 'Folded into the platform goal.' }),
   metric('E-14', 'not-time', 'Cache warm-up time', 'ms', 0, 500, 200),
   metric('E-15', 'held', 'Customer effort score', 'pts', 1, 5, 3, { unmeasuredSince: at(0, 0, 9) }),
+  metric('E-16', 'no-number', 'Runbooks tested this quarter', '%', 0, 10, 50),
+  metric('E-17', 'stepped', 'Teams on the new pager', '%', 0, 20, 50, { plan: { start: 20, target: 50, shape: 'stepped' } }),
+  metric('E-18', 'guarded', 'Deploys a week per team', 'deploys', 0, 10, 30, { guards: [{ goal: 'at-most' }] }),
 ];
 
 /** What each goal is there for, by key, for the conformance README: the case, in words, and the gap it closes. */
@@ -68,6 +74,9 @@ export const EDGE_NOTES: Record<string, string> = {
   'E-13': 'Stopped in week 6: in every file up to week 5, then gone.',
   'E-14': 'Milliseconds below zero: not a time unit for that rule, so not refused (1.7).',
   'E-15': 'Held to no number: no status from its plan and nothing due, even with a check-in (1.6).',
+  'E-16': 'A check-in with no number after three with one: its calculation is none, yet it still projects from the earlier weeks’ numbers (stage 1 gap 16).',
+  'E-17': 'A stepped plan (its first step in week 5): before it, a number moved the right way is on track, not well ahead, and one moved the wrong way is at risk, behind (stage 1 gap 6).',
+  'E-18': 'Guarded by E-2: on plan itself, but at risk at the check-in in week 5, when E-2 is just past its limit; the status’s own calculation ignores the guard (stage 1 gap 17).',
 };
 
 type Draft = { id: string; goal: string; week: number; value?: number | null; status: Status; postedAt?: string; path?: PathToGreen; backfilled?: boolean };
@@ -156,6 +165,21 @@ const DRAFTS: Draft[] = [
   { id: 'e14-2', goal: 'not-time', week: 2, value: -2, status: 'on' },
   // E-15, held to no number: nothing due and no status from its plan, even with a check-in (1.6).
   { id: 'e15-3', goal: 'held', week: 3, value: 4.6, status: 'on' },
+  // E-16, three numbers, then a check-in with no number: calculation none, but the projection still comes from weeks 1–4.
+  { id: 'e16-1', goal: 'no-number', week: 1, value: 14, status: 'on' },
+  { id: 'e16-2', goal: 'no-number', week: 2, value: 18, status: 'on' },
+  { id: 'e16-4', goal: 'no-number', week: 4, value: 24, status: 'on' },
+  { id: 'e16-5', goal: 'no-number', week: 5, value: null, status: 'on' },
+  // E-17, stepped 20 → 50: nothing planned before week 5. Up in week 1 (on, not well ahead), down in week 3 (at risk,
+  // behind), then on the first step in week 6.
+  { id: 'e17-1', goal: 'stepped', week: 1, value: 26, status: 'on' },
+  { id: 'e17-3', goal: 'stepped', week: 3, value: 18, status: 'risk', path: path(5) },
+  { id: 'e17-6', goal: 'stepped', week: 6, value: 30, status: 'on' },
+  // E-18, on plan in weeks 4 to 6, each posted the day after E-2's: E-2 is over its limit only in week 5, so that week's
+  // check-in is at risk by its guard.
+  { id: 'e18-4', goal: 'guarded', week: 4, value: 16, status: 'on', postedAt: at(4, 2) },
+  { id: 'e18-5', goal: 'guarded', week: 5, value: 18, status: 'on', postedAt: at(5, 2) },
+  { id: 'e18-6', goal: 'guarded', week: 6, value: 20, status: 'on', postedAt: at(6, 2) },
 ];
 
 /** The check-ins as stored: `calculated` is what the rules gave the posted number in its week, with what was posted before. */
@@ -167,7 +191,8 @@ function checkIns(): CheckIn[] {
     const c: CheckIn = { id: d.id, goalId: d.goal, authorId: goal.ownerId, week: d.week, postedAt: d.postedAt ?? at(d.week), value: d.value ?? null, stages: null, status: d.status, calculated: 'on', cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: d.path ?? null, next: '', dataFlagged: false, ...(d.backfilled ? { backfilled: true } : {}) };
     const before = out.filter((x) => x.postedAt < c.postedAt);
     const g = goalAsOf(goal, c.week);
-    c.calculated = evaluate(g, CYCLE, c.week, { ...emptyDraft(g, null), value: draftFrom(c).value }, before).calc;
+    // Its guards past their limit that week count, as they do at the check-in (GR).
+    c.calculated = evaluate(g, CYCLE, c.week, { ...emptyDraft(g, null), value: draftFrom(c).value }, before, guardBreaches(g, EDGE_GOALS, CYCLE, before, c.week)).calc;
     out.push(c);
   }
   return out;
