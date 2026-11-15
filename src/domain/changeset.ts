@@ -1500,7 +1500,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // its own, and never takes one away (rule 12).
     // Data's tables and MCP replacing a week's check-in correct it, as the form does: one meaning for "correct", with a
     // reason and the same words in History (review of #225, medium 6). A workbook's round trip keeps its own words.
-    // An admin's workbook row that replaces someone else's check-in for this week corrects it too, with a reason (Lane,
+    // An admin's workbook row that replaces this week's check-in on a goal someone else owns corrects it too, with a reason (Lane,
     // 14 Nov): one rule at every door. Past weeks from a workbook keep its own words (a round trip, a backfill).
     const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
     // A week an ended year has no check-in for is added late with a reason at every door, as the form adds it (Lane,

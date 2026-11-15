@@ -53,7 +53,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** Which of two rows that match equally comes first is the kind's order (goals worst first, then by name); a server may break ties another way within a status, as long as the order is stable from page to page.
+- **Not self-explanatory:** Which of two rows that match equally comes first is the kind's order. Goals worst first is by the status's rank, worst first, then by title A to Z, ignoring case ([Goals’ filters and sort](../goals-query.md#the-order) gives the ranks); a server may break ties another way within a status, as long as the order is stable from page to page.
 - **Not self-explanatory:** A goal's words include its owner's latest reason, so a search for “off track” also finds a goal whose reason says both words: 13 goals in the demo, of which 11 are off track.
 
 ## Where it lives

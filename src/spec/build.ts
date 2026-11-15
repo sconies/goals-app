@@ -24,7 +24,7 @@ import { scaleFiles } from './scaleKit';
 import { readsPage } from './readsPage';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { ZONE_HEADER } from './zones';
-import { changeCases, CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
+import { changeCases, CHECK_IN_MOMENT, EDGE_FILES, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
@@ -34,6 +34,9 @@ import { limitsSection } from './limits';
 import { changeEngineSections } from './changeEngineDoc';
 import { MODULE_SHEETS } from '../core/records';
 import { ALWAYS_ON } from './alwaysOn';
+import { EDGE_GOALS, EDGE_NOTES, edgeWorkspace } from './edge';
+import { goalsQueryPage } from './goalsQuery';
+import { HOW_TO_READ, journeyDocs, journeyPage, type JourneyDoc } from './journeySteps';
 
 /** The files of the no-rhythm conformance set (FT1, spec 8). */
 export const NO_RHYTHM_FILES = ['status', 'flags', 'scorecard', 'projection'] as const;
@@ -60,7 +63,8 @@ function readme(mods: ModuleFacts[]): string {
       ['[core/screens.md](core/screens.md)', 'Each core screen, and each view and overlay with no route of its own: its route, purpose, named parts, main action, the AI tools that do the same, and its fields, states and buttons (with who sees each)'],
       ['[core/design-rules.md](core/design-rules.md)', 'The look: what is banned, what we do instead, and how each kind of page uses the room it has'],
       ['[core/help-guide.md](core/help-guide.md)', 'Every Help article in full: what each screen is for, how to use it and who can'],
-      ['[core/journeys.md](core/journeys.md)', 'The core journeys and checks, the requirements each covers, and where each is driven'],
+      ['[core/journeys.md](core/journeys.md)', 'The core journeys and checks, the requirements each covers, and where each is driven; each journey’s steps and checks in words under `core/journeys/`'],
+      ['[core/goals-query.md](core/goals-query.md)', 'Goals’ filters and sort: every parameter a Goals link, saved view, export or `find_goals` can say, its values and words, and the order'],
       ['[core/requirements.md](core/requirements.md)', 'Every core requirement, linked to its code, its Help article, its tests and its journeys'],
       ['[core/export-format.md](core/export-format.md)', 'The spreadsheet format: every sheet and column of the export, the set-up template and the import, how each is read back, its words, the JSON and the brief'],
       ['[core/actions.md](core/actions.md)', 'Every action a person can take, as the command port runs it: its input, its result, who may and the words it refuses with'],
@@ -277,13 +281,13 @@ function helpGuidePage(): string {
 const moduleIds = (mods: ModuleFacts[]) => new Set(mods.flatMap((m) => m.journeys));
 const moduleReqs = (mods: ModuleFacts[]) => new Set(mods.flatMap((m) => m.requirements));
 
-function journeys(r: Repo, mods: ModuleFacts[]): string {
+function journeys(r: Repo, mods: ModuleFacts[], docs: Map<string, JourneyDoc>): string {
   const req = requirements(r);
   const ranked = new Map(req.journeys.map((j) => [j.id, j]));
   const theirs = moduleIds(mods);
   const all = checks(r).filter((c) => !theirs.has(c.id));
   const kinds: [Check['kind'], string, string][] = [
-    ['journey', 'Journeys', 'Each drives the built app in Chromium as a person would, on a phone (390px) and a desktop (1440px), and is scored on the ten-point ease test below. `budget` is the most steps it may take.'],
+    ['journey', 'Journeys', 'Each drives the built app in Chromium as a person would, on a phone (390px) and a desktop (1440px), and is scored on the ten-point ease test below. `budget` is the most steps it may take (a step is one press or one field typed into; [how to read a journey’s steps](#how-to-read-a-journeys-steps)). Each Id opens the journey’s steps and checks.'],
     ['platform', 'Platform checks', 'Checks run across every screen: design rules, widths, motion, errors.'],
     ['finish', 'Fit and finish', 'Per-area checks from the fit-and-finish reports.'],
     ['note', 'Review notes', 'Checks that Lane’s review notes stay fixed.'],
@@ -297,10 +301,11 @@ function journeys(r: Repo, mods: ModuleFacts[]): string {
     out.push(table(kind === 'journey' ? ['Id', 'Journey', 'Who', 'Requirements', 'Budget', 'Where'] : ['Id', 'Check', 'Requirements', 'Where'], list.map((c) => {
       const j = ranked.get(c.id);
       return kind === 'journey'
-        ? [c.id, cell(c.title), cell(j?.who ?? ''), c.reqs.map((x) => `\`${x}\``).join(' '), c.budget != null ? String(c.budget) : '', `\`${c.file}\``]
+        ? [docs.has(c.id) ? `[${c.id}](journeys/${c.id}.md)` : c.id, cell(c.title), cell(j?.who ?? ''), c.reqs.map((x) => `\`${x}\``).join(' '), c.budget != null ? String(c.budget) : '', `\`${c.file}\``]
         : [c.id, cell(c.title), c.reqs.map((x) => `\`${x}\``).join(' '), `\`${c.file}\``];
     })), '');
   }
+  out.push(...HOW_TO_READ, '');
   out.push('## The ease test', '', 'Every journey is scored out of ten, one point each:', '', ...req.easeCriteria.map((e) => `- \`${e.id}\`: ${e.text}`), '');
   out.push('## Not built yet, on purpose', '', ...req.notYetBuilt.map((x) => `- ${x}`), '');
   return out.join('\n');
@@ -354,7 +359,7 @@ function modulesIndex(mods: ModuleFacts[]): string {
     table(['Feature', 'Why it can’t be switched off yet', 'Its switch'], ALWAYS_ON.map((f) => [f.name, cell(f.why), f.until])), ''].join('\n');
 }
 
-function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Stage | undefined): string {
+function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Stage | undefined, docs: Map<string, JourneyDoc>): string {
   const req = requirements(r);
   const all = checks(r);
   const arts = ARTICLES.filter((a) => a.module === m.id);
@@ -388,7 +393,8 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '',
     '## Journeys and checks',
     '',
-    table(['Id', 'What', 'Where'], m.journeys.map((id) => { const c = all.find((x) => x.id === id); return [id, cell(c?.title ?? '(not found)'), c ? `\`${c.file}\`` : '']; })),
+    ...(m.journeys.some((id) => docs.has(id)) ? ['Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).', ''] : []),
+    table(['Id', 'What', 'Where'], m.journeys.map((id) => { const c = all.find((x) => x.id === id); return [docs.has(id) ? `[${id}](journeys/${id}.md)` : id, cell(c?.title ?? '(not found)'), c ? `\`${c.file}\`` : '']; })),
     '',
     '## Help',
     '',
@@ -441,8 +447,9 @@ function growthPage(m: ModuleFacts): string {
 
 /* ---------- conformance ---------- */
 
-function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string>): string {
+function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string>, we: ConformanceWorkspace, edge: Record<string, string>): string {
   const rows = (f: string) => files[f]!.trimEnd().split('\n').length - 1;
+  const edgeRows = (f: string) => edge[f]!.trimEnd().split('\n').length - 1;
   return GENERATED('src/spec/conformance.ts') + [
     '# Conformance data',
     '',
@@ -469,7 +476,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     `${UNCLEAR} goals are taken as they are now in every week: their plan history (\`planHistory\`) says which plan applied when, but other edits (a stage’s due week, a goal linked to an ask later) are not replayed. The rows are made the same way, so a rebuild that reads workspace.json the same way matches them.`,
     '',
-    `${UNCLEAR} two different check-ins are “the latest”: the official status (and \`latest_week\`, \`greener\`, days without an update) takes the one posted most recently, by \`postedAt\`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties are broken the same way in both, from a goal’s check-ins sorted by week, then \`postedAt\`, keeping \`workspace.json\`’s order where both are equal: the official status walks that list and takes a new latest only on a strictly later \`postedAt\`, so of two posted at the same moment it keeps the one for the earlier week (the earlier record when the weeks are equal too); the calculation takes the last of the list, so of two for the same week posted at the same moment it takes the later record. (The conformance workspace has no such ties.)`,
+    `${UNCLEAR} two different check-ins are “the latest”: the official status (and \`latest_week\`, \`greener\`, days without an update) takes the one posted most recently, by \`postedAt\`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties are broken the same way in both, from a goal’s check-ins sorted by week, then \`postedAt\`, keeping \`workspace.json\`’s order where both are equal: the official status walks that list and takes a new latest only on a strictly later \`postedAt\`, so of two posted at the same moment it keeps the one for the earlier week (the earlier record when the weeks are equal too); the calculation takes the last of the list, so of two for the same week posted at the same moment it takes the later record. (The demo workspace has no such ties; [the edge-case workspace](#the-edge-case-workspace-edge) has both, on E-9 and E-10.)`,
     '',
     'Rows go by week, then goals in key order (G-1, G-2 … G-126).',
     '',
@@ -506,27 +513,34 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     '- **goals.csv** ([the query port](../rebuild/ports-at-scale.md#the-query-port-what-screens-and-the-ai-tools-read)): not part of stage 1, scored like find.csv when asked (`"also": ["goals"]`). What the query port’s `goals()` and `counts()` give for each query in a fixed list, on the workspace as it stood at `builtFor`. `query` is the query as a Goals link’s parameters (empty for every goal: worst first, then by title); `total` how many live goals (not stopped) match; `near` the near miss tried when a search found nothing, else empty; then `counts()`: how many of them in each status (`off` to `done`), and `attention` how many need attention under the same query with its attention filter left off (the Goals switch’s count: being handled doesn’t count); `ids` every goal found, in order across all its pages, separated by spaces. `checkedin=no` keeps the goals due this week with no check-in yet, and `checkedin=asked` those checked in by the due day after an ask for an update, by [the habit](../core/rules/habit.md)’s standing (rule 1); `inreview=<id>` keeps the goals that review walks, and none for a review that isn’t there. The contract `goalsContract` (`src/ports/contracts/goals.ts`) runs these rows against any adapter, with its four checks: the rows’ status and flags are those in status.csv and flags.csv for that week; keyset paging gives every goal once while goals are added between pages; no page is larger than 50; only `goal()` gives a goal’s check-ins.',
     '',
-    '- **navigation.csv** ([navigation](../core/rules/navigation.md)): stage 3’s, scored like find.csv (`"also": ["navigation"]`). For two viewers (`rhea`, who owns goals; `oskar`, who owns none: `owns_goals`) at each address: `menu` the sidebar’s items in order, its groups (your work, look up, make, this workspace and you) separated by ` | `, and `tabs` the phone’s four (More holds the rest), as ids separated by spaces; `owns_goals` is whether they have a goal to check in on (one of theirs, not stopped or done); `lit` the menu item lit there, or empty; `page` the page’s name in the top bar and the browser’s title (rule 2: a goal, review, person or team by its own name from the workspace; Help’s articles aren’t in the workspace, so an article’s page is named “Help”). The addresses with `example` are a module’s item and pages (named “Example”); everywhere else no module adds an item. The last two rows, at the address `/ (Reviews off)`, are Home in a workspace that has switched Reviews off: no `reviews` in the menu, and the tabs without it.',
+    '- **navigation.csv** ([navigation](../core/rules/navigation.md)): stage 3’s, scored like find.csv (`"also": ["navigation"]`). For two viewers (`rhea`, who owns goals; `oskar`, who owns none: `owns_goals`) at each address: `menu` the sidebar’s items in order, its groups (your work, look up, make, this workspace and you) separated by ` | `, and `tabs` the phone’s four (More holds the rest), as ids separated by spaces; `owns_goals` is whether they have a goal to check in on (one of theirs, not stopped or done); `lit` the menu item lit there, or empty; `page` the page’s name in the top bar and the browser’s title (rule 2: a goal, review, person or team by its own name from the workspace; Help’s articles aren’t in the workspace, so an article’s page is named “Help”). The addresses with `example` are a module’s item and pages (named “Example”); everywhere else no module adds an item. The last six rows are Home in a workspace with features switched off (Workspace → Features), three for each viewer, the address marked so: `/ (Reviews off)`, Reviews off (no `reviews` in the menu, and the phone’s tabs without it); `/ (Feedback off)`, Feedback off (no `feedback`: the last group is `workspace settings help`); and `/ (every feature off)`, every optional feature off (neither). Nothing else on these rows changes: the lit item is `home` and the page is “Home”.',
     '',
     '- **import.csv** ([kinds, levels and near misses](../core/rules/import-levels.md)): stage 2’s, with changes.csv, and the spreadsheets stage’s; scored like find.csv (`"also": ["import"]` from another stage). One row per case: a set of rows loaded through the change engine on the workspace as it stood at `builtFor` (week 45), by `actor` (amara is an admin; tunde is not), into `sheet` (`goals`, `checkIns` or `people`). `rows` is the rows as JSON, column name to cell, numbered from row 2 in order; `answers` the answers given, as JSON, group id to choice (empty for none); `given`, what the case starts from beyond the workspace, as JSON (empty for nothing): `mode` `create` for set-up from nothing (every row new), `stopped`, goals by key stopped before it (in the archive, as a whole-cycle export carries them), and `sheets`, other sheets’ rows loaded in the same file. People in workspace.json have no email, so their email is empty and rows name them by name or ID. Then what the engine says: `kind`, `level` (`must` or `check`), `group` (its group id) and `message` (its sentence) of the first problem or question in the file’s order (sheet, then row; a note is neither), empty when there is none; `must` and `questions` how many Must-fix groups and Check groups; `saves` `yes` when it would save; `kinds`, every kind it raised, notes too, each once, in the order first raised, separated by spaces. Every kind the engine raises has a case ([the issue kinds](../core/import-issues.md)).',
     '',
-    '- **changes.csv** ([the change engine](../core/rules/change-engine.md)): stage 2’s, with import.csv (`"stage": 2` in `drill.json`). The same cases as import.csv, run the same way, and more that save (`saves-check-in`, `saves-plan-with-reason`, `saves-new-goal`, `saves-person`, `saves-stop`, `saves-tree-by-ref`, and `corrects-keeps-author`: an admin’s row replacing someone else’s check-in for this week, with `given.reason`, the import’s reason box). Rows are matched by `case` and `row`. Row 0 is the case: `actor`, `sheet`, `rows`, `answers` and `given` as in import.csv; `counts`, every count of the change set that isn’t 0 as `key=n` separated by spaces, in this order: `newGoals`, `goals`, `plans`, `checkIns` (every check-in, those that replace one too), `backfilled` (check-ins for an earlier week), `replaced` (check-ins that replace one already there), `people`, `newPeople`, `teams`, `stopped`, `deleted`, `left`; `unchanged`, the rows that change nothing; `needs_reason`, `yes` when a plan change needs a reason none was given; and `saves`, `yes` when the change set would save. Rows 1 on are its items, in the engine’s order (a sheet’s rows in order, then what they lead to): `sheet` (Goals, Plan, Check-ins or People) and `line` (the row in that sheet, from 2), `target` (the goal’s ID, a new one being `goal_c1` and on in the order the engine asks for IDs; empty for a person or team), `name` (the goal’s, person’s or team’s name), `kind` (`new goal`, `goal`, `plan`, `check-in`, `replaces check-in`, `person`, `new person`, `team`, `stop goal`, `delete goal` or `person left`), `diffs` (every field it changes as `Field: before → after`, the field’s label and values in the words a person reads, `—` for nothing, joined by ` | `), `needs_reason` (`yes` for a plan change after check-ins started, or a correction without a reason), and `author` (a check-in’s: who it belongs to once saved; replacing one keeps who checked in, Lane, 14 Nov; empty on row 0 and for other kinds). A case that blocks still lists the items it would make.',
+    '- **changes.csv** ([the change engine](../core/rules/change-engine.md)): stage 2’s, with import.csv (`"stage": 2` in `drill.json`). The same cases as import.csv, run the same way, and more that save (`saves-check-in`, `saves-plan-with-reason`, `saves-new-goal`, `saves-person`, `saves-stop`, `saves-tree-by-ref`, and `corrects-keeps-author`: an admin’s row replacing this week’s check-in on a goal someone else owns, with `given.reason`, the import’s reason box). Rows are matched by `case` and `row`. Row 0 is the case: `actor`, `sheet`, `rows`, `answers` and `given` as in import.csv; `counts`, every count of the change set that isn’t 0 as `key=n` separated by spaces, in this order: `newGoals`, `goals`, `plans`, `checkIns` (every check-in, those that replace one too), `backfilled` (check-ins for an earlier week), `replaced` (check-ins that replace one already there), `people`, `newPeople`, `teams`, `stopped`, `deleted`, `left`; `unchanged`, the rows that change nothing; `needs_reason`, `yes` when a plan change needs a reason none was given; and `saves`, `yes` when the change set would save. Rows 1 on are its items, in the engine’s order (a sheet’s rows in order, then what they lead to): `sheet` (Goals, Plan, Check-ins or People) and `line` (the row in that sheet, from 2), `target` (the goal’s ID, a new one being `goal_c1` and on in the order the engine asks for IDs; empty for a person or team), `name` (the goal’s, person’s or team’s name), `kind` (`new goal`, `goal`, `plan`, `check-in`, `replaces check-in`, `person`, `new person`, `team`, `stop goal`, `delete goal` or `person left`), `diffs` (every field it changes as `Field: before → after`, the field’s label and values in the words a person reads, `—` for nothing, joined by ` | `), `needs_reason` (`yes` for a plan change after check-ins started, or a correction without a reason), and `author` (a check-in’s: who it belongs to once saved; replacing one keeps who checked in, Lane, 14 Nov; empty on row 0 and for other kinds). A case that blocks still lists the items it would make.',
     '',
     '- **change-cases.json** (stage 2): the cases import.csv and changes.csv run, input only, in order: `[{ case, actor, sheet, rows, answers?, given? }]`, with `rows` and `given` as objects, not JSON in a cell. The harness puts a copy beside the `workspace.json` it hands a stage 2 command, so a rebuild reads its cases from there; in the CSV files those columns are the same inputs written back.',
     '- **readback.csv** ([the read-back](../core/rules/read-back.md)): stage 3’s, scored like find.csv (`"also": ["readback"]` from another stage). One row per case: a draft goal (`draft`, the fields set over a blank goal, as JSON) on New goal’s last step, seen by `viewer`, on the workspace as it stood at `builtFor` (Thursday 5 Nov 2026, week 45, the review day), with the weekly rhythm and Reviews on, each question it raises taken as answered, the level as New goal starts it when the draft doesn’t say (rule 1 of [New goal](../core/rules/new-goal.md)), no metric, and the workspace called “Platform Engineering”. The reviews a goal joins read each review’s `scope` in workspace.json. `rows` is each row as `label: sentence`, separated by ` | `; `after` the “After you publish” lines, separated by ` | `.',
     '',
     ...MODULE_FILES.flatMap((f) => [`- **${f.file}.csv**: ${f.about}`, '']),
-    '- **home.csv** ([Home](../core/rules/home.md)): stage 3’s, scored like find.csv (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review`) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead; `run` [the habit](../core/rules/habit.md)’s on-time run that day (`onTimeStreak` in the week of that day), and `forgiven` the forgiven week inside it with `late` or `missed` (`45 late`), or empty. No check-in draft is kept. Watches carry no date, so they are taken as they are now.',
+    '- **home.csv** ([Home](../core/rules/home.md)): stage 3’s, scored like find.csv (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review` or `ask`: an ask waiting on the viewer, or a goal proposed for them, [Home](../core/rules/home.md)’s rule 5) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead; `run` [the habit](../core/rules/habit.md)’s on-time run that day (`onTimeStreak` in the week of that day), and `forgiven` the forgiven week inside it with `late` or `missed` (`45 late`), or empty. No check-in draft is kept. Watches carry no date, so they are taken as they are now.',
     '',
     '- **zone.csv** ([R3, time zones](../requirements/internal/r3-time-zones.md)): the home zone, scored like find.csv (`"also": ["zone"]`). Its input is `zone` in `workspace.json`, a case of its own: a home zone (`America/New_York`), a goal year starting Monday 19 October 2026, four check-ins (only `postedAt` matters) posted near midnight there and either side of the night the clocks go back (Sunday 1 November, 02:00 back to 01:00), and the moments to judge them at. One row per moment and goal, by moment then goal: `home_time` is the home zone’s clock (`yyyy-mm-dd hh:mm`); `week` is the goal year’s week, counted in the home zone (it turns at midnight on Sunday there, not in UTC); `latest_posted` is the goal’s check-in posted most recently by the moment (empty: none); `days_without_update` counts calendar days between the two in the home zone; `stale` is `yes` at 14 or more. The reference is `src/spec/zones.ts`: read both moments on the home zone’s wall clock and count as the UTC rules do. The rest of the workspace is judged in UTC, as before: a home zone of UTC changes nothing.',
     '',
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
+    '',
+    '## The edge-case workspace (edge/)',
+    '',
+    `The demo exercises most rules on most days, but not all: the full drill’s first stage 1 rebuild guessed three rules wrong and still scored 100%, because the demo has no range kept between two bounds, no ties in posting time and no correction that should or shouldn’t stop a moment. [edge/workspace.json](edge/workspace.json) is a second, small workspace of those cases (${we.goals.length} goals, ${we.checkIns.length} check-ins, a ${we.cycle.weeks}-week goal year starting ${we.cycle.startDate}, built for ${we.builtFor}, week ${currentWeek(we.cycle, new Date(we.builtFor))}), with the same fields, read the same way. Its records are inputs written by hand (\`src/spec/edge.ts\`); every row in the files beside it is made from them by the same code as the demo’s. Only stage 1’s files are made from it: ${EDGE_FILES.filter((f) => f !== 'scorecard-words').map((f) => `[${f}.csv](edge/${f}.csv) (${edgeRows(`${f}.csv`)} rows)`).join(', ')}, and [scorecard-words.csv](edge/scorecard-words.csv) when asked. The drill runs the rebuild on it as well, whenever one of those files is scored, and fails a rebuild that misses a row there as it does on the demo. It has \`"edge": true\`, which only says so: a rebuild reads it like any other workspace, and needn’t write the other files from it.`,
+    '',
+    table(['Goal', 'Its case (and the drill gap it closes)'], EDGE_GOALS.map((g) => [`${g.key} ${g.title}`, EDGE_NOTES[g.key!] ?? ''])),
     '',
     '## How a rebuild proves itself',
     '',
     '1. Read `workspace.json`.',
     '2. For each week from 0 to the week it was built for, take the workspace as it stood at that week’s moment (above), and for each goal there, in key order, compute the status, flags, projection and scorecard with the rebuilt rules; and for each check-in in the workspace, what a check-in must say.',
     '3. Write the five files with the same columns and compare them row by row with these. Every difference is a rule that differs: the first few rows that differ, for one goal, usually name it.',
+    '4. Do the same with `edge/workspace.json`, and compare with the files in `edge/`.',
     '',
     'A rebuild of the status rules alone can compare `status.csv` first, then the projection, then the flags (which need the trend and asks), then the scorecard.',
     '',
@@ -556,6 +570,9 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   const mods = moduleFacts(r);
   const tests = testIndex(r);
   const reqText = new Map(requirements(r).requirements.map((q) => [q.id, q.text]));
+  // Every journey's steps and checks, from its code (item 11, drill gaps 3.27 and 5.2): the core's under core/journeys/,
+  // a module's under its own section.
+  const docs = new Map(journeyDocs(r, new Map(mods.map((m) => [m.id, m.name]))).map((j) => [j.id, j]));
   const out: Record<string, string> = {
     'llms.txt': systemOverview(),
     'spec/README.md': readme(mods),
@@ -565,7 +582,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     'spec/core/screens.md': screens(r),
     'spec/core/design-rules.md': designRulesPage(r),
     'spec/core/help-guide.md': helpGuidePage(),
-    'spec/core/journeys.md': journeys(r, mods),
+    'spec/core/journeys.md': journeys(r, mods, docs),
     'spec/core/requirements.md': requirementsPage(r, mods, tests),
     'spec/core/actions.md': actionsPage(r, GENERATED('src/app/actions.ts, each module’s actions.ts, R1’s access table and the rules they call, by src/spec/calls.ts')),
     'spec/core/tools.md': toolsPage(r, TOOLS, toolModule, GENERATED('src/mcp/tools.ts, each module’s tools.ts and src/mcp/parity.ts, by src/spec/calls.ts')),
@@ -575,34 +592,45 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   const w = conformanceWorkspace(buildPlatformOrg(new Date(CHECK_IN_MOMENT)));
   // The change engine's page also has its every sentence, its fields and its log's words, read from the code (stage 2).
   for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText, rule.id === 'change-engine' ? changeEngineSections(root, w) : []);
+  const owned = new Set(mods.flatMap((m) => m.journeys));
+  for (const j of docs.values()) if (!owned.has(j.id)) out[`spec/core/journeys/${j.id}.md`] = journeyPage(j, '../../', 'the core ([the journeys](../journeys.md)); it runs with every module on, and the core journeys run again with each module left out');
   for (const m of mods) {
     const own = RULE_LIST.filter((x) => x.module === m.id);
     if (own.length) out[`spec/modules/${m.id}/rules.md`] = moduleRulesPage(m.name, own, tests, reqText);
-    out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id));
+    out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id), docs);
+    for (const id of m.journeys) { const j = docs.get(id); if (j) out[`spec/modules/${m.id}/journeys/${id}.md`] = journeyPage(j, '../../../', `the ${m.name} module ([its section](../README.md#journeys-and-checks)); it runs with the module on`); }
     if (m.growth?.length) out[`spec/modules/${m.id}/growth.md`] = growthPage(m);
     if (m.records?.length) out[`spec/modules/${m.id}/records.md`] = recordsPage(m, r);
   }
   const files = conformanceFiles(w);
   out['spec/conformance/workspace.json'] = workspaceJson(w);
   out['spec/core/export-format.md'] = exportFormatPage(MODULE_SHEETS);
+  out['spec/core/goals-query.md'] = goalsQueryPage(r, GENERATED('src/domain/query.ts, by src/spec/goalsQuery.ts'));
   out['spec/core/import-issues.md'] = GENERATED('src/domain/issueKinds.ts, src/domain/problemLevels.ts, src/domain/columns.ts and import.csv’s cases') + importIssuesMarkdown(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   // Stage 2's cases, input only: what the harness hands a rebuild beside workspace.json (drill gap 1).
   out['spec/conformance/change-cases.json'] = JSON.stringify(changeCases(w), null, 2) + '\n';
-  out['spec/conformance/README.md'] = conformanceReadme(w, files);
   // The same workspace with no set check-in rhythm (FT1): its cycle has checkInWeeks 0. Its own folder, so the files
   // above stay byte for byte; the drill scores it with --expected spec/conformance/no-rhythm.
   const w0: typeof w = { ...w, cycle: { ...w.cycle, checkInWeeks: 0 } };
   const t0 = conformanceFiles(w0);
   out['spec/conformance/no-rhythm/workspace.json'] = workspaceJson(w0);
   for (const f of NO_RHYTHM_FILES) out[`spec/conformance/no-rhythm/${f}.csv`] = t0[`${f}.csv`]!;
+  // The edge-case workspace (item 11): the cases the demo never has, in its own folder; the drill scores stage 1's files
+  // from it too.
+  const we = edgeWorkspace();
+  const te = conformanceFiles(we);
+  out['spec/conformance/edge/workspace.json'] = workspaceJson(we);
+  for (const [f, text] of Object.entries(te)) out[`spec/conformance/edge/${f}`] = text;
+  out['spec/conformance/README.md'] = conformanceReadme(w, files, we, te);
   Object.assign(out, contractFiles((f) => out[`spec/conformance/${f}`] ?? (() => { throw new Error(`No conformance file ${f}.`); })()));
   // Stage 1's scored files only: scorecard-words.csv, find.csv and the rest are scored when asked.
   const stage1 = ['status', 'flags', 'projection', 'scorecard', 'checkin'] as const;
   const rows = Object.fromEntries(stage1.map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: HEADERS[f] }])) as Stage1Files;
   Object.assign(out, internalFiles());
   const later = Object.fromEntries([...STAGE_FILES[2], ...STAGE_FILES[3]].map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: files[`${f}.csv`]!.split('\n')[0]!.split(',') }]));
-  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later));
+  const edgeRows = stage1.reduce((a, f) => a + te[`${f}.csv`]!.trimEnd().split('\n').length - 1, 0);
+  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later, edgeRows));
   Object.assign(out, scaleFiles(out['spec/conformance/workspace.json']!, read(r, 'scripts/seed.mjs')));
   out['spec/rebuild/reads.md'] = await readsPage();
   Object.assign(out, await databaseFiles(root));

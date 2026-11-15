@@ -4107,23 +4107,27 @@ journey('U59', ['WORKSPACE-ABOUT', 'WORKSPACE-SECTIONS'], 'Workspace opens on Ab
   await p.context().close();
 }, ['logged']);
 
+/** A workspace of its own in the browser's storage (U61's, shared with U176 and the design check): Rosa Lind (its admin) and Omar
+    Haddad, then more people from the demo's, one team with no lead, four goals and a weekly review. */
+const seedFieldWorkspace = (p, n) => p.evaluate(async (count) => {
+  const full = await window.__goalsStore.load('platform-org');
+  const base = full.people.slice(0, count).map((x, i) => ({ ...x, admin: i === 0, teamId: 'field', leftAt: null }));
+  const people = [{ ...base[0], id: 'rosa', name: 'Rosa Lind', initials: 'RL', email: 'rosa@example.com' }, { ...base[1], id: 'omar', name: 'Omar Haddad', initials: 'OH', email: 'omar@example.com' }, ...base.slice(2)];
+  const goals = full.goals.filter((g) => !g.removedAt && !g.stoppedAt && g.cycleId === full.cycles[0].id).slice(0, 4).map((g) => ({ ...g, ownerId: 'rosa', teamId: 'field', parentId: null }));
+  const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
+  const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
+  localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
+  localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], modules: {}, goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
+  localStorage.setItem('goals-app-workspace', 'ws_field');
+  localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
+}, n);
+
 journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
   await p.locator('.side:visible, .tabbar:visible').first().waitFor();
   // A workspace just set up: Rosa (its admin) and Omar, one team with no lead, four goals and a weekly review.
-  const seed = (n) => p.evaluate(async (count) => {
-    const full = await window.__goalsStore.load('platform-org');
-    const base = full.people.slice(0, count).map((x, i) => ({ ...x, admin: i === 0, teamId: 'field', leftAt: null }));
-    const people = [{ ...base[0], id: 'rosa', name: 'Rosa Lind', initials: 'RL', email: 'rosa@example.com' }, { ...base[1], id: 'omar', name: 'Omar Haddad', initials: 'OH', email: 'omar@example.com' }, ...base.slice(2)];
-    const goals = full.goals.filter((g) => !g.removedAt && !g.stoppedAt && g.cycleId === full.cycles[0].id).slice(0, 4).map((g) => ({ ...g, ownerId: 'rosa', teamId: 'field', parentId: null }));
-    const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
-    const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
-    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
-    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], modules: {}, goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
-    localStorage.setItem('goals-app-workspace', 'ws_field');
-    localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
-  }, n);
+  const seed = (n) => seedFieldWorkspace(p, n);
   await seed(2);
   await p.goto(url('/workspace'));
   await p.locator('.ws-facts').waitFor();
@@ -7274,6 +7278,10 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   const listShape = p.locator('main .status-shape[data-status="unmeasured"]').first();
   await listShape.waitFor();
   await see(p.locator('main'), 'Not measured yet', 'the Goals list does not say the goal is Not measured yet');
+  // The Board has a lane for it, as for every status (#510 review), with the held goal's card in it.
+  const title = ((await h.snapshot()).goals ?? []).find((x) => x.id === 'lead-flaky').title;
+  await p.goto(url('/goals?scope=all&view=board&status=unmeasured'));
+  await see(p.getByRole('region', { name: /^Not measured yet, 1$/ }), title, 'the Board has no Not measured yet lane with the held goal’s card');
   const held = await h.snapshot();
   const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
   // Said to be measured again: the goal is held to its plan once more.
@@ -7426,7 +7434,7 @@ journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as A
   await p.context().close();
 }, []);
 
-journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access', 12, async (h, device) => {
+journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only, Settings has no “Your MCP tokens” and the inbox’s Connect Claude says it is switched off, with a link to Features; switched back on, the section is back after Access', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
   await p.goto(url('/workspace/ai'));
@@ -7456,6 +7464,14 @@ journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara swit
   await p.locator('.page').first().waitFor();
   await see(p, 'Settings');
   if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  // The inbox's Connect Claude says it is off, and gives no set-up for a server that refuses every call (review of #504).
+  await p.goto(url('/feedback'));
+  const inbox = p.locator('#inbox');
+  await h.click(inbox.getByRole('button', { name: 'Connect Claude' }).first());
+  const connect = inbox.locator('.connect');
+  await see(connect, 'AI access is switched off in', 'with AI access off, Connect Claude does not say so');
+  if (await connect.getByText(/claude mcp add|Make a token/).count()) fail('with AI access off, Connect Claude still gives the set-up');
+  if (!(await connect.getByRole('link', { name: 'Workspace, Features' }).count())) fail('Connect Claude does not link an admin to Workspace, Features');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off AI access'), 'switching AI access off was not logged');
   // Back on: the section is back.
@@ -7472,6 +7488,44 @@ journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara swit
   h.set('errors', true);
   await p.context().close();
 }, ['parity', 'budget']);
+
+journey('U176', ['HOME-LEADER'], 'The admin’s workspace line on Home, drawn: in a workspace with 12 people and one admin, Rosa’s Home has a block headed with the workspace’s name, “{n} things to sort out” with the first one’s sentence and “See them”; See them opens About, whose To sort out list has the same {n}; a member sees none of it, and a two-person workspace just set up has none either', 5, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  // Day one: Rosa and Omar, nothing to sort out, so no line.
+  await seedFieldWorkspace(p, 2);
+  await p.goto(url('/'));
+  await p.locator('.page').first().waitFor();
+  await p.getByRole('heading', { level: 1 }).first().waitFor();
+  const day1 = await p.locator('.home-sort-out').count();
+  // A year on: 12 people and still one admin (and a team with no lead): something to sort out.
+  await seedFieldWorkspace(p, 12);
+  await p.goto(url('/'));
+  const row = p.locator('.home-sort-out');
+  await row.waitFor({ timeout: 8000 });
+  const block = p.locator('[data-part="The workspace’s line"]');
+  const title = (await block.getByRole('heading').first().innerText()).trim();
+  const said = (await row.innerText()).replace(/\s+/g, ' ').trim();
+  const n = Number((said.match(/^(\d+) things? to sort out/) || [])[1]);
+  h.set('attention', day1 === 0 && title === 'Field Operations' && n >= 2 && /You’re the only admin/.test(said) && /, and \d+ more\./.test(said) && /See them$/.test(said), `day one had ${day1} lines; the block is headed “${title}”, the line says “${said}”`);
+  await h.checkpoint('home');
+  await h.click(row.getByRole('link', { name: 'See them' }));
+  await p.waitForURL(/\/workspace$/);
+  const list = p.getByRole('list', { name: 'To sort out' });
+  await list.waitFor();
+  const rows = await list.locator('.ws-sort-row').count();
+  h.set('progress', rows === n, `Home said ${n} things to sort out; About lists ${rows}`);
+  await h.checkpoint('about');
+  // A member sees none of it.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:ws_field', 'omar'));
+  await p.goto(url('/'));
+  await p.locator('.page').first().waitFor();
+  await p.getByRole('heading', { level: 1 }).first().waitFor();
+  h.set('errors', await p.locator('.home-sort-out, [data-part="The workspace’s line"]').count() === 0, 'a member’s Home shows the workspace’s line');
+  h.set('finish', true);
+  await p.context().close();
+}, ['entry', 'one-action', 'a11y', 'logged']);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -7808,7 +7862,7 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
   await p.context().close();
 }, ['parity', 'entry']);
-journey('U176', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 8, async (h, device) => {
+journey('U177', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   const file = (name, rows) => csvFile(name, 'ID,Metric,Unit,Direction,Caveats,Action,Reason\n' + rows.join('\n') + '\n');
   await p.goto(url('/data/import'));
@@ -8084,10 +8138,14 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+    for (const [who, route, seeded] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new'],
+      // A workspace of its own with something to sort out, so the admin's workspace line on Home is drawn (the demo has nothing to sort out on any day; U176).
+      ['rosa', '/', 12]]) {
       await r.goto(url(route));
-      await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
+      if (seeded) await seedFieldWorkspace(r, seeded);
+      else await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
+      if (seeded && !(await r.locator('.home-sort-out').waitFor({ timeout: 8000 }).then(() => true, () => false))) problems.push(`${who} ${route}: the workspace’s line is not drawn`);
       // The example is built when the page opens (about 300 ms); measure once it has settled, not mid fade-in.
       await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});
       // Let entrance motion finish (the goal page's story runs up to 4s): a tile caught mid-fade isn't its real contrast.
@@ -8110,6 +8168,7 @@ async function platformChecks() {
     }
     // A status in a found row (Find, and every picker's rows, which share them) shows its shape at a real size, not 0 by 0.
     await r.goto(url('/'));
+    await r.evaluate(() => { localStorage.removeItem('goals-app-workspace'); localStorage.removeItem('goals-app-v2:workspaces'); });
     await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
     await r.reload();
     await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});

@@ -85,10 +85,14 @@ fs.writeFileSync(path.join(out, 'changes.csv'), f.changes.replace('saves-stop,1,
 const [w, out] = process.argv.slice(2);
 const near = fs.readdirSync(path.dirname(w));
 fs.writeFileSync(path.join(out, 'status.csv'), 'week,goal\\n');
-fs.writeFileSync('seen.json', JSON.stringify({ near, ws: JSON.parse(fs.readFileSync(w, 'utf8')).builtFor }));`);
+const seen = fs.existsSync('seen.json') ? JSON.parse(fs.readFileSync('seen.json', 'utf8')) : [];
+fs.writeFileSync('seen.json', JSON.stringify([...seen, { near, ws: JSON.parse(fs.readFileSync(w, 'utf8')).builtFor, out: path.basename(out) }]));`);
     const r = drill(rb, '--files', 'status', '--diffs', '0');
     expect(r.status).toBe(1);
-    expect(JSON.parse(fs.readFileSync(path.join(rb, 'seen.json'), 'utf8'))).toEqual({ near: ['change-cases.json', 'workspace.json'], ws: w.builtFor });
+    // Twice: on the demo, then on the edge-case workspace (item 11), each a copy on its own, each into its own folder.
+    const edge = JSON.parse(fs.readFileSync(path.join(root, 'spec/conformance/edge/workspace.json'), 'utf8')) as { builtFor: string };
+    expect(JSON.parse(fs.readFileSync(path.join(rb, 'seen.json'), 'utf8'))).toEqual([{ near: ['change-cases.json', 'workspace.json'], ws: w.builtFor, out: 'drill-out' }, { near: ['workspace.json'], ws: edge.builtFor, out: 'edge' }]);
+    expect(r.stdout).toMatch(/^edge\/status\.csv: /m);
     expect(r.stdout).toMatch(/no column .*“kind”/);
     fs.rmSync(rb, { recursive: true, force: true });
   }, 30_000);
