@@ -51,9 +51,11 @@ interface GoalCard {
   plan?: 'straight' | 'back-loaded' | 'stepped';
   /** Milestones: "Design@3; Pilot@7; Launch@12". */
   stages?: string;
-  /** Ranges: the limit, which side it must stay, and how close counts as a warning. */
+  /** Ranges: the limit (the upper one when between), which side it must stay, and how close counts as a warning. */
   limit?: string;
-  bound?: 'at most' | 'at least';
+  bound?: 'at most' | 'at least' | 'between';
+  /** Ranges kept between two limits: the lower one (deep dive, 15 Nov, as New goal offers). */
+  lower?: string;
   margin?: string;
 }
 interface GoalRow extends GoalCard { owner: string; /** The picked owner's email, which tells two people of one name apart (FS1 review). */ ownerEmail?: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
@@ -191,7 +193,19 @@ function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, 
   return ['Name\tEmail\tJob title\tTeam\tAdmin\tTeam objective', ...all.map((r) => [r.name, r.email, r.title, r.team, r.admin ? 'yes' : '', objectives[r.team] ?? ''].map(clean).join('\t'))].join('\n');
 }
 
-function goalsTsv(d: SetupDraft) {
+/** "15 Nov 2026": the day a set-up's Today figures were given, in their baseline's period. */
+const AS_AT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** A card's Limit cell: one number, or "lower to upper" for a range kept between two limits (the format's own words). */
+const limitCell = (g: GoalCard) => (g.bound === 'between' ? `${(g.lower ?? '').trim()} to ${(g.limit ?? '').trim()}` : g.limit ?? '');
+
+/**
+ * Set-up's goals as the one format's Goals sheet, read by the importer like any file (exported for its tests).
+ * Team is left empty: a goal takes its owner's team, the importer's one rule for every door (deep dive, 15 Nov). The
+ * Today figure is the plan's start and, for a number goal, its baseline "as at" the day of set-up, so it is the goal's
+ * number until its first check-in, as the forms promise (domain/baseline rule 2).
+ */
+export function goalsTsv(d: Pick<SetupDraft, 'template' | 'me' | 'people' | 'outcome' | 'goals'>, today: Date) {
   if (startOf(d.template) !== 'own') return '';
   const people = [d.me, ...d.people];
   // A goal with no owner chosen is made owned by whoever sets up (OB3); Home asks them to give it an owner.
@@ -199,12 +213,14 @@ function goalsTsv(d: SetupDraft) {
   // The email picked, when there is one: two people of one name are told apart by it (FS1 review).
   const person = (owner: string, email?: string) => (email ? people.find((p) => normalEmail(p.email) === normalEmail(email)) : undefined) ?? byName(owner);
   // The owner by email, as the format matches people, with their name beside it.
+  const asAt = `As at set-up, ${AS_AT.format(today)}`;
   const row = (g: GoalRow, headline: boolean) => [
-    g.title, person(g.owner, g.ownerEmail)?.team.trim() || d.me.team, person(g.owner, g.ownerEmail)?.email ?? '', g.owner.trim() || d.me.name.trim(), g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
-    g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '', g.kind === 'milestone' ? '' : g.definition ?? '',
+    g.title, '', person(g.owner, g.ownerEmail)?.email ?? '', g.owner.trim() || d.me.name.trim(), g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
+    g.plan ?? 'straight', g.kind === 'range' ? limitCell(g) : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '', g.kind === 'milestone' ? '' : g.definition ?? '',
+    g.kind === 'metric' && g.start.trim() ? asAt : '',
   ].map((v) => v.replace(/[\t\n]+/g, ' ')).join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
-  return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
+  return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition\tBaseline period', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
 /** When a workspace was last made here. Making it opens that workspace, which can draw this screen again at the step it was
@@ -249,7 +265,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const fromFile = start === 'file' && !!d.fileTables;
   // Worked out again only when what it reads changes, not on every render (#336 review: 1.3 s a render at 6,000 rows).
   const result = useMemo(
-    () => buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(fromFile ? { tables: d.fileTables!, answers: d.fileAnswers ?? {} } : {}), now: setup.today, idSuffix: suffix }),
+    () => buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d, setup.today), ...(fromFile ? { tables: d.fileTables!, answers: d.fileAnswers ?? {} } : {}), now: setup.today, idSuffix: suffix }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [d.name, d.startDate, d.reviewDay, d.me, d.people, d.objectives, d.template, d.outcome, d.goals, d.fileTables, d.fileAnswers, setup.today, suffix],
   );
@@ -306,11 +322,11 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // owner, team and level are the step's to fix (2.10), so only the card's own fields are said here.
   const goalErr = (g: GoalRow, headline = false) => {
     const fix = goalMustFix(cardDraft(g), { cycleWeeks: 53, week: 0, existing: null, door: 'setup', noun: headline ? 'outcome' : 'goal' });
-    const said = (f: 'title' | 'start' | 'target' | 'limit') => fix.find((x) => x.field === f)?.text ?? null;
-    return { title: said('title'), start: said('start'), target: said('target'), limit: said('limit') };
+    const said = (f: 'title' | 'start' | 'target' | 'limit' | 'lower') => fix.find((x) => x.field === f)?.text ?? null;
+    return { title: said('title'), start: said('start'), target: said('target'), limit: said('limit'), lower: said('lower') };
   };
   // A card's questions wait for their answers before Continue (2.10), as the form's do.
-  const clean = (e: ReturnType<typeof goalErr>, g?: GoalRow) => !e.title && !e.start && !e.target && !e.limit && !(g && unanswered(cardChecks(g), g.answers).length);
+  const clean = (e: ReturnType<typeof goalErr>, g?: GoalRow) => !e.title && !e.start && !e.target && !e.limit && !e.lower && !(g && unanswered(cardChecks(g), g.answers).length);
   const outcomeOk = clean(goalErr(d.outcome, true), d.outcome) && !goalIssue(2);
   const goalsOk = d.goals.every((g) => !g.title.trim() || clean(goalErr(g), g)) && !issues('Goals').length;
   const ok: Record<SetupStep, boolean> = {
@@ -721,7 +737,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
 /** A card as goal entry's draft: its type, unit and numbers (owner, team and level are the step's, 2.10). */
 function cardDraft(g: GoalRow): GoalDraft {
-  return { ...blankDraft('set-up', 'set-up', ''), title: g.title, kind: g.kind, unit: g.unit, start: g.start, target: g.target, limit: g.limit ?? '', margin: g.margin ?? '', ...(g.kind === 'milestone' ? { stages: [{ id: 's', name: 'x', dueWeek: '1' }] } : {}) };
+  return { ...blankDraft('set-up', 'set-up', ''), title: g.title, kind: g.kind, unit: g.unit, start: g.start, target: g.target, limit: g.limit ?? '', margin: g.margin ?? '', bound: g.bound === 'between' ? 'between' : g.bound === 'at least' ? 'atLeast' : 'atMost', lower: g.lower ?? '', ...(g.kind === 'milestone' ? { stages: [{ id: 's', name: 'x', dueWeek: '1' }] } : {}) };
 }
 /** The number questions a card asks (2.10): below zero, over 100%, a hundredfold, a billion, a margin as wide as the limit. */
 const CARD_CHECKS = ['below-zero', 'over-100', 'hundredfold', 'billion', 'margin-wide'];
@@ -731,10 +747,10 @@ function cardChecks(g: GoalRow): GoalCheck[] {
   return goalChecks(d, { week: 0, cycleWeeks: 53, existing: null, door: 'setup', mustFix }).filter((c) => CARD_CHECKS.includes(c.id));
 }
 
-function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, startDate, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number; startDate: string }) {
+function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, startDate, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null; lower?: string | null }; headline?: boolean; week?: number; weeks?: number; startDate: string }) {
   const titleIssue = errors?.title;
   const say = (text: string | null | undefined) => (text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
-  const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit);
+  const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit || errors.lower);
   const name = (headline ? 'Outcome' : g.title || 'Goal');
   // The number questions (goal entry, rule 3; 2.10), under the card's numbers, answered once for the values they're about.
   const answers = g.answers ?? {};
@@ -766,9 +782,11 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
       ) : g.kind === 'range' ? (
         <div className="trio">
           <label className="field"><span className="field-label">Must stay</span>
-            <select className="input" value={g.bound ?? 'at most'} onChange={(e) => onChange({ bound: e.target.value as 'at most' | 'at least' })} aria-label={(g.title || 'Goal') + ': must stay'}><option value="at most">At most</option><option value="at least">At least</option></select>
+            <select className="input" value={g.bound ?? 'at most'} onChange={(e) => onChange({ bound: e.target.value as 'at most' | 'at least' | 'between' })} aria-label={(g.title || 'Goal') + ': must stay'}><option value="at most">At most</option><option value="at least">At least</option><option value="between">Between</option></select>
           </label>
-          <label className="field"><span className="field-label">Limit</span><input className={'input' + (errors?.limit ? ' invalid' : '')} aria-invalid={!!errors?.limit || undefined} inputMode="decimal" value={g.limit ?? ''} onChange={(e) => onChange({ limit: e.target.value })} aria-label={(g.title || 'Goal') + ': limit'} />{say(errors?.limit)}</label>
+          {/* Kept between two limits, as New goal offers (deep dive, 15 Nov): the lower one first. */}
+          {g.bound === 'between' && <label className="field"><span className="field-label">Lower limit</span><input className={'input' + (errors?.lower ? ' invalid' : '')} aria-invalid={!!errors?.lower || undefined} inputMode="decimal" value={g.lower ?? ''} onChange={(e) => onChange({ lower: e.target.value })} aria-label={(g.title || 'Goal') + ': lower limit'} />{say(errors?.lower)}</label>}
+          <label className="field"><span className="field-label">{g.bound === 'between' ? 'Upper limit' : 'Limit'}</span><input className={'input' + (errors?.limit ? ' invalid' : '')} aria-invalid={!!errors?.limit || undefined} inputMode="decimal" value={g.limit ?? ''} onChange={(e) => onChange({ limit: e.target.value })} aria-label={(g.title || 'Goal') + (g.bound === 'between' ? ': upper limit' : ': limit')} />{say(errors?.limit)}</label>
           <label className="field"><span className="field-label">Warn within</span><input className="input" inputMode="decimal" value={g.margin ?? ''} onChange={(e) => onChange({ margin: e.target.value })} placeholder="1" aria-label={(g.title || 'Goal') + ': warn within'} /></label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, ms" aria-label={(g.title || 'Goal') + ': unit'} /></label>
         </div>
