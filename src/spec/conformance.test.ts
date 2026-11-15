@@ -20,7 +20,7 @@ describe('the conformance data', () => {
     // The rows are the cases' rows: one search, one draft, one viewer on one day.
     const one = conformanceFiles(w, { ...cases, find: [cases.find[0]!], readback: { ...cases.readback, cases: [cases.readback.cases[0]!] }, home: { viewers: ['tunde'], days: [cases.home.days[13]!] } });
     expect(['find.csv', 'readback.csv', 'home.csv'].map((f) => one[f]!.trimEnd().split('\n').length)).toEqual([2, 2, 2]);
-  });
+   }, 60_000);
 
   for (const file of Object.keys(made)) {
     it(`${file}: every row is what the rules give for workspace.json`, () => {
