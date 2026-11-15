@@ -23,6 +23,16 @@ type ColId = 'goal' | 'owner' | 'status' | 'now' | 'target' | 'gap' | 'trend';
  * toolbar and Sort in Filters are one setting, which orders every layout). Now, Target and Trend mix units, so they
  * have no order of their own.
  */
+/**
+ * A target in the Target column: a range kept between two limits ("1,200 ms–1,500 ms") may break after its dash, each
+ * limit whole, so it never runs into Gap beside it (deep dive, 15 Nov). Exported for its test.
+ */
+export function TargetWords({ text }: { text: string }) {
+  const at = text.indexOf('–');
+  if (at < 0) return <>{text}</>;
+  return <><span className="nb">{text.slice(0, at + 1)}</span><wbr /><span className="nb">{text.slice(at + 1)}</span></>;
+}
+
 const COLS: [ColId, SortKey | null, string, string][] = [
   ['goal', 'title', 'Goal', ''], ['owner', 'owner', 'Owner', 'col-opt'], ['status', 'worst', 'Status', ''], ['now', null, 'Now', 'num'], ['target', null, 'Target', 'num col-opt'], ['gap', 'gap', 'Gap', 'col-opt'], ['trend', null, 'Trend', 'col-opt'],
 ];
@@ -99,7 +109,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                       {show.has('owner') && <td className="col-opt">{s.owner}</td>}
                       <td><Chip k={s.status} />{!rhythmOf(app.cycle) && s.asOfWeek != null && s.status !== 'done' && <span className="hint gt-asof"> as of week {s.asOfWeek}</span>}<ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? <Keep text={`Last: week ${s.lastWeek}`} /> : app.week > 0 ? LABEL.none : ''}</span></td>
                       <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan"><Keep text={`plan ${s.planThen}`} /></span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
-                      {show.has('target') && <td className="num col-opt">{s.target}</td>}
+                      {show.has('target') && <td className="num col-opt gt-target"><TargetWords text={s.target} /></td>}
                       {show.has('gap') && <td className={'col-opt gt-gap tone-' + s.gapTone + ' small'} title={s.gap}>{s.gap !== s.now ? s.gap : ''}</td>}
                       {show.has('trend') && <td className="col-opt"><Trend s={s} /></td>}
                     </tr>

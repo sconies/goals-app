@@ -57,7 +57,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
-import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../app/appearance';
+import { effectOn, landedMoment, storyOn, storyPace } from '../app/appearance';
 import { copyGoalLink, shareGoalImage } from './goalShare';
 import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
@@ -91,14 +91,8 @@ export function GoalScreen() {
 /** Where the page's two columns start: as the shared side-column layout does (styles.css, `.split`). */
 const WIDE = 960;
 
-/** Five quick taps on a goal's status open the Motion lab (an Easter egg). */
-const taps: number[] = [];
-function secretTap() {
-  const now = Date.now();
-  taps.push(now);
-  while (taps.length && now - taps[0]! > 2000) taps.shift();
-  if (taps.length >= 5) { taps.length = 0; openMotionLab(); }
-}
+/* The status is a shape plus a word, and only that: it once hid an Easter egg (five quick taps opened the Motion lab),
+   so it took clicks and did nothing, a dead control (deep dive, 15 Nov). The lab is in Settings and the Konami code. */
 
 function GoalView({ goal }: { goal: Goal }) {
   const app = useApp();
@@ -369,7 +363,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
         {/* A fact a module adds, such as what measures it (the goal.facts place). */}
         <Place name="goal.facts" goal={goal} />
         <div className="bar-2">
-          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
+          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} />}
           <span className="bar-dot" aria-hidden="true">·</span>
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}

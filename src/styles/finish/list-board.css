@@ -276,3 +276,7 @@
 .board-handled .muted { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
 /* On the Map, room under the count line keeps the map's controls clear of the tour card (F6, Map 5 at 853×533). */
 .goals-page.full .goals-line { margin-bottom: var(--s4); }
+
+/* A range kept between two limits wraps after its dash, each limit whole, so Target never runs into Gap (deep dive, 15 Nov). */
+.gtable td.num.gt-target { white-space: normal; }
+.gtable td.gt-target .nb { white-space: nowrap; }

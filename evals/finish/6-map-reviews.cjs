@@ -26,6 +26,9 @@ module.exports = {
       await p.waitForTimeout(300);
       const after = await ids();
       fail(before.length > 0 && after.length === before.length, `Map: Delete/Backspace on a goal took the map from ${before.length} goals to ${after.length}`);
+      // Deep dive, 15 Nov, item 5: nor does the map tell a screen reader that Delete removes a goal.
+      const said = await p.evaluate(() => document.querySelector('.react-flow')?.textContent || '');
+      fail(!/press delete|delete to remove/i.test(said), 'Map: it still tells a screen reader “Press delete to remove it”');
       await c.close();
     }
 
