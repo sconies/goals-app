@@ -1359,6 +1359,36 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
 - How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.
 - All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure.
 
+### Draft, Defined and Verified metrics
+
+`metric-quality`, from the metrics module. How far a metric can be trusted: whether its definition is complete, and whether someone other than its owner has reproduced its figure.
+
+Routes: `/metrics`, `/metrics/:metricId`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
+
+#### The three stages
+
+- Draft: the definition is still missing something. A Draft metric can still measure a goal; the goal shows a warning until it is finished.
+- Defined: all ten parts are said: what it means, what is measured and how it is aggregated with its parts, the filters and what it leaves out, the unit, which way is better, the window, the source with a link to the report, who owns the source, how often it refreshes, and its owner. It becomes Defined by itself; there is no button.
+- Verified: someone other than its owner reproduced its figure from the source link in the last 12 months. Thirty days before the year is up it appears under To verify.
+
+#### Verifying a metric
+
+- An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.
+- Open the source link, then give the period, the figure you got from it and a note. Faro shows the difference from the figure it has for that period, without judging it.
+- If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.
+
+#### What takes Verified away
+
+- Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. The reason you give is kept.
+- Rewording a filter or an exclusion asks the last verifier to confirm instead. Baselines, the owner and caveats change nothing.
+- A new source marks the baselines taken from the old one, so you can retake them, and the charts of its goals show the week the source changed.
+
+#### Baselines per slice
+
+- A baseline belongs to the whole company or to a team (and optionally one part). Give its value, the period it covers, the day you took it and how.
+- A new baseline moves the old one to History. A new figure for the same period, or one you changed from the figure read, needs a reason.
+- Through the AI assistant: save_baselines sets them, verify_metric verifies, and list_metrics finds metrics by stage or waiting To verify.
+
 ### Metrics in a spreadsheet
 
 `metric-sheet`, from the metrics module. Export the Metrics sheet, change or add rows, and load it back through the same preview, questions and Undo as any import.

@@ -37,7 +37,33 @@ export const metricToRow = (ws: string, m: Metric): DbRow => ({
   retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null, marks: m.marks ?? [],
   // MQ (migration 0055): always written, null when not said, so a mixed batch never leaves a key out.
   level: m.level ?? null, parent_id: m.parentId ?? null, confidence: m.confidence ?? null, gaming: m.gaming || null,
+  // MQ2 (migration 0056): always written, null when not said, so a mixed batch never leaves a key out.
+  calculation: m.calculation ?? null, time_window: m.timeWindow ?? null, source_link: m.sourceLink || null, source_query: m.sourceQuery || null,
+  source_owner_id: m.sourceOwnerId ?? null, refresh_note: m.refreshNote || null, calc_changed_by: m.calcChangedBy ?? null, calc_changed_at: m.calcChangedAt ?? null,
+  baselines: m.baselines?.length ? m.baselines : null, verification: m.verification ?? null, verify_attempts: m.verifyAttempts?.length ? m.verifyAttempts : null,
+  lapse: m.lapse ?? null, verifiers: m.verifiers?.length ? m.verifiers : null, handover: m.handover ?? null, to_confirm: m.toConfirm ?? null,
 });
+const obj = <T,>(v: unknown): T | undefined => (v && typeof v === 'object' && !Array.isArray(v) ? (v as T) : undefined);
+const list = <T,>(v: unknown): T[] | undefined => (Array.isArray(v) && v.length ? (v as T[]) : undefined);
+/** MQ2's fields, each only when said, so a metric that never had them reads exactly as before. */
+const quality = (r: DbRow): Partial<Metric> => {
+  const q: Partial<Metric> = {};
+  const c = obj<Metric['calculation']>(r.calculation); if (c) q.calculation = c;
+  const w = obj<NonNullable<Metric['timeWindow']>>(r.time_window); if (w) q.timeWindow = w;
+  if (r.source_link) q.sourceLink = String(r.source_link);
+  if (r.source_query) q.sourceQuery = String(r.source_query);
+  if (r.source_owner_id) q.sourceOwnerId = String(r.source_owner_id);
+  if (r.refresh_note) q.refreshNote = String(r.refresh_note);
+  if (r.calc_changed_by) { q.calcChangedBy = String(r.calc_changed_by); q.calcChangedAt = r.calc_changed_at ? iso(r.calc_changed_at) : null; }
+  const b = list<NonNullable<Metric['baselines']>[number]>(r.baselines); if (b) q.baselines = b;
+  const v = obj<NonNullable<Metric['verification']>>(r.verification); if (v) q.verification = v;
+  const a = list<NonNullable<Metric['verifyAttempts']>[number]>(r.verify_attempts); if (a) q.verifyAttempts = a;
+  const l = obj<NonNullable<Metric['lapse']>>(r.lapse); if (l) q.lapse = l;
+  const vs = list<string>(r.verifiers); if (vs) q.verifiers = vs.map(String);
+  const h = obj<NonNullable<Metric['handover']>>(r.handover); if (h) q.handover = h;
+  const tc = obj<NonNullable<Metric['toConfirm']>>(r.to_confirm); if (tc) q.toConfirm = tc;
+  return q;
+};
 export const metricFromRow = (r: DbRow): Metric => ({
   id: r.id, name: String(r.name), meaning: String(r.meaning ?? ''), unit: String(r.unit), decimals: Number(r.decimals ?? 0), direction: r.direction as Metric['direction'],
   source: String(r.source ?? ''), sourceOwner: String(r.source_owner ?? ''), refresh: (r.refresh ?? null) as Metric['refresh'], ownerId: String(r.owner_id), caveats: String(r.caveats ?? ''),
@@ -46,6 +72,7 @@ export const metricFromRow = (r: DbRow): Metric => ({
   ...(Array.isArray(r.marks) && r.marks.length ? { marks: r.marks as Metric['marks'] } : {}),
   ...(r.measurement === 'partly' || r.measurement === 'gap' ? { measurement: r.measurement, measurementNote: String(r.measurement_note ?? '') } : {}),
   ...structured(LEVELS.includes(r.level as MetricLevel) ? (r.level as MetricLevel) : null, r.parent_id ? String(r.parent_id) : null, CONFIDENCES.includes(r.confidence as MetricConfidence) ? (r.confidence as MetricConfidence) : null, r.gaming ? String(r.gaming) : null),
+  ...quality(r),
 });
 export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, part: String(l.part ?? '').trim(), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
 export const metricLinkFromRow = (r: DbRow): MetricLink => ({

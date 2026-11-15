@@ -20,6 +20,8 @@ import { LABEL } from '../../domain/vocabulary';
 import type { DisplayStatus } from '../../domain/types';
 import type { Metric, MetricDirection, MetricMeasurement, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
+import QUALITY_TOOLS, { QUALITY_FIELDS, qualityActs, qualityData, qualityInput, qualityLines, stageMove } from './toolsQuality';
+import { STAGES, type MetricStage } from './rulesQuality';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
 import { addCheckInReader } from '../../mcp/checkInReaders';
@@ -86,6 +88,8 @@ function metricData(ctx: McpContext, m: Metric) {
     confidence: m.confidence ?? null, gaming: m.gaming ?? '',
     retired: m.retiredAt ? { at: m.retiredAt, by: name(ctx, m.retiredBy ?? ''), why: m.retiredWhy ?? '', replacedBy: m.replacedBy ?? null } : null,
     marks: (m.marks ?? []).map((k) => ({ week: k.week, at: k.at, kind: k.kind, why: k.why, was: k.was, now: k.now, by: name(ctx, k.by) })),
+    // MQ2: the stage and why, the structured definition, baselines per slice with History, the verification record.
+    ...qualityData(ctx, m),
     measures: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
       const me = M.measureOf(ctx.snapshot, g)!;
       return { goalId: g.id, key: g.key ?? null, goal: g.title, owner: name(ctx, g.ownerId), slice: me.slice, target: me.target, targetText: me.targetText };
@@ -116,7 +120,7 @@ const tools: ToolDef[] = [
   {
     name: 'list_metrics',
     title: 'List the metric library',
-    description: 'The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.',
+    description: 'The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its stage (Draft, Defined or Verified) and what a Draft still needs, its refresh and window, its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       search: str('Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source.'),
       unit: str('Only metrics in this unit (any case).'),
@@ -125,7 +129,9 @@ const tools: ToolDef[] = [
       direction: str('Only metrics where this way is better.', { enum: ['higher', 'lower'] }),
       unused: { type: 'boolean', description: 'Only metrics no live goal uses.' },
       retired: { type: 'boolean', description: 'Retired metrics only (left out otherwise).' },
-      sort_out: { type: 'boolean', description: 'Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days.' },
+      sort_out: { type: 'boolean', description: 'Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days; and (metric quality) a Draft’s missing part, a Gap, baselines from an old source, an unanswered “Couldn’t reproduce”, a new owner to confirm. Each row says why.' },
+      stage: str('Only metrics at this stage.', { enum: [...STAGES] }),
+      to_verify: { type: 'boolean', description: 'Only metrics waiting to be verified: Defined (never verified, or lapsed), or Verified within 30 days of its 12 months.' },
       sort: str('A to Z (name, the default), most goals first (goals), or the latest change first (changed).', { enum: ['name', 'goals', 'changed'] }),
       page: { type: 'integer', minimum: 1, description: 'Which page of 50.' },
     } },
@@ -135,14 +141,22 @@ const tools: ToolDef[] = [
         const team = a.team == null || a.team === '' ? undefined : /^(the )?(whole )?company$/i.test(String(a.team).trim()) ? 'company' : sliceOf(ctx, a.team) ?? undefined;
         const ask: L.LibraryAsk = {
           q: String(a.search ?? ''), unit: a.unit ? String(a.unit) : undefined, teamId: team, ownerId: a.owner ? personOf(ctx, a.owner) : undefined,
-          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: a.sort_out === true, retired: a.retired === true,
+          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: false, retired: a.retired === true,
+          ...(STAGES.includes(a.stage as MetricStage) ? { stage: a.stage as MetricStage } : {}), ...(a.to_verify === true ? { toVerify: true } : {}), size: 100_000,
           sort: a.sort === 'goals' || a.sort === 'changed' ? a.sort : 'name', page: typeof a.page === 'number' ? a.page : 1,
         };
-        const found = L.findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
+        // sort_out reads the library's needs (rule 3) and MQ2's loose ends together, then pages as the list does.
+        const all = L.findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
+        const q = new Map(all.rows.map((r) => [r.metric.id, qualityData(ctx, r.metric)]));
+        const kept = a.sort_out === true ? all.rows.filter((r) => r.needs.length || q.get(r.metric.id)!.sortOut.length) : all.rows;
+        const pageN = Math.min(Math.max(1, typeof a.page === 'number' ? Math.floor(a.page) : 1), Math.max(1, Math.ceil(kept.length / L.LIBRARY_PAGE)));
+        const found = { total: kept.length, page: pageN, pages: Math.max(1, Math.ceil(kept.length / L.LIBRARY_PAGE)), rows: kept.slice((pageN - 1) * L.LIBRARY_PAGE, pageN * L.LIBRARY_PAGE) };
         const statusOf = (id: string) => { const g = ctx.snapshot.goals.find((x) => x.id === id); return g ? goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status : null; };
         const rows = found.rows.map(({ metric: m, owner, goalIds, needs }) => {
           const byStatus = L.goalsByStatus(goalIds.map(statusOf).filter((s): s is DisplayStatus => !!s));
-          return { id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner, goals: goalIds.length, goalsByStatus: byStatus.map((c) => ({ status: c.status, count: c.n, label: LABEL[c.status] })), needs: M.canEditMetric(ctx.actor, m) ? needs.map((x) => ({ id: x.id, sentence: x.sentence })) : [] };
+          return { id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner, goals: goalIds.length, goalsByStatus: byStatus.map((c) => ({ status: c.status, count: c.n, label: LABEL[c.status] })), needs: M.canEditMetric(ctx.actor, m) ? needs.map((x) => ({ id: x.id, sentence: x.sentence })) : [],
+            stage: q.get(m.id)!.stage, stageLabel: q.get(m.id)!.stageLabel, missing: q.get(m.id)!.missingLine, refresh: m.refresh, refreshWords: q.get(m.id)!.refreshWords, window: q.get(m.id)!.windowWords, calculation: q.get(m.id)!.calculationWords,
+            toVerify: q.get(m.id)!.toVerify, ...(q.get(m.id)!.lapsed ? { lapsed: q.get(m.id)!.lapsed } : {}), sortOut: q.get(m.id)!.sortOut };
         });
         return listed({ total: found.total, page: found.page, pages: found.pages, metrics: rows });
       });
@@ -188,7 +202,8 @@ const tools: ToolDef[] = [
         // History (spec 2.4): the change log's entries for this metric, newest first, 20.
         const history = ctx.snapshot.changes.filter((c) => c.entity === 'metric' && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({ at: c.at, by: name(ctx, c.actorId), action: c.action, summary: c.summary }));
         if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? '—'}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${M.metricsOf(ctx.snapshot).find((x) => x.id === d.retired!.replacedBy)?.name ?? d.retired.replacedBy}.` : ''}`);
-        if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === 'direction' ? 'direction' : 'definition'} changed in week ${k.week}: ${k.why}`).join('; ')}`);
+        lines.splice(2, 0, ...qualityLines(d));
+        if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind} changed in week ${k.week}: ${k.why}`).join('; ')}`);
         return { data: { ...d, stillToSay, goals, differentNumbers: different, parts, proposed, summary, needs, history }, text: lines.join('\n') };
       });
     },
@@ -196,8 +211,8 @@ const tools: ToolDef[] = [
   {
     name: 'save_metric',
     title: 'Add or change a metric',
-    description: 'Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Kept for older callers; the questions below replace it.' }, comparable: { type: 'boolean', description: 'When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason).' }, reason: { type: 'string', description: 'Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this.' }, relabel: { type: 'boolean', description: 'When the unit of a metric goals use changes: true if the new unit is only a new label for the same numbers (its goals’ unit changes too). A different scale is refused: add a new metric instead.' }, answers: { type: 'object', additionalProperties: false, description: 'The person’s answers to the checks a previous call returned.', properties: { name: str('“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave.'), unit: str('“keep” the unit as typed, or “use” the one in use.', { enum: ['keep', 'use'] }), meaning: str('“as-written”: the meaning is right as written.', { enum: ['as-written'] }) } } } },
+    description: 'Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score. Metric quality: it takes the structured definition (calculation, window, source_link…) and returns the stage before and after (Draft → Defined happens by itself once the ten parts are said) and what is still needed. A change that would take a Verified metric back to Defined (its calculation, window, source or direction) returns a `lapse` check; adding a metric like one in the library returns a `similar` check (“use:<id>” or “carry-on”). confirm_owner and answer_attempt act on their own.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Kept for older callers; the questions below replace it.' }, comparable: { type: 'boolean', description: 'When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason).' }, reason: { type: 'string', description: 'Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this.' }, relabel: { type: 'boolean', description: 'When the unit of a metric goals use changes: true if the new unit is only a new label for the same numbers (its goals’ unit changes too). A different scale is refused: add a new metric instead.' }, answers: { type: 'object', additionalProperties: false, description: 'The person’s answers to the checks a previous call returned.', properties: { name: str('“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave.'), unit: str('“keep” the unit as typed, or “use” the one in use.', { enum: ['keep', 'use'] }), meaning: str('“as-written”: the meaning is right as written.', { enum: ['as-written'] }), similar: str('“use:<id>” to use that similar metric instead (nothing is saved), or “carry-on”: it’s different.'), lapse: str('“go”: change it, and it goes back to Defined until verified again.', { enum: ['go'] }) } }, ...QUALITY_FIELDS } },
     annotations: WRITE,
     async run(a, ctx) {
       return ruled(async () => {
@@ -223,9 +238,14 @@ const tools: ToolDef[] = [
           ...(typeof a.comparable === 'boolean' ? { comparable: a.comparable } : {}),
           ...(typeof a.reason === 'string' ? { reason: a.reason } : {}),
           ...(a.relabel === true ? { relabel: true } : {}),
+          ...qualityInput(ctx, a),
         };
+        // MQ2: confirming a handover or answering a failed verification, on their own.
+        const acted = await qualityActs(ctx, a);
+        if (acted) return acted;
         // Rule 1's questions first, after the rights: a Check left unanswered saves nothing and returns the questions.
         const answers = answersFrom(a.answers);
+        if (answers.similar?.startsWith('use:')) { const use = metricOf(ctx, answers.similar.slice(4)); return { data: { saved: false, use: use.id }, text: `Nothing saved: use ${use.name} (${use.id}) instead.` }; }
         if (answers.name?.startsWith('use:')) { const use = metricOf(ctx, answers.name.slice(4)); return { data: { saved: false, use: use.id }, text: `Nothing saved: use ${use.name} (${use.id}) instead.` }; }
         const { open } = openChecks(ax(ctx), { ...input, answers });
         if (open.length) {
@@ -241,7 +261,8 @@ const tools: ToolDef[] = [
         // Fewer decimal places: the goals that show more keep theirs, as the form's read-back says (#351 review).
         const more = was && metric.decimals < was.decimals ? linkedGoals(x.full ?? x.snapshot, metric.id).filter((g) => g.decimals > metric.decimals) : [];
         const places = more.length ? ` ${more.length === 1 ? '1 goal shows' : `${more.length} goals show`} more decimal places than ${metric.name} now does: ${more.map((g) => g.title).join(', ')}. They keep theirs until their owners change them.` : '';
-        return { data: { saved: true, id: metric.id, changes: commit.changes[0]!.diffs, stillToSay: still, ...(more.length ? { moreDecimals: more.map((g) => g.id) } : {}) }, text: `${commit.changes[0]!.summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}${places}` };
+        const moved = stageMove(ctx, was, metric);
+        return { data: { saved: true, id: metric.id, changes: commit.changes[0]!.diffs, stillToSay: still, stageBefore: moved.stageBefore, stageAfter: moved.stageAfter, missing: moved.missing, ...(more.length ? { moreDecimals: more.map((g) => g.id) } : {}) }, text: `${commit.changes[0]!.summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still} Stage: ${moved.line}${places}` };
       });
     },
   },
@@ -344,4 +365,4 @@ const tools: ToolDef[] = [
   },
 ];
 
-export default tools;
+export default [...tools, ...QUALITY_TOOLS];

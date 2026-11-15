@@ -7,6 +7,7 @@
      /metrics/new           add a metric (focus mode)
      /metrics/<id>/edit     change a metric (focus mode)
    What is listed and in what order, a metric's goals and what it needs come from rulesLibrary.ts (rules 1 to 3). */
+import './qualityHooks';
 import { MeasureMark } from './measureMark';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
@@ -663,7 +664,7 @@ export function MetricForm() {
   const err = (re: RegExp, k?: string) => about(re, k).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>);
   // Rule 1's questions (rulesDefine.ts): a close name, a unit spelt another way, a share that doesn't say out of what.
   const checks = metricChecks({ id: live?.id ?? '', name: d.name, unit: d.unit, meaning: d.meaning }, live, checkReads(app.snapshot));
-  const valueOf = (f: CheckField) => d[f].trim();
+  const valueOf = (f: CheckField) => (f === 'similar' ? `${d.name}|${d.source}|${d.meaning}` : f === 'lapse' ? '' : d[f]).trim();
   const open = checks.filter((c) => !(answered[c.field] && answered[c.field]!.at === valueOf(c.field)));
   const shownChecks = open.filter((c) => shows(c.field));
   const shownFixes = problems.filter((p) => tried || FIELD_ORDER.some(([k, re]) => left.has(k) && re.test(p)));

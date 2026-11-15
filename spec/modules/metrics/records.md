@@ -67,7 +67,142 @@ A metric in the library (backlog 0b): one definition of a number, shared by ever
 | `retiredBy` | `Id \| null` | no |  |
 | `retiredWhy` | `string` | no |  |
 | `replacedBy` | `Id \| null` | no | The metric its goals' owners are offered in its place (same unit), when the person retiring it named one. |
-| `marks` | `MetricMark[]` | no | Changes of meaning or direction its goals show on their chart and History (rule 4), oldest first. |
+| `marks` | `MetricMark[]` | no | Changes of meaning, direction or source its goals show on their chart and History (rule 4), oldest first. |
+| `calculation` | `MetricCalc \| null` | no | ---- Metric quality (MQ2; rulesQuality.ts). Each absent until said; the stage is worked out from them, never stored. ---- What is measured and how it is aggregated, with a ratio's numerator and denominator. |
+| `timeWindow` | `MetricWindow \| null` | no | The window the number is taken over. |
+| `sourceLink` | `string` | no | A link to the exact report or query; without one a metric is not Defined. |
+| `sourceQuery` | `string` | no | The query text, optional. |
+| `sourceOwnerId` | `string \| null` | no | The team or person (id) who owns the source, when it is one of the workspace's; their people may verify it. |
+| `refreshNote` | `string` | no | When in the period it refreshes ("Mondays"). |
+| `calcChangedBy` | `Id \| null` | no | Who last changed its calculation, window or source, and when: they may not verify it. |
+| `calcChangedAt` | `string \| null` | no |  |
+| `baselines` | `MetricBaseline[]` | no | Baselines per slice, old ones kept with why they were replaced (History). |
+| `verification` | `MetricVerification \| null` | no | The standing verification; absent or null when it isn't (or is no longer) verified. |
+| `verifyAttempts` | `MetricVerification[]` | no | "Couldn't reproduce" attempts, oldest first (at most 20 kept). |
+| `lapse` | `MetricLapse \| null` | no | Why it is no longer Verified, when a change lapsed it. Cleared by the next verification. |
+| `verifiers` | `Id[]` | no | People an admin named to verify it. |
+| `handover` | `MetricHandover \| null` | no | Passed to a new owner who hasn't confirmed yet (their old owner left). |
+| `toConfirm` | `MetricToConfirm \| null` | no | A reworded filter or exclusion the last verifier is asked to confirm. |
+
+## MetricMeasure
+
+What is measured (MQ2): a count, sum, value, duration, ratio, or other (a formula in words).
+
+```ts
+type MetricMeasure = 'count' | 'sum' | 'value' | 'duration' | 'ratio' | 'other'
+```
+
+## MetricAggregate
+
+How it is aggregated over the window. `percentile` takes `percentile` (1 to 99).
+
+```ts
+type MetricAggregate = 'total' | 'mean' | 'median' | 'percentile' | 'latest'
+```
+
+## MetricPart
+
+One counted thing: what it counts, its filters and what it leaves out. A ratio has two (numerator, denominator).
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `name` | `string` | no |  |
+| `counts` | `string` | yes |  |
+| `filters` | `string` | yes |  |
+| `excludes` | `string` | yes |  |
+
+## MetricCalc
+
+The calculation (MQ2): two fields plus the parts. A ratio has a numerator and a denominator; other has a formula.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `measure` | `MetricMeasure` | yes |  |
+| `aggregate` | `MetricAggregate \| null` | yes |  |
+| `percentile` | `number` | no | For a percentile: 50, 90, 95, 99… |
+| `per` | `string` | no | For a mean of a count: per what ("day"). |
+| `part` | `MetricPart` | no | What it counts, its filters and what it leaves out (every measure but ratio and other). |
+| `numerator` | `MetricPart` | no |  |
+| `denominator` | `MetricPart` | no |  |
+| `formula` | `string` | no | For other or composite: the formula in words. |
+
+## MetricWindow
+
+The window (MQ2): a point in time, rolling N days, per period, or cumulative since a date.
+
+```ts
+type MetricWindow = | { kind: 'point' } | { kind: 'rolling'; days: number } | { kind: 'period'; period: 'week' | 'month' | 'quarter' } | { kind: 'cumulative'; since: string }
+```
+
+## MetricBaseline
+
+A baseline for a slice (MQ2; one baseline concept with BL): the figure, the period it covers, when and how taken.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | `Id` | yes |  |
+| `teamId` | `Id \| null` | yes | The slice: a team, or the whole company (null), and an optional part (MT2). |
+| `part` | `string` | no |  |
+| `value` | `number` | yes |  |
+| `period` | `string` | yes | The period it covers, in words ("Jul–Sep 2026"). |
+| `takenOn` | `string` | yes | The day it was taken (yyyy-mm-dd), and how. |
+| `how` | `string` | yes |  |
+| `by` | `Id` | yes |  |
+| `at` | `string` | yes |  |
+| `oldSource` | `boolean` | no | Taken from a source the metric no longer uses: to retake. |
+| `replacedAt` | `string \| null` | no | Replaced (in History): when, by whom and why. |
+| `replacedBy` | `Id \| null` | no |  |
+| `replacedWhy` | `string` | no |  |
+
+## MetricVerification
+
+A verification or a "Couldn't reproduce" attempt (MQ2): who, when, the period, the figure they got from the link and the figure Faro had for it (null when it had none), and their note.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `outcome` | `'verified' \| 'couldnt_reproduce'` | yes |  |
+| `by` | `Id` | yes |  |
+| `at` | `string` | yes |  |
+| `period` | `string` | yes |  |
+| `figure` | `number` | yes |  |
+| `stored` | `number \| null` | yes |  |
+| `storedFrom` | `'baseline' \| 'reading' \| null` | yes | Where the stored figure came from: a baseline, the latest reading, or nothing. |
+| `note` | `string` | yes |  |
+| `answered` | `{ by: Id; at: string; note: string } \| null` | no | For a "Couldn't reproduce": answered (the definition was edited, or the owner replied). |
+
+## MetricLapse
+
+Why a metric lapsed from Verified (MQ2): what changed, who, when, their reason, and the verification it replaced.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `at` | `string` | yes |  |
+| `by` | `Id \| null` | yes |  |
+| `kind` | `'change' \| 'age'` | yes | 'change' (a calculation part, the window, the source link or the direction changed) or 'age' (12 months). |
+| `what` | `string[]` | yes |  |
+| `why` | `string` | yes |  |
+| `was` | `{ by: Id; at: string }` | yes |  |
+
+## MetricHandover
+
+A metric passed to a new owner (MQ2): from whom, when and why; cleared when the new owner confirms.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `from` | `Id` | yes |  |
+| `at` | `string` | yes |  |
+| `why` | `string` | yes |  |
+
+## MetricToConfirm
+
+A rewording the last verifier is asked to confirm (MQ2): what was reworded, by whom and when.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `verifier` | `Id` | yes |  |
+| `by` | `Id` | yes |  |
+| `at` | `string` | yes |  |
+| `what` | `string[]` | yes |  |
 
 ## MetricMark
 
@@ -78,7 +213,7 @@ A change to a metric its goals must show (MT3 rule 4): what it meant, or which w
 | `week` | `number` | yes | The cycle week it was made in, and when. |
 | `at` | `string` | yes |  |
 | `by` | `Id` | yes |  |
-| `kind` | `'definition' \| 'direction'` | yes |  |
+| `kind` | `'definition' \| 'direction' \| 'source'` | yes |  |
 | `why` | `string` | yes |  |
 | `was` | `string` | yes | The two texts (meaning) or directions, before and after. |
 | `now` | `string` | yes |  |

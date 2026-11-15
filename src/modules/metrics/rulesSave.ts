@@ -1,9 +1,11 @@
 /* Saving a metric through any door (the form, a goal's Measured by, save_metric): rule 1's Checks are asked before
    anything is saved, so no door can skip them (#281's build review). Loads with the first save, not the first download. */
+import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { checkReads } from './checkReads';
-import { canEditMetric, live, metricFrom, metricProblems, no, saveMetric, type Metric, type MetricInput } from './rules';
+import { canEditMetric, live, metricFrom, metricProblems, no, saveMetric, standsVerified, type Metric, type MetricInput } from './rules';
+import { qualityChanges } from './rulesQuality';
 import { saveMetricChange } from './rulesChange';
 import { metricChecks, unansweredChecks, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 
@@ -26,12 +28,21 @@ export function openChecks(x: ActionContext, input: SaveMetricInput): { input: S
   }
   const typed = metricFrom(next, before, x);
   if (metricProblems(typed, x.snapshot).length) return { input: next, open: [] };
-  return { input: next, open: unansweredChecks(metricChecks(typed, before, r), answers) };
+  return { input: next, open: unansweredChecks([...metricChecks(typed, before, r), ...lapseChecks(x, before, typed)], answers) };
+}
+
+/** MQ2: a change that would take a Verified metric back to Defined is asked once (answer `lapse: "go"`), at every door. */
+export function lapseChecks(x: ActionContext, before: Metric | null, typed: Metric): MetricCheck[] {
+  if (!before || !standsVerified(before, x.now)) return [];
+  const { lapses } = qualityChanges(before, typed);
+  if (!lapses.length) return [];
+  const owner = x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? 'Its owner';
+  return [{ field: 'lapse', level: 'check', words: `“${before.name}” is Verified. Changing ${lapses.join(', ')} takes it back to Defined until someone other than you verifies it again; ${owner} is told.`, answers: [{ choice: 'go', label: 'Change it, and lapse Verified' }] }];
 }
 
 /** Add or change a metric once every Check is answered; refused, with the questions in words, while one is open. */
 export function saveMetricAsked(x: ActionContext, input: SaveMetricInput): { commit: Commit | null; metric: Metric } {
-  if (input.answers?.name?.startsWith('use:')) no('Nothing saved: use that metric instead.');
+  if (input.answers?.name?.startsWith('use:') || input.answers?.similar?.startsWith('use:')) no('Nothing saved: use that metric instead.');
   const { input: next, open } = openChecks(x, input);
   if (open.length) no(`Answer ${open.length === 1 ? 'this question' : 'these questions'} first: ${open.map((c) => c.words).join(' ')}`);
   const { answers: _, ...rest } = next;

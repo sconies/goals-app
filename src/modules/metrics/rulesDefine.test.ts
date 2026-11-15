@@ -104,12 +104,12 @@ describe('metricChecks', () => {
     expect(unansweredChecks(cs, { name: 'keep:m2', meaning: 'as-written' }).map((c) => c.field)).toEqual(['name']);
     expect(unansweredChecks(cs, { name: 'use:m1', meaning: 'as-written' })).toEqual([]);
   });
-  it('takes answers as words for name, unit and meaning only, and says so plainly otherwise', () => {
+  it('takes answers as words for name, unit, meaning, similar and lapse only, and says so plainly otherwise', () => {
     expect(answersFrom({ name: 'keep:m1', unit: 'use' })).toEqual({ name: 'keep:m1', unit: 'use' });
     expect(answersFrom(undefined)).toEqual({});
     expect(() => answersFrom({ name: 5 })).toThrow('The answer for name is one of the words the question offered');
     expect(() => answersFrom({ colour: 'keep' })).toThrow('There’s no question about “colour”');
-    expect(() => answersFrom('keep')).toThrow('Answers are words for name, unit or meaning');
+    expect(() => answersFrom('keep')).toThrow('Answers are words for name, unit, meaning, similar or lapse');
   });
   it('says the count line', () => {
     expect(countLine(1, 2)).toBe('1 to fix, 2 to check.');

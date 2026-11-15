@@ -195,6 +195,14 @@ describe('database schema', () => {
     expect(saved.rows.map((r) => [r.id, r.measurement, r.measurement_note])).toEqual([['m-gap', 'gap', 'No feed yet'], ['m-measured', 'measured', '']]);
     await expect(db.query(`update okr_metrics set measurement = 'sometimes' where id = 'm-gap'`)).rejects.toThrow(/okr_metrics_measurement_ok/);
   });
+  it('keeps a metric’s window to one of four kinds: none, an empty object or a null kind is refused (MQ2, 0056 and 0057)', async () => {
+    await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-window', 'example', 'Window one', '%', 'lower', 'rhea', 'rhea')`);
+    await db.query(`update okr_metrics set time_window = '{"kind": "rolling", "days": 28}' where id = 'm-window'`);
+    for (const bad of ['{}', '{"kind": null}', '{"kind": "sometimes"}', '[]']) {
+      await expect(db.query(`update okr_metrics set time_window = $1::jsonb where id = 'm-window'`, [bad])).rejects.toThrow(/okr_metrics_time_window_ok/);
+    }
+    await db.query(`update okr_metrics set time_window = null where id = 'm-window'`);
+  });
   it('saves links with and without a part in one batch: a link with no part is written as empty, never null (build review of #308)', async () => {
     await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-mixed', 'example', 'Mixed batch', '%', 'lower', 'rhea', 'rhea')`);
     const [a, b] = s.goals.slice(0, 2);

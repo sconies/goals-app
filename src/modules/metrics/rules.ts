@@ -22,6 +22,21 @@ import { heldByLink, measurementProblems, measurementWords } from './rulesMeasur
 import { CONFIDENCE_WORDS, LEVEL_WORDS, structured, structureProblems } from './rulesStructure';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
+/* MQ2's rules (rulesQuality.ts) stay out of the first download: what a save does to Verified, the quality fields'
+   problems and their words in the change log come in through these hooks, which ./qualityHooks.ts installs. Every door
+   that saves (rulesSave, rulesChange, rulesVerify, the demo, the tools, the form) imports it first; a save that touches
+   a quality field without it throws rather than skip a lapse. */
+export interface QualityHooks {
+  /** What a change does to Verified, the last editor, a rewording to confirm and old-source baselines: added to `q`. */
+  effects(input: MetricInput & { reason?: string }, before: Metric | null, q: Partial<Metric>, x: Pick<ActionContext, 'actor' | 'now'>): void;
+  problems(m: Metric, people: readonly Pick<Person, 'id'>[]): string[];
+  words(m: Metric): { calculation: string; window: string };
+}
+let quality: QualityHooks | null = null;
+export const setQualityHooks = (h: QualityHooks) => { quality = h; };
+const QUALITY_KEYS = ['calculation', 'timeWindow', 'sourceLink', 'sourceQuery', 'sourceOwnerId', 'refreshNote', 'verifiers', 'verification', 'baselines'] as const;
+const needsQuality = (input: object, before: Metric | null) => QUALITY_KEYS.some((k) => (input as Record<string, unknown>)[k] !== undefined || before?.[k] != null);
+
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
 
 /** The module's id, and the keys its records are filed under (records.ts). */
@@ -61,7 +76,7 @@ export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 
 
 /** What someone gives to add or change a metric: everything but the bookkeeping. Left out, a field keeps its value
     (a new metric: empty text, 0 decimals, no refresh, owned by whoever adds it). */
-export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming'>>;
+export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming' | 'calculation' | 'sourceLink' | 'sourceQuery' | 'sourceOwnerId' | 'refreshNote' | 'verifiers' | 'timeWindow'>>;
 
 /* ---------- reading ---------- */
 
@@ -74,7 +89,7 @@ export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, '
   return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
 }
 /** A chart's label for a mark (spec 2.7). */
-export const markLabel = (m: { kind: 'definition' | 'direction'; week: number }) => `${m.kind === 'direction' ? 'Direction' : 'Definition'} changed, week ${m.week}`;
+export const markLabel = (m: { kind: 'definition' | 'direction' | 'source'; week: number }) => `${m.kind === 'direction' ? 'Direction' : m.kind === 'source' ? 'Source' : 'Definition'} changed, week ${m.week}`;
 /** Whether any goal has ever been measured by a metric, in force or not (rule 5): such a metric is retired, not deleted. */
 export const everUsed = (metricId: string, links: readonly Pick<MetricLink, 'metricId'>[]) => links.some((l) => l.metricId === metricId);
 /** A live metric by id, or by name (any case). */
@@ -147,7 +162,29 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
     ...(before?.removedAt ? { removedAt: before.removedAt, removedBy: before.removedBy ?? null } : {}),
     ...(before?.retiredAt !== undefined ? { retiredAt: before.retiredAt, retiredBy: before.retiredBy ?? null, retiredWhy: before.retiredWhy ?? '', replacedBy: before.replacedBy ?? null } : {}),
     ...(before?.marks ? { marks: before.marks } : {}),
+    // MQ2 (rulesQuality.ts): each only when said; what the save itself keeps (verification, baselines, lapse…) carries over.
+    ...qualityFrom(input, before, x),
   };
+}
+
+/** Whether a metric stands Verified now (verified, under 12 months, not a Gap), whatever its other parts say. */
+export const standsVerified = (m: Pick<Metric, 'verification' | 'measurement'>, now: string) =>
+  !!m.verification && m.verification.outcome === 'verified' && m.measurement !== 'gap' && now < new Date(new Date(m.verification.at).setUTCMonth(new Date(m.verification.at).getUTCMonth() + 12)).toISOString();
+
+/** MQ2's fields as they would be saved: those typed, the rest as they were. */
+function qualityFrom(input: MetricInput & { reason?: string }, before: Metric | null, x: Pick<ActionContext, 'actor' | 'now'>): Partial<Metric> {
+  const pick = <K extends keyof Metric>(k: K) => (k in input && (input as Record<string, unknown>)[k] !== undefined ? (input as Partial<Metric>)[k] : before?.[k]);
+  const q: Partial<Metric> = {};
+  const calc = pick('calculation'); if (calc) q.calculation = calc;
+  const w = pick('timeWindow'); if (w) q.timeWindow = w;
+  for (const k of ['sourceLink', 'sourceQuery', 'refreshNote'] as const) { const v = clean(pick(k) as string); if (v) q[k] = v; }
+  const so = pick('sourceOwnerId'); if (so) q.sourceOwnerId = so;
+  const vs = pick('verifiers'); if (vs?.length) q.verifiers = [...new Set(vs)];
+  if (before) for (const k of ['calcChangedBy', 'calcChangedAt', 'baselines', 'verification', 'verifyAttempts', 'lapse', 'handover', 'toConfirm'] as const) if (before[k] != null) (q as Record<string, unknown>)[k] = before[k];
+  // What the change does to Verified (qualityHooks.ts): lapse, the last editor, a rewording to confirm, old-source baselines.
+  if (quality) quality.effects(input, before, q, x);
+  else if (needsQuality(input, before)) throw new Error('The metric quality rules haven’t loaded: import ./qualityHooks before saving a metric.');
+  return q;
 }
 
 /**
@@ -175,6 +212,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   if (!s.people.some((p) => p.id === m.ownerId)) out.push('The metric’s owner isn’t in this workspace.');
   out.push(...measurementProblems(m));
   out.push(...structureProblems(m, { metrics: metricsOf(s) }));
+  if (quality) out.push(...quality.problems(m, s.people));
   for (const [k, label] of [['meaning', 'meaning'], ['source', 'source'], ['sourceOwner', 'source’s owner'], ['caveats', 'caveats']] as const) {
     if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString('en-GB')} characters or fewer.`);
   }
@@ -203,6 +241,14 @@ export function metricFields(m: Metric, s: { people: Person[]; modules?: ModuleR
     'How it relates': m.level ? LEVEL_WORDS[m.level].label : '—',
     Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : '—',
     'How it could be gamed': m.gaming || '—',
+    // MQ2: the structured definition, so a save that changes only these is logged.
+    Calculation: m.calculation ? quality?.words(m).calculation ?? JSON.stringify(m.calculation) : '—',
+    Window: m.timeWindow ? quality?.words(m).window ?? JSON.stringify(m.timeWindow) : '—',
+    'Source link': m.sourceLink || '—',
+    Query: m.sourceQuery || '—',
+    'Source owner in Faro': m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? (s as { teams?: { id: string; name: string }[] }).teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? '—' : '—',
+    'When it refreshes': m.refreshNote || '—',
+    Verifiers: (m.verifiers ?? []).map((v) => s.people.find((p) => p.id === v)?.name ?? '—').join(', ') || '—',
   };
 }
 

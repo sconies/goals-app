@@ -2,10 +2,12 @@
    save is (`changeKinds`), the marks a change of meaning or direction leaves on its goals (`marksFor`), and retiring,
    bringing back and merging. Loaded with linking and saving (actions.ts), not with the first download. As pure as
    src/domain: no clock, browser or network, and each rule takes only what it reads. */
+import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { Goal } from '../../domain/types';
 import { heldBy, heldByLink } from './rulesMeasured';
+import { qualityChanges } from './rulesQuality';
 import { canEditMetric, DIRECTION_LABEL, linksOf, liveMetrics, log, metricRows, metricsOf, no, saveMetric, type Metric, type MetricInput, type MetricLink, type MetricMark } from './rules';
 
 /** Rule 3's kinds, in the order the read-back shows them. `words` saves at once; `scale` is refused. */
@@ -60,7 +62,8 @@ export function saveMetricChange(x: ActionContext, input: ChangeInput): { commit
   const before = rest.id ? metricsOf(x.snapshot).find((m) => m.id === rest.id && !m.removedAt) : undefined;
   if (!before) return saveMetric(x, rest);
   // The rights and the fields first, in saveMetric's own words; nothing is saved by this dry run.
-  const dry = saveMetric(x, { ...rest, confirm: true });
+  // The reason goes with it, so a change that lapses Verified keeps why (rules.ts qualityFrom).
+  const dry = saveMetric(x, { ...rest, confirm: true, reason } as typeof rest & { confirm: boolean });
   if (!dry.commit) return dry;
   const after = dry.metric;
   const linked = linkedGoals(x.full ?? x.snapshot, before.id);
@@ -75,6 +78,11 @@ export function saveMetricChange(x: ActionContext, input: ChangeInput): { commit
   // A change of source alone shows the two sources, not the same meaning twice.
   const words = (m: Metric) => (before.meaning.trim() !== after.meaning.trim() ? m.meaning : m.source) || m.meaning || m.source;
   const marks: MetricMark[] = marked.map((kind) => ({ week: x.week, at: x.now, by: x.actor.id, kind, why, was: kind === 'direction' ? DIRECTION_LABEL[before.direction] : words(before), now: kind === 'direction' ? DIRECTION_LABEL[after.direction] : words(after) }));
+  // MQ2: a new source its goals' charts mark, when it is still the same number (a different number is a definition mark).
+  if (linked.length && comparable !== false && qualityChanges(before, after).sourceChanged) {
+    const src = (m: Metric) => [m.source, m.sourceLink].filter(Boolean).join(' · ') || '—';
+    marks.push({ week: x.week, at: x.now, by: x.actor.id, kind: 'source', why, was: src(before), now: src(after) });
+  }
   const metric: Metric = marks.length ? { ...after, marks: [...(before.marks ?? []), ...marks] } : after;
   const goals = kinds.includes('relabel') ? (x.full ?? x.snapshot).goals.filter((g) => linked.some((l) => l.id === g.id)).map((g) => (g.kind === 'milestone' ? g : { ...g, unit: after.unit })) : [];
   const head = dry.commit.changes[0]!;
@@ -84,7 +92,8 @@ export function saveMetricChange(x: ActionContext, input: ChangeInput): { commit
   const perGoal = told.map((g) => log(x, {
     entityId: after.id, goalId: g.id, action: 'edited',
     summary: marks.some((m) => m.kind === 'definition') ? `Definition changed: what “${after.name}” means, from week ${x.week}: ${why} Weeks before ${x.week} were measured the old way.`
-      : marks.length ? `Direction changed: for “${after.name}” ${DIRECTION_LABEL[after.direction].toLowerCase()}, from week ${x.week}: ${why}`
+      : marks.some((m) => m.kind === 'direction') ? `Direction changed: for “${after.name}” ${DIRECTION_LABEL[after.direction].toLowerCase()}, from week ${x.week}: ${why}`
+      : marks.some((m) => m.kind === 'source') ? `Source changed: “${after.name}” is read from ${marks.find((m) => m.kind === 'source')!.now}, from week ${x.week}${why ? `: ${why}` : ''}`
       : `Its unit changed from “${before.unit}” to “${after.unit}”, as “${after.name}” did`,
     diffs: goals.length ? [{ field: 'Unit', from: before.unit, to: after.unit }] : [],
   }));

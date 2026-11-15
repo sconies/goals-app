@@ -6,6 +6,7 @@
    Pure, as src/domain is: each takes only the rows it reads (the metrics, the links, the cycle's live goal ids, the
    people), never the whole workspace, and no clock (`now` is given). Statuses, "now", targets and the gap to plan come
    from the core's goal summary (domain/summary, domain/scorecard), never worked out again here. */
+import { stageOf, type MetricStage } from './rulesQuality';
 import { measurementOf } from './rulesMeasured';
 import { fold, textMatches } from '../../domain/find';
 import { placesText } from '../../domain/numbers';
@@ -113,6 +114,10 @@ export interface LibraryAsk {
   sortout?: boolean;
   /** Retired metrics only (MT3); by default they are left out. */
   retired?: boolean;
+  /** MQ2: only metrics at this stage. */
+  stage?: MetricStage;
+  /** MQ2: only metrics on "To verify" (Defined, or Verified within 30 days of its year being up). */
+  toVerify?: boolean;
   sort?: LibrarySort;
   page?: number;
   size?: number;
@@ -142,6 +147,11 @@ export function findMetrics(r: LibraryReads, ask: LibraryAsk = {}): LibraryPage 
     if (ask.dir && m.direction !== ask.dir) return false;
     if (ask.unused && links.length) return false;
     if (ask.sortout && !needs.length) return false;
+    if (ask.stage || ask.toVerify) {
+      const st = stageOf(m, { now: r.now, ownerIsHere: !!owner });
+      if (ask.stage && st.stage !== ask.stage) return false;
+      if (ask.toVerify && !st.toVerify) return false;
+    }
     return true;
   }).map(({ links: _, ...row }) => row);
   const byName = (a: LibraryRow, b: LibraryRow) => fold(a.metric.name).localeCompare(fold(b.metric.name));

@@ -3,6 +3,7 @@
    rules (saveMetricChange, retireMetric, unretireMetric), so a file and the form say no in the same words. The engine
    (domain/changeset, through domain/sheetPlan) owns the questions' levels, the answers, leaving rows out and one Undo.
    As on every sheet, a row already here needs no column: an absent column or an empty cell keeps what the metric says. */
+import './qualityHooks';
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import { normalEmail } from '../../domain/people';
 import { oneOf } from '../../domain/columns';

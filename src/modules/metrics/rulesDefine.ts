@@ -12,6 +12,7 @@ import { closeNames, directionWords } from './names';
 
 export { editsBetween };
 import type { Metric, MetricDirection } from './types';
+import { similarMetrics } from './rulesQuality';
 
 /* ---------- what a metric still needs: rulesStill.ts ---------- */
 export { FULLY_DEFINED, OWNER_LEFT, STILL_FIELD, STILL_TO_SAY, stillToSay, type StillItem, type StillToSay } from './rulesStill';
@@ -117,11 +118,12 @@ export function meaningChecks(m: Pick<Metric, 'name' | 'unit' | 'meaning'>): 'ou
 
 /* ---------- the questions, as the form and save_metric ask them ---------- */
 
-export type CheckField = 'name' | 'unit' | 'meaning';
+export type CheckField = 'name' | 'unit' | 'meaning' | 'similar' | 'lapse';
+export const CHECK_FIELDS: readonly CheckField[] = ['name', 'unit', 'meaning', 'similar', 'lapse'];
 export interface MetricCheck { field: CheckField; level: 'check'; words: string; answers: { choice: string; label: string }[] }
 export interface CheckReads {
   /** Every metric in use (not removed), the one being changed included. */
-  metrics: readonly Pick<Metric, 'id' | 'name' | 'unit' | 'direction' | 'ownerId'>[];
+  metrics: readonly (Pick<Metric, 'id' | 'name' | 'unit' | 'direction' | 'ownerId'> & Partial<Pick<Metric, 'source' | 'meaning' | 'retiredAt' | 'removedAt'>>)[];
   people: readonly { id: string; name: string; leftAt?: string | null }[];
   /** How many goals in force each metric measures. */
   goalsOf: (metricId: string) => number;
@@ -136,7 +138,7 @@ const OUT_OF_WHAT = 'This is a percentage, and the words don’t say out of what
  * (the id of the metric the question names, so an answer covers only the question it was given to), unit `keep` or `use`,
  * meaning `as-written`.
  */
-export function metricChecks(next: Pick<Metric, 'id' | 'name' | 'unit' | 'meaning'>, before: Pick<Metric, 'name' | 'unit' | 'meaning'> | null, r: CheckReads): MetricCheck[] {
+export function metricChecks(next: Pick<Metric, 'id' | 'name' | 'unit' | 'meaning'> & Partial<Pick<Metric, 'source'>>, before: Pick<Metric, 'name' | 'unit' | 'meaning'> | null, r: CheckReads): MetricCheck[] {
   const out: MetricCheck[] = [];
   const others = r.metrics.filter((m) => m.id !== next.id);
   if (!before || fold(before.name.trim()) !== fold(next.name.trim())) {
@@ -153,6 +155,16 @@ export function metricChecks(next: Pick<Metric, 'id' | 'name' | 'unit' | 'meanin
         ? [{ choice: `use:${m.id}`, label: `Use ${m.name}` }, { choice: `keep:${m.id}`, label: `Add “${next.name.trim()}” as a new metric` }]
         : [{ choice: `use:${m.id}`, label: 'Use that one' }, { choice: `keep:${m.id}`, label: 'Mine is different: keep it' }];
       out.push({ field: 'name', level: 'check', words, answers });
+    }
+  }
+  // MQ2: adding a metric looks for similar ones first, on name, source and meaning (rulesQuality.ts similarMetrics),
+  // when the name alone raised nothing.
+  if (!before && !out.length) {
+    const like = similarMetrics({ id: next.id, name: next.name, source: next.source ?? '', meaning: next.meaning }, r.metrics as Metric[])[0];
+    if (like) {
+      const owner = r.people.find((p) => p.id === like.ownerId && !p.leftAt)?.name;
+      const n = r.goalsOf(like.id);
+      out.push({ field: 'similar', level: 'check', words: `There’s a similar metric in the library: “${like.name}”${like.meaning ? ` (${like.meaning.trim().replace(/\s+/g, ' ').slice(0, 160)})` : ''}${like.source ? `, from ${like.source}` : ''}${owner ? `, owned by ${owner}` : ''}, measuring ${n} ${n === 1 ? 'goal' : 'goals'}.`, answers: [{ choice: `use:${like.id}`, label: 'Use this one' }, { choice: 'carry-on', label: 'It’s different, carry on' }] });
     }
   }
   if (!before || before.unit.trim() !== next.unit.trim()) {
@@ -174,12 +186,12 @@ export const unansweredChecks = (checks: readonly MetricCheck[], answers: Partia
  */
 export function answersFrom(raw: unknown): Partial<Record<CheckField, string>> {
   if (raw == null) return {};
-  if (typeof raw !== 'object' || Array.isArray(raw)) throw new NotAllowed('Answers are words for name, unit or meaning, from the questions you were asked.');
+  if (typeof raw !== 'object' || Array.isArray(raw)) throw new NotAllowed('Answers are words for name, unit, meaning, similar or lapse, from the questions you were asked.');
   const out: Partial<Record<CheckField, string>> = {};
   for (const [k, v] of Object.entries(raw)) {
-    if (k !== 'name' && k !== 'unit' && k !== 'meaning') throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit or meaning.`);
+    if (!CHECK_FIELDS.includes(k as CheckField)) throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit, meaning, similar or lapse.`);
     if (typeof v !== 'string') throw new NotAllowed(`The answer for ${k} is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.`);
-    out[k] = v;
+    out[k as CheckField] = v;
   }
   return out;
 }

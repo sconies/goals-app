@@ -193,7 +193,9 @@
       "remove_metric",
       "retire_metric",
       "merge_metrics",
-      "link_goal_metric"
+      "link_goal_metric",
+      "save_baselines",
+      "verify_metric"
     ],
     "help": [
       "metrics",
@@ -203,7 +205,8 @@
       "metric-change",
       "metric-measurement",
       "metric-structure",
-      "metric-sheet"
+      "metric-sheet",
+      "metric-quality"
     ],
     "requirements": [
       "METRICS-LIBRARY",
@@ -215,6 +218,9 @@
       "METRIC-MEASUREMENT",
       "METRIC-STRUCTURE",
       "METRIC-SHEET",
+      "METRIC-STAGE",
+      "METRIC-VERIFY",
+      "METRIC-BASELINES",
       "READING-PREFILL",
       "READING-RECORDED-ONLY",
       "READING-SEVEN-DAYS",
@@ -245,11 +251,6 @@
     ],
     "elsewhere": [],
     "growth": [
-      {
-        "idea": "Draft and Ready states",
-        "why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
-        "how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
-      },
       {
         "idea": "Versions, with a reason for each change",
         "why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
@@ -294,7 +295,9 @@
         "get_metric",
         "save_metric",
         "remove_metric",
-        "restore_removed"
+        "restore_removed",
+        "save_baselines",
+        "verify_metric"
       ],
       "MetricPlaces": [
         "get_goal",

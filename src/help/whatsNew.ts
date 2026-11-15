@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-quality',
+    date: '2026-11-15',
+    title: 'Metrics are Draft, Defined or Verified',
+    points: [
+      'Every metric now has a stage. It is Defined once its definition is complete, with a link to the report its number comes from. It is Verified once someone other than its owner has reproduced its figure.',
+      'A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”.',
+      'Baselines are kept per team, with History. A changed figure needs a reason.',
+      'For now this is through the AI assistant: list_metrics, get_metric and save_metric show and take the new parts, and save_baselines and verify_metric are new. The screens follow.',
+    ],
+    articles: ['metric-quality'],
+  },
+  {
     id: 'feedback-own-sent',
     date: '2026-11-15',
     title: 'Your own feedback, and the steps it can carry',

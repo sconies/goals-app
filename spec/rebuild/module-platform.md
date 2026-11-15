@@ -103,7 +103,7 @@ Each one’s facts in full, as data, are in [`modules.json`](modules.json): ever
 | AI access (`ai-access`) | Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights. | beyond | — | — | 0 | — | `ai` | — | 3 |
 | Feedback (`feedback`) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. | beyond | — | — | 1 | — | — | — | 8 |
 | Goal map (`goal-map`) | See every goal and what feeds it on one canvas, with the path the risk runs along. | tools | — | — | 0 | — | — | — | 0 |
-| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 4 | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 7 |
+| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 4 | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 9 |
 | Reviews (`reviews`) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | together | — | — | 7 | — | — | — | 7 |
 | Spreadsheets (`spreadsheets`) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | tools | — | — | 5 | `data.tools`, `goals.tools`, `help.article` | — | — | 2 |
 | Fields (`tags`) | Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by. | tools | — | — | 0 | `goal.sections` | `fields` | field, field value | 3 |
@@ -153,7 +153,7 @@ The import says once, in its file line, what it didn’t read because a module i
 
 ## The AI tools’ server and its door
 
-One endpoint (Faro: `/api/mcp`) answering JSON-RPC 2.0 over HTTP POST, the Model Context Protocol’s tools: the core’s own tools and every installed module’s (88 today, 35 of them a module’s). Every tool and its inputs is in [the AI tools](../core/tools.md). Stage 3 builds the server with the core’s tools; AI access (its stage) adds making and revoking tokens and the switch that shuts the door.
+One endpoint (Faro: `/api/mcp`) answering JSON-RPC 2.0 over HTTP POST, the Model Context Protocol’s tools: the core’s own tools and every installed module’s (90 today, 37 of them a module’s). Every tool and its inputs is in [the AI tools](../core/tools.md). Stage 3 builds the server with the core’s tools; AI access (its stage) adds making and revoking tokens and the switch that shuts the door.
 
 ### Who is asking
 

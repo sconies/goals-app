@@ -22,8 +22,10 @@ import type { Repo } from './sources';
 
 const MODULES_DIR = 'src/modules';
 const moduleFiles = (r: Repo, name: string) => fs.readdirSync(path.join(r.root, MODULES_DIR)).map((m) => `${MODULES_DIR}/${m}/${name}`).filter((f) => fs.existsSync(path.join(r.root, f))).sort();
+/** A module's tool files: tools.ts, and any tools<Something>.ts beside it (the metric library's toolsQuality.ts). */
+const moduleToolFiles = (r: Repo) => fs.readdirSync(path.join(r.root, MODULES_DIR)).flatMap((m) => fs.readdirSync(path.join(r.root, MODULES_DIR, m)).filter((f) => /^tools([A-Z]\w*)?\.ts$/.test(f)).sort().map((f) => `${MODULES_DIR}/${m}/${f}`));
 /** Where the tools are written: the core's, then each module's. */
-const toolFiles = (r: Repo) => [...['tools', 'workTools', 'removeTools', 'markupTools', 'feedbackTools'].map((f) => `src/mcp/${f}.ts`), ...moduleFiles(r, 'tools.ts')];
+const toolFiles = (r: Repo) => [...['tools', 'workTools', 'removeTools', 'markupTools', 'feedbackTools'].map((f) => `src/mcp/${f}.ts`), ...moduleToolFiles(r)];
 
 interface Program { p: ts.Program; c: ts.TypeChecker; root: string }
 let cached: { root: string; prog: Program } | null = null;

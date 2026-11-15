@@ -87,6 +87,8 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`retire_metric`](#retire_metric) (metrics) | Retire a metric, or bring one back | changes | [retireMetric](actions.md#retiremetric), [unretireMetric](actions.md#unretiremetric) |
 | [`merge_metrics`](#merge_metrics) (metrics) | Merge one metric into another | changes | [mergeMetrics](actions.md#mergemetrics) |
 | [`link_goal_metric`](#link_goal_metric) (metrics) | Say which metric measures a goal | changes | [linkGoalMetric](actions.md#linkgoalmetric), [unlinkGoalMetric](actions.md#unlinkgoalmetric) |
+| [`save_baselines`](#save_baselines) (metrics) | Set a metric’s baselines | changes | — |
+| [`verify_metric`](#verify_metric) (metrics) | Verify a metric | changes | — |
 | [`list_reviews`](#list_reviews) (reviews) | Reviews | reads | — |
 | [`get_review`](#get_review) (reviews) | A review’s agenda | reads | — |
 | [`review_call`](#review_call) (reviews) | Say something in a review | changes | [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed) |
@@ -1787,7 +1789,7 @@ No arguments.
             noRecentUpdate: number;
         } | null | undefined;
         goals: {
-            whose: 'mine' | 'all';
+            whose: 'all' | 'mine';
             total: number;
             byStatus: {
                 status: DisplayStatus;
@@ -4692,7 +4694,7 @@ From the [feedback](../modules/feedback/README.md) module: switched off with it.
 
 ## list_metrics
 
-**List the metric library.** The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.
+**List the metric library.** The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its stage (Draft, Defined or Verified) and what a Draft still needs, its refresh and window, its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -4709,7 +4711,9 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `direction` | one of `higher`, `lower` | no | Only metrics where this way is better. |
 | `unused` | boolean | no | Only metrics no live goal uses. |
 | `retired` | boolean | no | Retired metrics only (left out otherwise). |
-| `sort_out` | boolean | no | Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days. |
+| `sort_out` | boolean | no | Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days; and (metric quality) a Draft’s missing part, a Gap, baselines from an old source, an unanswered “Couldn’t reproduce”, a new owner to confirm. Each row says why. |
+| `stage` | one of `draft`, `defined`, `verified` | no | Only metrics at this stage. |
+| `to_verify` | boolean | no | Only metrics waiting to be verified: Defined (never verified, or lapsed), or Verified within 30 days of its 12 months. |
 | `sort` | one of `name`, `goals`, `changed` | no | A to Z (name, the default), most goals first (goals), or the latest change first (changed). |
 | `page` | integer | no | Which page of 50. |
 
@@ -4754,7 +4758,20 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     },
     "sort_out": {
       "type": "boolean",
-      "description": "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
+      "description": "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days; and (metric quality) a Draft’s missing part, a Gap, baselines from an old source, an unanswered “Couldn’t reproduce”, a new owner to confirm. Each row says why."
+    },
+    "stage": {
+      "type": "string",
+      "description": "Only metrics at this stage.",
+      "enum": [
+        "draft",
+        "defined",
+        "verified"
+      ]
+    },
+    "to_verify": {
+      "type": "boolean",
+      "description": "Only metrics waiting to be verified: Defined (never verified, or lapsed), or Verified within 30 days of its 12 months."
     },
     "sort": {
       "type": "string",
@@ -4837,7 +4854,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## save_metric
 
-**Add or change a metric.** Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.
+**Add or change a metric.** Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score. Metric quality: it takes the structured definition (calculation, window, source_link…) and returns the stage before and after (Draft → Defined happens by itself once the ten parts are said) and what is still needed. A change that would take a Verified metric back to Defined (its calculation, window, source or direction) returns a `lapse` check; adding a metric like one in the library returns a `similar` check (“use:<id>” or “carry-on”). confirm_owner and answer_attempt act on their own.
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -4872,6 +4889,34 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `answers.name` | string | no | “keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave. |
 | `answers.unit` | one of `keep`, `use` | no | “keep” the unit as typed, or “use” the one in use. |
 | `answers.meaning` | one of `as-written` | no | “as-written”: the meaning is right as written. |
+| `answers.similar` | string | no | “use:<id>” to use that similar metric instead (nothing is saved), or “carry-on”: it’s different. |
+| `answers.lapse` | one of `go` | no | “go”: change it, and it goes back to Defined until verified again. |
+| `calculation` | object | no | The calculation, two fields plus its parts. measure: count, sum, value, duration, ratio or other. aggregate: total, mean, median, pXX (a percentile, e.g. p90) or latest (not for a ratio). A ratio gives numerator and denominator; other gives formula (in words); the rest give counts, filters and excludes. Each part’s filters and exclusions must be said for Defined (“None” is an answer). |
+| `calculation.measure` | one of `count`, `sum`, `value`, `duration`, `ratio`, `other` | no | What is measured. |
+| `calculation.aggregate` | string | no | How it is aggregated: total, mean, median, p50…p99, latest. |
+| `calculation.per` | string | no | For a mean of a count: per what (“day”). |
+| `calculation.counts` | string | no | What it counts. |
+| `calculation.filters` | string | no | Its filters. |
+| `calculation.excludes` | string | no | What it leaves out. |
+| `calculation.numerator` | object | no |  |
+| `calculation.numerator.name` | string | no | What this part is called (“Failed changes”). |
+| `calculation.numerator.counts` | string | no | What it counts. |
+| `calculation.numerator.filters` | string | no | Its filters (what is in). |
+| `calculation.numerator.excludes` | string | no | What it leaves out (“None” if nothing). |
+| `calculation.denominator` | object | no |  |
+| `calculation.denominator.name` | string | no | What this part is called (“Failed changes”). |
+| `calculation.denominator.counts` | string | no | What it counts. |
+| `calculation.denominator.filters` | string | no | Its filters (what is in). |
+| `calculation.denominator.excludes` | string | no | What it leaves out (“None” if nothing). |
+| `calculation.formula` | string | no | For other or composite: the formula in words. |
+| `window` | string | no | The window: “point in time”, “rolling N days”, “per week”, “per month”, “per quarter” or “cumulative since yyyy-mm-dd”. Empty for not said. |
+| `source_link` | string | no | A link (https://…) to the exact report or query. Without one the metric stays Draft. |
+| `source_query` | string | no | The query text, optional. |
+| `source_owner_in_faro` | string | no | The team or person here who owns the source, by ID or name: their people may verify it. Empty for none. |
+| `refresh_note` | string | no | When in the period it refreshes (“Mondays”). |
+| `verifiers` | list of string | no | Admins only: the people (ID, email or name) who may verify it besides admins and the source’s owner. |
+| `confirm_owner` | boolean | no | You are the new owner of a metric passed to you when its owner left: confirm you own it. |
+| `answer_attempt` | string | no | Its owner’s answer to the latest “Couldn’t reproduce” (what changed, or why the figures differ). |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -5020,8 +5065,141 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
           "enum": [
             "as-written"
           ]
+        },
+        "similar": {
+          "type": "string",
+          "description": "“use:<id>” to use that similar metric instead (nothing is saved), or “carry-on”: it’s different."
+        },
+        "lapse": {
+          "type": "string",
+          "description": "“go”: change it, and it goes back to Defined until verified again.",
+          "enum": [
+            "go"
+          ]
         }
       }
+    },
+    "calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The calculation, two fields plus its parts. measure: count, sum, value, duration, ratio or other. aggregate: total, mean, median, pXX (a percentile, e.g. p90) or latest (not for a ratio). A ratio gives numerator and denominator; other gives formula (in words); the rest give counts, filters and excludes. Each part’s filters and exclusions must be said for Defined (“None” is an answer).",
+      "properties": {
+        "measure": {
+          "type": "string",
+          "description": "What is measured.",
+          "enum": [
+            "count",
+            "sum",
+            "value",
+            "duration",
+            "ratio",
+            "other"
+          ]
+        },
+        "aggregate": {
+          "type": "string",
+          "description": "How it is aggregated: total, mean, median, p50…p99, latest."
+        },
+        "per": {
+          "type": "string",
+          "description": "For a mean of a count: per what (“day”)."
+        },
+        "counts": {
+          "type": "string",
+          "description": "What it counts."
+        },
+        "filters": {
+          "type": "string",
+          "description": "Its filters."
+        },
+        "excludes": {
+          "type": "string",
+          "description": "What it leaves out."
+        },
+        "numerator": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "What this part is called (“Failed changes”)."
+            },
+            "counts": {
+              "type": "string",
+              "description": "What it counts."
+            },
+            "filters": {
+              "type": "string",
+              "description": "Its filters (what is in)."
+            },
+            "excludes": {
+              "type": "string",
+              "description": "What it leaves out (“None” if nothing)."
+            }
+          }
+        },
+        "denominator": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "What this part is called (“Failed changes”)."
+            },
+            "counts": {
+              "type": "string",
+              "description": "What it counts."
+            },
+            "filters": {
+              "type": "string",
+              "description": "Its filters (what is in)."
+            },
+            "excludes": {
+              "type": "string",
+              "description": "What it leaves out (“None” if nothing)."
+            }
+          }
+        },
+        "formula": {
+          "type": "string",
+          "description": "For other or composite: the formula in words."
+        }
+      }
+    },
+    "window": {
+      "type": "string",
+      "description": "The window: “point in time”, “rolling N days”, “per week”, “per month”, “per quarter” or “cumulative since yyyy-mm-dd”. Empty for not said."
+    },
+    "source_link": {
+      "type": "string",
+      "description": "A link (https://…) to the exact report or query. Without one the metric stays Draft."
+    },
+    "source_query": {
+      "type": "string",
+      "description": "The query text, optional."
+    },
+    "source_owner_in_faro": {
+      "type": "string",
+      "description": "The team or person here who owns the source, by ID or name: their people may verify it. Empty for none."
+    },
+    "refresh_note": {
+      "type": "string",
+      "description": "When in the period it refreshes (“Mondays”)."
+    },
+    "verifiers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Admins only: the people (ID, email or name) who may verify it besides admins and the source’s owner."
+    },
+    "confirm_owner": {
+      "type": "boolean",
+      "description": "You are the new owner of a metric passed to you when its owner left: confirm you own it."
+    },
+    "answer_attempt": {
+      "type": "string",
+      "description": "Its owner’s answer to the latest “Couldn’t reproduce” (what changed, or why the figures differ)."
     }
   }
 }
@@ -5039,12 +5217,21 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 - “There’s no metric called or with the ID …. Use list_metrics.”
 - “There’s no one called … in this workspace. Use list_people.”
-- “Answers are words for name, unit or meaning, from the questions you were asked.”
-- “There’s no question about “…”: answers are for name, unit or meaning.”
-- “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
+- “Only an admin can name a metric’s verifiers.”
+- “There’s no team or person called … here. Leave source_owner_in_faro out, and say the owner in source_owner as text.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- ““…” has no handover to confirm.”
+- “Only … (the new owner) or an admin can confirm it.”
+- “Only … or an admin can answer it.”
+- ““…” has no failed verification to answer.”
+- “Say what you changed, or why the figures differ.”
+- “Keep the answer to … characters or fewer.”
+- “Answers are words for name, unit, meaning, similar or lapse, from the questions you were asked.”
+- “There’s no question about “…”: answers are for name, unit, meaning, similar or lapse.”
+- “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “Only … or an admin can change this metric.”
 - ““…” is retired. Bring it back before changing it.”
+- “The metric quality rules haven’t loaded: import ./qualityHooks before saving a metric.”
 - “Nothing saved: use that metric instead.”
 - “Answer … first: …”
 - “… … measured by … in …. A metric in … is a different number: add it as a new metric and move goals to it, or retire this one. If “…” is only a new label for the same numbers, say so (relabel).”
@@ -5330,6 +5517,209 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 **Does the same as:** [linkGoalMetric](actions.md#linkgoalmetric), [unlinkGoalMetric](actions.md#unlinkgoalmetric), so it refuses with their words too.
 
+## save_baselines
+
+**Set a metric’s baselines.** Set one or many baselines of a metric (its owner or an admin), each for a slice: the whole company or a team, and optionally one part. Each needs its value, the period it covers (“Jul–Sep 2026”), the day taken and how it was taken; the old one for that slice moves to History. A new figure for a period already stored, or a figure changed from one read (read), needs a reason. Baselines never change the metric’s stage. from_readings: true fills, for every slice its goals use and the company, last quarter’s figure from the source for the person to confirm, and saves nothing. The result lists any baselines taken from an old source, to retake.
+
+From the [metrics](../modules/metrics/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `metric` | string | yes | The metric’s ID or name. |
+| `from_readings` | boolean | no | Fill last quarter’s baselines from the source for confirming; nothing is saved. |
+| `baselines` | list of object | no |  |
+| `baselines[].team` | string | no | The team (ID or name); left out for the whole company. |
+| `baselines[].part` | string | no | One part of the number (“tier-1 services”); left out for all of it. |
+| `baselines[].value` | number | yes |  |
+| `baselines[].period` | string | yes | The period it covers. |
+| `baselines[].taken_on` | string | yes | The day it was taken, yyyy-mm-dd. |
+| `baselines[].how` | string | yes | How it was taken: the query, report or filter. |
+| `baselines[].read` | number | no | The figure the source gave, when you changed it (from_readings). |
+| `baselines[].reason` | string | no | Why the figure changed (required for a changed figure). |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metric"
+  ],
+  "properties": {
+    "metric": {
+      "type": "string",
+      "description": "The metric’s ID or name."
+    },
+    "from_readings": {
+      "type": "boolean",
+      "description": "Fill last quarter’s baselines from the source for confirming; nothing is saved."
+    },
+    "baselines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value",
+          "period",
+          "taken_on",
+          "how"
+        ],
+        "properties": {
+          "team": {
+            "type": "string",
+            "description": "The team (ID or name); left out for the whole company."
+          },
+          "part": {
+            "type": "string",
+            "description": "One part of the number (“tier-1 services”); left out for all of it."
+          },
+          "value": {
+            "type": "number"
+          },
+          "period": {
+            "type": "string",
+            "description": "The period it covers."
+          },
+          "taken_on": {
+            "type": "string",
+            "description": "The day it was taken, yyyy-mm-dd."
+          },
+          "how": {
+            "type": "string",
+            "description": "How it was taken: the query, report or filter."
+          },
+          "read": {
+            "type": "number",
+            "description": "The figure the source gave, when you changed it (from_readings)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the figure changed (required for a changed figure)."
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no metric called or with the ID …. Use list_metrics.”
+- “There’s no team called …. Leave team out for the whole company.”
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Only … or an admin can set this metric’s baselines.”
+- ““…” is retired. Bring it back before setting its baselines.”
+- “Give at least one baseline.”
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## verify_metric
+
+**Verify a metric.** Verify a metric (anyone but its owner and whoever last changed its calculation, window or source; and then an admin, someone in the source’s owner, or a verifier an admin named). Open its source link first: opened_link must be true. Give the period, the figure you got from the link, a note, and the outcome: verified (Verified for 12 months) or couldnt_reproduce (the attempt is kept, the stage doesn’t change, and the owner sees it under To sort out). The result compares your figure with the one Faro has for that period (a baseline, else the latest reading), with no fixed tolerance. confirm_reword: true instead confirms, as its last verifier, that a reworded filter or exclusion still means the same.
+
+From the [metrics](../modules/metrics/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `metric` | string | yes | The metric’s ID or name. |
+| `period` | string | no | The period the figure covers (“Aug–Oct 2026”). |
+| `figure` | number | no | The figure you got from the source link. |
+| `note` | string | no | What you checked it against, or what differs. |
+| `opened_link` | boolean | no | You opened the source link and it shows this metric, for this window. |
+| `outcome` | one of `verified`, `couldnt_reproduce` | no | verified, or couldnt_reproduce. |
+| `confirm_reword` | boolean | no | Confirm a reworded filter or exclusion (as its last verifier); nothing else is read. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metric"
+  ],
+  "properties": {
+    "metric": {
+      "type": "string",
+      "description": "The metric’s ID or name."
+    },
+    "period": {
+      "type": "string",
+      "description": "The period the figure covers (“Aug–Oct 2026”)."
+    },
+    "figure": {
+      "type": "number",
+      "description": "The figure you got from the source link."
+    },
+    "note": {
+      "type": "string",
+      "description": "What you checked it against, or what differs."
+    },
+    "opened_link": {
+      "type": "boolean",
+      "description": "You opened the source link and it shows this metric, for this window."
+    },
+    "outcome": {
+      "type": "string",
+      "description": "verified, or couldnt_reproduce.",
+      "enum": [
+        "verified",
+        "couldnt_reproduce"
+      ]
+    },
+    "confirm_reword": {
+      "type": "boolean",
+      "description": "Confirm a reworded filter or exclusion (as its last verifier); nothing else is read."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no metric called or with the ID …. Use list_metrics.”
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- ““…” has no rewording to confirm.”
+- “Only … (who last verified it) or an admin can confirm the rewording.”
+- ““…” is retired. Bring it back before verifying it.”
+- “The outcome is “verified” or “couldnt_reproduce”.”
+- “Open the source link first, and say so (opened_link): the figure must come from it.”
+- “Say the period the figure covers (“Aug–Oct 2026”).”
+- “Keep the period to … characters or fewer.”
+- “Give the figure you got from the link, as a number.”
+- “Add a note: what you checked it against.”
+- “Add a note: what differs, or what the definition doesn’t say.”
+- “Keep the note to … characters or fewer.”
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
 ## list_reviews
 
 **Reviews.** Every review in the workspace: its cadence, the goals it walks and who’s in it, with this session’s progress.
@@ -5419,7 +5809,7 @@ From the [reviews](../modules/reviews/README.md) module: switched off with it.
         noCheckIn: number;
         lastWeeks: {
             week: number;
-            mark: 'some' | 'none' | 'all' | 'nothing-due';
+            mark: 'some' | 'all' | 'none' | 'nothing-due';
             says: string;
         }[];
     } | null;

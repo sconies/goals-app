@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 10 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 11 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -16,6 +16,7 @@ The module’s 10 rules, in order. Each is a section of its own below, with its 
 | [Measured, partly measured or a gap](#measured-partly-measured-or-a-gap) | Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it. |
 | [Where a metric sits, and how far to trust it](#where-a-metric-sits-and-how-far-to-trust-it) | A metric’s parent and how it relates to it (component, driver, control or breakdown), a confidence in its number, and how it could be gamed: the register’s structure, kept in the library (MQ). |
 | [A reading in a check-in](#a-reading-in-a-check-in) | Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them. |
+| [Metric quality: Draft, Defined, Verified](#metric-quality-draft-defined-verified) | A metric’s stage, worked out from its definition and its verification: the ten parts of a full definition, what lapses Verified, who may verify, and baselines per slice (MQ2). |
 
 ## The metric library
 
@@ -114,6 +115,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
+- metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
+- metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
+- metric library tools › metric quality through MCP › save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving
+- metric library tools › metric quality through MCP › refuses every quality tool with the module-off sentence when Metrics is switched off
 
 ## The library as a place
 
@@ -213,6 +220,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
+- metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
+- metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
+- metric library tools › metric quality through MCP › save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving
+- metric library tools › metric quality through MCP › refuses every quality tool with the module-off sentence when Metrics is switched off
 
 ## “Measured by”, found by typing
 
@@ -452,7 +465,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metricChecks › asks about a unit spelt another way, and says no owner who has left
 - metricChecks › asks only about what changed
 - metricChecks › an answer covers its check only when it is one of its choices
-- metricChecks › takes answers as words for name, unit and meaning only, and says so plainly otherwise
+- metricChecks › takes answers as words for name, unit, meaning, similar and lapse only, and says so plainly otherwise
 - metricChecks › says the count line
 
 #### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
@@ -472,6 +485,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
+- metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
+- metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
+- metric library tools › metric quality through MCP › save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving
+- metric library tools › metric quality through MCP › refuses every quality tool with the module-off sentence when Metrics is switched off
 
 ## For, which part, and what a goal takes from its metric
 
@@ -586,6 +605,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
+- metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
+- metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
+- metric library tools › metric quality through MCP › save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving
+- metric library tools › metric quality through MCP › refuses every quality tool with the module-off sentence when Metrics is switched off
 
 ## Changing, retiring and merging a metric
 
@@ -687,6 +712,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
+- metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
+- metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
+- metric library tools › metric quality through MCP › save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving
+- metric library tools › metric quality through MCP › refuses every quality tool with the module-off sentence when Metrics is switched off
 
 ## Measured, partly measured or a gap
 
@@ -912,3 +943,101 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - after #437’s review › refuses reading fields for any week but this one (medium 2): a source reads what it says now
 - after #437’s review › compares at the goal’s places, not the metric’s (medium 4): a reason given for 19.4 against 19 is kept
 - after #437’s review › fills a field at the goal’s places (medium 6)
+
+## Metric quality: Draft, Defined, Verified
+
+A metric’s stage, worked out from its definition and its verification: the ten parts of a full definition, what lapses Verified, who may verify, and baselines per slice (MQ2).
+
+### The rule
+
+**Rule 13. The stage** (`stageOf`). Every metric is **Draft**, **Defined** or **Verified**, worked out from what it says, never stored or pressed. It is a step shape plus its word, never a goal's status (a circle) or a measurement status (a square). It isn't MQ's *level* (component, driver, control or breakdown), and it isn't the owner's *confidence*, which stays as the owner's own word under where it sits.
+
+- **Defined** needs the ten parts of a full definition (`DEFINED_PARTS`), in this order: what it means; what is measured (count, sum, value, duration, ratio, or other with a formula in words), how it is aggregated (total, mean, median, pXX, latest; not for a ratio or other) and what each part counts (a ratio has a numerator and a denominator); each part's filters and what it leaves out (“None” is an answer); the unit; which way is better; the window (a point in time, rolling 1 to 730 days, per week, month or quarter, or cumulative since a date); the source with a link to the report or query (https://…; no link, not Defined); who owns the source; how often it refreshes; and a metric owner who is here. A baseline is not one of them. Saving is always allowed: a metric becomes Defined by itself once the list is empty.
+- **Draft** is anything short of that. A Draft metric can still measure a goal: it warns, never blocks.
+- **Verified** is Defined plus a standing verification under 12 months old. A Gap (MS: not measured yet) is never Verified: there is nothing to reproduce. After 12 months it is Defined again (“Its verification ran out on …”). **To verify** lists every Defined metric (never verified, or lapsed) and every Verified one within 30 days of its year being up.
+
+**Rule 14. Verifying** (`whyCantVerify`, `verifyMetric`). Anyone but the metric's owner and whoever last changed its calculation, window or source may verify it, and then only an admin, someone in the source's owner (the person, or the team's members and lead, when the source's owner is one of the workspace's) or a verifier an admin named. An admin may not verify a metric they own. Verifying needs “I opened the link”, the period, the figure got from it and a note. Faro compares the figure with the one it has for that period (the company's baseline for the period, else the latest reading from the source, else nothing) and shows the difference in the metric's unit, with no fixed tolerance. The outcome is **Verified** (re-verify in 12 months; a lapse or a rewording to confirm is cleared) or **Couldn't reproduce** (the attempt is kept, the stage doesn't change, and it is on the owner's To sort out until they answer it).
+
+**Rule 15. What lapses Verified** (`qualityChanges`, `lapseChecks`). Changing a Verified metric's calculation (what is measured, how it is aggregated, what a part counts, the formula), window, source or source link, or direction asks once first (save_metric's check `lapse`, answered “go”), then drops it to Defined, keeping what changed, who, when and their reason. Rewording a filter or an exclusion asks its last verifier to confirm instead, and Verified stands. Baselines, the meaning's wording, the owner and caveats change nothing. Whoever changes the calculation, window or source may not verify it next. A new source flags every baseline in force “taken from the old source”, to retake, and marks the charts of the goals it measures (“Source changed, week {w}”).
+
+**Rule 16. Baselines per slice** (`baselineProblems`, `withBaselines`). A baseline belongs to a slice (the whole company, or a team, and optionally one part) and says its value, the period it covers, the day taken and how it was taken; all four are required. A new one moves the slice's old one to History (“Replaced by {period}”, or the reason given). A new figure for a period already stored, or a figure changed from the one the source read, needs a reason, which joins how it was taken. A baseline is a reading, not the definition: adding or renewing one never changes the stage.
+
+**To sort out** (`sortOutOf`) lists each loose end with who should act: a new owner to confirm, baselines to retake from a new source, an unanswered “Couldn't reproduce”, a rewording to confirm (the last verifier), a Gap, or a Draft's missing parts. **Adding a metric** looks for similar ones first, on name, or on the same source and a similar meaning (`similarMetrics`), and offers “Use this one” or “It's different, carry on” (save_metric's check `similar`).
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Flaky test rate in the demo: everything but a link to the report. | `draft: needs a source link` |
+| CI pipeline time on main (p90), fully defined, never verified. | `defined, to verify` |
+| Change failure rate, verified by Amara Nwosu against its Jul–Sep 2026 baseline. | `verified` |
+| Daniel Okafor, who owns CI pipeline time, tries to verify it. | `You own this metric, so someone else must verify it. Ask an admin, someone in Developer Experience (the source owner) or a named verifier.` |
+| A verifier gets 21 min for Aug–Oct 2026; Faro has 22 min. | `Your 21 min against 22 min stored (1 min lower).` |
+| A Verified metric whose window goes from rolling 7 to rolling 28 days, and whose exclusions are reworded. | `lapses: the window; confirm: the exclusions` |
+| A new figure for the company’s Jul–Sep 2026 baseline of Change failure rate, with no reason. | `Say why the figure for Jul–Sep 2026 changes from 11.8.` |
+| A metric that refreshes monthly measures a goal. | `monthly` |
+
+### Where it lives
+
+- [src/modules/metrics/rulesQuality.ts](../../../src/modules/metrics/rulesQuality.ts): `stageOf`, `definedMissing`, `partSaid`, `missingLine`, `qualityChanges`, `whyCantVerify`, `storedFigure`, `differenceWords`, `baselineProblems`, `withBaselines`, `flagOldSource`, `sortOutOf`, `similarMetrics`, `rhythmFor`, `calcWords`, `windowWords`, `refreshWords`, `calcFrom`, `windowFrom`, `qualityProblems`, `DEFINED_PARTS`
+- [src/modules/metrics/rulesVerify.ts](../../../src/modules/metrics/rulesVerify.ts): `verifyMetric`, `saveBaselines`, `confirmOwner`, `confirmReword`, `answerAttempt`
+- [src/modules/metrics/rulesSave.ts](../../../src/modules/metrics/rulesSave.ts): `lapseChecks`
+
+### Requirements
+
+- `METRIC-STAGE`: Every metric is Draft, Defined or Verified (MQ2), worked out from what it says and shown as a step shape plus its word. Defined needs ten parts: meaning; what is measured, how it is aggregated and what each part counts (a ratio's numerator and denominator); each part's filters and exclusions; unit; direction; a structured window; the source with a link to the report or query; the source's owner; refresh; and an owner who is here. A Draft metric can measure a goal (it warns, never blocks). Verified lasts 12 months; changing the calculation, window, source or direction asks once and drops it to Defined with the reason kept; a reworded filter or exclusion asks the last verifier to confirm instead. list_metrics filters by stage and to_verify and gives each row's stage, refresh, window and what it still needs; get_metric and save_metric give the stage, save_metric before and after.
+- `METRIC-VERIFY`: A metric is verified by anyone but its owner and whoever last changed its calculation, window or source, and then only by an admin, someone in the source's owner or a verifier an admin named. They say they opened the link and give the period, the figure they got and a note; Faro shows the difference from the figure it has (a baseline, else the latest reading), with no fixed tolerance. The outcome is Verified, or Couldn't reproduce (kept, the stage unchanged, on the owner's To sort out until answered). verify_metric does the same and refuses in words that say who can instead.
+- `METRIC-BASELINES`: A metric keeps a baseline per slice (the company, or a team, and an optional part): value, the period it covers, the day taken and how, all required. A new one moves the old one to History; a new figure for the same period, or one changed from the figure read, needs a reason. Baselines never change the stage. A new source flags them as taken from the old source, to retake. save_baselines sets one or many, and from_readings fills last quarter's figures for confirming without saving.
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesQuality.test.ts](../../../src/modules/metrics/rulesQuality.test.ts)
+
+- the stage (MQ2) › is Draft while any of the ten parts is missing, naming each in order with why it matters
+- the stage (MQ2) › is Defined with all ten, and needs no baseline
+- the stage (MQ2) › a ratio needs both parts’ counts, filters and exclusions; other needs its formula
+- the stage (MQ2) › is Verified for 12 months, on "To verify" 30 days before, then back to Defined
+- the stage (MQ2) › a Gap is never Verified
+- the stage (MQ2) › says the calculation, window and refresh in a few words
+- the stage (MQ2) › reads what a tool sends: p90, words for a window
+- the stage (MQ2) › a goal checks in monthly or quarterly when its metric refreshes that often
+- saving the structured definition (MQ2) › saves Draft parts, reaches Defined by itself, and round-trips through its row
+- saving the structured definition (MQ2) › refuses a link that isn’t a web address, and an unknown window
+- verifying (MQ2) › refuses the owner and whoever last changed the calculation, in words that say who can
+- verifying (MQ2) › refuses someone who is neither an admin, in the source’s owner nor a named verifier
+- verifying (MQ2) › needs the link opened, the figure and a note; stores the record and shows the difference
+- verifying (MQ2) › "Couldn’t reproduce" keeps the attempt, leaves the stage, and goes on To sort out until answered
+- lapsing (MQ2) › a new window asks first (lapse: go), then drops to Defined with the reason kept
+- lapsing (MQ2) › a reworded exclusion asks the last verifier to confirm instead; Verified stands
+- lapsing (MQ2) › baselines, the owner and caveats never lapse it
+- baselines per slice (MQ2) › need all four parts; a new figure for the same period needs a reason; the old one moves to History
+- baselines per slice (MQ2) › a figure changed from the one read carries its reason into how it was taken
+- baselines per slice (MQ2) › a new source flags the baselines in force as taken from the old source, to retake
+- adding a metric: similar ones first (MQ2) › finds one on name, or on source and meaning, and offers “Use this one”
+- adding a metric: similar ones first (MQ2) › says nothing for a metric unlike any in the library
+
+#### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
+
+- metric library tools › lists the library and reads one metric in full, with the goals it measures
+- metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
+- metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
+- metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
+- metric library tools › changes a metric only for its owner or an admin
+- metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
+- metric library tools › get_metric lists the parts its goals use
+- metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
+- metric library tools › merges one metric into another in the same unit, for admins (MT3)
+- metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
+- metric library tools › says the library is off where an admin has switched it off
+- metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
+- metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
+- metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
+- metric library tools › metric quality through MCP › save_baselines sets slices, refuses a changed figure without a reason, and fills from readings without saving
+- metric library tools › metric quality through MCP › refuses every quality tool with the module-off sentence when Metrics is switched off
