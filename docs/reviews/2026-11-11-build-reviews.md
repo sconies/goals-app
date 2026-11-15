@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `c874f396` (#493, TG2), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493) are at the end. **Mediums open from it:** #493's three, sent to planning 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `517e3d04` (#520, MI), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520) are at the end. **Open from it:** #520's high (Undo removes another year's goal; with track 3 since 02:25 UTC) and its three mediums; #493's three mediums, with planning. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
@@ -279,6 +279,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #532 A merge re-works stopped and removed goals too (the last door of #503's medium) | 3 | 0 | 0 | 0 |
 | #531 Spec: journey pages name their entry, not a line number (#527's medium) | item 11 | 0 | 0 | 0 |
 | #493 TG2: Fields' filters, sheet columns, import and find_goals | 2 | 0 | 3 | 1 |
+| #520 MI: the Metrics sheet in and out | 3 | 1 | 3 | 0 |
 
 **High findings, and where each stands**
 
@@ -2423,3 +2424,14 @@ Read: the whole diff outside the generated files. Run on main at `c874f396`: thr
 - **Low: a value that is one long unbroken word overflows at 390 wide.** A 50-character word with no space: the Filters sheet's option row is wider than the sheet, and once ticked the filter line gives the page a sideways scroll (428 against 390). Values with spaces wrap.
 
 Seen and right: a first load of `/goals?…&f.<id>=Build` is never drawn unfiltered, slow phone included; two values tick to `Build,Run` and "Stage is Build or Run"; Not set; a value with a comma in it; a saved view keeps the filter, and with Fields off lists every goal with no filter line; members see the row; the export's Goals sheet has the column on a first load (10 downloads, CSV only); no stripe, pill or emoji on the new rows. A new goal's row takes its Stage; a non-admin's "add" answer is asked again, not taken (read). Not seen: the xlsx and zip downloads, the MCP tools over HTTP (their unit tests pass).
+
+### #520 MI: the Metrics sheet in and out, with MQ's four fields (track 3, merged 15 Nov)
+
+Read: the planner (`src/modules/metrics/sheetPlan.ts`), the core seam (`src/domain/sheetPlan.ts`), the engine, the reader and undo. Run on main at `517e3d04` with throwaway probes over the demo (`planChanges`, `applyCommit`, `undoImport`; deleted after). `npx vitest run src/spec` passes.
+
+- **High: Undo this import removes a goal of another year.** `src/domain/changeset.ts`, where the import's undo is written: `summary.undo.goals.push({ id: g.id, before: savedGoal.get(g.id) ?? null })` for the goals a module's planner changed. `savedGoal` is the year-scoped snapshot's goals; the metric's hold (`heldBy`) writes goals of every year, stopped and removed too. A goal outside this year is recorded with `before: null`, which undo reads as added by the import. Probed: Change failure rate given a gap, its goal `ns-cfr` moved to a second year (the demo has one, so the year was added for the probe), a Metrics row that retires the metric; the commit un-holds `ns-cfr`; `undoImport` then returns it with `removedAt` set ("restored 2", nothing skipped). The goal can be restored. Sent to track 3 and planning.
+- **Medium: one file that un-holds a metric's goal and changes that goal leaves it held.** The planner's goals are dropped when the Goals sheet wrote the same goal (`moduleGoals.filter((g) => !ordered.some(…))`). Probed: the metric with a gap, one file with Metrics `{ID, Action: Retire, Reason}` and Goals `{Key, Goal: a new name}`: saved, the metric is retired, History says the goal is held to its plan again, and the goal still has `unmeasuredSince`. #503's fault through a new door.
+- **Medium: Undo overwrites a later edit to a metric.** `undoPlan` (`src/domain/removal.ts`) puts each module row back as it was with no look at what happened since; rule 9 leaves a row changed since alone and lists it. Probed: a file changes a metric's Caveats; an hour later its Source is changed in the app; Undo: the Source is the old one again, skipped is empty.
+- **Medium: a goals sheet made by hand with a Metric column is read as the Metrics sheet.** `isMetricsHeader` (Metric with Unit, Direction or Measures) is asked before the core's kinds. "Goal, Metric, Unit, Target, Owner" and "Key, Goal, Metric, Unit, Now" were read as Goals before MI ("Not read: the column Metric"); now each is Metrics, every row says "Say which way is better: higher or lower.", and nothing says the goals were not read.
+
+Not run: bulk_change's `metrics` argument over HTTP (its engine path is the one probed).
