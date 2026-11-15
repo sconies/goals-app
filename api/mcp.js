@@ -9973,9 +9973,15 @@ function undoPlan(x, importId) {
 	let moduleBack = 0;
 	for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
 		const cur = (full.modules?.[m.module]?.[m.key] ?? []).find((r) => r.id === id);
-		const by = latest((c) => c.entityId === id && c.entity !== "workspace" && c.entity !== "goal");
+		const row = cur ?? before;
+		const onGoal = row && typeof row.goalId === "string" && typeof row.fieldId === "string" ? {
+			goalId: row.goalId,
+			fieldId: row.fieldId
+		} : null;
+		const by = latest((c) => c.entity !== "workspace" && c.entity !== "goal" && (c.entityId === id || !!onGoal && c.goalId === onGoal.goalId && c.entityId === onGoal.fieldId));
+		const goalTitle = onGoal ? full.goals.find((g) => g.id === onGoal.goalId)?.title : void 0;
 		if (by && cur) {
-			keep(String(cur.name ?? `A ${m.key} row`), by, "other");
+			keep(String(cur.name ?? goalTitle ?? `A ${m.key} row`), by, "other");
 			continue;
 		}
 		const back = before ?? (cur && !cur.removedAt ? {
@@ -16033,6 +16039,7 @@ var init_sheetPlan = __esmMin((() => {
 }));
 // src/modules/metrics/sheet.ts
 init_columns();
+init_sheets();
 init_rules$1();
 init_rulesStill();
 init_rulesStructure();
@@ -16090,9 +16097,13 @@ var METRICS_SHEET = {
 	}
 };
 /** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
-Direction or Measures; never one with a Goal or Key column, which is a Goals sheet. */
+Direction or Measures; never one with a column the Goals sheet reads as Goal or Key (its own name or another the
+field table gives it: Title, Goal name, Objective…), which is a Goals sheet. */
 function isMetricsHeader(h) {
-	if (h.has("goal") || h.has("key")) return false;
+	for (const x of h) {
+		const c = coreGoalsColumn(x);
+		if (c === "Goal" || c === "Key") return false;
+	}
 	return h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
 }
 // src/modules/metrics/records.ts

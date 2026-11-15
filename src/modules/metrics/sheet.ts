@@ -3,6 +3,7 @@
    in the same preview, questions and Undo as any import. Retired metrics are written too, with the day they were
    retired, so an export loaded back changes nothing. */
 import { cellOr, moduleColumn, oneOf, type Ctx } from '../../domain/columns';
+import { coreGoalsColumn } from '../../domain/sheets';
 import type { ModuleSheet } from '../../domain/records';
 import type { Goal } from '../../domain/types';
 import { DIRECTION_LABEL, liveMetrics, linksOf, metricsOf, REFRESH_LABEL, sliceName } from './rules';
@@ -61,9 +62,11 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
 };
 
 /** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
-    Direction or Measures; never one with a Goal or Key column, which is a Goals sheet. */
+    Direction or Measures; never one with a column the Goals sheet reads as Goal or Key (its own name or another the
+    field table gives it: Title, Goal name, Objective…), which is a Goals sheet. */
 export function isMetricsHeader(h: ReadonlySet<string>): boolean {
-  // A Goals sheet made by hand may have a Metric column too: one with a Goal or Key column is goals (#520 review).
-  if (h.has('goal') || h.has('key')) return false;
+  // A Goals sheet made by hand may have a Metric column too: one with a Goal or Key column, under any name the core's
+  // header reading gives them, is goals (#520 and #534 reviews).
+  for (const x of h) { const c = coreGoalsColumn(x); if (c === 'Goal' || c === 'Key') return false; }
   return (h.has('metric') && (h.has('unit') || h.has('direction') || h.has('measures'))) || (h.has('name') && h.has('unit') && h.has('direction'));
 }

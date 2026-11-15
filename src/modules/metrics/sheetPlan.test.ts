@@ -186,6 +186,14 @@ describe('the Metrics sheet in and out (MI)', () => {
     }
   });
 
+  it('[#534 review] a Goals sheet headed with another name for Goal (Title, Goal name, Objective) is read as goals', () => {
+    for (const head of [['Title', 'Metric', 'Unit', 'Target', 'Owner'], ['Goal name', 'Metric', 'Unit', 'Start', 'Target'], ['Objective', 'Metric', 'Unit', 'Target', 'Owner']]) {
+      const read = readTables([{ name: 'Sheet1', rows: [head, head.map(() => 'x')] }], sheetHeadsFor({}));
+      expect(read.tables.modules?.Metrics).toBeUndefined();
+      expect(read.tables.goals?.length).toBe(1);
+    }
+  });
+
   it('retires with a reason and brings back; a change of meaning on a metric goals use is asked', () => {
     const retire = plan(metricsTable([{ ID: spare.id, Action: 'Retire', Reason: 'Replaced by the new dashboard.' }]));
     expect(must(retire)).toEqual([]);
