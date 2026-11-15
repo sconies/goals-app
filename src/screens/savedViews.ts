@@ -3,13 +3,16 @@
 import { isTableView } from '../domain/tableLayout';
 import { movedGoals } from '../domain/goalsPage';
 import { useApp } from '../app/state';
-import { QUERY_KEYS } from '../domain/query';
+import { isQueryKey, QUERY_KEYS, queryKeyRank } from '../domain/query';
 import type { SavedView } from '../domain/types';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
-const VIEW_KEYS = ['scope', 'group', 'show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
+const LAYOUT_KEYS = ['scope', 'group', 'show', 'view', 'weeks', 'hist'];
+// The query's parameters, a module's (?metric=) and a module family's (Fields' f.<field id>) included, after the layout's.
+const viewKey = (k: string) => LAYOUT_KEYS.includes(k) || isQueryKey(k);
+const rank = (k: string) => (LAYOUT_KEYS.includes(k) ? LAYOUT_KEYS.indexOf(k) : LAYOUT_KEYS.length + queryKeyRank(k));
 // view=list is the list said out loud (GoalViews' useLayout), the same view as no layout at all.
-export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k, v]) => VIEW_KEYS.includes(k) && !(k === 'view' && v === 'list')).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
+export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k, v]) => viewKey(k) && !(k === 'view' && v === 'list')).sort(([a], [b]) => rank(a) - rank(b) || (rank(a) === rank(b) && !QUERY_KEYS.includes(a) ? a.localeCompare(b) : 0))).toString();
 
 /** The views this person sees: their own and the ones an admin pinned for everyone. Data's saved layouts are kept apart. */
 export function useViews(): SavedView[] {

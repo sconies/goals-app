@@ -2,11 +2,13 @@
 
 # Fields: its rules
 
-The module’s 1 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 3 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
 | [Fields: a workspace’s own columns on goals](#fields-a-workspaces-own-columns-on-goals) | What a workspace’s own field must say, how many there may be, and what a goal’s value for one may be. |
+| [Fields: filtering goals by a field](#fields-filtering-goals-by-a-field) | Which goals a filter on a list field keeps, on Goals, in a saved view and through find_goals. |
+| [Fields: the Goals sheet’s columns](#fields-the-goals-sheets-columns) | How a workbook writes a goal’s fields, and how loading one back reads them. |
 
 ## Fields: a workspace’s own columns on goals
 
@@ -84,3 +86,129 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - fields tools › an admin defines a field; the owner sets a goal’s value by name, checked first with dry_run
 - fields tools › refuses every tool while Fields is off, and keeps the values
+- find_goals’ fields (TG2, rule 3) › finds goals by a list field’s values, Not set among them, as Goals’ filter and its link do
+
+## Fields: filtering goals by a field
+
+Which goals a filter on a list field keeps, on Goals, in a saved view and through find_goals.
+
+### The rule
+
+Goals' Filters sheet has a row for each live **list** field, its values and **Not set** to tick ("Stage: Discover · Build · Run · Not set"). A goal matches when its value is one of those ticked, whatever the case; **Not set** matches a goal with no value (never set, or cleared). With several fields filtered, a goal matches **every** one. A field with nothing ticked filters nothing.
+
+The filter line says it as "Stage is Build" ("Stage is Build or Run"), with Remove. The address carries it as `/goals?f.<field id>=Build,Run` (the values in the list's order, Not set last), so a link and a saved view keep it; a value the list no longer holds is left out, as a link's unknown values are. The field's id, not its name, so renaming a field keeps every view.
+
+find_goals takes the same filter by name: `fields: { "Stage": "Build, Run" }`. A name no live field has, a free-text field, or a value the list doesn't hold is refused in words. **Free text is not a filter** (Lane, 2a); Find searches the goal's own words, not a field's.
+
+With Fields switched off there are no filter rows, a link's `f.` parameters narrow nothing (as a switched-off module's filter never does), and find_goals' `fields` says the module-off sentence.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Four goals: g1 and g3 in Build, g2 in Discover, g4 with no Stage. Filter: Stage is Build. | `g1, g3` |
+| The same goals. Filter: Stage is Discover or Not set. | `g2, g4` |
+| A link says f.<Stage’s id>=run,Operate,not set. | `Run,Not set` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** A link names a field by its id, so a rename keeps saved views; a rebuild may prefer a readable key, keeping the id behind it.
+
+### Where it lives
+
+- [src/modules/tags/filter.ts](../../../src/modules/tags/filter.ts): `filterGoals`, `fieldMatcher`, `pickedOf`, `pickedText`, `NOT_SET`
+- [src/modules/tags/extras.ts](../../../src/modules/tags/extras.ts): `family`
+- [src/modules/tags/find.ts](../../../src/modules/tags/find.ts): `fieldParams`
+
+### Requirements
+
+- `TAGS-FILTER`: Goals filters by a workspace's own list fields: the Filters sheet has a row per live list field with its values and “Not set” to tick (any of them), the filter line says “Stage is Build” with Remove, the address carries it (/goals?f.<field id>=Build) so a link and a saved view keep it, and an AI assistant's find_goals takes the same filter by name (fields: { Stage: "Build" }). Free text is not a filter. Data's Goals table has a column per live field.
+
+### Tests that check it
+
+#### [src/modules/tags/filter.test.ts](../../../src/modules/tags/filter.test.ts)
+
+- filterGoals (rule 3) › keeps the goals whose value is one of those picked, whatever the case
+- filterGoals (rule 3) › matches “Not set” to a goal with no value, a cleared one, or one taken away
+- filterGoals (rule 3) › a goal matches every field filtered; a field with nothing picked filters nothing
+- a filter’s text (the link and the saved view) › reads the values a list holds, a value with a comma in it as one, and leaves out what it doesn’t hold
+- a filter’s text (the link and the saved view) › writes the values picked in the list’s order, Not set last
+- a filter’s text (the link and the saved view) › a list can’t hold a value called “Not set”
+
+#### [src/modules/tags/tools.test.ts](../../../src/modules/tags/tools.test.ts)
+
+- fields tools › an admin defines a field; the owner sets a goal’s value by name, checked first with dry_run
+- fields tools › refuses every tool while Fields is off, and keeps the values
+- find_goals’ fields (TG2, rule 3) › finds goals by a list field’s values, Not set among them, as Goals’ filter and its link do
+
+#### [src/domain/query.test.ts](../../../src/domain/query.test.ts)
+
+- searching, filtering and sorting goals › round-trips through a link, ignoring anything it doesn’t know
+- searching, filtering and sorting goals › finds goals by every word, in titles, owners, teams and the owner’s reasons
+- searching, filtering and sorting goals › finds a goal by its key, however it is typed: “G-48”, “g48”, “48” (U28)
+- searching, filtering and sorting goals › counts no done goal as quiet, and the pinned view uses the no-recent-update threshold (demo review, 8 Nov)
+- searching, filtering and sorting goals › filters by status, level, team, owner and type
+- searching, filtering and sorting goals › finds what needs someone: a decision, a slipped date
+- searching, filtering and sorting goals › filters by time and results
+- searching, filtering and sorting goals › narrows to a goal’s tree, or to goals with “also helps” links
+- searching, filtering and sorting goals › sorts, with worst first breaking ties
+- searching, filtering and sorting goals › says each filter in words, and can drop one
+- queryParts (find rule 3, on Goals) › says each filter as its label and values, never the search or the switch
+- queryParts (find rule 3, on Goals) › says the reasons for needing attention when they narrow it
+- a module’s filter, declared as a column (architecture 4.2) › reads its parameter once added, compares the column, words it and removes it
+- a module’s filter, declared as a column (architecture 4.2) › reads a family’s parameters by their start (Fields’ f.<field id>), and a column’s test picks several values
+- owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER] › leaves out the asker’s own goals, round-trips through a link, and says “Owner not you”
+- moved and since: what changed (Home rule 5, HM4) › reads and writes moved=<kind>&since=<date> after attention; since alone is nothing
+- moved and since: what changed (Home rule 5, HM4) › says “Changed since Fri 6 Nov: got worse”, and Remove takes both away; a kind it doesn’t know has no words and is no filter
+- moved and since: what changed (Home rule 5, HM4) › keeps the goals the context passes; without it, none
+
+## Fields: the Goals sheet’s columns
+
+How a workbook writes a goal’s fields, and how loading one back reads them.
+
+### The rule
+
+Every export's **Goals** sheet (the workbook, Data's Goals table, the MCP export) has one column per live field after the core's, **headed with the field's name**: the goal's value, or empty for none. Its Start here sheet says what each holds.
+
+**Loading back.** A Goals row's cell under a field's header is read as the goal's page would take it (rule tags-fields): a list's value whatever the case, kept as the list writes it; an empty cell clears the value. Only what differs from what is saved changes anything, so **a workbook exported and loaded back changes nothing**. A change is said on the goal's row of the preview and in History as on the goal's page ("Stage: Discover → Build"), via Spreadsheet.
+
+**A value the list doesn't hold** is a Check, asked **once per field and value**, however many rows say it: "Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?" An **admin** may add it (the list changes, in History, and every row takes it); anyone else may only leave those cells empty, or fix the file. Free text over 80 characters is a Must fix; a goal the loader may not change is the core's Must fix.
+
+A column headed with a name no live field has is a column nothing reads, named on the file line. With Fields switched off, no export has the columns, a file's are columns nothing reads (named once on the file line), and every value is kept.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| An admin loads a Goals sheet whose Stage column says “Operate” on 4 rows. | `Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?` |
+| Someone who isn’t an admin loads the same file. | `empty` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** Undo this import puts goals, plans and check-ins back, but not a field’s values or an added list value (the core’s import undo keeps no module rows yet).
+
+### Where it lives
+
+- [src/modules/tags/sheet.ts](../../../src/modules/tags/sheet.ts): `readFieldColumns`, `unknownValue`
+- [src/modules/tags/extras.ts](../../../src/modules/tags/extras.ts): `sheet`
+- [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`
+
+### Requirements
+
+- `TAGS-SHEET`: Every export's Goals sheet has a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, and an export loaded straight back changes nothing. A value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”): only an admin may add it, anyone else leaves those cells empty or fixes the file. A column headed with a name no field has is a column nothing reads.
+
+### Tests that check it
+
+#### [src/modules/tags/sheet.test.ts](../../../src/modules/tags/sheet.test.ts)
+
+- the Goals sheet’s field columns › has one column per live field, headed with its name, after the core’s; the README says what each holds
+- the Goals sheet’s field columns › exported and loaded back, changes nothing, and reads every column
+- the Goals sheet’s field columns › changes what differs, in History as the goal’s page says it, and an empty cell clears a value
+- the Goals sheet’s field columns › asks once about a value a list doesn’t hold; an admin may add it, and every row it covers takes it
+- the Goals sheet’s field columns › anyone but an admin may only leave the cells empty, or fix the file
+- the Goals sheet’s field columns › refuses free text over 80 characters, and a goal its loader may not change
+- the Goals sheet’s field columns › with Fields off: no columns in an export, a file’s are read by nothing, and values stay (the file line: spreadsheets/unread.test.ts)

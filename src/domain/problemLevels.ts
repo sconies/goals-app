@@ -65,13 +65,13 @@ export function near(v: string, candidates: readonly string[]): NearAnswer {
 export const MUST_KINDS = [
   'required-empty', 'not-a-number', 'formula', 'precision', 'impossible-number', 'unknown-word', 'unknown-ref', 'ambiguous-ref',
   'conflicting-refs', 'bad-key', 'duplicate', 'type-unclear', 'plan-order', 'stage-format', 'week-wrong', 'checkin-incomplete',
-  'cant-change', 'not-allowed', 'removal-refused', 'loop',
+  'cant-change', 'not-allowed', 'removal-refused', 'loop', 'too-long',
 ] as const;
 /** What is possible but unlikely: asked, once per group. */
 export const CHECK_KINDS = [
   'near-ref', 'near-word', 'near-header', 'two-columns', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
-  'feeds-lower', 'for-someone-else',
+  'feeds-lower', 'for-someone-else', 'module-value',
 ] as const;
 /** How a row was read: fine, and said on the change. */
 export const NOTE_KINDS = ['by-name', 'default', 'date-as-week', 'folded', 'same-name', 'left-alone', 'replaces', 'as-recorded', 'example'] as const;
@@ -255,6 +255,8 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'cant-change': return `${n(count, 'row')} change${count === 1 ? 's' : ''} something that can’t change`;
     case 'not-allowed': return sheet === 'People' ? `${n(count, 'row')} change${count === 1 ? 's' : ''} people. Only an admin can add or change people` : `${n(count, 'row')} change${count === 1 ? 's' : ''} ${count === 1 ? 'a goal' : 'goals'} you don’t own`;
     case 'removal-refused': return `${n(count, 'row')} can’t be ${sheet === 'People' ? 'marked as left' : 'stopped or deleted'} as ${count === 1 ? 'it stands' : 'they stand'}`;
+    case 'too-long': return `${n(count, 'cell')} ${count === 1 ? 'is' : 'are'} longer than ${col || 'its column'} holds`;
+    case 'module-value': return first.message;
     case 'loop': return `${n(count, 'goal')} would feed ${count === 1 ? 'itself' : 'themselves'}`;
     case 'near-ref': return `${n(count, 'row')} name${count === 1 ? 's' : ''} a ${THING[col] ?? 'record'} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
     case 'near-word': return `${col} says “${v}” on ${n(count, 'row')}. Read it as ${first.suggest}?`;

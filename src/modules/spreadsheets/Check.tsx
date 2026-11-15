@@ -8,6 +8,7 @@ import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
 import { exportOn } from '../../core/records';
+import { unreadColumns } from './unread';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
@@ -98,7 +99,8 @@ export function Check() {
 
   // A reload loses the file (it was only ever in memory): back to Import, which says so.
   if (!st.read || !base) return <Navigate to="/data/import" replace state={{ lost: true }} />;
-  const read = st.read;
+  // A module's own Goals columns (Fields') are read, so the file line doesn't name them; with it off they are named.
+  const read = { ...st.read, unknownColumns: unreadColumns(st.read, app.ws, app.snapshot) };
 
   if (otherWorkspace) {
     const from = read.origin!.workspaceName ? `“${read.origin!.workspaceName}”` : 'another workspace';
