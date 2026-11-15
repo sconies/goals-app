@@ -279,7 +279,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #532 A merge re-works stopped and removed goals too (the last door of #503's medium) | 3 | 0 | 0 | 0 |
 | #531 Spec: journey pages name their entry, not a line number (#527's medium) | item 11 | 0 | 0 | 0 |
 | #493 TG2: Fields' filters, sheet columns, import and find_goals | 2 | 0 | 3 | 1 |
-| #520 MI: the Metrics sheet in and out | 3 | 1 | 3 | 0 |
+| #520 MI: the Metrics sheet in and out | 3 | 1 | 4 | 3 |
 
 **High findings, and where each stands**
 
@@ -2434,4 +2434,9 @@ Read: the planner (`src/modules/metrics/sheetPlan.ts`), the core seam (`src/doma
 - **Medium: Undo overwrites a later edit to a metric.** `undoPlan` (`src/domain/removal.ts`) puts each module row back as it was with no look at what happened since; rule 9 leaves a row changed since alone and lists it. Probed: a file changes a metric's Caveats; an hour later its Source is changed in the app; Undo: the Source is the old one again, skipped is empty.
 - **Medium: a goals sheet made by hand with a Metric column is read as the Metrics sheet.** `isMetricsHeader` (Metric with Unit, Direction or Measures) is asked before the core's kinds. "Goal, Metric, Unit, Target, Owner" and "Key, Goal, Metric, Unit, Now" were read as Goals before MI ("Not read: the column Metric"); now each is Metrics, every row says "Say which way is better: higher or lower.", and nothing says the goals were not read.
 
-Not run: bulk_change's `metrics` argument over HTTP (its engine path is the one probed).
+- **Medium: after a Metrics-only import the Imported page says "Saved 0 rows from m.csv."** Seen three times, desktop and phone: a CSV with one new metric and one changed, "Save 2 changes", then that line (a goals import says "Saved 15 rows…"). Activity says it right: "imported m.csv: 1 new metric, 1 metric changed". The page also offers "See the goals".
+- **Low: two group headings use a goal's or a number's words for a metric.** A member changing someone else's metric: "1 row changes a goal you don’t own" (the detail is right: "Only Ethan Brooks or an admin can change this metric."). Decimals "9": "1 row has text where a number goes (Decimals)".
+- **Low: a row found by name renames the metric to the file's spelling.** "ci compute COST per pipeline run" finds the metric and gives "Name: CI compute cost per pipeline run → ci compute COST per pipeline run"; Help says only that a row finds its metric by name, any case.
+- **Low: after Undo the metric's History still says "changed the metric…" with nothing saying it was undone.**
+
+Walked on a production build, desktop and phone: the full workbook loaded straight back ("Nothing would change", Metrics 13 read, 13 unchanged); add and change with their rows; Undo from Past imports ("2 rows go back…", both back); the same-number question, its Reason Must fix and "Definition changed, week 45" on the goal; five Must fixes and the rows-to-fix file with the Metrics headers; the library off ("Metric library is off in …, so the Metrics sheet was not read."); a member refused; no stripe, pill or emoji. The hand-made goals file of the third medium, on screen: file line "Read goals-by-hand.csv.", then "Nothing would change" when its Metric cells name metrics already here. Not run: bulk_change's `metrics` argument over HTTP, bringing a metric back, a Part of naming an earlier row, retired rows in an export.
