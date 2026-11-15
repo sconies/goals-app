@@ -13,6 +13,7 @@ import { currentWeek } from '../../domain/plan';
 import type { ModuleRecords } from '../../domain/records';
 import { readTables, recordsOf } from '../../domain/sheets';
 import type { ActionContext } from '../../domain/actions';
+import { undoImport } from '../../domain/removal';
 import type { Snapshot } from '../../domain/types';
 import { addField, fieldsOf, liveFields, MODULE, setGoalFields, valueOf } from './fields';
 import extras from './extras';
@@ -90,6 +91,27 @@ describe('the Goals sheet’s field columns', () => {
     expect(stage.options).toEqual(['Discover', 'Build', 'Run', 'Operate']);
     expect(['lead-flaky', 'ci-docker', 'ns-ci'].map((id) => valueOf(after, id, stage.id))).toEqual(['Operate', 'Operate', 'Build']);
     expect(after.changes.some((c) => c.entity === 'field' && c.summary === 'Stage’s values changed')).toBe(true);
+  });
+
+  it('Undo this import puts field values back, and takes out a list value it added (TG2 review)', () => {
+    const s = withFields();
+    // Only field cells change: the import still has rows to undo.
+    const only = load(s, { goals: csv(`key|stage|programme\n${keyOf(s, 'lead-flaky')}|Run|\n${keyOf(s, 'ns-ci')}|Discover|`) });
+    const after = applyCommit(s, only.commit!);
+    const stage = liveFields(after)[0]!;
+    const importId = only.commit!.changes!.find((c) => c.action === 'imported')!.importId!;
+    const undone = undoImport(ctx(after, 'amara'), importId);
+    expect(undone.restored).toBe(2);
+    const back = applyCommit(after, undone.commit);
+    expect([valueOf(back, 'lead-flaky', stage.id), valueOf(back, 'ns-ci', stage.id)]).toEqual(['Build', '']);
+    // A value the import added to the list goes again, with the cells that took it.
+    const rows = `key|stage\n${keyOf(s, 'lead-flaky')}|Operate`;
+    const groupId = load(s, { goals: csv(rows) }).groups.find((g) => g.kind === 'module-value')!.id;
+    const added = load(s, { goals: csv(rows) }, 'amara', { [groupId]: { choice: 'add' } });
+    const withOp = applyCommit(s, added.commit!);
+    const again = applyCommit(withOp, undoImport(ctx(withOp, 'amara'), added.commit!.changes!.find((c) => c.action === 'imported')!.importId!).commit);
+    expect(liveFields(again)[0]!.options).toEqual(['Discover', 'Build', 'Run']);
+    expect(valueOf(again, 'lead-flaky', stage.id)).toBe('Build');
   });
 
   it('anyone but an admin may only leave the cells empty, or fix the file', () => {
