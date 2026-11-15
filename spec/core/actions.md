@@ -17,7 +17,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 |---|---|---|---|
 | [planChanges](#planchanges) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Add someone; change their name, job title, team or admin rights | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov); Admins | [`bulk_change`](tools.md#bulk_change), [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`post_check_in`](tools.md#post_check_in), [`save_person`](tools.md#save_person) |
 | [postCheckIn](#postcheckin) | Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export: past weeks, or a correction of one already there; never this week’s new check-in, so one pasted row is not a workbook), and correcting one that exists in Data’s tables (never adding one). Each records the admin as author, with the route as its Via | [`post_check_in`](tools.md#post_check_in), [`bulk_change`](tools.md#bulk_change) |
-| [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov) | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
+| [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Propose a goal in a review | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov); Someone in the review, or an admin; only a new proposed goal | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
 | [activate](#activate) | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | [`make_goal_active`](tools.md#make_goal_active) |
 | [backToProposed](#backtoproposed) | Make an active goal with no check-ins proposed again (GE10) | The goal’s owner, or an admin | [`make_goal_proposed`](tools.md#make_goal_proposed) |
 | [stopGoal](#stopgoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`stop_goal`](tools.md#stop_goal) |
@@ -38,16 +38,16 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [linkRequest](#linkrequest) | Say a goal waits on another goal’s decision or help | The waiting goal’s owner, or an admin | [`link_request`](tools.md#link_request) |
 | [withdrawRequest](#withdrawrequest) | Withdraw an ask | Whoever asked, or an admin; for a decision or help, also the owner of the goal it was raised on | [`withdraw_request`](tools.md#withdraw_request) |
 | [saveReview](#savereview) | Set up a review; Change a review | Anyone; Someone in it, whoever set it up, or an admin | [`save_review`](tools.md#save_review) |
-| [reviewCall](#reviewcall) | Say something about a goal in a review (seen, a note, a question, an action) | Anyone; a question or action on your own goal is a note instead | [`review_call`](tools.md#review_call) |
-| [acceptRisk](#acceptrisk) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`review_call`](tools.md#review_call) |
-| [markReviewed](#markreviewed) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`review_call`](tools.md#review_call) |
+| [reviewCall](#reviewcall) | Say something about a goal in a review (seen, a note, a question, an action) | Someone in the review, or an admin, about a goal it walks; a question or action on your own goal is a note instead | [`review_call`](tools.md#review_call) |
+| [acceptRisk](#acceptrisk) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Someone in the review, or an admin | [`review_call`](tools.md#review_call) |
+| [markReviewed](#markreviewed) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Someone in the review, or an admin | [`review_call`](tools.md#review_call) |
 | [editCall](#editcall) | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`edit_call`](tools.md#edit_call) |
 | [unmarkReviewed](#unmarkreviewed) | Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmark_reviewed`](tools.md#unmark_reviewed) |
 | [deleteNote](#deletenote) | Remove a note said in a review | Whoever said it, or an admin | [`delete_comment`](tools.md#delete_comment) |
 | [endReview](#endreview) | End a review, or delete one never held | Whoever set it up, or an admin | [`end_review`](tools.md#end_review) |
 | [deleteReview](#deletereview) | End a review, or delete one never held | Whoever set it up, or an admin | [`delete_review`](tools.md#delete_review) |
-| [watch](#watch) | Watch a goal, a tree or a level; stop watching | Anyone, for their own watches | [`watch`](tools.md#watch) |
-| [unwatch](#unwatch) | Watch a goal, a tree or a level; stop watching | Anyone, for their own watches | [`unwatch`](tools.md#unwatch) |
+| [watch](#watch) | Watch a goal, a tree or a level; stop watching | Each person, for their own watches only; nobody, admins included, starts or stops someone else’s | [`watch`](tools.md#watch) |
+| [unwatch](#unwatch) | Watch a goal, a tree or a level; stop watching | Each person, for their own watches only; nobody, admins included, starts or stops someone else’s | [`unwatch`](tools.md#unwatch) |
 | [saveView](#saveview) | Save a view of the goals; change or delete one | Anyone saves; its owner or an admin changes or deletes it | [`save_view`](tools.md#save_view) |
 | [saveTableView](#savetableview) | Save a view of the goals; change or delete one | Anyone saves; its owner or an admin changes or deletes it | [`save_table_view`](tools.md#save_table_view) |
 | [deleteView](#deleteview) | Save a view of the goals; change or delete one | Anyone saves; its owner or an admin changes or deletes it | [`delete_view`](tools.md#delete_view) |
@@ -69,8 +69,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [undoRemoval](#undoremoval) | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | none, on purpose ([why](#undoremoval)) |
 | [restoreRemoved](#restoreremoved) | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restore_removed`](tools.md#restore_removed), [`list_removed`](tools.md#list_removed) |
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
-| [revokeToken](#revoketoken) | Revoke an MCP token | An admin, or the token’s person | [`revoke_token`](tools.md#revoke_token) |
-| [sendFeedback](#sendfeedback) | Send feedback about the app | Anyone | [`send_feedback`](tools.md#send_feedback) |
+| [revokeToken](#revoketoken) | Revoke an MCP token | An admin, or the token’s person. A token is never changed, only revoked. | [`revoke_token`](tools.md#revoke_token) |
+| [sendFeedback](#sendfeedback) | Send feedback about the app | Anyone, as themselves; it is always New (okr_feedback_add) | [`send_feedback`](tools.md#send_feedback) |
 | [saveMetric](#savemetric) (metrics) | Add a metric to the library; Change or remove a metric | Anyone; they own it unless they name another owner; Its owner, or an admin | [`save_metric`](tools.md#save_metric) |
 | [removeMetric](#removemetric) (metrics) | Change or remove a metric | Its owner, or an admin | [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed) |
 | [linkGoalMetric](#linkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
@@ -167,7 +167,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 ## saveGoal
 
-**Does:** Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); add a goal, at any level, owned by anyone.
+**Does:** Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); add a goal, at any level, owned by anyone; propose a goal in a review.
 
 **Input** (`SaveGoalWith`):
 
@@ -186,7 +186,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `{ commit: Commit \| null; goal: Goal; }` ([Goal](data-model.md#goal))
 
-**Who may:** The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it (to change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)); Anyone, for anyone (Lane, 11 Nov) (to add a goal, at any level, owned by anyone).
+**Who may:** The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it (to change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)); Anyone, for anyone (Lane, 11 Nov) (to add a goal, at any level, owned by anyone); Someone in the review, or an admin; only a new proposed goal (to propose a goal in a review).
 
 **The rule:** `planGoal`, in `src/domain/goalEntry.ts`.
 
@@ -728,7 +728,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit`
 
-**Who may:** Anyone; a question or action on your own goal is a note instead.
+**Who may:** Someone in the review, or an admin, about a goal it walks; a question or action on your own goal is a note instead.
 
 **The rule:** `reviewCall`, in `src/domain/actions.ts`.
 
@@ -759,7 +759,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit`
 
-**Who may:** Anyone.
+**Who may:** Someone in the review, or an admin.
 
 **The rule:** `acceptRisk`, in `src/domain/actions.ts`.
 
@@ -790,7 +790,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit`
 
-**Who may:** Anyone.
+**Who may:** Someone in the review, or an admin.
 
 **The rule:** `markReviewed`, in `src/domain/actions.ts`.
 
@@ -944,7 +944,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit \| null`
 
-**Who may:** Anyone, for their own watches.
+**Who may:** Each person, for their own watches only; nobody, admins included, starts or stops someone else’s.
 
 **The rule:** `watch`, in `src/domain/actions.ts`.
 
@@ -967,7 +967,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit`
 
-**Who may:** Anyone, for their own watches.
+**Who may:** Each person, for their own watches only; nobody, admins included, starts or stops someone else’s.
 
 **The rule:** `unwatch`, in `src/domain/actions.ts`.
 
@@ -1517,7 +1517,7 @@ Nothing.
 
 **Result:** `Commit \| null`
 
-**Who may:** An admin, or the token’s person.
+**Who may:** An admin, or the token’s person. A token is never changed, only revoked..
 
 **The rule:** `revokeToken`, in `src/domain/actions.ts`.
 
@@ -1542,7 +1542,7 @@ Nothing.
 
 **Result:** `Commit`
 
-**Who may:** Anyone.
+**Who may:** Anyone, as themselves; it is always New (okr_feedback_add).
 
 **The rule:** `sendFeedback`, in `src/domain/actions.ts`.
 

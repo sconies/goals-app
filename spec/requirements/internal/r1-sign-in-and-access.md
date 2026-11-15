@@ -25,6 +25,7 @@ The rules about who may do what already exist, once, in the shared actions the a
 9. **Opening the app without signing in shows the sign-in** (set-up spec SR1), never Welcome with a list of workspaces, a workspace or a name picker. After sign-in: no workspace, Welcome; one, its Home; several, the last one opened.
 10. **An invitation is addressed to a person** (SR2). Adding someone to a workspace (their email, rule 2) is what invites them; the platform tells them by its own means (email, chat), with the same three lines Faro’s invitation has. Faro’s copy-and-paste link is the stand-in.
 11. **Arriving is the first sign-in** (SR3). There is no “Which one are you?”: the signed-in email is matched to the person record. Someone with no record sees “You’re not in {workspace}. Ask {admins} to add you.” and nothing of the workspace. The server records the arrival at the first sign-in (the same log entry Faro writes when someone first chooses their name: `arrive`).
+12. **The server checks every record kind, not every save.** A platform that stores rows (any database without Faro’s actions running beside it) must check each record a save writes against the stored rows before keeping it: who may write that kind (the access table), which fields are fixed once written, and which side-effect writes an action makes. The drill (item 11, 15 Nov) rebuilt Faro on a row store and found that a guard covering only goals, check-ins, people, teams, cycles, settings and views let a member forge decisions, retros, watches, asks, reviews and feedback, and that each module’s own guard still let side-effect writes through when the browser sent them along with a goal. The platform enforces this; the browser’s checks only explain early. The table **Record kinds the server checks** below lists every kind and every side-effect write.
 
 ## Who may change what
 
@@ -65,8 +66,9 @@ Read from Faro’s shared actions: each line names the function that enforces it
 |---|---|---|
 | Set up a review | Anyone | [`saveReview`](../../../src/domain/actions.ts) |
 | Change a review | Someone in it, whoever set it up, or an admin | [`saveReview`](../../../src/domain/actions.ts) |
-| Say something about a goal in a review (seen, a note, a question, an action) | Anyone; a question or action on your own goal is a note instead | [`reviewCall`](../../../src/domain/actions.ts) |
-| Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`markReviewed`](../../../src/domain/actions.ts), [`acceptRisk`](../../../src/domain/actions.ts) |
+| Say something about a goal in a review (seen, a note, a question, an action) | Someone in the review, or an admin, about a goal it walks; a question or action on your own goal is a note instead | [`reviewCall`](../../../src/domain/actions.ts) |
+| Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Someone in the review, or an admin | [`markReviewed`](../../../src/domain/actions.ts), [`acceptRisk`](../../../src/domain/actions.ts) |
+| Propose a goal in a review | Someone in the review, or an admin; only a new proposed goal | [`planGoal`](../../../src/domain/goalEntry.ts) |
 | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`editCall`](../../../src/domain/actions.ts) |
 | Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmarkReviewed`](../../../src/domain/removal.ts) |
 | Remove a note said in a review | Whoever said it, or an admin | [`deleteNote`](../../../src/domain/removal.ts) |
@@ -76,7 +78,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 
 | What | Who may | Enforced today by |
 |---|---|---|
-| Watch a goal, a tree or a level; stop watching | Anyone, for their own watches | [`watch`](../../../src/domain/actions.ts), [`unwatch`](../../../src/domain/actions.ts) |
+| Watch a goal, a tree or a level; stop watching | Each person, for their own watches only; nobody, admins included, starts or stops someone else’s | [`watch`](../../../src/domain/actions.ts), [`unwatch`](../../../src/domain/actions.ts) |
 | Save a view of the goals; change or delete one | Anyone saves; its owner or an admin changes or deletes it | [`saveView`](../../../src/domain/actions.ts), [`saveTableView`](../../../src/domain/actions.ts), [`deleteView`](../../../src/domain/actions.ts) |
 | Pin a view for everyone | Admins | [`pinView`](../../../src/domain/actions.ts) |
 
@@ -94,8 +96,8 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | [`undoRemoval`](../../../src/domain/removal.ts) |
 | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restoreRemoved`](../../../src/domain/removal.ts), [`canRestore`](../../../src/domain/removal.ts) |
 | Make an MCP token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
-| Revoke an MCP token | An admin, or the token’s person | [`revokeToken`](../../../src/domain/actions.ts) |
-| Send feedback about the app | Anyone | [`sendFeedback`](../../../src/domain/actions.ts) |
+| Revoke an MCP token | An admin, or the token’s person. A token is never changed, only revoked. | [`revokeToken`](../../../src/domain/actions.ts) |
+| Send feedback about the app | Anyone, as themselves; it is always New (okr_feedback_add) | [`sendFeedback`](../../../src/domain/actions.ts) |
 | Start over: reset the shared example in this browser, or remove a workspace of your own | Anyone in the example; admins in a workspace of their own | [`mayStartOver`](../../../src/domain/actions.ts) |
 | Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again) | Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback | [`mayTriage`](../../../src/markup/model.ts) |
 
@@ -115,6 +117,31 @@ Read from Faro’s shared actions: each line names the function that enforces it
 |---|---|---|
 | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`addField`](../../../src/modules/tags/fields.ts), [`changeField`](../../../src/modules/tags/fields.ts), [`moveField`](../../../src/modules/tags/fields.ts), [`retireField`](../../../src/modules/tags/fields.ts), [`bringBackField`](../../../src/modules/tags/fields.ts), [`canDefineFields`](../../../src/modules/tags/fields.ts) |
 | Set a goal’s value for a field (TG1) | The goal’s owner, or an admin | [`setGoalFields`](../../../src/modules/tags/fields.ts), [`canSetFields`](../../../src/modules/tags/fields.ts) |
+
+### Record kinds the server checks
+
+When a platform stores rows, with none of Faro’s actions running beside the store, each record a save writes is checked against the stored rows before it is kept (rule 12). Every kind has the same three parts: who may write it, which fields are fixed once written, and which side-effect writes an action makes that the server makes itself, never taking them from the browser.
+
+| Record kind | Who may write it | Fixed once written | Side-effect writes the server makes itself |
+|---|---|---|---|
+| People (`people`) | Admins; a person themselves only by arriving and by leaving | id, workspace, and whose email it is (a person’s email changes only by an admin) | Marking someone as left, or a leaver leaving, hands over their goals and asks, takes them out of reviews and ends their watches. |
+| Goals (`goals`) | The owner, an admin, or while proposed whoever proposed it; anyone adds one for anyone | id, workspace, cycle, who created it | The next cycle’s start copies goals (and their watches, values and links). A metric’s save relabels the unit of the goals it measures and holds them to no number on a Gap, whoever owns them. A hand-over changes the owner. A goal can be proposed in a review. |
+| Check-ins (`checkIns`) | The goal’s owner only (an admin’s import and undo, as the access table says) | goal, week, who posted it | None beyond the goal’s version. |
+| Decisions (`decisions`) | Whoever records it, as themselves | who recorded it, when, its goal | None. |
+| Asks (`requests`) | Asking: anyone but the goal’s owner. Answering: the person asked, or an admin. Withdrawing and marking done as the access table says | who asked, when, the goals it is about, and a removed ask’s remover | A hand-over re-addresses open asks; a review raises asks. |
+| Reviews, and what is said in them (`reviews`) | Set up by anyone; changed by someone in it, its setter or an admin. A note, question, action or mark only by someone in the review (or an admin), about a goal the review walks | who set it up, who said each thing and when, who removed a note | A leaver leaves reviews; an undo restores them. Carrying a goal into a review is the review’s change, never accepted as a goal riding another save. |
+| Wrap-ups (`retros`) | The goal’s owner or an admin, while the wrap-up is open by the server’s own clock; one per goal per year | goal, year, who wrote it, when | None. |
+| Cycles (`cycles`) | Admins | id, workspace | None. |
+| Watches (`watches, unwatch`) | Each person their own only; nobody, admins included, starts or stops someone else’s | whose watch, what it watches | A cycle’s start, its undoing and a goal leaving a later year carry watchers’ watches along with the goals: the server makes these itself and never accepts a watch for someone else sent with a goal. |
+| Saved views (`views`) | Anyone saves their own; its owner or an admin changes or deletes it; admins pin | its owner, workspace | None. |
+| Tokens (`tokens`) | Made on the server by an admin, only while AI access is on (the database function too); revoked by its person or an admin; never changed otherwise | its person, workspace, hash | None. |
+| Feedback and markups (`feedback`) | Anyone adds, as themselves, always New; only whoever may triage changes a status (rule 6), never an admin of some other workspace | sender, workspace, text, when | None. |
+| Teams, the workspace’s name, recording and feature switches (`teams, removeTeams, workspace, recording, modulesOff`) | Admins of that workspace | id, workspace | Switching a feature off changes nothing stored; its rows are kept. |
+| The change log (`changes`) | Written by the server as the signed-in person; an entry is kept only beside the record change it describes, in the same save | everything: an entry is never changed | None. |
+| Module rows (`modules`) | Each module’s own check (metrics and their links, field values, import jobs); refused while the module is switched off or left out of the build, whatever marks the save carries; an unknown kind or key is refused, not ignored | as each module says | As each module says. |
+| Files (`files`) | Scoped to a workspace and to whoever may read them; an import’s upload only to its job; readings drops only admins; the path is normalised before any check | the path, once written | None. |
+
+The values the database checks today are part of the check: the allowed moods and statuses, lengths, and dates set by the server’s clock. They are in [`spec/core/schema.sql`](../../core/schema.sql); timestamps written by the server are [R3](r3-time-zones.md).
 
 ## What Faro does today
 

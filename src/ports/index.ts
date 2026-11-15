@@ -60,6 +60,10 @@ export interface Files {
   url(path: string): Promise<string | null>;
   /** The file itself; null when there's no such file. */
   bytes(path: string): Promise<Uint8Array | null>;
+  /** The paths that start with `prefix`; an adapter that can't list leaves it out. */
+  list?(prefix: string): Promise<string[]>;
+  /** Removes a file; true when there was one. An adapter that can't remove leaves it out. */
+  remove?(path: string): Promise<boolean>;
 }
 
 export type { Search, SearchKind, SearchAsk, SearchAnswer, FoundRow } from './search';

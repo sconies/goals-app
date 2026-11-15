@@ -11,7 +11,7 @@ describe('the F and N checks in words (drill 11: F6, F7, F8, F17, N5 had no step
   it('reads what each opens and every failure it can report, in the script’s words', () => {
     const f6 = checkDoc(r, 'F6', 'evals/finish/6-map-reviews.cjs', 'Fit and finish, map-reviews');
     expect(f6.opens).toContain('1440 × 900, as amara, at `/goals?scope=all&view=map`');
-    expect(f6.fails.map((x) => x.text)).toContain('Map: Delete/Backspace on a goal took the map from {before.length} goals to {after.length} (its test: `before.length > 0`)');
+    expect(f6.fails.map((x) => x.text)).toContain('Map: Delete/Backspace on a goal took the map from {before.length} goals to {after.length} (passes when `before.length > 0`)');
     for (const [id, file] of [['F7', 'evals/finish/7-data-workspace.cjs'], ['F8', 'evals/finish/8-sheets.cjs'], ['F17', 'evals/finish/17-import.cjs'], ['N5', 'evals/notes/5-data-ids.cjs']] as const) {
       expect(checkDoc(r, id, file, id).fails.length, id).toBeGreaterThan(0);
     }
@@ -37,7 +37,7 @@ describe('the F and N checks in words (drill 11: F6, F7, F8, F17, N5 had no step
   });
 
   it('keeps a limit that is only in a failure’s test (F7’s 64px bar; build review of #547)', () => {
-    expect(doc('F7').fails.map((x) => x.text)).toContain('[D1] 360 changes bar is {Math.round(foot.f.h)}px over more than one row (its test: `foot.f.h > 64`)');
+    expect(doc('F7').fails.map((x) => x.text)).toContain('[D1] 360 changes bar is {Math.round(foot.f.h)}px over more than one row (reported when `foot.f.h > 64`)');
   });
 
   it('claims every failure below must not happen only when it lists some', () => {

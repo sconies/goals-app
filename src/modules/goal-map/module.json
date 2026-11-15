@@ -42,7 +42,8 @@
     ],
     "gaps": [
       "The Goal map is a switch, not yet a folder of its own (SW5 moves it): its screen (src/screens/GoalMap.tsx), the drawing half of src/domain/map.ts and the Map layout's control in src/screens/GoalsScreen.tsx are still the core's. src/app/reads.ts goalMapOn is the one place that asks whether it is on; the rule that opens the List instead is src/domain/query.ts layoutOn.",
-      "It has no page of its own yet (/goals/map is SW5's), so its switched-off line is the List's sentence, not a not-found page.",
+      "Dragged positions and the Troubled trees choice are kept in the browser per workspace (goals-map:<ws>, goals-map-troubled:<ws>), not on the server.",
+    "It has no page of its own yet (/goals/map is SW5's), so its switched-off line is the List's sentence, not a not-found page.",
       "U39’s lines about the walkthrough coach are the demo’s (walkthroughs are not built: [don’t copy this](dont-copy.md)); the rest of U39 stands."
     ]
   }
