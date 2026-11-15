@@ -22,14 +22,21 @@ import { heldByLink, measurementProblems, measurementWords } from './rulesMeasur
 import { CONFIDENCE_WORDS, LEVEL_WORDS, structured, structureProblems } from './rulesStructure';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
-import { calcWords, flagOldSource, qualityChanges, qualityProblems, windowWords } from './rulesQuality';
-import type { MetricCalc } from './types';
+/* MQ2's rules (rulesQuality.ts) stay out of the first download: what a save does to Verified, the quality fields'
+   problems and their words in the change log come in through these hooks, which ./qualityHooks.ts installs. Every door
+   that saves (rulesSave, rulesChange, rulesVerify, the demo, the tools, the form) imports it first; a save that touches
+   a quality field without it throws rather than skip a lapse. */
+export interface QualityHooks {
+  /** What a change does to Verified, the last editor, a rewording to confirm and old-source baselines: added to `q`. */
+  effects(input: MetricInput & { reason?: string }, before: Metric | null, q: Partial<Metric>, x: Pick<ActionContext, 'actor' | 'now'>): void;
+  problems(m: Metric, people: readonly Pick<Person, 'id'>[]): string[];
+  words(m: Metric): { calculation: string; window: string };
+}
+let quality: QualityHooks | null = null;
+export const setQualityHooks = (h: QualityHooks) => { quality = h; };
+const QUALITY_KEYS = ['calculation', 'timeWindow', 'sourceLink', 'sourceQuery', 'sourceOwnerId', 'refreshNote', 'verifiers', 'verification', 'baselines'] as const;
+const needsQuality = (input: object, before: Metric | null) => QUALITY_KEYS.some((k) => (input as Record<string, unknown>)[k] !== undefined || before?.[k] != null);
 
-/** A calculation in full, for the change log: its two fields and each part's counts, filters and exclusions. */
-export const calcText = (c: MetricCalc): string => {
-  const part = (label: string, p?: { counts: string; filters: string; excludes: string }) => (p ? `${label}: counts ${p.counts || '—'}; filters ${p.filters || '—'}; leaves out ${p.excludes || '—'}` : '');
-  return [calcWords(c), part('Counts', c.part), part('Numerator', c.numerator), part('Denominator', c.denominator), c.formula ? `Formula: ${c.formula}` : ''].filter(Boolean).join('. ');
-};
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
 
 /** The module's id, and the keys its records are filed under (records.ts). */
@@ -174,25 +181,9 @@ function qualityFrom(input: MetricInput & { reason?: string }, before: Metric | 
   const so = pick('sourceOwnerId'); if (so) q.sourceOwnerId = so;
   const vs = pick('verifiers'); if (vs?.length) q.verifiers = [...new Set(vs)];
   if (before) for (const k of ['calcChangedBy', 'calcChangedAt', 'baselines', 'verification', 'verifyAttempts', 'lapse', 'handover', 'toConfirm'] as const) if (before[k] != null) (q as Record<string, unknown>)[k] = before[k];
-  // What the change does to Verified (rulesQuality.ts qualityChanges): whoever changes the calculation, window or source
-  // may not verify it; a lapsing change takes Verified back to Defined, with the reason kept; a reworded filter or
-  // exclusion asks the last verifier to confirm; a new source flags the baselines taken from the old one.
-  const after = { ...(before ?? {}), ...q, direction: (input.direction ?? before?.direction) as Metric['direction'], source: clean(input.source !== undefined ? input.source : before?.source ?? '') } as Metric;
-  if (!before) {
-    if (q.calculation || q.timeWindow || q.sourceLink) { q.calcChangedBy = x.actor.id; q.calcChangedAt = x.now; }
-    return q;
-  }
-  const ch = qualityChanges(before, after);
-  if (ch.calcChanged) { q.calcChangedBy = x.actor.id; q.calcChangedAt = x.now; }
-  const v = before.verification;
-  if (v && ch.lapses.length && standsVerified(before, x.now)) {
-    delete q.verification;
-    delete q.toConfirm;
-    q.lapse = { at: x.now, by: x.actor.id, kind: 'change', what: ch.lapses, why: (input.reason ?? '').trim(), was: { by: v.by, at: v.at } };
-  } else if (v && ch.confirm.length && standsVerified(before, x.now)) {
-    q.toConfirm = { verifier: v.by, by: x.actor.id, at: x.now, what: ch.confirm };
-  }
-  if (ch.sourceChanged && q.baselines?.length) q.baselines = flagOldSource(q.baselines);
+  // What the change does to Verified (qualityHooks.ts): lapse, the last editor, a rewording to confirm, old-source baselines.
+  if (quality) quality.effects(input, before, q, x);
+  else if (needsQuality(input, before)) throw new Error('The metric quality rules haven’t loaded: import ./qualityHooks before saving a metric.');
   return q;
 }
 
@@ -221,7 +212,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   if (!s.people.some((p) => p.id === m.ownerId)) out.push('The metric’s owner isn’t in this workspace.');
   out.push(...measurementProblems(m));
   out.push(...structureProblems(m, { metrics: metricsOf(s) }));
-  out.push(...qualityProblems(m, s.people));
+  if (quality) out.push(...quality.problems(m, s.people));
   for (const [k, label] of [['meaning', 'meaning'], ['source', 'source'], ['sourceOwner', 'source’s owner'], ['caveats', 'caveats']] as const) {
     if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString('en-GB')} characters or fewer.`);
   }
@@ -251,8 +242,8 @@ export function metricFields(m: Metric, s: { people: Person[]; modules?: ModuleR
     Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : '—',
     'How it could be gamed': m.gaming || '—',
     // MQ2: the structured definition, so a save that changes only these is logged.
-    Calculation: m.calculation ? calcText(m.calculation) : '—',
-    Window: m.timeWindow ? windowWords(m.timeWindow) : '—',
+    Calculation: m.calculation ? quality?.words(m).calculation ?? JSON.stringify(m.calculation) : '—',
+    Window: m.timeWindow ? quality?.words(m).window ?? JSON.stringify(m.timeWindow) : '—',
     'Source link': m.sourceLink || '—',
     Query: m.sourceQuery || '—',
     'Source owner in Faro': m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? (s as { teams?: { id: string; name: string }[] }).teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? '—' : '—',

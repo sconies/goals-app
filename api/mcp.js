@@ -14019,6 +14019,447 @@ var init_rulesStructure = __esmMin((() => {
 	live$3 = (s) => s.metrics.filter((m) => !m.removedAt);
 	childrenOf = (s, id) => live$3(s).filter((m) => m.parentId === id).sort((a, b) => a.name.localeCompare(b.name, "en"));
 }));
+// src/modules/metrics/rules.ts
+/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
+cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
+change was never measured the old way, and a change made next year leaves this year's goals as they were. */
+function marksFor(metric, link, since, until) {
+	return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
+}
+/** A live metric by id, or by name (any case). */
+function findMetric(s, ref) {
+	const t = ref.trim().toLowerCase();
+	const live = liveMetrics(s, { retired: true });
+	return live.find((m) => m.id === ref) ?? live.find((m) => m.name.trim().toLowerCase() === t);
+}
+/** A goal's link to a metric, if it has one that's in force (the metric not removed either). */
+function linkOf(s, goalId) {
+	const l = linksOf(s).find((v) => v.goalId === goalId && !v.removedAt);
+	return l && liveMetrics(s, { retired: true }).some((m) => m.id === l.metricId) ? l : void 0;
+}
+/** The goals a metric measures now: links in force, to the goals given (the cycle's, say). */
+function goalsMeasuredBy(s, goals, metricId) {
+	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+	return goals.filter((g) => ids.has(g.id));
+}
+/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
+with the lower beside it). Milestones have none. */
+function goalTarget(g) {
+	if (g.kind === "metric") return g.targetUnset ? null : {
+		value: g.plan.target,
+		kind: "target"
+	};
+	if (g.kind === "range") return g.range.bound === "between" ? {
+		value: g.range.limit,
+		kind: "between",
+		lower: g.range.lower
+	} : {
+		value: g.range.limit,
+		kind: g.range.bound === "atMost" ? "at most" : "at least"
+	};
+	return null;
+}
+function measureOf(s, goal) {
+	const link = linkOf(s, goal.id);
+	if (!link) return null;
+	const metric = liveMetrics(s, { retired: true }).find((m) => m.id === link.metricId);
+	const target = goalTarget(goal);
+	const targetText = target && goal.kind !== "milestone" ? `${target.kind === "target" ? "Target" : target.kind === "at most" ? "At most" : target.kind === "at least" ? "At least" : `Between ${fmt(target.lower, goal)} and`} ${fmt(target.value, goal)}` : null;
+	return {
+		link,
+		metric,
+		slice: sliceName$1(s, link.teamId),
+		part: (link.part ?? "").trim(),
+		target,
+		targetText,
+		retired: metric.retiredAt ? {
+			at: metric.retiredAt,
+			by: metric.retiredBy ?? null,
+			why: metric.retiredWhy ?? "",
+			replacedBy: metric.replacedBy ?? null
+		} : null
+	};
+}
+/** The metric as it would be saved: text trimmed, defaults filled in. Throws nothing; metricProblems says what's wrong. */
+function metricFrom(input, before, x) {
+	const pick = (k, fallback) => input[k] !== void 0 ? input[k] : before ? before[k] : fallback;
+	return {
+		id: before?.id ?? x.newId("metric"),
+		name: clean$2(pick("name", "")),
+		meaning: (pick("meaning", "") ?? "").trim(),
+		unit: clean$2(pick("unit", "")),
+		decimals: pick("decimals", 0) ?? 0,
+		direction: pick("direction", null),
+		source: clean$2(pick("source", "")),
+		sourceOwner: clean$2(pick("sourceOwner", "")),
+		refresh: pick("refresh", null) ?? null,
+		ownerId: pick("ownerId", x.actor.id) || x.actor.id,
+		caveats: (pick("caveats", "") ?? "").trim(),
+		...measured(pick("measurement", null), pick("measurementNote", "")),
+		...structured(pick("level", null), pick("parentId", null), pick("confidence", null), pick("gaming", "")),
+		createdBy: before?.createdBy ?? x.actor.id,
+		createdAt: before?.createdAt ?? x.now,
+		updatedAt: x.now,
+		...before?.removedAt ? {
+			removedAt: before.removedAt,
+			removedBy: before.removedBy ?? null
+		} : {},
+		...before?.retiredAt !== void 0 ? {
+			retiredAt: before.retiredAt,
+			retiredBy: before.retiredBy ?? null,
+			retiredWhy: before.retiredWhy ?? "",
+			replacedBy: before.replacedBy ?? null
+		} : {},
+		...before?.marks ? { marks: before.marks } : {},
+		...qualityFrom(input, before, x)
+	};
+}
+/** MQ2's fields as they would be saved: those typed, the rest as they were. */
+function qualityFrom(input, before, x) {
+	const pick = (k) => k in input && input[k] !== void 0 ? input[k] : before?.[k];
+	const q = {};
+	const calc = pick("calculation");
+	if (calc) q.calculation = calc;
+	const w = pick("timeWindow");
+	if (w) q.timeWindow = w;
+	for (const k of [
+		"sourceLink",
+		"sourceQuery",
+		"refreshNote"
+	]) {
+		const v = clean$2(pick(k));
+		if (v) q[k] = v;
+	}
+	const so = pick("sourceOwnerId");
+	if (so) q.sourceOwnerId = so;
+	const vs = pick("verifiers");
+	if (vs?.length) q.verifiers = [...new Set(vs)];
+	if (before) {
+		for (const k of [
+			"calcChangedBy",
+			"calcChangedAt",
+			"baselines",
+			"verification",
+			"verifyAttempts",
+			"lapse",
+			"handover",
+			"toConfirm"
+		]) if (before[k] != null) q[k] = before[k];
+	}
+	if (quality$1) quality$1.effects(input, before, q, x);
+	else if (needsQuality(input, before)) throw new Error("The metric quality rules haven’t loaded: import ./qualityHooks before saving a metric.");
+	return q;
+}
+/**
+* What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
+* characters, not one another metric here uses, accents and case aside), a unit (up to 20 characters) and a direction (higher or lower is
+* better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
+* the workspace) and caveats, each text up to 2,000 characters.
+*/
+function metricProblems(m, s) {
+	const out = [];
+	if (!m.name) out.push("Give the metric a name.");
+	else if (m.name.length < 3) out.push("Give the metric a name of at least three characters.");
+	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
+	else {
+		const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, "en", { sensitivity: "base" }));
+		if (same?.retiredAt) out.push(`There’s already a metric called ${same.name}, retired on ${new Date(same.retiredAt).toLocaleDateString("en-GB", {
+			day: "numeric",
+			month: "short",
+			year: "numeric",
+			timeZone: "UTC"
+		})}. Bring it back from its page, or give this one a different name.`);
+		else if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
+	}
+	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
+	else if (m.unit.length > METRIC_LIMITS.unit) out.push(`Keep the unit to ${METRIC_LIMITS.unit} characters or fewer.`);
+	if (m.direction !== "higher" && m.direction !== "lower") out.push("Say which way is better: higher or lower.");
+	if (!Number.isInteger(m.decimals) || m.decimals < 0 || m.decimals > METRIC_LIMITS.decimals) out.push(`Decimals is a whole number from 0 to ${METRIC_LIMITS.decimals}.`);
+	if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(", ")}, or left empty.`);
+	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
+	out.push(...measurementProblems(m));
+	out.push(...structureProblems(m, { metrics: metricsOf(s) }));
+	if (quality$1) out.push(...quality$1.problems(m, s.people));
+	for (const [k, label] of [
+		["meaning", "meaning"],
+		["source", "source"],
+		["sourceOwner", "source’s owner"],
+		["caveats", "caveats"]
+	]) if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString("en-GB")} characters or fewer.`);
+	return out;
+}
+/** A metric's fields as the change log reads them. */
+function metricFields(m, s) {
+	const parent = m.parentId ? metricsOf(s).find((v) => v.id === m.parentId)?.name ?? "—" : "—";
+	return {
+		Name: m.name,
+		Meaning: m.meaning || "—",
+		Unit: m.unit || "—",
+		Decimals: String(m.decimals),
+		Direction: DIRECTION_LABEL[m.direction] ?? "—",
+		Source: m.source || "—",
+		"Source owner": m.sourceOwner || "—",
+		Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : "—",
+		Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? "—",
+		Caveats: m.caveats || "—",
+		Measured: measurementWords(m),
+		"Part of": parent,
+		"How it relates": m.level ? LEVEL_WORDS[m.level].label : "—",
+		Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : "—",
+		"How it could be gamed": m.gaming || "—",
+		Calculation: m.calculation ? quality$1?.words(m).calculation ?? JSON.stringify(m.calculation) : "—",
+		Window: m.timeWindow ? quality$1?.words(m).window ?? JSON.stringify(m.timeWindow) : "—",
+		"Source link": m.sourceLink || "—",
+		Query: m.sourceQuery || "—",
+		"Source owner in Faro": m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? s.teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? "—" : "—",
+		"When it refreshes": m.refreshNote || "—",
+		Verifiers: (m.verifiers ?? []).map((v) => s.people.find((p) => p.id === v)?.name ?? "—").join(", ") || "—"
+	};
+}
+/**
+* Changing the unit or which way is better of a metric that live goals use is asked first, at every door (the form's
+* confirm, save_metric's confirm): their numbers and plans don't change, and those that now differ show a warning
+* (linkProblems). Null when nothing needs asking.
+*/
+function metricChangeQuestion(before, next, goals, links) {
+	const linked = links.filter((l) => l.metricId === before.id && !l.removedAt).map((l) => goals.find((g) => g.id === l.goalId)).filter((g) => !!g && !g.removedAt && !g.stoppedAt);
+	const changing = linked.length ? [...next.unit.trim().toLowerCase() !== before.unit.trim().toLowerCase() ? ["unit"] : [], ...next.direction !== before.direction ? ["direction"] : []] : [];
+	if (!changing.length) return null;
+	const apart = linked.filter((g) => {
+		const p = linkProblems(g, next);
+		return p.errors.length + p.warnings.length > 0;
+	}).length;
+	const n = linked.length;
+	return {
+		changing,
+		goals: n,
+		apart,
+		text: `${n} ${n === 1 ? "goal is" : "goals are"} measured by this metric. Changing its ${changing.join(" and ")} doesn’t change their numbers or plans; ${apart} of them will show a warning that they differ. Change it?`
+	};
+}
+/**
+* Add a metric (anyone; they own it unless they name someone else), or change one (its owner or an admin). `id` names
+* the metric to change; left out, it's a new one. Returns the commit and the metric as saved; the commit is null when
+* nothing changed.
+*/
+function saveMetric(x, input) {
+	const before = input.id ? live$2(x, input.id) : null;
+	if (before && !ownsOrAdmin(x, before)) no$2(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
+	if (before?.retiredAt) no$2(`“${before.name}” is retired. Bring it back before changing it.`);
+	const m = metricFrom(input, before, x);
+	const problems = metricProblems(m, x.snapshot);
+	if (problems.length) no$2(problems.join(" "));
+	const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
+	if (ask && !input.confirm) no$2(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
+	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
+	if (before && !diffs.length) return {
+		commit: null,
+		metric: before
+	};
+	const summary = before ? before.name !== m.name ? `Renamed the metric “${before.name}” to “${m.name}”` : `Changed the metric “${m.name}”` : `Added the metric “${m.name}”`;
+	return {
+		metric: m,
+		commit: {
+			...metricRows({ metrics: [m] }),
+			changes: [log$1(x, {
+				entityId: m.id,
+				action: before ? "edited" : "created",
+				summary,
+				diffs
+			})]
+		}
+	};
+}
+/**
+* Delete (remove) a metric no goal has ever been measured by: its owner or an admin. One that has is retired instead
+* (rule 5, rulesChange.ts). It keeps its row and comes back with Undo or from Recently removed.
+*/
+function removeMetric(x, id) {
+	const m = live$2(x, id);
+	if (!ownsOrAdmin(x, m)) no$2(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
+	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no$2(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
+	const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
+	const n = links.length;
+	return {
+		...metricRows({
+			metrics: [{
+				...m,
+				removedAt: x.now,
+				removedBy: x.actor.id,
+				updatedAt: x.now
+			}],
+			metricLinks: links.map((l) => ({
+				...l,
+				removedAt: x.now,
+				removedBy: x.actor.id
+			}))
+		}),
+		changes: [log$1(x, {
+			entityId: m.id,
+			action: "removed",
+			summary: `Removed the metric “${m.name}”${n ? `, unlinking ${n} ${n === 1 ? "goal" : "goals"}` : ""}`,
+			diffs: [{
+				field: "Metric",
+				from: m.name,
+				to: "—"
+			}]
+		}), ...links.map((l) => log$1(x, {
+			entityId: m.id,
+			goalId: l.goalId,
+			action: "edited",
+			summary: `No longer measured by “${m.name}”, as the metric was removed`,
+			diffs: [{
+				field: "Measured by",
+				from: m.name,
+				to: "—"
+			}]
+		}))]
+	};
+}
+/**
+* What's wrong with measuring a goal by a metric: errors stop the link, warnings are said but allowed. A milestone goal
+* has stages, not a number, so it can't be measured by one. The goal's unit must be the metric's (a goal in hours
+* measured by a metric in minutes would read wrong). A goal whose plan moves the other way from the metric's better
+* direction (a lower-is-better metric planned to go up) is a warning: it may be a guardrail's allowance, or a mistake.
+*/
+function linkProblems(goal, m) {
+	const errors = [], warnings = [];
+	if (goal.kind === "milestone") errors.push("A goal with dated stages has no number, so a metric can’t measure it.");
+	else {
+		if (goal.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase()) errors.push(`The goal is in ${goal.unit || "no unit"} and the metric is in ${m.unit}. Use the same unit for both.`);
+		const up = goal.kind === "metric" ? goal.plan.target > goal.plan.start : goal.range.bound === "atLeast";
+		const flat = goal.kind === "metric" ? goal.plan.target === goal.plan.start : goal.range.bound === "between";
+		if (goal.decimals > m.decimals) warnings.push(`The goal keeps ${placesText(goal.decimals)} and ${m.name} ${placesText(m.decimals)}. Check which is meant.`);
+		if (!flat && (up ? "higher" : "lower") !== m.direction) warnings.push(`The goal aims ${up ? "up" : "down"}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
+	}
+	return {
+		errors,
+		warnings
+	};
+}
+/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
+function unlinkGoalMetric(x, goal) {
+	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
+	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
+	if (!l) return null;
+	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
+	const hold = heldByLink(x, goal, null);
+	return {
+		...metricRows({ metricLinks: [{
+			...l,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}] }),
+		...hold ? { goals: [hold.goal] } : {},
+		changes: [log$1(x, {
+			entityId: l.metricId,
+			goalId: goal.id,
+			action: "removed",
+			summary: `No longer measured by “${name}”`,
+			diffs: [{
+				field: "Measured by",
+				from: name,
+				to: "—"
+			}]
+		}), ...hold ? [hold.change] : []]
+	};
+}
+var quality$1, setQualityHooks, QUALITY_KEYS, needsQuality, MODULE$1, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName$1, measured, clean$2, standsVerified, log$1, live$2, ownsOrAdmin, canEditMetric, canLinkGoal;
+var init_rules$1 = __esmMin((() => {
+	init_actions();
+	init_changes();
+	init_format();
+	init_numbers();
+	init_records();
+	init_rulesMeasured();
+	init_rulesStructure();
+	quality$1 = null;
+	setQualityHooks = (h) => {
+		quality$1 = h;
+	};
+	QUALITY_KEYS = [
+		"calculation",
+		"timeWindow",
+		"sourceLink",
+		"sourceQuery",
+		"sourceOwnerId",
+		"refreshNote",
+		"verifiers",
+		"verification",
+		"baselines"
+	];
+	needsQuality = (input, before) => QUALITY_KEYS.some((k) => input[k] !== void 0 || before?.[k] != null);
+	MODULE$1 = "metrics";
+	METRICS_KEY = "metrics";
+	LINKS_KEY = "metricLinks";
+	metricsOf = (s) => moduleRows(s, MODULE$1, METRICS_KEY);
+	linksOf = (s) => moduleRows(s, MODULE$1, LINKS_KEY);
+	metricRows = (rows) => withModuleRows(MODULE$1, {
+		[METRICS_KEY]: rows.metrics,
+		[LINKS_KEY]: rows.metricLinks
+	});
+	no$2 = (msg) => {
+		throw new NotAllowed(msg);
+	};
+	DIRECTION_LABEL = {
+		higher: "Higher is better",
+		lower: "Lower is better"
+	};
+	REFRESHES = [
+		"live",
+		"hourly",
+		"daily",
+		"weekly",
+		"monthly",
+		"quarterly"
+	];
+	REFRESH_LABEL = {
+		live: "Live",
+		hourly: "Hourly",
+		daily: "Daily",
+		weekly: "Weekly",
+		monthly: "Monthly",
+		quarterly: "Quarterly"
+	};
+	COMPANY = "The whole company";
+	ownerName = (people, m) => {
+		const p = people.find((x) => x.id === m.ownerId);
+		return p && !p.leftAt ? p.name : null;
+	};
+	METRIC_LIMITS = {
+		name: 120,
+		unit: 20,
+		text: 2e3,
+		decimals: 4
+	};
+	liveMetrics = (s, o = {}) => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
+	markLabel = (m) => `${m.kind === "direction" ? "Direction" : m.kind === "source" ? "Source" : "Definition"} changed, week ${m.week}`;
+	everUsed = (metricId, links) => links.some((l) => l.metricId === metricId);
+	sliceName$1 = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
+	measured = (k, note) => k && k !== "measured" ? {
+		measurement: k,
+		measurementNote: (note ?? "").trim()
+	} : {};
+	clean$2 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
+	standsVerified = (m, now) => !!m.verification && m.verification.outcome === "verified" && m.measurement !== "gap" && now < new Date(new Date(m.verification.at).setUTCMonth(new Date(m.verification.at).getUTCMonth() + 12)).toISOString();
+	log$1 = (x, v) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: null,
+		entity: "metric",
+		diffs: [],
+		...v
+	});
+	live$2 = (x, id) => {
+		const m = metricsOf(x.snapshot).find((v) => v.id === id);
+		if (!m || m.removedAt) no$2("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		return m;
+	};
+	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
+	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
+	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
+}));
 // src/modules/metrics/rulesQuality.ts
 /** "Duration, p90", "Count, mean per day", "Ratio", "Other or composite": the calculation's two fields in a few words. */
 function calcWords(c) {
@@ -14650,147 +15091,26 @@ var init_rulesQuality = __esmMin((() => {
 		return n / Math.min(a.size, b.size);
 	};
 }));
-// src/modules/metrics/rules.ts
-/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
-cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
-change was never measured the old way, and a change made next year leaves this year's goals as they were. */
-function marksFor(metric, link, since, until) {
-	return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
-}
-/** A live metric by id, or by name (any case). */
-function findMetric(s, ref) {
-	const t = ref.trim().toLowerCase();
-	const live = liveMetrics(s, { retired: true });
-	return live.find((m) => m.id === ref) ?? live.find((m) => m.name.trim().toLowerCase() === t);
-}
-/** A goal's link to a metric, if it has one that's in force (the metric not removed either). */
-function linkOf(s, goalId) {
-	const l = linksOf(s).find((v) => v.goalId === goalId && !v.removedAt);
-	return l && liveMetrics(s, { retired: true }).some((m) => m.id === l.metricId) ? l : void 0;
-}
-/** The goals a metric measures now: links in force, to the goals given (the cycle's, say). */
-function goalsMeasuredBy(s, goals, metricId) {
-	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
-	return goals.filter((g) => ids.has(g.id));
-}
-/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
-with the lower beside it). Milestones have none. */
-function goalTarget(g) {
-	if (g.kind === "metric") return g.targetUnset ? null : {
-		value: g.plan.target,
-		kind: "target"
-	};
-	if (g.kind === "range") return g.range.bound === "between" ? {
-		value: g.range.limit,
-		kind: "between",
-		lower: g.range.lower
-	} : {
-		value: g.range.limit,
-		kind: g.range.bound === "atMost" ? "at most" : "at least"
-	};
-	return null;
-}
-function measureOf(s, goal) {
-	const link = linkOf(s, goal.id);
-	if (!link) return null;
-	const metric = liveMetrics(s, { retired: true }).find((m) => m.id === link.metricId);
-	const target = goalTarget(goal);
-	const targetText = target && goal.kind !== "milestone" ? `${target.kind === "target" ? "Target" : target.kind === "at most" ? "At most" : target.kind === "at least" ? "At least" : `Between ${fmt(target.lower, goal)} and`} ${fmt(target.value, goal)}` : null;
-	return {
-		link,
-		metric,
-		slice: sliceName$1(s, link.teamId),
-		part: (link.part ?? "").trim(),
-		target,
-		targetText,
-		retired: metric.retiredAt ? {
-			at: metric.retiredAt,
-			by: metric.retiredBy ?? null,
-			why: metric.retiredWhy ?? "",
-			replacedBy: metric.replacedBy ?? null
-		} : null
-	};
-}
-/** The metric as it would be saved: text trimmed, defaults filled in. Throws nothing; metricProblems says what's wrong. */
-function metricFrom(input, before, x) {
-	const pick = (k, fallback) => input[k] !== void 0 ? input[k] : before ? before[k] : fallback;
-	return {
-		id: before?.id ?? x.newId("metric"),
-		name: clean$1(pick("name", "")),
-		meaning: (pick("meaning", "") ?? "").trim(),
-		unit: clean$1(pick("unit", "")),
-		decimals: pick("decimals", 0) ?? 0,
-		direction: pick("direction", null),
-		source: clean$1(pick("source", "")),
-		sourceOwner: clean$1(pick("sourceOwner", "")),
-		refresh: pick("refresh", null) ?? null,
-		ownerId: pick("ownerId", x.actor.id) || x.actor.id,
-		caveats: (pick("caveats", "") ?? "").trim(),
-		...measured(pick("measurement", null), pick("measurementNote", "")),
-		...structured(pick("level", null), pick("parentId", null), pick("confidence", null), pick("gaming", "")),
-		createdBy: before?.createdBy ?? x.actor.id,
-		createdAt: before?.createdAt ?? x.now,
-		updatedAt: x.now,
-		...before?.removedAt ? {
-			removedAt: before.removedAt,
-			removedBy: before.removedBy ?? null
-		} : {},
-		...before?.retiredAt !== void 0 ? {
-			retiredAt: before.retiredAt,
-			retiredBy: before.retiredBy ?? null,
-			retiredWhy: before.retiredWhy ?? "",
-			replacedBy: before.replacedBy ?? null
-		} : {},
-		...before?.marks ? { marks: before.marks } : {},
-		...qualityFrom(input, before, x)
-	};
-}
-/** MQ2's fields as they would be saved: those typed, the rest as they were. */
-function qualityFrom(input, before, x) {
-	const pick = (k) => k in input && input[k] !== void 0 ? input[k] : before?.[k];
-	const q = {};
-	const calc = pick("calculation");
-	if (calc) q.calculation = calc;
-	const w = pick("timeWindow");
-	if (w) q.timeWindow = w;
-	for (const k of [
-		"sourceLink",
-		"sourceQuery",
-		"refreshNote"
-	]) {
-		const v = clean$1(pick(k));
-		if (v) q[k] = v;
-	}
-	const so = pick("sourceOwnerId");
-	if (so) q.sourceOwnerId = so;
-	const vs = pick("verifiers");
-	if (vs?.length) q.verifiers = [...new Set(vs)];
-	if (before) {
-		for (const k of [
-			"calcChangedBy",
-			"calcChangedAt",
-			"baselines",
-			"verification",
-			"verifyAttempts",
-			"lapse",
-			"handover",
-			"toConfirm"
-		]) if (before[k] != null) q[k] = before[k];
-	}
-	const after = {
-		...before ?? {},
-		...q,
-		direction: input.direction ?? before?.direction,
-		source: clean$1(input.source !== void 0 ? input.source : before?.source ?? "")
-	};
+// src/modules/metrics/qualityHooks.ts
+/**
+* What a save does to Verified (rulesQuality.ts qualityChanges): whoever changes the calculation, window or source may
+* not verify it; a lapsing change takes Verified back to Defined, with the reason kept; a reworded filter or exclusion
+* asks the last verifier to confirm; a new source flags the baselines taken from the old one.
+*/
+function effects(input, before, q, x) {
 	if (!before) {
 		if (q.calculation || q.timeWindow || q.sourceLink) {
 			q.calcChangedBy = x.actor.id;
 			q.calcChangedAt = x.now;
 		}
-		return q;
+		return;
 	}
-	const ch = qualityChanges(before, after);
+	const ch = qualityChanges(before, {
+		...before,
+		...q,
+		direction: input.direction ?? before.direction,
+		source: clean$1(input.source !== void 0 ? input.source : before.source)
+	});
 	if (ch.calcChanged) {
 		q.calcChangedBy = x.actor.id;
 		q.calcChangedAt = x.now;
@@ -14817,231 +15137,10 @@ function qualityFrom(input, before, x) {
 		what: ch.confirm
 	};
 	if (ch.sourceChanged && q.baselines?.length) q.baselines = flagOldSource(q.baselines);
-	return q;
 }
-/**
-* What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
-* characters, not one another metric here uses, accents and case aside), a unit (up to 20 characters) and a direction (higher or lower is
-* better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
-* the workspace) and caveats, each text up to 2,000 characters.
-*/
-function metricProblems(m, s) {
-	const out = [];
-	if (!m.name) out.push("Give the metric a name.");
-	else if (m.name.length < 3) out.push("Give the metric a name of at least three characters.");
-	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
-	else {
-		const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, "en", { sensitivity: "base" }));
-		if (same?.retiredAt) out.push(`There’s already a metric called ${same.name}, retired on ${new Date(same.retiredAt).toLocaleDateString("en-GB", {
-			day: "numeric",
-			month: "short",
-			year: "numeric",
-			timeZone: "UTC"
-		})}. Bring it back from its page, or give this one a different name.`);
-		else if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
-	}
-	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
-	else if (m.unit.length > METRIC_LIMITS.unit) out.push(`Keep the unit to ${METRIC_LIMITS.unit} characters or fewer.`);
-	if (m.direction !== "higher" && m.direction !== "lower") out.push("Say which way is better: higher or lower.");
-	if (!Number.isInteger(m.decimals) || m.decimals < 0 || m.decimals > METRIC_LIMITS.decimals) out.push(`Decimals is a whole number from 0 to ${METRIC_LIMITS.decimals}.`);
-	if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(", ")}, or left empty.`);
-	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
-	out.push(...measurementProblems(m));
-	out.push(...structureProblems(m, { metrics: metricsOf(s) }));
-	out.push(...qualityProblems(m, s.people));
-	for (const [k, label] of [
-		["meaning", "meaning"],
-		["source", "source"],
-		["sourceOwner", "source’s owner"],
-		["caveats", "caveats"]
-	]) if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString("en-GB")} characters or fewer.`);
-	return out;
-}
-/** A metric's fields as the change log reads them. */
-function metricFields(m, s) {
-	const parent = m.parentId ? metricsOf(s).find((v) => v.id === m.parentId)?.name ?? "—" : "—";
-	return {
-		Name: m.name,
-		Meaning: m.meaning || "—",
-		Unit: m.unit || "—",
-		Decimals: String(m.decimals),
-		Direction: DIRECTION_LABEL[m.direction] ?? "—",
-		Source: m.source || "—",
-		"Source owner": m.sourceOwner || "—",
-		Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : "—",
-		Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? "—",
-		Caveats: m.caveats || "—",
-		Measured: measurementWords(m),
-		"Part of": parent,
-		"How it relates": m.level ? LEVEL_WORDS[m.level].label : "—",
-		Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : "—",
-		"How it could be gamed": m.gaming || "—",
-		Calculation: m.calculation ? calcText(m.calculation) : "—",
-		Window: m.timeWindow ? windowWords(m.timeWindow) : "—",
-		"Source link": m.sourceLink || "—",
-		Query: m.sourceQuery || "—",
-		"Source owner in Faro": m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? s.teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? "—" : "—",
-		"When it refreshes": m.refreshNote || "—",
-		Verifiers: (m.verifiers ?? []).map((v) => s.people.find((p) => p.id === v)?.name ?? "—").join(", ") || "—"
-	};
-}
-/**
-* Changing the unit or which way is better of a metric that live goals use is asked first, at every door (the form's
-* confirm, save_metric's confirm): their numbers and plans don't change, and those that now differ show a warning
-* (linkProblems). Null when nothing needs asking.
-*/
-function metricChangeQuestion(before, next, goals, links) {
-	const linked = links.filter((l) => l.metricId === before.id && !l.removedAt).map((l) => goals.find((g) => g.id === l.goalId)).filter((g) => !!g && !g.removedAt && !g.stoppedAt);
-	const changing = linked.length ? [...next.unit.trim().toLowerCase() !== before.unit.trim().toLowerCase() ? ["unit"] : [], ...next.direction !== before.direction ? ["direction"] : []] : [];
-	if (!changing.length) return null;
-	const apart = linked.filter((g) => {
-		const p = linkProblems(g, next);
-		return p.errors.length + p.warnings.length > 0;
-	}).length;
-	const n = linked.length;
-	return {
-		changing,
-		goals: n,
-		apart,
-		text: `${n} ${n === 1 ? "goal is" : "goals are"} measured by this metric. Changing its ${changing.join(" and ")} doesn’t change their numbers or plans; ${apart} of them will show a warning that they differ. Change it?`
-	};
-}
-/**
-* Add a metric (anyone; they own it unless they name someone else), or change one (its owner or an admin). `id` names
-* the metric to change; left out, it's a new one. Returns the commit and the metric as saved; the commit is null when
-* nothing changed.
-*/
-function saveMetric(x, input) {
-	const before = input.id ? live$2(x, input.id) : null;
-	if (before && !ownsOrAdmin(x, before)) no$2(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
-	if (before?.retiredAt) no$2(`“${before.name}” is retired. Bring it back before changing it.`);
-	const m = metricFrom(input, before, x);
-	const problems = metricProblems(m, x.snapshot);
-	if (problems.length) no$2(problems.join(" "));
-	const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
-	if (ask && !input.confirm) no$2(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
-	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
-	if (before && !diffs.length) return {
-		commit: null,
-		metric: before
-	};
-	const summary = before ? before.name !== m.name ? `Renamed the metric “${before.name}” to “${m.name}”` : `Changed the metric “${m.name}”` : `Added the metric “${m.name}”`;
-	return {
-		metric: m,
-		commit: {
-			...metricRows({ metrics: [m] }),
-			changes: [log$1(x, {
-				entityId: m.id,
-				action: before ? "edited" : "created",
-				summary,
-				diffs
-			})]
-		}
-	};
-}
-/**
-* Delete (remove) a metric no goal has ever been measured by: its owner or an admin. One that has is retired instead
-* (rule 5, rulesChange.ts). It keeps its row and comes back with Undo or from Recently removed.
-*/
-function removeMetric(x, id) {
-	const m = live$2(x, id);
-	if (!ownsOrAdmin(x, m)) no$2(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
-	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no$2(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
-	const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
-	const n = links.length;
-	return {
-		...metricRows({
-			metrics: [{
-				...m,
-				removedAt: x.now,
-				removedBy: x.actor.id,
-				updatedAt: x.now
-			}],
-			metricLinks: links.map((l) => ({
-				...l,
-				removedAt: x.now,
-				removedBy: x.actor.id
-			}))
-		}),
-		changes: [log$1(x, {
-			entityId: m.id,
-			action: "removed",
-			summary: `Removed the metric “${m.name}”${n ? `, unlinking ${n} ${n === 1 ? "goal" : "goals"}` : ""}`,
-			diffs: [{
-				field: "Metric",
-				from: m.name,
-				to: "—"
-			}]
-		}), ...links.map((l) => log$1(x, {
-			entityId: m.id,
-			goalId: l.goalId,
-			action: "edited",
-			summary: `No longer measured by “${m.name}”, as the metric was removed`,
-			diffs: [{
-				field: "Measured by",
-				from: m.name,
-				to: "—"
-			}]
-		}))]
-	};
-}
-/**
-* What's wrong with measuring a goal by a metric: errors stop the link, warnings are said but allowed. A milestone goal
-* has stages, not a number, so it can't be measured by one. The goal's unit must be the metric's (a goal in hours
-* measured by a metric in minutes would read wrong). A goal whose plan moves the other way from the metric's better
-* direction (a lower-is-better metric planned to go up) is a warning: it may be a guardrail's allowance, or a mistake.
-*/
-function linkProblems(goal, m) {
-	const errors = [], warnings = [];
-	if (goal.kind === "milestone") errors.push("A goal with dated stages has no number, so a metric can’t measure it.");
-	else {
-		if (goal.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase()) errors.push(`The goal is in ${goal.unit || "no unit"} and the metric is in ${m.unit}. Use the same unit for both.`);
-		const up = goal.kind === "metric" ? goal.plan.target > goal.plan.start : goal.range.bound === "atLeast";
-		const flat = goal.kind === "metric" ? goal.plan.target === goal.plan.start : goal.range.bound === "between";
-		if (goal.decimals > m.decimals) warnings.push(`The goal keeps ${placesText(goal.decimals)} and ${m.name} ${placesText(m.decimals)}. Check which is meant.`);
-		if (!flat && (up ? "higher" : "lower") !== m.direction) warnings.push(`The goal aims ${up ? "up" : "down"}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
-	}
-	return {
-		errors,
-		warnings
-	};
-}
-/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
-function unlinkGoalMetric(x, goal) {
-	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
-	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
-	if (!l) return null;
-	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
-	const hold = heldByLink(x, goal, null);
-	return {
-		...metricRows({ metricLinks: [{
-			...l,
-			removedAt: x.now,
-			removedBy: x.actor.id
-		}] }),
-		...hold ? { goals: [hold.goal] } : {},
-		changes: [log$1(x, {
-			entityId: l.metricId,
-			goalId: goal.id,
-			action: "removed",
-			summary: `No longer measured by “${name}”`,
-			diffs: [{
-				field: "Measured by",
-				from: name,
-				to: "—"
-			}]
-		}), ...hold ? [hold.change] : []]
-	};
-}
-var calcText, MODULE$1, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName$1, measured, clean$1, standsVerified, log$1, live$2, ownsOrAdmin, canEditMetric, canLinkGoal;
-var init_rules$1 = __esmMin((() => {
-	init_actions();
-	init_changes();
-	init_format();
-	init_numbers();
-	init_records();
-	init_rulesMeasured();
-	init_rulesStructure();
+var calcText, clean$1;
+var init_qualityHooks = __esmMin((() => {
+	init_rules$1();
 	init_rulesQuality();
 	calcText = (c) => {
 		const part = (label, p) => p ? `${label}: counts ${p.counts || "—"}; filters ${p.filters || "—"}; leaves out ${p.excludes || "—"}` : "";
@@ -15053,76 +15152,15 @@ var init_rules$1 = __esmMin((() => {
 			c.formula ? `Formula: ${c.formula}` : ""
 		].filter(Boolean).join(". ");
 	};
-	MODULE$1 = "metrics";
-	METRICS_KEY = "metrics";
-	LINKS_KEY = "metricLinks";
-	metricsOf = (s) => moduleRows(s, MODULE$1, METRICS_KEY);
-	linksOf = (s) => moduleRows(s, MODULE$1, LINKS_KEY);
-	metricRows = (rows) => withModuleRows(MODULE$1, {
-		[METRICS_KEY]: rows.metrics,
-		[LINKS_KEY]: rows.metricLinks
-	});
-	no$2 = (msg) => {
-		throw new NotAllowed(msg);
-	};
-	DIRECTION_LABEL = {
-		higher: "Higher is better",
-		lower: "Lower is better"
-	};
-	REFRESHES = [
-		"live",
-		"hourly",
-		"daily",
-		"weekly",
-		"monthly",
-		"quarterly"
-	];
-	REFRESH_LABEL = {
-		live: "Live",
-		hourly: "Hourly",
-		daily: "Daily",
-		weekly: "Weekly",
-		monthly: "Monthly",
-		quarterly: "Quarterly"
-	};
-	COMPANY = "The whole company";
-	ownerName = (people, m) => {
-		const p = people.find((x) => x.id === m.ownerId);
-		return p && !p.leftAt ? p.name : null;
-	};
-	METRIC_LIMITS = {
-		name: 120,
-		unit: 20,
-		text: 2e3,
-		decimals: 4
-	};
-	liveMetrics = (s, o = {}) => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
-	markLabel = (m) => `${m.kind === "direction" ? "Direction" : m.kind === "source" ? "Source" : "Definition"} changed, week ${m.week}`;
-	everUsed = (metricId, links) => links.some((l) => l.metricId === metricId);
-	sliceName$1 = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
-	measured = (k, note) => k && k !== "measured" ? {
-		measurement: k,
-		measurementNote: (note ?? "").trim()
-	} : {};
 	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
-	standsVerified = (m, now) => !!m.verification && m.verification.outcome === "verified" && m.measurement !== "gap" && now < new Date(new Date(m.verification.at).setUTCMonth(new Date(m.verification.at).getUTCMonth() + 12)).toISOString();
-	log$1 = (x, v) => ({
-		id: x.newId("chg"),
-		at: x.now,
-		actorId: x.actor.id,
-		goalId: null,
-		entity: "metric",
-		diffs: [],
-		...v
+	setQualityHooks({
+		effects,
+		problems: qualityProblems,
+		words: (m) => ({
+			calculation: m.calculation ? calcText(m.calculation) : "—",
+			window: windowWords(m.timeWindow)
+		})
 	});
-	live$2 = (x, id) => {
-		const m = metricsOf(x.snapshot).find((v) => v.id === id);
-		if (!m || m.removedAt) no$2("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
-		return m;
-	};
-	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
-	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
-	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
 }));
 // src/modules/metrics/edits.ts
 /** Edits (insert, delete, change one character) between two strings, stopping once past `max`. */
@@ -15885,6 +15923,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 }
 var same$1, onDay, goalsWord$1, metricOf$2, mayChange, retiredWords;
 var init_rulesChange = __esmMin((() => {
+	init_qualityHooks();
 	init_rulesMeasured();
 	init_rulesQuality();
 	init_rules$1();
@@ -15958,6 +15997,7 @@ function saveMetricAsked(x, input) {
 	return saveMetricChange(x, rest);
 }
 var init_rulesSave = __esmMin((() => {
+	init_qualityHooks();
 	init_checkReads();
 	init_rules$1();
 	init_rulesQuality();
@@ -16274,6 +16314,7 @@ function answerAttempt(x, metricId, note) {
 }
 var nameOf$1, stageNow, sourceOwnerName;
 var init_rulesVerify = __esmMin((() => {
+	init_qualityHooks();
 	init_rules$1();
 	init_rulesQuality();
 	nameOf$1 = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "someone who has left";
@@ -16982,6 +17023,7 @@ function planMetricsSheet(api) {
 }
 var goalsWord, ALIASES, cell, DIRECTION_WORDS, REFRESH_WORDS, LEVEL_BY_WORD, CONFIDENCE_BY_WORD, ACTION_WORDS, differs;
 var init_sheetPlan = __esmMin((() => {
+	init_qualityHooks();
 	init_actions();
 	init_people();
 	init_columns();
@@ -30122,6 +30164,7 @@ var metricReader = {
 	read: readForTool
 };
 // src/modules/metrics/toolsQuality.ts
+init_qualityHooks();
 init_actions();
 init_via();
 init_rules$1();

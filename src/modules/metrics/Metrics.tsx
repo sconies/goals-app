@@ -7,6 +7,7 @@
      /metrics/new           add a metric (focus mode)
      /metrics/<id>/edit     change a metric (focus mode)
    What is listed and in what order, a metric's goals and what it needs come from rulesLibrary.ts (rules 1 to 3). */
+import './qualityHooks';
 import { MeasureMark } from './measureMark';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';

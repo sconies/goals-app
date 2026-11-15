@@ -2,6 +2,7 @@
    handed-over metric, confirm a rewording, and answer a failed attempt. Each is the one rule the screens, the import
    and the MCP tools call. As pure as src/domain: the clock and ids come in through the ActionContext, and a reading
    (for the stored figure) is passed in by whoever read it. */
+import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { canEditMetric, live, log, metricRows, no, type Metric } from './rules';

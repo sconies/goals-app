@@ -5231,6 +5231,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “Only … or an admin can change this metric.”
 - ““…” is retired. Bring it back before changing it.”
+- “The metric quality rules haven’t loaded: import ./qualityHooks before saving a metric.”
 - “Nothing saved: use that metric instead.”
 - “Answer … first: …”
 - “… … measured by … in …. A metric in … is a different number: add it as a new metric and move goals to it, or retire this one. If “…” is only a new label for the same numbers, say so (relabel).”

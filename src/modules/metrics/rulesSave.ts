@@ -1,5 +1,6 @@
 /* Saving a metric through any door (the form, a goal's Measured by, save_metric): rule 1's Checks are asked before
    anything is saved, so no door can skip them (#281's build review). Loads with the first save, not the first download. */
+import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { checkReads } from './checkReads';
