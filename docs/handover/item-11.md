@@ -28,6 +28,9 @@ To set up (S = your scratchpad):
 ## Time-box (Lane, 15 Nov, via planning)
 The drill is time-boxed. One re-run on main only: stage 3, then each module, with no further rounds of kit fixes to chase journey scores. Gaps the re-run finds are written down, not fixed in the kit, unless they are one-line corrections. Score on behaviour first (the rules and conformance rows a rebuild meets); report journeys alongside, saying plainly which failures are only class names or wording. Then write it up in `docs/drill/2026-11-full-drill.md`, saying honestly what a kit-only rebuild gets right and where the internal team should read the code, with the same message in `docs/handoff.md`; then the README, handoff and architecture rewrites, the GitHub description draft for Lane, and #512 out of draft.
 
+## The running app is part of the handoff (Lane, 15 Nov, via planning)
+The internal team gets three things: the kit (`spec/` and `llms.txt`) says what to build and the rules; the running app, with its demo workspace, shows how it looks and behaves; the code is the final word where the kit is unclear. Say this plainly in `docs/handoff.md`, the README and the rebuild kit's README, with the app's URL and how to sign in to the demo. In the re-run, rebuild sessions may use the running app as a reference (look at screens, try flows), still with no access to Faro's code. The write-up records which gaps the app closed and which needed the code.
+
 ## Where it stands
 **Run on pin 752d6c97 is complete:** every stage 3–12 built and reviewed; all rows and REVIEW.md files are on `drill-11-rebuild` (last commit 3a47d8cf, then 9a200812 for vercel.json). Summary of that run: every module scores 100% on the harness and its own CSV where one exists, exit tests are honest; but each module changed 3–8 core files and most journeys stayed PART, because stage 3 lacked screens and the platform lacked places. Late GR, MQ, SW2, FT1 have no module on main yet (MC deferred, Lane 14 Nov).
 
