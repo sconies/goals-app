@@ -1,0 +1,578 @@
+diff --git a/package.json b/package.json
+index c911d62..7efa6df 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+     "drill": "node scripts/drill.mjs",
+-    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "build:standin": "FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,spreadsheets,watching,wrap-up} VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,spreadsheets,watching,wrap-up} vite build -c vite.platform.config.ts --logLevel warn",
+     "standin": "node platform/dist/server.mjs",
+     "standin:seed": "node platform/dist/server.mjs seed"
+   },
+diff --git a/platform/migrations/0003_tags.sql b/platform/migrations/0003_tags.sql
+new file mode 100644
+index 0000000..08a6ce4
+--- /dev/null
++++ b/platform/migrations/0003_tags.sql
+@@ -0,0 +1,40 @@
++-- Fields (the tags module, stage 10): its two tables' limits held by the database, as Faro's migrations 0052 and 0054
++-- hold them in Postgres (goal_fields_name_check, _kind_check, _options_check, _text_no_options;
++-- goal_field_values_one, _value_check). 0001_core.sql made the tables without CHECKs; SQLite adds a CHECK only by
++-- making the table again, so each is made anew with them and its rows copied across (a row breaking a limit stops the
++-- migration, which is the point). A list's own values are held to 40 characters by the rule (rules.ts), not here.
++
++create table goal_fields_new (
++  id text not null,
++  workspace_id text not null,
++  name text not null check (length(trim(name)) between 1 and 40),
++  kind text not null check (kind in ('list', 'text')),
++  options jsontext not null default '[]' check (json_valid(options) and json_type(options) = 'array' and json_array_length(options) <= 20 and (kind = 'text' or json_array_length(options) >= 1) and (kind = 'list' or json_array_length(options) = 0)),
++  position integer not null default 0,
++  created_by text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  retired_at timestamptext,
++  retired_by text,
++  primary key (id)
++);
++insert into goal_fields_new select id, workspace_id, name, kind, options, position, created_by, created_at, retired_at, retired_by from goal_fields;
++drop table goal_fields;
++alter table goal_fields_new rename to goal_fields;
++create index if not exists goal_fields_ws on goal_fields (workspace_id);
++create unique index if not exists goal_fields_ws_name on goal_fields (workspace_id, lower(trim(name))) where retired_at is null;
++
++create table goal_field_values_new (
++  id text not null check (id = goal_id || ':' || field_id),
++  workspace_id text not null,
++  goal_id text not null,
++  field_id text not null,
++  value text not null default '' check (length(value) <= 80),
++  set_by text not null,
++  set_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  primary key (id)
++);
++insert into goal_field_values_new select id, workspace_id, goal_id, field_id, value, set_by, set_at from goal_field_values;
++drop table goal_field_values;
++alter table goal_field_values_new rename to goal_field_values;
++create index if not exists goal_field_values_field on goal_field_values (field_id);
++create index if not exists goal_field_values_ws on goal_field_values (workspace_id);
+diff --git a/platform/prove-tags.mjs b/platform/prove-tags.mjs
+new file mode 100644
+index 0000000..9c6a147
+--- /dev/null
++++ b/platform/prove-tags.mjs
+@@ -0,0 +1,236 @@
++/* Fields (stage 10) on the stand-in platform (drill item 11). Starts the built server on a fresh data folder, seeds it,
++   and checks the stage's exit criteria on the running stand-in: through /mcp (save_field, set_goal_fields, list_fields,
++   find_goals' fields), through the API as a member who isn't an admin or the goal's owner (every Fields write the server
++   must refuse, R1 rule 4), in SQLite, and through the screens (Playwright, signed in by password): Workspace → Fields,
++   a goal's Fields block and History, Goals' filter by address; switched off by an admin (no block, no menu row, Page not
++   found with the sentence, a link's f.<id> narrows nothing, tools refuse) and back on with every value.
++   With `out` it checks the build that leaves the module out. Usage: npm run build:standin && node platform/prove-tags.mjs [port] [in|out]. */
++import { spawn } from 'node:child_process';
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { DatabaseSync } from 'node:sqlite';
++import { chromium } from 'playwright';
++
++const PORT = Number(process.argv[2] || 47110);
++const MODE = process.argv[3] || 'in';
++const B = `http://localhost:${PORT}`;
++const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-tags-'));
++const ENV = { ...process.env, STANDIN_PORT: String(PORT), STANDIN_DATA: DATA, NODE_NO_WARNINGS: '1' };
++const PASSWORD = 'faro-standin';
++const WS = 'ws_platform';
++const OFF = 'Fields is switched off in Platform Engineering';
++const results = [];
++const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + String(detail).slice(0, 160) : ''}`); };
++
++function run(args) { return new Promise((res, rej) => { const p = spawn(process.execPath, ['platform/dist/server.mjs', ...args], { env: ENV, stdio: 'inherit' }); p.on('exit', (c) => (c ? rej(new Error('exit ' + c)) : res())); }); }
++async function start() {
++  const p = spawn(process.execPath, ['platform/dist/server.mjs'], { env: ENV, stdio: ['ignore', 'pipe', 'inherit'] });
++  await new Promise((res) => p.stdout.on('data', (d) => { if (/stand-in platform/.test(String(d))) res(); }));
++  return p;
++}
++function client() {
++  let cookie = '';
++  const c = async (method, url, body) => {
++    const r = await fetch(B + url, { method, redirect: 'manual', headers: { ...(cookie ? { cookie } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
++    const set = r.headers.get('set-cookie'); if (set) cookie = set.split(';')[0];
++    const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* html */ }
++    return { status: r.status, json, text };
++  };
++  c.signIn = (email) => c('POST', '/api/signin', { email, password: PASSWORD });
++  return c;
++}
++let n = 0;
++const now = () => new Date().toISOString();
++const change = (actor, entityId, goalId = null) => ({ id: `chg_tg${++n}`, at: now(), actorId: actor, goalId, entity: 'field', entityId, action: 'edited', summary: 'proof', diffs: [] });
++const mcp = (secret, name, args) => fetch(B + '/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${secret}` }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method: name === 'tools/list' ? name : 'tools/call', params: name === 'tools/list' ? {} : { name, arguments: args } }) }).then((x) => x.json());
++const said = (r) => String(r?.result?.content?.[0]?.text ?? r?.error?.message ?? JSON.stringify(r));
++const err = (r) => r.json?.error ?? '';
++
++await run(['seed', PASSWORD]);
++const server = await start();
++const browser = await chromium.launch();
++try {
++  const rhea = client(); await rhea.signIn('rhea.kapoor@example.com');
++  const amara = client(); await amara.signIn('amara.nwosu@example.com');
++  const token = async (person) => (await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: `tok_tg${person}`, personId: person, name: 'proof', createdBy: 'amara', createdAt: now(), lastUsedAt: null, revokedAt: null }], changes: [] })).json?.secret;
++  const aTok = await token('amara');
++  const snap = async () => (await amara('GET', `/api/workspaces/${WS}`)).json;
++  let s = await snap();
++  const me = s.people.find((p) => p.id === 'rhea');
++  const mine = s.goals.find((g) => g.ownerId === 'rhea' && !g.removedAt);
++  const theirs = s.goals.find((g) => g.ownerId && g.ownerId !== 'rhea' && !g.removedAt);
++  const third = s.goals.find((g) => g.ownerId && g.ownerId !== 'rhea' && g.id !== theirs.id && !g.removedAt);
++  const tools = (await mcp(aTok, 'tools/list')).result?.tools?.map((x) => x.name) ?? [];
++
++  if (MODE === 'out') {
++    check('left out: /mcp lists the core’s 53 tools, none of Fields’', tools.length === 53 && !tools.some((t) => /field/.test(t)), `${tools.length} tools`);
++    const fd = await mcp(aTok, 'find_goals', { fields: { Stage: 'Build' } });
++    // Faro's own behaviour, not the platform's: an argument no loaded module declares is ignored, so every goal comes back.
++    console.log(`INFO  left out: find_goals with fields { Stage: Build } ignores it — ${said(fd).slice(0, 60)}`);
++    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
++    await page.goto(B + '/goals');
++    await page.fill('input[name=email]', 'amara.nwosu@example.com');
++    await page.fill('input[name=password]', PASSWORD);
++    await page.click('button[type=submit]');
++    await page.waitForURL(/\/goals/);
++    await page.goto(B + '/workspace/fields'); await page.waitForTimeout(1500);
++    check('left out: /workspace/fields is Page not found', /Page not found/i.test((await page.textContent('body')) ?? ''));
++    await page.goto(B + '/workspace/features'); await page.waitForTimeout(1500);
++    const feat = (await page.textContent('main')) ?? '';
++    check('left out: Workspace → Features has no Fields row; Workspace’s menu no Fields', !/\bFields\b/.test(feat) && !(await page.locator('a[href="/workspace/fields"]').count()), feat.slice(0, 120));
++    const g = s.goals.find((x) => !x.removedAt);
++    await page.goto(B + `/goals/${g.id}`); await page.waitForTimeout(1500);
++    check('left out: a goal page has no Fields block', !(await page.locator('[data-part=Fields]').count()));
++    const field = { id: 'fld_out', name: 'Stage', kind: 'list', options: ['Build'], position: 0, createdBy: 'amara', createdAt: now(), retiredAt: null, retiredBy: null };
++    const r = await amara('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [field] } }, changes: [change('amara', 'fld_out')] });
++    check('left out: a save writing Fields’ rows is refused (nothing here can check them)', r.status === 403 && /doesn’t have tags/.test(err(r)), `${r.status} ${err(r)}`);
++    r.status === 403 || void 0;
++  } else {
++    check('/mcp lists list_fields, set_goal_fields and save_field beside the core’s 53', tools.length === 56 && ['list_fields', 'set_goal_fields', 'save_field'].every((t) => tools.includes(t)), `${tools.length} tools`);
++    const rTok = await token('rhea');
++
++    // ---------- Defining fields: only an admin (criterion 6) ----------
++    let c = await mcp(rTok, 'save_field', { name: 'Stage', kind: 'list', values: ['Discover', 'Build', 'Run'] });
++    check('save_field by a member who isn’t an admin: refused', c?.result?.isError && /Only an admin/.test(said(c)), said(c));
++    const field = { id: 'fld_forged', name: 'Stage', kind: 'list', options: ['Discover', 'Build', 'Run'], position: 0, createdBy: 'rhea', createdAt: now(), retiredAt: null, retiredBy: null };
++    let r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [field] } }, changes: [change('rhea', field.id)] });
++    check('API: a member who isn’t an admin adds a field: refused by the server', r.status === 403 && err(r) === 'Only an admin can change the workspace’s fields.', `${r.status} ${err(r)}`);
++    c = await mcp(aTok, 'save_field', { name: 'Stage', kind: 'list', values: ['Discover', 'Build', 'Run'] });
++    check('save_field by an admin adds Stage', !c?.result?.isError, said(c));
++    s = await snap();
++    const stage = s.modules?.tags?.fields?.find((f) => f.name === 'Stage');
++    check('Stage is in SQLite and loads back as a list: Discover, Build, Run', stage && stage.kind === 'list' && stage.options.join() === 'Discover,Build,Run');
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [{ ...stage, name: 'Phase' }] } }, changes: [change('rhea', stage.id)] });
++    check('API: a member renames it: refused', r.status === 403 && /Only an admin/.test(err(r)), `${r.status} ${err(r)}`);
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [{ ...stage, retiredAt: now(), retiredBy: 'rhea' }] } }, changes: [change('rhea', stage.id)] });
++    check('API: a member retires it: refused', r.status === 403 && /Only an admin/.test(err(r)), `${r.status} ${err(r)}`);
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [{ ...stage, position: 9 }] } }, changes: [change('rhea', stage.id)] });
++    check('API: a member moves it: refused', r.status === 403 && /Only an admin/.test(err(r)), `${r.status} ${err(r)}`);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [{ ...field, id: 'fld_owner', name: 'OWNER', createdBy: 'amara' }] } }, changes: [change('amara', 'fld_owner')] });
++    check('API: an admin adds a field named as a Goals-sheet column (OWNER): refused with the rule’s words', r.status === 403 && /already has a column called “Owner”/.test(err(r)), `${r.status} ${err(r)}`);
++    r = await amara('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fields: [{ ...field, id: 'fld_long', name: 'x'.repeat(41), createdBy: 'amara' }] } }, changes: [change('amara', 'fld_long')] });
++    check('API: a name over 40 characters: refused', r.status === 403 && /40 characters/.test(err(r)), `${r.status} ${err(r)}`);
++    c = await mcp(aTok, 'save_field', { name: 'stage', kind: 'text' });
++    check('save_field: a name a live field has: refused', c?.result?.isError && /already a field called “Stage”/.test(said(c)), said(c));
++    for (const nm of ['A1', 'A2', 'A3', 'A4', 'A5']) await mcp(aTok, 'save_field', { name: nm, kind: 'text' });
++    c = await mcp(aTok, 'save_field', { name: 'Seventh', kind: 'text' });
++    check('save_field: a seventh live field: refused', c?.result?.isError && /at most 6 fields/.test(said(c)), said(c));
++    for (const nm of ['A1', 'A2', 'A3', 'A4', 'A5']) await mcp(aTok, 'save_field', { field: nm, retire: true });
++
++    // ---------- Setting values: the goal's owner or an admin (criteria 5, 6) ----------
++    c = await mcp(rTok, 'set_goal_fields', { goal_id: mine.id, fields: { Stage: 'discover' }, dry_run: true });
++    check('set_goal_fields dry_run by the owner: says what would change, saves nothing', !c?.result?.isError && /Nothing was saved/.test(said(c)), said(c));
++    c = await mcp(rTok, 'set_goal_fields', { goal_id: mine.id, fields: { Stage: 'discover' } });
++    check('set_goal_fields by the owner: “Stage: Not set → Discover”', !c?.result?.isError && /Stage: Not set → Discover/.test(said(c)), said(c));
++    c = await mcp(rTok, 'set_goal_fields', { goal_id: theirs.id, fields: { Stage: 'Build' } });
++    check('set_goal_fields on someone else’s goal by a member: refused', c?.result?.isError && /owner or an admin/.test(said(c)), said(c));
++    c = await mcp(rTok, 'set_goal_fields', { goal_id: mine.id, fields: { Stage: 'Operate' } });
++    check('set_goal_fields with a value the list doesn’t hold: refused with the list', c?.result?.isError && /isn’t one of Stage’s values: Discover, Build or Run/.test(said(c)), said(c));
++    const val = (goalId, value, by = 'rhea') => ({ id: `${goalId}:${stage.id}`, goalId, fieldId: stage.id, value, setBy: by, setAt: now(), removedAt: null, removedBy: null });
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fieldValues: [val(theirs.id, 'Run')] } }, changes: [change('rhea', stage.id, theirs.id)] });
++    check('API: a member sets a value on someone else’s goal: refused by the server', r.status === 403 && err(r) === 'Only the goal’s owner or an admin can change its fields.', `${r.status} ${err(r)}`);
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fieldValues: [val(mine.id, 'Operate')] } }, changes: [change('rhea', stage.id, mine.id)] });
++    check('API: the owner saves a value the list doesn’t hold: refused', r.status === 403 && /isn’t one of Stage’s values/.test(err(r)), `${r.status} ${err(r)}`);
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fieldValues: [val(mine.id, 'Build', 'amara')] } }, changes: [change('rhea', stage.id, mine.id)] });
++    check('API: a value saved as set by someone else: refused', r.status === 403 && /as the person signed in/.test(err(r)), `${r.status} ${err(r)}`);
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fieldValues: [{ ...val(mine.id, 'Build'), id: 'forged' }] } }, changes: [change('rhea', stage.id, mine.id)] });
++    check('API: a value row whose id isn’t its goal and field: refused', r.status === 403 && /one value per field/.test(err(r)), `${r.status} ${err(r)}`);
++    c = await mcp(aTok, 'set_goal_fields', { goal_id: theirs.id, fields: { Stage: 'Build' } });
++    check('set_goal_fields by an admin on any goal: allowed', !c?.result?.isError, said(c));
++    const db = new DatabaseSync(path.join(DATA, fs.readdirSync(DATA).find((f) => f.endsWith('.db') || f.endsWith('.sqlite')) ?? 'faro.db'), { readOnly: true });
++    const rows = db.prepare('select goal_id, value, set_by from goal_field_values where field_id = ? order by goal_id').all(stage.id);
++    check('SQLite holds the two values, set by their owner and the admin', rows.length === 2 && rows.some((x) => x.goal_id === mine.id && x.value === 'Discover' && x.set_by === 'rhea') && rows.some((x) => x.goal_id === theirs.id && x.value === 'Build' && x.set_by === 'amara'), JSON.stringify(rows));
++    try { db.prepare("insert into goal_field_values (id, workspace_id, goal_id, field_id, value, set_by) values ('g:f', 'w', 'g', 'f', ?, 'x')").run('x'.repeat(81)); check('SQLite refuses a value over 80 characters', false); } catch (e) { check('SQLite refuses a value over 80 characters (and is read-only here)', /CHECK|readonly/i.test(String(e)), String(e).slice(0, 80)); }
++    db.close();
++
++    // ---------- Finding by a field (criterion 14) ----------
++    let f = await mcp(aTok, 'find_goals', { fields: { Stage: 'Build' } });
++    const found = (x) => { try { return JSON.parse(said(x)); } catch { return x?.result?.structuredContent ?? {}; } };
++    check('find_goals fields { Stage: Build } finds the one goal in Build', !f?.result?.isError && found(f).total === 1 && found(f).goals?.[0]?.id === theirs.id, said(f));
++    f = await mcp(aTok, 'find_goals', { fields: { Phase: 'Build' } });
++    check('find_goals with an unknown field: refused in words', f?.result?.isError, said(f));
++    f = await mcp(aTok, 'list_fields', {});
++    check('list_fields lists Stage as a list (retired ones apart)', !f?.result?.isError && /Stage/.test(said(f)), said(f));
++
++    // ---------- The screens, on (criteria 5, 11) ----------
++    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
++    const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
++    await page.goto(B + '/goals');
++    await page.fill('input[name=email]', 'amara.nwosu@example.com');
++    await page.fill('input[name=password]', PASSWORD);
++    await page.click('button[type=submit]');
++    await page.waitForURL(/\/goals/);
++    await page.goto(B + '/workspace/fields'); await page.waitForTimeout(1500);
++    let body = await page.textContent('main').catch(() => '');
++    check('Workspace → Fields lists Stage as “A list: Discover, Build, Run”', /A list: Discover, Build, Run/.test(body ?? ''), (body ?? '').slice(0, 160));
++    const nav = await page.textContent('body');
++    check('Workspace’s menu has Fields', /Fields/.test(nav ?? ''));
++    await page.goto(B + `/goals/${mine.id}`); await page.waitForTimeout(1500);
++    body = await page.textContent('main');
++    check('the owner’s goal page says “Stage · Discover”', /Stage\s*·\s*Discover/.test(body ?? ''), (body ?? '').match(/Stage.{0,30}/)?.[0]);
++    // Set Build through the page's control.
++    await page.getByRole('button', { name: 'Change Stage' }).click();
++    await page.locator('.fields-edit select').selectOption('Build'); await page.waitForTimeout(2000);
++    s = await snap();
++    const v = s.modules?.tags?.fieldValues?.find((x) => x.goalId === mine.id);
++    check('setting Stage to Build on the page (as an admin) saves it to SQLite', v?.value === 'Build', JSON.stringify(v));
++    const hist = await amara('POST', `/api/workspaces/${WS}/history`, { goalId: mine.id });
++    const histText = JSON.stringify(hist.json ?? '');
++    check('History says “Stage: Discover → Build”', /Stage: Discover → Build/.test(histText), histText.match(/Stage: [^"]{0,30}/g)?.join(' | '));
++    await page.goto(B + `/goals?scope=all&f.${stage.id}=Build`); await page.waitForTimeout(2000);
++    body = await page.textContent('main');
++    check('Goals with f.<field id>=Build lists the goals in Build and says “Stage is Build”', /Stage is Build/.test(body ?? '') && body.includes(theirs.title) && !body.includes(third.title), (body ?? '').match(/Stage is[^.]{0,20}/)?.[0]);
++
++    // ---------- Switched off (criterion 9) ----------
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modulesOff: ['tags'], changes: [{ ...change('rhea', WS), entity: 'workspace' }] });
++    check('a member switches Fields off: refused', r.status === 403 && /Only admins can switch/.test(err(r)), `${r.status} ${err(r)}`);
++    c = await mcp(aTok, 'set_feature', { feature: 'tags', on: false });
++    s = await snap();
++    check('an admin switches Fields off (set_feature): modulesOff in SQLite', !c?.result?.isError && (s.workspace?.modulesOff ?? (await amara('GET', '/api/workspaces')).json?.find((w) => w.id === WS)?.modulesOff ?? []).includes('tags'), said(c));
++    for (const [t, a] of [['list_fields', {}], ['set_goal_fields', { goal_id: mine.id, fields: { Stage: 'Run' } }], ['save_field', { name: 'Programme', kind: 'text' }], ['find_goals', { fields: { Stage: 'Build' } }]]) {
++      c = await mcp(aTok, t, a);
++      check(`off: ${t}${t === 'find_goals' ? '’ fields' : ''} refuses with the switched-off sentence`, c?.result?.isError && said(c).includes(OFF), said(c));
++    }
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modules: { tags: { fieldValues: [val(mine.id, 'Run')] } }, changes: [change('rhea', stage.id, mine.id)] });
++    check('off: the owner saves a value through the API: refused with the sentence', r.status === 403 && err(r).includes(OFF), `${r.status} ${err(r)}`);
++    await page.goto(B + `/goals/${mine.id}`); await page.waitForTimeout(1500);
++    body = await page.textContent('main');
++    check('off: the goal page has no Fields block', !/Stage\s*·/.test(body ?? ''));
++    await page.goto(B + '/workspace/fields'); await page.waitForTimeout(1500);
++    body = await page.textContent('body');
++    check('off: /workspace/fields is Page not found with the sentence', /Page not found/i.test(body ?? '') && body.includes(OFF), (body ?? '').match(/Fields is switched[^.]*\./)?.[0]);
++    check('off: Workspace’s menu has no Fields', !(await page.locator('nav a[href="/workspace/fields"]').count()));
++    await page.goto(B + `/goals?scope=all&f.${stage.id}=Build`); await page.waitForTimeout(1500);
++    body = await page.textContent('main');
++    check('off: a link’s f.<field id> narrows nothing', !/Stage is Build/.test(body ?? '') && body.includes(third.title));
++    c = await mcp(aTok, 'set_feature', { feature: 'tags', on: true });
++    s = await snap();
++    check('on again: every value is there', s.modules?.tags?.fieldValues?.filter((x) => x.value).length === 2);
++    await page.goto(B + `/goals/${mine.id}`); await page.waitForTimeout(1500);
++    check('on again: the goal page says “Stage · Build”', /Stage\s*·\s*Build/.test((await page.textContent('main')) ?? ''));
++
++    // ---------- Retired (criterion 7) ----------
++    c = await mcp(aTok, 'save_field', { field: 'Stage', retire: true });
++    f = await mcp(aTok, 'list_fields', { goal_id: mine.id });
++    s = await snap();
++    check('retired: Stage leaves list_fields’ live fields; its values stay in SQLite', !c?.result?.isError && !/Stage · |"Stage"/.test(JSON.stringify(f?.result?.structuredContent?.fields ?? [])) && s.modules?.tags?.fieldValues?.filter((x) => x.value).length === 2, said(f));
++    c = await mcp(aTok, 'save_field', { field: 'Stage', bring_back: true });
++    f = await mcp(aTok, 'set_goal_fields', { goal_id: mine.id, fields: { Stage: 'Build' }, dry_run: true });
++    check('brought back: the goal still holds Build', !c?.result?.isError && /Nothing would change/.test(said(f)), said(f));
++    check('no page errors in the browser', !errs.length, errs.join(' | ').slice(0, 200));
++  }
++  // The core still works with Fields in or out: a goal saved, its check-in posted (see platform/prove.mjs for all 36).
++  {
++    s = await snap();
++    const g = s.goals.find((x) => x.ownerId === 'rhea' && !x.removedAt);
++    const r = await rhea('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...g, title: g.title + ' (proof)' }], changes: [{ id: `chg_tg${++n}`, at: now(), actorId: 'rhea', goalId: g.id, entity: 'goal', entityId: g.id, action: 'edited', summary: 'Renamed', diffs: [] }] });
++    check(`core: the owner renames their goal (Fields ${MODE})`, r.status === 200 || r.status === 409, `${r.status} ${err(r)}`);
++  }
++} finally {
++  await browser.close();
++  server.kill();
++}
++const failed = results.filter((x) => !x.ok).length;
++console.log(`\n${results.length - failed}/${results.length} passed`);
++process.exit(failed ? 1 : 0);
+diff --git a/platform/server.ts b/platform/server.ts
+index 5ed2935..ff7ce7e 100644
+--- a/platform/server.ts
++++ b/platform/server.ts
+@@ -134,7 +134,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
+     if (rest === '/history' && req.method === 'POST') return send(res, 200, await store.history(ws, await input(req)));
+     if (rest === '/commit' && req.method === 'POST') {
+       const c = await input<Commit>(req);
+-      const why = refusal(await store.load(ws), c, me);
++      const why = refusal(await store.load(ws), c, me, (await store.workspaces()).find((w) => w.id === ws));
+       if (why) throw new HttpError(403, why);
+       // Revoking a token: the store checks that it's the token's person or an admin, as the actor the change names.
+       try { await store.commit(ws, c); } catch (e) { refuse(e); }
+diff --git a/src/adapters/standin/guard.ts b/src/adapters/standin/guard.ts
+index 61387a2..7a828d9 100644
+--- a/src/adapters/standin/guard.ts
++++ b/src/adapters/standin/guard.ts
+@@ -10,7 +10,9 @@
+ import { mayChangeGoal, mayPostCheckIn } from '../../domain/goalRights';
+ import { VIA_LABEL, type Via } from '../../domain/via';
+ import type { Commit } from '../../data/store';
+-import type { Goal, Person, Snapshot } from '../../domain/types';
++import type { Goal, Person, Snapshot, Workspace } from '../../domain/types';
++import { moduleById } from '../../core/registry';
++import MODULE_GUARDS from 'virtual:faro-modules/guard';
+ 
+ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+ const byId = <T extends { id: string }>(xs: readonly T[] | undefined) => new Map((xs ?? []).map((x) => [x.id, x]));
+@@ -23,7 +25,7 @@ export function viaOf(c: Commit): Via {
+ }
+ 
+ /** Why the server refuses this save by `actor` on the workspace as stored, in the app's words; null when it may. */
+-export function refusal(stored: Snapshot, c: Commit, actor: Person): string | null {
++export function refusal(stored: Snapshot, c: Commit, actor: Person, workspace?: Pick<Workspace, 'id' | 'name' | 'modulesOff'>): string | null {
+   const me = { id: actor.id, admin: !!actor.admin };
+   if (actor.leftAt || actor.removedAt) return 'You’re no longer in this workspace.';
+   // Every change is logged as the person signed in (R1 rule 6): nobody acts as someone else.
+@@ -76,5 +78,13 @@ export function refusal(stored: Snapshot, c: Commit, actor: Person): string | nu
+     if (!admin && (was ?? v).personId !== actor.id) return 'Only its owner or an admin can change this view.';
+     if (!admin && v.pinned !== !!was?.pinned) return 'Only admins can pin a view for everyone.';
+   }
++  // A module's own rows: refused for a module this build leaves out (nothing here can check them), and asked of the
++  // module's own guard (virtual:faro-modules/guard) where it has one.
++  for (const [mod, keys] of Object.entries(c.modules ?? {})) {
++    if (!Object.values(keys ?? {}).some((rows) => Array.isArray(rows) && rows.length)) continue;
++    if (!moduleById(mod)) return `This Faro doesn’t have ${mod}, so a save can’t write its records.`;
++    const why = MODULE_GUARDS.find((g) => g.id === mod)?.part(stored, c, actor, workspace ?? { id: '', name: 'this workspace' });
++    if (why) return why;
++  }
+   return null;
+ }
+diff --git a/src/adapters/standin/tags.test.ts b/src/adapters/standin/tags.test.ts
+new file mode 100644
+index 0000000..8f5f3f7
+--- /dev/null
++++ b/src/adapters/standin/tags.test.ts
+@@ -0,0 +1,97 @@
++// @vitest-environment node
++/* Fields (stage 10) on the stand-in platform: its two tables' limits held by SQLite (migration 0003_tags.sql, as 0052
++   and 0054 hold them in Postgres), and the server's guard asking the module's rules of every field and value a save
++   writes (src/modules/tags/guard.ts through guard.ts): who may, as whom, and what. */
++import path from 'node:path';
++import { describe, expect, it } from 'vitest';
++import { buildPlatformOrg } from '../../data/platformOrg';
++import { applyCommit } from '../../data/store';
++import type { ActionContext } from '../../domain/actions';
++import type { Commit } from '../../domain/commit';
++import type { Snapshot, Workspace } from '../../domain/types';
++import { addField, retireField, setGoalFields, fieldsOf, valueId } from '../../modules/tags/fields';
++import { openDatabase } from './migrate';
++import { refusal } from './guard';
++
++const MIGRATIONS = path.resolve(__dirname, '../../../platform/migrations');
++const today = new Date('2026-11-02T12:00:00Z');
++const base = buildPlatformOrg(today);
++const WS: Workspace = { id: 'ws_t', name: 'Platform Engineering', kind: 'own', createdAt: today.toISOString() };
++let n = 0;
++const ctx = (s: Snapshot, who: string): ActionContext => ({ snapshot: s, cycle: s.cycles[0]!, week: 45, actor: s.people.find((p) => p.id === who)!, now: today.toISOString(), newId: (p) => `${p}_${++n}` });
++const who = (s: Snapshot, id: string) => s.people.find((p) => p.id === id)!;
++const member = base.people.find((p) => !p.admin && base.goals.some((g) => g.ownerId === p.id))!;
++const mine = base.goals.find((g) => g.ownerId === member.id)!;
++const theirs = base.goals.find((g) => g.ownerId !== member.id && g.ownerId)!;
++const stage = addField(ctx(base, 'amara'), { name: 'Stage', kind: 'list', options: ['Discover', 'Build', 'Run'] });
++const withStage = applyCommit(structuredClone(base), stage);
++const fieldId = fieldsOf(withStage)[0]!.id;
++const strip = (c: Commit) => c as Parameters<typeof refusal>[1];
++
++describe('the database holds Fields’ limits (0003_tags.sql)', () => {
++  const db = openDatabase(':memory:', MIGRATIONS);
++  const field = db.prepare('insert into goal_fields (id, workspace_id, name, kind, options, created_by) values (?, ?, ?, ?, ?, ?)');
++  const value = db.prepare('insert into goal_field_values (id, workspace_id, goal_id, field_id, value, set_by) values (?, ?, ?, ?, ?, ?)');
++  it('takes a list and a free-text field, and a value of 80 characters', () => {
++    field.run('f1', 'w', 'Stage', 'list', '["Discover","Build"]', 'amara');
++    field.run('f2', 'w', 'Note', 'text', '[]', 'amara');
++    value.run('g1:f2', 'w', 'g1', 'f2', 'x'.repeat(80), 'amara');
++  });
++  it.each([
++    ['a name over 40 characters', ['f3', 'w', 'x'.repeat(41), 'list', '["A"]', 'amara']],
++    ['an empty name', ['f3', 'w', '  ', 'list', '["A"]', 'amara']],
++    ['a kind other than list or text', ['f3', 'w', 'Kind', 'number', '[]', 'amara']],
++    ['a list of no values', ['f3', 'w', 'Empty', 'list', '[]', 'amara']],
++    ['a list of 21 values', ['f3', 'w', 'Many', 'list', JSON.stringify(Array.from({ length: 21 }, (_, i) => `v${i}`)), 'amara']],
++    ['free text with values (0054)', ['f3', 'w', 'Text', 'text', '["A"]', 'amara']],
++  ])('refuses %s', (_, row) => expect(() => field.run(...(row as string[]))).toThrow(/CHECK constraint/));
++  it('refuses a goal’s value over 80 characters, and a value whose id isn’t its goal and field', () => {
++    expect(() => value.run('g2:f2', 'w', 'g2', 'f2', 'x'.repeat(81), 'amara')).toThrow(/CHECK constraint/);
++    expect(() => value.run('nope', 'w', 'g2', 'f2', 'x', 'amara')).toThrow(/CHECK constraint/);
++  });
++  it('refuses a second live field of the same name, whatever the case', () => {
++    expect(() => field.run('f4', 'w', ' stage', 'list', '["A"]', 'amara')).toThrow(/UNIQUE/);
++  });
++});
++
++describe('the server’s guard on Fields’ rows', () => {
++  it('lets an admin add a field, and refuses anyone else', () => {
++    expect(refusal(base, stage, who(base, 'amara'), WS)).toBeNull();
++    const forged = { ...stage, changes: stage.changes.map((c) => ({ ...c, actorId: member.id })) };
++    expect(refusal(base, strip(forged), member, WS)).toBe('Only an admin can change the workspace’s fields.');
++  });
++  it('refuses a field the rule refuses (a seventh, a name the Goals sheet reads, a list value twice)', () => {
++    let s = structuredClone(base);
++    for (const name of ['A', 'B', 'C', 'D', 'E', 'F']) s = applyCommit(s, addField(ctx(s, 'amara'), { name, kind: 'text', options: [] }));
++    expect(fieldsOf(s).length).toBe(6);
++    const seventh = { ...stage, modules: { tags: { fields: [{ ...fieldsOf(stage)[0]!, id: 'fld_seventh', name: 'G' }] } } };
++    expect(refusal(s, strip(seventh), who(s, 'amara'), WS)).toBe('A workspace has at most 6 fields. Retire one first.');
++    const owner = { ...stage, modules: { tags: { fields: [{ ...fieldsOf(stage)[0]!, name: 'owner' }] } } };
++    expect(refusal(base, strip(owner), who(base, 'amara'), WS)).toMatch(/The Goals sheet already has a column called “Owner”/);
++    const twice = { ...stage, modules: { tags: { fields: [{ ...fieldsOf(stage)[0]!, options: ['Build', 'build'] }] } } };
++    expect(refusal(base, strip(twice), who(base, 'amara'), WS)).toBe('“build” is in the list twice.');
++  });
++  it('lets a goal’s owner set its value; refuses another member, a value the list doesn’t hold, and a save as someone else', () => {
++    const set = setGoalFields(ctx(withStage, member.id), mine, { [fieldId]: 'Build' })!;
++    expect(refusal(withStage, set, member, WS)).toBeNull();
++    const other = { ...set, modules: { tags: { fieldValues: [{ ...(set.modules!.tags!.fieldValues![0] as object), id: valueId(theirs.id, fieldId), goalId: theirs.id }] } } };
++    expect(refusal(withStage, strip(other), member, WS)).toBe('Only the goal’s owner or an admin can change its fields.');
++    const bad = { ...set, modules: { tags: { fieldValues: [{ ...(set.modules!.tags!.fieldValues![0] as object), value: 'Operate' }] } } };
++    expect(refusal(withStage, strip(bad), member, WS)).toBe('“Operate” isn’t one of Stage’s values: Discover, Build or Run.');
++    const asAdmin = { ...set, modules: { tags: { fieldValues: [{ ...(set.modules!.tags!.fieldValues![0] as object), setBy: 'amara' }] } } };
++    expect(refusal(withStage, strip(asAdmin), member, WS)).toBe('A save can only be made as the person signed in.');
++    expect(refusal(withStage, setGoalFields(ctx(withStage, 'amara'), theirs, { [fieldId]: 'Run' })!, who(withStage, 'amara'), WS)).toBeNull();
++  });
++  it('refuses a value on a retired field, and every Fields write while Fields is switched off', () => {
++    const retired = applyCommit(structuredClone(withStage), retireField(ctx(withStage, 'amara'), fieldId));
++    const set = setGoalFields(ctx(withStage, member.id), mine, { [fieldId]: 'Build' })!;
++    expect(refusal(retired, set, member, WS)).toBe('Stage is retired. An admin can bring it back in Workspace, Fields.');
++    const off = { ...WS, modulesOff: ['tags'] };
++    expect(refusal(withStage, set, member, off)).toBe('Fields is switched off in Platform Engineering. An admin can switch it on in Workspace, under Features.');
++    expect(refusal(base, stage, who(base, 'amara'), off)).toBe('Fields is switched off in Platform Engineering. An admin can switch it on in Workspace, under Features.');
++  });
++  it('passes a save that sends Fields’ rows back unchanged', () => {
++    const again = { changes: [], modules: { tags: { fields: fieldsOf(withStage) } } } as Commit;
++    expect(refusal(withStage, again, member, { ...WS, modulesOff: ['tags'] })).toBeNull();
++  });
++});
+diff --git a/src/core/virtual.d.ts b/src/core/virtual.d.ts
+index fc38a6b..fbb411e 100644
+--- a/src/core/virtual.d.ts
++++ b/src/core/virtual.d.ts
+@@ -28,6 +28,10 @@ declare module 'virtual:faro-modules/demo' {
+   const demo: { id: string; part: (b: import('../domain/records').DemoBuild) => void }[];
+   export default demo;
+ }
++declare module 'virtual:faro-modules/guard' {
++  const guard: { id: string; part: (stored: import('../domain/types').Snapshot, c: { modules?: import('../domain/records').ModuleRows; goals?: import('../domain/types').Goal[] }, actor: import('../domain/types').Person, workspace: Pick<import('../domain/types').Workspace, 'id' | 'name' | 'modulesOff'>) => string | null }[];
++  export default guard;
++}
+ declare module 'virtual:faro-modules/spec' {
+   const spec: { id: string; part: import('../spec/rules').Rule[] }[];
+   export default spec;
+diff --git a/src/modules/tags/guard.ts b/src/modules/tags/guard.ts
+new file mode 100644
+index 0000000..cbf157e
+--- /dev/null
++++ b/src/modules/tags/guard.ts
+@@ -0,0 +1,81 @@
++/* Fields' rows, checked by a server that holds the workspace (drill item 11: the stand-in platform's guard, R1 rule 4).
++   The browser runs the module's actions (fields.ts) and sends their commit; a server that can't trust it asks the same
++   rules of every field and value row the commit changes, against the rows it holds:
++
++     a field          only an admin adds, renames, moves, retires or brings one back (fields.ts canDefineFields), as
++                      the person signed in, and the field passes rule 1 (rules.ts fieldProblem) among the others
++     a goal's value   only the goal's owner or an admin (canSetFields), as the person signed in, on a field of the
++                      workspace; the value is what rule 2 (valueProblem) keeps, or one goals already hold (a list's
++                      values changed: "goals keep the values they hold"); a goal new in this save (a goal added, a
++                      copy at the start of the next year) takes values from whoever adds it
++
++   While Fields is switched off, nothing writes a field, and a value only follows a goal the core's own paths add or
++   remove (a copy at the start of the next year, a copy that leaves, a start undone). Pure: rows in, the app's words out. */
++import { switchedOffWords } from '../../app/reads';
++import { isModuleOn } from '../../core/registry';
++import type { ModuleRows } from '../../domain/records';
++import type { Goal, Person, Snapshot, Workspace } from '../../domain/types';
++import { canDefineFields, canSetFields, fieldsOf, valuesOf, MODULE } from './fields';
++import { fieldToRow, valueToRow } from './records';
++import { fieldProblem, valueProblem } from './rules';
++import type { GoalFieldValue, SavedField } from './types';
++
++type Commit = { modules?: ModuleRows; goals?: Goal[] };
++const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
++
++/** Why the server refuses this save's Fields rows by `actor`, in the app's words; null when it may. */
++export default function fieldsRefusal(stored: Snapshot, c: Commit, actor: Person, workspace: Pick<Workspace, 'id' | 'name' | 'modulesOff'>): string | null {
++  const fields = fieldsOf(c);
++  const values = valuesOf(c);
++  if (!fields.length && !values.length) return null;
++  const ws = workspace.id;
++  const me = { ...actor, admin: !!actor.admin };
++  const on = isModuleOn(workspace, MODULE);
++  const off = switchedOffWords('Fields', workspace.name);
++
++  // Fields: the commit's version of each, merged over the stored ones, so a save that changes two at once is judged whole.
++  const held = new Map(fieldsOf(stored).map((f) => [f.id, f]));
++  const changed = fields.filter((f) => !same(held.get(f.id) && fieldToRow(ws, held.get(f.id)!), fieldToRow(ws, f)));
++  const after = new Map(held);
++  for (const f of fields) after.set(f.id, f);
++  if (changed.length) {
++    if (!on) return off;
++    if (!canDefineFields(me)) return 'Only an admin can change the workspace’s fields.';
++    for (const f of changed) {
++      const was = held.get(f.id);
++      if (!was && f.createdBy !== actor.id) return 'A save can only be made as the person signed in.';
++      if (was && (f.createdBy !== was.createdBy || f.createdAt !== was.createdAt)) return 'Who added a field, and when, doesn’t change.';
++      if (was && f.kind !== was.kind) return 'A field’s kind can’t be changed once it is added.';
++      if (f.retiredAt && !was?.retiredAt && f.retiredBy !== actor.id) return 'A save can only be made as the person signed in.';
++      // The rule wants the others as they will be, and this one as it was (or not at all, while new).
++      const problem = fieldProblem(f, [...[...after.values()].filter((x) => x.id !== f.id), ...(was ? [was] : [])]);
++      if (problem) return problem;
++    }
++  }
++
++  // Values: on a goal the server holds (or one this save adds), by its owner or an admin, as the rule keeps them.
++  const goals = new Map(stored.goals.map((g) => [g.id, g]));
++  const added = new Map((c.goals ?? []).filter((g) => !goals.has(g.id)).map((g) => [g.id, g]));
++  const heldValues = new Map(valuesOf(stored).map((v) => [v.id, v]));
++  const holds = (fieldId: string, value: string) => valuesOf(stored).some((v) => v.fieldId === fieldId && v.value === value);
++  for (const v of values as GoalFieldValue[]) {
++    const was = heldValues.get(v.id);
++    if (same(was && valueToRow(ws, was), valueToRow(ws, v))) continue;
++    if (v.id !== `${v.goalId}:${v.fieldId}`) return 'A goal has one value per field.';
++    const cleared = !!v.removedAt || !v.value;
++    const isNew = added.has(v.goalId);
++    if (!on && !isNew && !(cleared && v.removedAt)) return off;
++    const g = goals.get(v.goalId) ?? added.get(v.goalId);
++    if (!g) return 'That goal no longer exists. Reload to see the latest.';
++    if (!isNew && !canSetFields(me, g)) return 'Only the goal’s owner or an admin can change its fields.';
++    if ((v.removedAt ? (v.removedBy ?? v.setBy) : v.setBy) !== actor.id) return 'A save can only be made as the person signed in.';
++    const f: SavedField | undefined = after.get(v.fieldId);
++    if (!f) return 'That field no longer exists. Reload to see the latest.';
++    if (cleared) continue;
++    if (f.retiredAt && !isNew) return `${f.name} is retired. An admin can bring it back in Workspace, Fields.`;
++    const r = valueProblem(f, v.value);
++    if ('problem' in r && !holds(f.id, v.value)) return r.problem;
++    if ('value' in r && r.value !== v.value && !holds(f.id, v.value)) return `“${v.value}” isn’t written as ${f.name} writes it: “${r.value}”.`;
++  }
++  return null;
++}
+diff --git a/vite.modules.ts b/vite.modules.ts
+index b672d75..69cb223 100644
+--- a/vite.modules.ts
++++ b/vite.modules.ts
+@@ -10,6 +10,7 @@
+      virtual:faro-modules/spec   each module's spec.ts (its rules in plain words, with worked examples: src/spec/rules)
+      virtual:faro-modules/conformance each module's conformance.ts (its rules' rows in the conformance data: src/spec/conformance)
+      virtual:faro-modules/demo   each module's demo.ts (its rows in the demo workspace: only the demo builder loads it)
++     virtual:faro-modules/guard  each module's guard.ts (the server's check of its rows in a save: the stand-in platform, drill item 11)
+ 
+    FARO_WITHOUT=spreadsheets[,other] builds Faro with those modules left out, and anything that needs them: CI builds
+    it that way for each module and runs the core journeys (.github/workflows/ci.yml). */
+@@ -17,7 +18,7 @@ import fs from 'node:fs';
+ import path from 'node:path';
+ import type { Plugin } from 'vite';
+ 
+-const PARTS = { '': 'module.json', '/help': 'help.ts', '/tools': 'tools.ts', '/app': 'app.tsx', '/records': 'records.ts', '/actions': 'actions.ts', '/spec': 'spec.ts', '/conformance': 'conformance.ts', '/demo': 'demo.ts' } as const;
++const PARTS = { '': 'module.json', '/help': 'help.ts', '/tools': 'tools.ts', '/app': 'app.tsx', '/records': 'records.ts', '/actions': 'actions.ts', '/spec': 'spec.ts', '/conformance': 'conformance.ts', '/demo': 'demo.ts', '/guard': 'guard.ts' } as const;
+ const PREFIX = 'virtual:faro-modules';
+ 
+ interface Found { id: string; needs: string[]; dir: string }
