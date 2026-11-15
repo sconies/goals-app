@@ -155,10 +155,378 @@ Every journey has a page of its steps and checks (the Id in the table above link
 - **Check:** what must then be true. A check in brackets names the ease-test point it scores (`entry`, `one-action`, `progress`, `errors`, `finish`, `attention`, `a11y`, `logged`); the words after “else:” are what the eval reports when it isn’t. “It fails if …” is a check the journey can’t pass without.
 - **Checkpoint:** the screen as it is then is checked for the ease test’s `one-action` (at most one main button in view, or in the open sheet) and `a11y` (no serious or critical axe-core fault, no sideways scrolling, and on a phone the main button at least 44px tall).
 - _Note:_ the journey author’s own comment, the why behind the next lines.
-- Text in “quotes” is what the screen says; `{name}` is a value the journey works out as it runs (a goal’s planned number, say). A part named by Faro’s markup is given in words with its CSS class in backticks: a rebuild has its own markup, so it matches the words, not the class.
+- Text in “quotes” is what the screen says; `{name}` is a value the journey works out as it runs (a goal’s planned number, say), and {worked out in the journey as `…`} gives the code that works it out when it is longer than a name. A part named by Faro’s markup is given in words with its CSS class in backticks: a rebuild has its own markup, so it matches the words, not the class. Every part the journeys name, with its words, is in [the parts the journeys name](#the-parts-the-journeys-name).
+- **For each of …, N rows:** a loop over a list the journey writes out; each _Row:_ is one entry, its values in the order the code writes them (the note above the loop, when there is one, says what each value is), then the lines done for every row.
 - **If …:** lines that apply only on one width (a phone is 390 × 844, a desktop 1440 × 900), with a module on or off, or in one case the code tests.
 
-**Where it starts.** “In the demo” is Faro’s example workspace, Platform Engineering ([the conformance workspace](../conformance/workspace.json)), on Thursday 5 November 2026, week 45 (every demo address carries `?today=2026-11-05`). A fresh browser as someone is that person chosen as the viewer before the app loads. “The real app, its data kept in this browser” is the app at its own addresses with `?store=browser`, starting empty.
+**Where it starts.** “In the demo” is Faro’s example workspace, Platform Engineering, on Thursday 5 November 2026, week 45 unless the line names another day (every demo address carries `?today=2026-11-05`, or that day). It is the workspace [the conformance data](../conformance/workspace.json) is made from, and more: `workspace.json` keeps only what the rules read, and [`demo-extra.json`](../conformance/demo-extra.json) adds what the journeys also read on 5 November (each person’s job title and email, and the change log). Faro builds its demo for the day it is opened, so on a later day the demo has moved on: check-ins planned after 5 November are posted, the story’s later weeks have happened. A journey that runs on another day reads that demo, which the kit doesn’t hold (the journeys that do are [listed below](#journeys-on-another-day)). A fresh browser as someone is that person chosen as the viewer before the app loads (Faro keeps the choice in the browser; a rebuild may take it from a cookie or the address). Faro serves the demo under `/demo` (`/demo/people` is People in the demo); the lines give each address without it. “The real app, its data kept in this browser” is the app at its own addresses with `?store=browser`, starting empty.
+
+## The parts the journeys name
+
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (340 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+
+| Selector | In words | Journeys |
+|---|---|---|
+| `.about` | the about | [U49](../modules/reviews/journeys/U49.md), [U80](../modules/reviews/journeys/U80.md) |
+| `.ai-block` | the ai block | [U62](../modules/ai-access/journeys/U62.md) |
+| `.arow` | the arow | [U2](journeys/U2.md), [U123](journeys/U123.md) |
+| `.arow .arow-who` | the arow who in the arow | [U123](journeys/U123.md) |
+| `.arow .btn` | the button in the arow | [U123](journeys/U123.md) |
+| `.arow-why` | the arow why | [U2](journeys/U2.md) |
+| `.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon` | the part `.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon` | [U2](journeys/U2.md) |
+| `.arrival-person` | the arrival person | [U97](journeys/U97.md) |
+| `.attention-switch:visible` | the attention switch | [U33](journeys/U33.md), [U34](../modules/goal-map/journeys/U34.md), [U26](../modules/goal-map/journeys/U26.md) |
+| `.backlink` | the backlink | [U72](journeys/U72.md) |
+| `.bar-guard` | the bar guard | [U171](journeys/U171.md) |
+| `.board` | the board | [U19](../modules/spreadsheets/journeys/U19.md) |
+| `.board-card .board-parent` | the board parent in the board card | [U19](../modules/spreadsheets/journeys/U19.md) |
+| `.board-col` | the board col | [U134](../modules/goal-map/journeys/U134.md) |
+| `.c-note text` | the text in the c note | [U106](../modules/metrics/journeys/U106.md) |
+| `.callline` | the callline | [U15](journeys/U15.md) |
+| `.cause-pick button, [aria-label^="Why is it"] button` | the part `.cause-pick button, [aria-label^="Why is it"] button` | [U49](../modules/reviews/journeys/U49.md), [U102](journeys/U102.md) |
+| `.celebrate` | the celebrate | [U36](../modules/reviews/journeys/U36.md), [U151](journeys/U151.md) |
+| `.celebrate .btn.primary` | the main button in the celebrate | [U5](journeys/U5.md), [U11](journeys/U11.md), [U54](journeys/U54.md) |
+| `.changed-counts a` | the a in the changed counts | [U124](journeys/U124.md) |
+| `.changed-row` | the changed row | [U124](journeys/U124.md) |
+| `.changes` | the changes | [U7](../modules/watching/journeys/U7.md) |
+| `.changes .change` | the change in the changes | [U7](../modules/watching/journeys/U7.md) |
+| `.changes > li` | the li in the changes | [U31](../modules/watching/journeys/U31.md) |
+| `.check-said` | the check said | [U83](../modules/metrics/journeys/U83.md) |
+| `.ci-corrected` | the ci corrected | [U142](journeys/U142.md) |
+| `.ci-moment` | the ci moment | [U151](journeys/U151.md) |
+| `.ci-reading-block` | the reading of the number in the check-in | [U156](../modules/metrics/journeys/U156.md), [U157](../modules/metrics/journeys/U157.md), [U158](../modules/metrics/journeys/U158.md), [U159](../modules/metrics/journeys/U159.md), [U161](journeys/U161.md) |
+| `.ci-result` | the ci result | [U151](journeys/U151.md) |
+| `.ci-week` | a week in the check-in | [U71](journeys/U71.md), [U57](journeys/U57.md) |
+| `.ciq-go` | the ciq go | [U31](../modules/watching/journeys/U31.md) |
+| `.ciq-row` | the ciq row | [U71](journeys/U71.md), [U102](journeys/U102.md) |
+| `.coach` | the coach | [U39](../modules/goal-map/journeys/U39.md), [U27](journeys/U27.md) |
+| `.coach-ring` | the coach ring | [U31](../modules/watching/journeys/U31.md), [U27](journeys/U27.md), [U29](journeys/U29.md) |
+| `.connect` | the connect | [U42](../modules/feedback/journeys/U42.md), [U175](../modules/ai-access/journeys/U175.md) |
+| `.count-line` | the count line | [U35](journeys/U35.md), [U64](journeys/U64.md), [U92](journeys/U92.md), [U52](../modules/feedback/journeys/U52.md) |
+| `.count-line[role="status"]` | the count line | [U64](journeys/U64.md), [U92](journeys/U92.md) |
+| `.cycles-block` | the cycles block | [U51](../modules/feedback/journeys/U51.md), [U166](../modules/wrap-up/journeys/U166.md) |
+| `.dash-review` | the dash review | [U104](../modules/reviews/journeys/U104.md) |
+| `.dash-standing` | the dash standing | [U124](journeys/U124.md) |
+| `.dash-watch` | the dash watch | [U9](../modules/watching/journeys/U9.md) |
+| `.data-export > summary` | the summary in the data export | [U19](../modules/spreadsheets/journeys/U19.md), [U20](../modules/spreadsheets/journeys/U20.md), [U48](../modules/spreadsheets/journeys/U48.md) |
+| `.data-tools` | the data tools | [U48](../modules/spreadsheets/journeys/U48.md) |
+| `.data-tools .data-import` | the data import in the data tools | [U20](../modules/spreadsheets/journeys/U20.md), [U46](../modules/spreadsheets/journeys/U46.md), [U90](../modules/goal-map/journeys/U90.md) |
+| `.dcell.edited` | the dcell edited | [U35](journeys/U35.md), [U91](journeys/U91.md) |
+| `.decide` | the decide | [U3](../modules/reviews/journeys/U3.md), [U148](journeys/U148.md) |
+| `.decide .quiet-links` | the quiet links in the decide | [U3](../modules/reviews/journeys/U3.md) |
+| `.demo-entry` | the demo entry | [U17](journeys/U17.md) |
+| `.demo-entry:visible` | the Demo button | [U12](journeys/U12.md), [U17](journeys/U17.md) |
+| `.diffs ins` | the ins in the diffs | [U6](journeys/U6.md) |
+| `.dots` | the dots | [U39](../modules/goal-map/journeys/U39.md) |
+| `.dtable input, .dtable select` | the part `.dtable input, .dtable select` | [U35](journeys/U35.md) |
+| `.dtable tbody tr` | the tr in the tbody in the dtable | [U35](journeys/U35.md) |
+| `.dtable thead` | the thead in the dtable | [U35](journeys/U35.md) |
+| `.export-note` | the export note | [U19](../modules/spreadsheets/journeys/U19.md) |
+| `.fb-item` | the fb item | [U42](../modules/feedback/journeys/U42.md) |
+| `.features-group` | the features group | [U175](../modules/ai-access/journeys/U175.md) |
+| `.features-group h2` | the h2 in the features group | [U164](../modules/watching/journeys/U164.md) |
+| `.field-label` | the field label | [U86](journeys/U86.md) |
+| `.filter-line` | the filter line | [U8](../modules/watching/journeys/U8.md), [U123](journeys/U123.md), [U124](journeys/U124.md), [U64](journeys/U64.md), [U92](journeys/U92.md), [U52](../modules/feedback/journeys/U52.md) |
+| `.first-reports` | the first reports | [U54](journeys/U54.md) |
+| `.fix-line` | the Must fix line | [U93](journeys/U93.md), [U105](../modules/metrics/journeys/U105.md) |
+| `.focus-body .chip` | the chip in the focus body | [U10](../modules/wrap-up/journeys/U10.md) |
+| `.focus-body input[inputmode="numeric"]` | the input in the focus body | [U109](journeys/U109.md) |
+| `.focus-foot` | the focus foot | [U93](journeys/U93.md) |
+| `.focus-foot button[type=submit]` | the check-in’s main button | [U1](journeys/U1.md), [U7](../modules/watching/journeys/U7.md), [U27](journeys/U27.md), [U85](journeys/U85.md) |
+| `.focus-top` | the top of the check-in | [U72](journeys/U72.md) |
+| `.from-metric` | the from metric | [U146](../modules/metrics/journeys/U146.md) |
+| `.goal-bar` | the goal’s summary bar | [U141](journeys/U141.md), [U6](journeys/U6.md), [U8](../modules/watching/journeys/U8.md), [U9](../modules/watching/journeys/U9.md), [U41](../modules/feedback/journeys/U41.md), [U70](journeys/U70.md), [U44](journeys/U44.md), [U164](../modules/watching/journeys/U164.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md), [U81](../modules/metrics/journeys/U81.md), [U162](journeys/U162.md), [U150](journeys/U150.md), [U170](../modules/metrics/journeys/U170.md), [U174](../modules/tags/journeys/U174.md), [U85](journeys/U85.md) |
+| `.goal-bar .bar-actions` | the buttons on the goal’s summary bar | [U141](journeys/U141.md), [U77](journeys/U77.md), [U80](../modules/reviews/journeys/U80.md) |
+| `.goal-bar .bar-actions .btn.primary` | the main button in the bar actions in the goal bar | [U77](journeys/U77.md), [U78](journeys/U78.md) |
+| `.goal-bar .bar-status` | the status on the goal’s summary bar | [U141](journeys/U141.md), [U3](../modules/reviews/journeys/U3.md) |
+| `.goal-bar .btn.primary` | the main button in the goal bar | [U44](journeys/U44.md) |
+| `.goal-bar summary[aria-label="More about this goal"]` | the goal’s “…” menu | [U141](journeys/U141.md), [U70](journeys/U70.md), [U134](../modules/goal-map/journeys/U134.md) |
+| `.goal-bar[data-tone=off] .bar-status.off` | the bar status off in the goal bar | [U6](journeys/U6.md) |
+| `.goal-bar[data-tone=stale] .bar-status.stale` | the bar status stale in the goal bar | [U8](../modules/watching/journeys/U8.md) |
+| `.goal-chart svg.chart[data-before-stop="1"]` | the chart in the goal chart | [U44](journeys/U44.md) |
+| `.goal-edit` | the goal edit | [U149](journeys/U149.md) |
+| `.goal-edit .edit-part` | the edit part in the goal edit | [U136](journeys/U136.md) |
+| `.goal-proposed` | the goal proposed | [U134](../modules/goal-map/journeys/U134.md), [U163](journeys/U163.md) |
+| `.goal-read-back` | the goal read back | [U137](journeys/U137.md) |
+| `.goal-row, .gtable tbody tr, .tree li` | the part `.goal-row, .gtable tbody tr, .tree li` | [U66](journeys/U66.md) |
+| `.goals-head` | the goals head | [U135](../modules/goal-map/journeys/U135.md) |
+| `.goals-line` | the Goals count line | [U122](journeys/U122.md), [U123](journeys/U123.md), [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U70](journeys/U70.md), [U73](../modules/watching/journeys/U73.md), [U101](journeys/U101.md), [U134](../modules/goal-map/journeys/U134.md), [U153](journeys/U153.md), [U150](journeys/U150.md) |
+| `.goals-page` | the goals page | [U164](../modules/watching/journeys/U164.md) |
+| `.goals-page .filterbar-row` | the filterbar row in the goals page | [U8](../modules/watching/journeys/U8.md) |
+| `.goals-toolbar` | the goals toolbar | [U48](../modules/spreadsheets/journeys/U48.md) |
+| `.group-menu > summary` | the summary in the group menu | [U135](../modules/goal-map/journeys/U135.md) |
+| `.gs-row` | the gs row | [U86](journeys/U86.md) |
+| `.gtable` | the gtable | [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
+| `.gtable tbody tr` | the tr in the tbody in the gtable | [U32](journeys/U32.md) |
+| `.gtable tbody tr:not(.story-row)` | the tr in the tbody in the gtable | [U32](journeys/U32.md) |
+| `.habit-week` | the habit week | [U153](journeys/U153.md) |
+| `.hcell.tone-on, .hcell.tone-risk, .hcell.tone-off` | the part `.hcell.tone-on, .hcell.tone-risk, .hcell.tone-off` | [U19](../modules/spreadsheets/journeys/U19.md) |
+| `.hero` | the page’s lead | [U10](../modules/wrap-up/journeys/U10.md), [U115](journeys/U115.md), [U152](../modules/metrics/journeys/U152.md), [U117](journeys/U117.md), [U28](journeys/U28.md) |
+| `.hero .btn.primary` | the main button in the hero | [U10](../modules/wrap-up/journeys/U10.md) |
+| `.hero .ring` | the ring in the hero | [U2](journeys/U2.md) |
+| `.hero a.btn.primary` | the main button in the hero | [U27](journeys/U27.md) |
+| `.hero a.btn.primary[href*="/check-in?start=1"]` | the main button in the hero | [U27](journeys/U27.md) |
+| `.hgrid` | the History grid | [U19](../modules/spreadsheets/journeys/U19.md), [U23](journeys/U23.md), [U38](journeys/U38.md) |
+| `.home-counts a` | the a in the home counts | [U123](journeys/U123.md) |
+| `.home-hero` | Home’s lead | [U2](journeys/U2.md), [U49](../modules/reviews/journeys/U49.md), [U122](journeys/U122.md), [U71](journeys/U71.md), [U57](journeys/U57.md) |
+| `.home-main [data-part]` | the home main | [U49](../modules/reviews/journeys/U49.md) |
+| `.home-mine .home-counts` | the home counts in the home mine | [U122](journeys/U122.md) |
+| `.home-mine .home-counts a` | the a in the home counts in the home mine | [U122](journeys/U122.md) |
+| `.home-side` | the home side | [U103](../modules/reviews/journeys/U103.md) |
+| `.home-sort-out` | the home sort out | [U176](journeys/U176.md) |
+| `.home-sort-out, [data-part="The workspace’s line"]` | the part `.home-sort-out, [data-part="The workspace’s line"]` | [U176](journeys/U176.md) |
+| `.home-watch` | the home watch | [U9](../modules/watching/journeys/U9.md) |
+| `.ibx-bulk` | the ibx bulk | [U52](../modules/feedback/journeys/U52.md) |
+| `.ibx-bulk .mk-form` | the mk form in the ibx bulk | [U52](../modules/feedback/journeys/U52.md) |
+| `.ibx-detail` | the ibx detail | [U52](../modules/feedback/journeys/U52.md) |
+| `.ibx-detail .mk-form` | the mk form in the ibx detail | [U52](../modules/feedback/journeys/U52.md) |
+| `.ibx-open` | the open Inbox item | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md), [U52](../modules/feedback/journeys/U52.md) |
+| `.ibx-row` | an Inbox row | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md), [U52](../modules/feedback/journeys/U52.md) |
+| `.ibx-row .ibx-open` | the ibx open in the ibx row | [U42](../modules/feedback/journeys/U42.md) |
+| `.ibx-row .mk-item` | the mk item in the ibx row | [U52](../modules/feedback/journeys/U52.md) |
+| `.import-answer` | the import answer | [U147](journeys/U147.md) |
+| `.import-answered` | the import answered | [U54](journeys/U54.md), [U147](journeys/U147.md), [U94](../modules/spreadsheets/journeys/U94.md) |
+| `.import-change` | a change in the import’s preview | [U20](../modules/spreadsheets/journeys/U20.md), [U46](../modules/spreadsheets/journeys/U46.md) |
+| `.import-group` | the import group | [U147](journeys/U147.md) |
+| `.import-group.level-fix` | the import group level fix | [U147](journeys/U147.md) |
+| `.inline-sort select` | the select in the inline sort | [U135](../modules/goal-map/journeys/U135.md) |
+| `.layout-menu > summary, .goals-phone-switch .view-open` | the part `.layout-menu > summary, .goals-phone-switch .view-open` | [U19](../modules/spreadsheets/journeys/U19.md) |
+| `.layout-switch` | the layout switch | [U135](../modules/goal-map/journeys/U135.md) |
+| `.level-check` | a Check question about a number | [U111](journeys/U111.md), [U31](../modules/watching/journeys/U31.md), [U93](journeys/U93.md), [U109](journeys/U109.md) |
+| `.life-mark` | the life mark | [U150](journeys/U150.md) |
+| `.make-active` | the make active | [U134](../modules/goal-map/journeys/U134.md) |
+| `.map-canvas input, .map-bar input[type="checkbox"]:not(.map-troubled input)` | the part `.map-canvas input, .map-bar input[type="checkbox"]:not(.map-troubled input)` | [U135](../modules/goal-map/journeys/U135.md) |
+| `.map-node.proposed` | the map node proposed | [U134](../modules/goal-map/journeys/U134.md) |
+| `.markup-root` | the markup root | [U41](../modules/feedback/journeys/U41.md) |
+| `.measured-by` | the Measured by line | [U82](../modules/metrics/journeys/U82.md), [U159](../modules/metrics/journeys/U159.md), [U160](../modules/metrics/journeys/U160.md), [U145](../modules/metrics/journeys/U145.md), [U146](../modules/metrics/journeys/U146.md) |
+| `.metric-block` | the metric block | [U146](../modules/metrics/journeys/U146.md) |
+| `.metric-children` | the metric children | [U172](../modules/metrics/journeys/U172.md) |
+| `.metric-count` | the metric count | [U105](../modules/metrics/journeys/U105.md) |
+| `.metric-facts` | the metric facts | [U172](../modules/metrics/journeys/U172.md) |
+| `.metric-facts .measure-gap` | the measure gap in the metric facts | [U170](../modules/metrics/journeys/U170.md) |
+| `.metric-goals tbody tr` | the tr in the tbody in the metric goals | [U81](../modules/metrics/journeys/U81.md) |
+| `.metric-goals tr, .metric-goals li` | the part `.metric-goals tr, .metric-goals li` | [U82](../modules/metrics/journeys/U82.md) |
+| `.metric-head .metric-still` | the metric still in the metric head | [U105](../modules/metrics/journeys/U105.md) |
+| `.metric-head progress, .metric-head meter, .metric-head [role="progressbar"]` | the part `.metric-head progress, .metric-head meter, .metric-head [role="progressbar"]` | [U105](../modules/metrics/journeys/U105.md) |
+| `.metric-meaning` | the metric meaning | [U81](../modules/metrics/journeys/U81.md) |
+| `.metric-need-list` | the metric need list | [U83](../modules/metrics/journeys/U83.md) |
+| `.metric-readback` | the metric readback | [U106](../modules/metrics/journeys/U106.md) |
+| `.metric-retired` | the metric retired | [U106](../modules/metrics/journeys/U106.md) |
+| `.metric-row` | the metric row | [U81](../modules/metrics/journeys/U81.md) |
+| `.metric-sortout` | the metric sortout | [U170](../modules/metrics/journeys/U170.md) |
+| `.metric-structure` | the metric structure | [U172](../modules/metrics/journeys/U172.md) |
+| `.mg-status svg[data-status]` | the svg in the mg status | [U81](../modules/metrics/journeys/U81.md) |
+| `.mk-form` | the mk form | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
+| `.mk-ink-layer` | the mk ink layer | [U42](../modules/feedback/journeys/U42.md) |
+| `.mk-item` | the mk item | [U47](../modules/feedback/journeys/U47.md) |
+| `.mk-layers img` | the img in the mk layers | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
+| `.mk-preview img` | the img in the mk preview | [U41](../modules/feedback/journeys/U41.md) |
+| `.mk-status` | the mark-up’s status line | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
+| `.mk-surface` | the mk surface | [U41](../modules/feedback/journeys/U41.md) |
+| `.need` | a “needs” line | [U16](../modules/watching/journeys/U16.md), [U37](journeys/U37.md) |
+| `.need-group` | the need group | [U16](../modules/watching/journeys/U16.md) |
+| `.needs-you [data-proposal="stale"]` | the needs you | [U134](../modules/goal-map/journeys/U134.md) |
+| `.next-steps` | the next steps | [U80](../modules/reviews/journeys/U80.md) |
+| `.not-found` | the not found | [U70](journeys/U70.md) |
+| `.not-found .find-input` | the find input in the not found | [U70](journeys/U70.md) |
+| `.note-bad` | the note bad | [U145](../modules/metrics/journeys/U145.md) |
+| `.note-compose` | the note compose | [U80](../modules/reviews/journeys/U80.md) |
+| `.outcome` | the outcome | [U3](../modules/reviews/journeys/U3.md), [U135](../modules/goal-map/journeys/U135.md) |
+| `.outcome-card` | the outcome card | [U3](../modules/reviews/journeys/U3.md), [U17](journeys/U17.md) |
+| `.page` | the page | [U175](../modules/ai-access/journeys/U175.md), [U176](journeys/U176.md) |
+| `.page-head` | the page’s heading area | [U17](journeys/U17.md), [U22](../modules/ai-access/journeys/U22.md), [U51](../modules/feedback/journeys/U51.md), [U59](journeys/U59.md), [U86](journeys/U86.md), [U43](journeys/U43.md), [U48](../modules/spreadsheets/journeys/U48.md) |
+| `.page.home` | Home | [U122](journeys/U122.md), [U48](../modules/spreadsheets/journeys/U48.md), [U103](../modules/reviews/journeys/U103.md), [U104](../modules/reviews/journeys/U104.md), [U101](journeys/U101.md), [U155](../modules/reviews/journeys/U155.md), [U164](../modules/watching/journeys/U164.md), [U165](../modules/feedback/journeys/U165.md) |
+| `.page.home .btn.primary` | the main button in the page home | [U122](journeys/U122.md) |
+| `.page.home h2` | the h2 in the page home | [U122](journeys/U122.md) |
+| `.people-row` | the people row | [U14](journeys/U14.md), [U58](journeys/U58.md) |
+| `.person-facts` | the person facts | [U14](journeys/U14.md), [U58](journeys/U58.md) |
+| `.pick` | the pick | [U86](journeys/U86.md) |
+| `.pick-chosen` | the pick chosen | [U63](../modules/reviews/journeys/U63.md), [U91](journeys/U91.md) |
+| `.pick-count[role="status"]` | the pick count | [U13](../modules/reviews/journeys/U13.md), [U63](../modules/reviews/journeys/U63.md) |
+| `.pick-open` | the pick open | [U80](../modules/reviews/journeys/U80.md) |
+| `.pick.open` | the open find-and-pick list | [U91](journeys/U91.md), [U84](journeys/U84.md), [U82](../modules/metrics/journeys/U82.md), [U159](../modules/metrics/journeys/U159.md), [U160](../modules/metrics/journeys/U160.md), [U145](../modules/metrics/journeys/U145.md), [U146](../modules/metrics/journeys/U146.md), [U106](../modules/metrics/journeys/U106.md), [U172](../modules/metrics/journeys/U172.md), [U171](journeys/U171.md) |
+| `.proposed-actions .btn.primary` | the main button in the proposed actions | [U163](journeys/U163.md) |
+| `.proposed-rows .status-shape` | the status shape in the proposed rows | [U134](../modules/goal-map/journeys/U134.md) |
+| `.qcell` | the qcell | [U38](journeys/U38.md) |
+| `.qcell.q-met` | the qcell q met | [U38](journeys/U38.md) |
+| `.qcell.q-missed` | the qcell q missed | [U38](journeys/U38.md) |
+| `.qfoot .btn.primary` | the main button at the foot of the review | [U160](../modules/metrics/journeys/U160.md) |
+| `.qrow` | a review question’s row | [U30](../modules/goal-map/journeys/U30.md), [U31](../modules/watching/journeys/U31.md), [U34](../modules/goal-map/journeys/U34.md), [U160](../modules/metrics/journeys/U160.md) |
+| `.qstatus .chip` | the chip in the qstatus | [U21](journeys/U21.md), [U30](../modules/goal-map/journeys/U30.md) |
+| `.qsummary` | the qsummary | [U57](journeys/U57.md) |
+| `.qtable` | the qtable | [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
+| `.qtable, .hgrid` | the part `.qtable, .hgrid` | [U19](../modules/spreadsheets/journeys/U19.md) |
+| `.rail-label` | the rail label | [U67](../modules/reviews/journeys/U67.md) |
+| `.react-flow__node` | a goal on the Goal map | [U39](../modules/goal-map/journeys/U39.md), [U135](../modules/goal-map/journeys/U135.md), [U26](../modules/goal-map/journeys/U26.md) |
+| `.react-flow__node, .map-list` | the part `.react-flow__node, .map-list` | [U165](../modules/feedback/journeys/U165.md) |
+| `.react-flow__node[aria-label*="critical path"]` | the path"] in the react flow node[aria label*="critical | [U26](../modules/goal-map/journeys/U26.md) |
+| `.react-flow__node[data-id="lead-mq"]` | the react flow node | [U26](../modules/goal-map/journeys/U26.md) |
+| `.react-flow__node[data-id="mttr-oncall"] .map-node.found` | the map node found in the react flow node | [U135](../modules/goal-map/journeys/U135.md) |
+| `.react-flow__node[data-id="ns-lead"]` | the react flow node | [U30](../modules/goal-map/journeys/U30.md) |
+| `.read-back-n` | the read back n | [U115](journeys/U115.md) |
+| `.removed-block` | the removed block | [U43](journeys/U43.md) |
+| `.retro-row` | the retro row | [U117](journeys/U117.md) |
+| `.review-home` | the review’s page | [U3](../modules/reviews/journeys/U3.md) |
+| `.review-rows` | the review rows | [U84](journeys/U84.md) |
+| `.reviewbar` | the reviewbar | [U3](../modules/reviews/journeys/U3.md) |
+| `.reviews-list` | the list of reviews | [U3](../modules/reviews/journeys/U3.md), [U104](../modules/reviews/journeys/U104.md), [U155](../modules/reviews/journeys/U155.md) |
+| `.rhythm-row` | the rhythm row | [U101](journeys/U101.md), [U102](journeys/U102.md) |
+| `.ring:visible` | the ring | [U12](journeys/U12.md), [U13](../modules/reviews/journeys/U13.md) |
+| `.rr-value` | the rr value | [U137](journeys/U137.md) |
+| `.said` | the said | [U3](../modules/reviews/journeys/U3.md) |
+| `.sc-hit, .goal-chart .c-fc, .goal-chart .c-band` | the part `.sc-hit, .goal-chart .c-fc, .goal-chart .c-band` | [U44](journeys/U44.md) |
+| `.section-links` | the section links | [U70](journeys/U70.md) |
+| `.selbar-menu > summary` | the summary in the selbar menu | [U21](journeys/U21.md) |
+| `.setup-me` | the “Which one is you?” step of set-up | [U5](journeys/U5.md), [U49](../modules/reviews/journeys/U49.md), [U53](../modules/feedback/journeys/U53.md) |
+| `.side` | the sidebar | [U65](journeys/U65.md), [U59](journeys/U59.md), [U53](../modules/feedback/journeys/U53.md) |
+| `.side .collapse-nav` | the collapse nav in the side | [U67](../modules/reviews/journeys/U67.md) |
+| `.side .nav` | the nav in the side | [U67](../modules/reviews/journeys/U67.md) |
+| `.side .nav-group .nav` | the nav in the nav group in the side | [U67](../modules/reviews/journeys/U67.md) |
+| `.side .ws-name:visible, .ws-switch-top:visible` | the part `.side .ws-name:visible, .ws-switch-top:visible` | [U5](journeys/U5.md) |
+| `.side .ws-switch .ws-switch-word` | the ws switch word in the ws switch in the side | [U5](journeys/U5.md) |
+| `.side [aria-current="page"]` | the side | [U67](../modules/reviews/journeys/U67.md), [U71](journeys/U71.md) |
+| `.side [role="group"].nav-group` | the nav group in the side | [U67](../modules/reviews/journeys/U67.md) |
+| `.side:visible .nav-group, .tabbar:visible a` | the part `.side:visible .nav-group, .tabbar:visible a` | [U67](../modules/reviews/journeys/U67.md) |
+| `.side:visible, .tabbar:visible` | the menu (the sidebar on a computer, the tab bar on a phone) | [U54](journeys/U54.md), [U65](journeys/U65.md), [U59](journeys/U59.md), [U61](journeys/U61.md), [U176](journeys/U176.md) |
+| `.stage` | the stage | [U93](journeys/U93.md) |
+| `.stagelist` | the stagelist | [U6](journeys/U6.md) |
+| `.status-shape` | a status shape | [U134](../modules/goal-map/journeys/U134.md), [U163](journeys/U163.md), [U150](journeys/U150.md) |
+| `.status-shape, .chip` | the part `.status-shape, .chip` | [U57](journeys/U57.md) |
+| `.status-shape, svg.shape` | the part `.status-shape, svg.shape` | [U105](../modules/metrics/journeys/U105.md) |
+| `.status-shape[data-status="unmeasured"]` | the status shape | [U170](../modules/metrics/journeys/U170.md) |
+| `.step-do button, .step-do a` | the part `.step-do button, .step-do a` | [U78](journeys/U78.md) |
+| `.step-panel` | the step panel | [U78](journeys/U78.md) |
+| `.step-panel button[type=submit]` | the button in the step panel | [U77](journeys/U77.md) |
+| `.step-row` | the step row | [U3](../modules/reviews/journeys/U3.md), [U33](journeys/U33.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md) |
+| `.step-row.is-settled` | the step row is settled | [U37](journeys/U37.md), [U78](journeys/U78.md) |
+| `.steps` | the step counter | [U5](journeys/U5.md), [U11](journeys/U11.md), [U49](../modules/reviews/journeys/U49.md), [U54](journeys/U54.md), [U147](journeys/U147.md), [U86](journeys/U86.md) |
+| `.story-row` | the story row | [U33](journeys/U33.md) |
+| `.stream > li` | an entry in the stream | [U79](../modules/reviews/journeys/U79.md) |
+| `.stream > li.stream-ci, .stream > li.stream-group` | the part `.stream > li.stream-ci, .stream > li.stream-group` | [U57](journeys/U57.md) |
+| `.tabbar` | the phone’s tab bar | [U16](../modules/watching/journeys/U16.md), [U67](../modules/reviews/journeys/U67.md), [U59](journeys/U59.md) |
+| `.task-list li` | the li in the task list | [U28](journeys/U28.md) |
+| `.team-page` | the team page | [U153](journeys/U153.md) |
+| `.team-row` | the team row | [U58](journeys/U58.md), [U61](journeys/U61.md), [U53](../modules/feedback/journeys/U53.md) |
+| `.team-row .warn-mark, .team-row svg[data-warn]` | the part `.team-row .warn-mark, .team-row svg[data-warn]` | [U61](journeys/U61.md) |
+| `.teams-needs a` | the a in the teams needs | [U124](journeys/U124.md) |
+| `.teams-table` | the teams table | [U124](journeys/U124.md) |
+| `.toast` | the message that pops up | [U3](../modules/reviews/journeys/U3.md) |
+| `.toast-action` | the button in the message that pops up | [U14](journeys/U14.md), [U60](journeys/U60.md), [U43](journeys/U43.md), [U44](journeys/U44.md), [U134](../modules/goal-map/journeys/U134.md), [U83](../modules/metrics/journeys/U83.md), [U106](../modules/metrics/journeys/U106.md) |
+| `.tree .trow` | the trow in the tree | [U9](../modules/watching/journeys/U9.md) |
+| `.trow` | the trow | [U3](../modules/reviews/journeys/U3.md), [U6](journeys/U6.md) |
+| `.trow, .gline` | the part `.trow, .gline` | [U33](journeys/U33.md) |
+| `.trow[data-tone="stale"]` | the trow | [U8](../modules/watching/journeys/U8.md) |
+| `.verdict[data-tone=off]` | the verdict, marked off plan | [U1](journeys/U1.md) |
+| `.views-menu > summary` | the Views menu | [U32](journeys/U32.md), [U135](../modules/goal-map/journeys/U135.md) |
+| `.week-inspector` | the week inspector | [U38](journeys/U38.md) |
+| `.weekpick` | the weekpick | [U18](journeys/U18.md) |
+| `.weekpick-is, .weekpick-is-inline` | the part `.weekpick-is, .weekpick-is-inline` | [U18](journeys/U18.md) |
+| `.weekpick.open` | the open week picker | [U109](journeys/U109.md) |
+| `.welcome .btn.primary` | the main button in the welcome | [U97](journeys/U97.md) |
+| `.why-block` | the why block | [U78](journeys/U78.md) |
+| `.why-block .why-pointer` | the why pointer in the why block | [U78](journeys/U78.md) |
+| `.ws-body .btn.primary:visible` | the main button in the ws body | [U51](../modules/feedback/journeys/U51.md) |
+| `.ws-facts` | the workspace facts | [U59](journeys/U59.md), [U61](journeys/U61.md), [U62](../modules/ai-access/journeys/U62.md), [U53](../modules/feedback/journeys/U53.md) |
+| `.ws-facts a` | the a in the ws facts | [U59](journeys/U59.md) |
+| `.ws-facts dt` | the dt in the ws facts | [U59](journeys/U59.md), [U61](journeys/U61.md) |
+| `.ws-role-line` | the ws role line | [U59](journeys/U59.md), [U53](../modules/feedback/journeys/U53.md) |
+| `.ws-sort-row` | the ws sort row | [U176](journeys/U176.md) |
+| `.ws-sort-row[data-need="only-admin"]` | the ws sort row | [U61](journeys/U61.md) |
+| `[aria-labelledby=res-l] button[aria-pressed=true]` | the button | [U10](../modules/wrap-up/journeys/U10.md) |
+| `[data-check="meaning"]` | the part `[data-check="meaning"]` | [U105](../modules/metrics/journeys/U105.md) |
+| `[data-check="name"]` | the part `[data-check="name"]` | [U83](../modules/metrics/journeys/U83.md), [U105](../modules/metrics/journeys/U105.md) |
+| `[data-check="part"]` | the part `[data-check="part"]` | [U160](../modules/metrics/journeys/U160.md), [U146](../modules/metrics/journeys/U146.md) |
+| `[data-check="why"]` | the part `[data-check="why"]` | [U146](../modules/metrics/journeys/U146.md) |
+| `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
+| `[data-part="Changed since"]` | the since"] in the [data part="Changed | [U124](journeys/U124.md) |
+| `[data-part="Checked in this week"]` | the week"] in the this in the in in the [data part="Checked | [U102](journeys/U102.md) |
+| `[data-part="Checked in this week"] .ciq-row` | the ciq row in the week"] in the this in the in in the [data part="Checked | [U102](journeys/U102.md) |
+| `[data-part="Fields"]` | the part `[data-part="Fields"]` | [U174](../modules/tags/journeys/U174.md) |
+| `[data-part="Goals you watch"]` | the watch"] in the you in the [data part="Goals | [U124](journeys/U124.md) |
+| `[data-part="Home"]` | Home | [U103](../modules/reviews/journeys/U103.md), [U101](journeys/U101.md), [U155](../modules/reviews/journeys/U155.md) |
+| `[data-part="In each goal’s check-in"]` | the check in"] in the goal’s in the each in the [data part="In | [U161](journeys/U161.md) |
+| `[data-part="Last time"]` | the time"] in the [data part="Last | [U148](journeys/U148.md) |
+| `[data-part="No check-in this week"]` | the week"] in the this in the check in in the [data part="No | [U102](journeys/U102.md) |
+| `[data-part="Stopped goals"]` | the goals"] in the [data part="Stopped | [U150](journeys/U150.md) |
+| `[data-part="Stopped goals"] li` | the li in the goals"] in the [data part="Stopped | [U150](journeys/U150.md) |
+| `[data-part="The workspace’s line"]` | the line"] in the workspace’s in the [data part="The | [U176](journeys/U176.md) |
+| `[data-part="This week’s main action"]` | the action"] in the main in the week’s in the [data part="This | [U103](../modules/reviews/journeys/U103.md) |
+| `[data-part="Your team"]` | the team"] in the [data part="Your | [U123](journeys/U123.md) |
+| `#feeds .pinned` | the pinned in the feeds | [U33](journeys/U33.md) |
+| `#history` | the History section | [U6](journeys/U6.md), [U142](journeys/U142.md), [U103](../modules/reviews/journeys/U103.md), [U79](../modules/reviews/journeys/U79.md), [U174](../modules/tags/journeys/U174.md) |
+| `#history .history-filters` | the history filters in the history | [U6](journeys/U6.md) |
+| `#inbox` | the inbox | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md), [U52](../modules/feedback/journeys/U52.md), [U175](../modules/ai-access/journeys/U175.md) |
+| `#metric-direction .level-fix` | the level fix in the metric direction | [U105](../modules/metrics/journeys/U105.md) |
+| `#metric-direction .seg[aria-invalid="true"]` | the seg in the metric direction | [U105](../modules/metrics/journeys/U105.md) |
+| `#more` | the more | [U136](journeys/U136.md) |
+| `#team-people` | the team people | [U53](../modules/feedback/journeys/U53.md) |
+| `a` | the a | [U72](journeys/U72.md) |
+| `a:visible` | the a | [U31](../modules/watching/journeys/U31.md) |
+| `a.home-team-needs` | the home team needs | [U123](journeys/U123.md) |
+| `a.teams-more` | the teams more | [U124](journeys/U124.md) |
+| `body` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U52](../modules/feedback/journeys/U52.md) |
+| `button[type=submit]` | the button | [U78](journeys/U78.md) |
+| `dl` | the dl | [U33](journeys/U33.md) |
+| `form.focus-body button[type=submit]` | the button in the focus body | [U38](journeys/U38.md), [U39](../modules/goal-map/journeys/U39.md) |
+| `input[data-field="limit"]` | the input | [U171](journeys/U171.md) |
+| `input[type=email], input[type=password]` | the part `input[type=email], input[type=password]` | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
+| `input[type=file]` | the file chooser | [U5](journeys/U5.md), [U54](journeys/U54.md), [U147](journeys/U147.md) |
+| `legend` | the legend | [U135](../modules/goal-map/journeys/U135.md) |
+| `li` | the li | [U23](journeys/U23.md) |
+| `li[data-row="who"] .rr-value` | the rr value in the li | [U137](journeys/U137.md) |
+| `main` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U17](journeys/U17.md), [U33](journeys/U33.md), [U36](../modules/reviews/journeys/U36.md), [U37](journeys/U37.md), [U38](journeys/U38.md), [U40](../modules/feedback/journeys/U40.md), [U41](../modules/feedback/journeys/U41.md), [U58](journeys/U58.md), [U44](journeys/U44.md), [U102](journeys/U102.md), [U154](../modules/reviews/journeys/U154.md), [U155](../modules/reviews/journeys/U155.md), [U170](../modules/metrics/journeys/U170.md) |
+| `main .backlink` | the backlink in the main | [U70](journeys/U70.md) |
+| `main .btn.primary` | the main button in the main | [U179](journeys/U179.md) |
+| `main .gkey` | the gkey in the main | [U65](journeys/U65.md) |
+| `main .status-shape[data-status="unmeasured"]` | the status shape in the main | [U170](../modules/metrics/journeys/U170.md) |
+| `main a` | the a in the main | [U81](../modules/metrics/journeys/U81.md) |
+| `main a[href*="/goals/"]:not([href*="/goals/new"]):not([href$="/edit"])` | the a in the main | [U70](journeys/U70.md) |
+| `main a[href*="/goals/ns-lead"]` | the a in the main | [U70](journeys/U70.md) |
+| `main a[href$="/goals/ci-docker"]` | the a in the main | [U150](journeys/U150.md) |
+| `main h1` | the h1 in the main | [U117](journeys/U117.md), [U58](journeys/U58.md) |
+| `main h1, .focus h1` | the part `main h1, .focus h1` | [U81](../modules/metrics/journeys/U81.md) |
+| `main h1, .focus h1, h1` | the part `main h1, .focus h1, h1` | [U71](journeys/U71.md) |
+| `main h1, main .goals-sr-title` | the part `main h1, main .goals-sr-title` | [U70](journeys/U70.md) |
+| `main li, main tr` | the part `main li, main tr` | [U98](journeys/U98.md) |
+| `main table` | the table in the main | [U177](../modules/tags/journeys/U177.md) |
+| `section` | the section | [U8](../modules/watching/journeys/U8.md) |
+| `section.board-col[aria-label="Proposed, 1"]` | the part `section.board-col[aria-label="Proposed, 1"]` | [U134](../modules/goal-map/journeys/U134.md) |
+| `section.getting-started` | the getting started | [U97](journeys/U97.md), [U86](journeys/U86.md) |
+| `section.getting-started, .page-head` | the part `section.getting-started, .page-head` | [U97](journeys/U97.md) |
+| `section.habit` | the habit section | [U153](journeys/U153.md) |
+| `section[aria-labelledby="set-rec"]` | the section | [U62](../modules/ai-access/journeys/U62.md) |
+| `select` | the select | [U77](journeys/U77.md) |
+| `svg` | the svg | [U158](../modules/metrics/journeys/U158.md) |
+| `svg.measure-shape` | the measure shape | [U170](../modules/metrics/journeys/U170.md) |
+| `svg[data-status]` | the svg | [U146](../modules/metrics/journeys/U146.md), [U106](../modules/metrics/journeys/U106.md) |
+| `tbody tr` | the tr in the tbody | [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
+| `td.hcell` | the hcell | [U38](journeys/U38.md) |
+| `td[tabindex="0"]` | the td | [U38](journeys/U38.md) |
+| `textarea.invalid[aria-label="Why change it?"]` | the it?"] in the change in the invalid[aria label="Why | [U7](../modules/watching/journeys/U7.md) |
+| `thead th` | the th in the thead | [U38](journeys/U38.md) |
+| `thead th:not(.h-value)` | the th in the thead | [U23](journeys/U23.md) |
+| `thead th:nth-child(2)` | the th in the thead | [U38](journeys/U38.md) |
+| `visible=true` | the visible=true | [U70](journeys/U70.md) |
+
+## Journeys on another day
+
+These journeys open the demo on a day other than Thursday 5 November 2026. Faro builds its demo as it stands on the day it is opened: on a later day check-ins planned for the weeks since are posted and the story’s later weeks have happened; on an earlier day they haven’t yet. The kit holds the demo as it stood on 5 November only ([`workspace.json`](../conformance/workspace.json) and [`demo-extra.json`](../conformance/demo-extra.json)), so on those days a rebuild has to post the records the journey expects itself, from what its checks say; it is a gap in the kit.
+
+- [U49](../modules/reviews/journeys/U49.md): Sunday 8 November 2026
+- [U10](../modules/wrap-up/journeys/U10.md): Tuesday 22 December 2026; Monday 4 January 2027
+- [U115](journeys/U115.md): Monday 21 December 2026; Tuesday 22 December 2026; Wednesday 23 December 2026; Monday 4 January 2027; Wednesday 11 November 2026
+- [U152](../modules/metrics/journeys/U152.md): Monday 21 December 2026
+- [U122](journeys/U122.md): Monday 9 November 2026; Wednesday 11 November 2026; Friday 13 November 2026
+- [U123](journeys/U123.md): Wednesday 11 November 2026
+- [U124](journeys/U124.md): Monday 9 November 2026; Wednesday 11 November 2026
+- [U117](journeys/U117.md): Sunday 3 January 2027; Monday 11 January 2027; Friday 5 February 2027
+- [U155](../modules/reviews/journeys/U155.md): Monday 2 November 2026; Friday 6 November 2026
+- [U137](journeys/U137.md): Wednesday 11 November 2026
+- [U134](../modules/goal-map/journeys/U134.md): Wednesday 25 November 2026
+- [U151](journeys/U151.md): Friday 6 November 2026
+- [U163](journeys/U163.md): Wednesday 11 November 2026
+- [U150](journeys/U150.md): Wednesday 11 November 2026
+- [U148](journeys/U148.md): Wednesday 25 November 2026
 
 ## The ease test
 

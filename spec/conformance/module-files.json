@@ -1,0 +1,20 @@
+{
+  "metrics": [
+    "rule",
+    "ask",
+    "row"
+  ],
+  "reviews": [
+    "rule",
+    "week",
+    "reviews"
+  ],
+  "tags": [
+    "rule",
+    "case"
+  ],
+  "watching": [
+    "rule",
+    "person"
+  ]
+}

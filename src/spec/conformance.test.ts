@@ -2,7 +2,7 @@
    and fail on any difference from the files. A rebuild proves itself the same way (spec/conformance/README.md). */
 import fs from 'node:fs';
 import path from 'node:path';
-import { CHANGES_HEADER, changeRowsOf, conformanceFiles, EDGE_FILES, importCases, importRowsOf, IMPORT_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHANGES_HEADER, changeRowsOf, conformanceFiles, EDGE_FILES, importCases, importRowsOf, IMPORT_HEADER, type ConformanceWorkspace, type ScreenCases } from './conformance';
 import { edgeWorkspace } from './edge';
 import { CHECK_KINDS, MUST_KINDS, NOTE_KINDS } from '../domain/problemLevels';
 import { ISSUE_KINDS } from '../domain/issueKinds';
@@ -12,6 +12,15 @@ const dir = path.resolve(__dirname, '../../spec/conformance');
 describe('the conformance data', () => {
   const w = JSON.parse(fs.readFileSync(path.join(dir, 'workspace.json'), 'utf8')) as ConformanceWorkspace;
   const made = conformanceFiles(w);
+
+  it('makes stage 3’s files from screen-cases.json, as the drill hands them over (drill 11, gap S3-1)', () => {
+    const cases = JSON.parse(fs.readFileSync(path.join(dir, 'screen-cases.json'), 'utf8')) as ScreenCases;
+    const again = conformanceFiles(w, cases);
+    for (const f of ['navigation.csv', 'find.csv', 'readback.csv', 'home.csv']) expect(again[f]).toBe(made[f]);
+    // The rows are the cases' rows: one search, one draft, one viewer on one day.
+    const one = conformanceFiles(w, { ...cases, find: [cases.find[0]!], readback: { ...cases.readback, cases: [cases.readback.cases[0]!] }, home: { viewers: ['tunde'], days: [cases.home.days[13]!] } });
+    expect(['find.csv', 'readback.csv', 'home.csv'].map((f) => one[f]!.trimEnd().split('\n').length)).toEqual([2, 2, 2]);
+   }, 60_000);
 
   for (const file of Object.keys(made)) {
     it(`${file}: every row is what the rules give for workspace.json`, () => {
