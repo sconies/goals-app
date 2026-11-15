@@ -1,54 +1,72 @@
 # Handover: item 11, the full rebuild drill
 
-Replace this entry at each handover; don't append. Last written 15 Nov, about 00:20 UTC, by session_012kbr91xr465aJnuHqSW7tT (handed over at about 280k tokens of context, Lane's 14 Nov rule).
+Replace this entry at each handover; don't append. Last written 15 Nov, about 03:15 UTC, by session_012kbr8yzCbkjiihKi6sbjNe, which handed over at about 320k tokens of context (Lane's 14 Nov rule).
 
 ## The brief, in short
-Backlog item 11: a fresh session rebuilds Faro stage by stage from the kit alone (`spec/` and `llms.txt`), the core first and then each module, one at a time; record every gap with stage and evidence; fix gaps in the kit (`src/spec/*`, module.json `rebuild`, conformance rows), `npm run spec`, small `[no news]` PRs through the gate; never point the drill at the source. Last: rewrite `README.md`, `docs/handoff.md` and `docs/architecture.md` from the module map and the generated spec (the handoff says plainly Faro can be built core first, then each module on its own; fix handoff.md's stale R5 line: R5 is written, `spec/requirements/internal/r5-notifications-and-habits.md`), and draft a one-line GitHub repository description for Lane. Send each merged code PR's number to the build reviewer (**session_012kbr8z4ihwvC1ZUTMGey4V**); report to planning (session_012kbr91eefh4gwCAztBncNT) once when every stage on main has passed, or when blocked.
+Backlog item 11: a fresh session rebuilds Faro stage by stage from the kit alone (`spec/` and `llms.txt`): the core first, then each module, one at a time. Record every gap with its stage and evidence, and fix gaps in the kit (`src/spec/*`, a module.json's `rebuild`, conformance rows): `npm run spec`, then small `[no news]` PRs through the gate. Never point the drill at the source.
 
-**Merging (planning, 14 Nov, 23:27 UTC):** this item's own kit-fix PRs may be merged by the drill session once CI is green (mark ready, merge; `npm run spec` again after merging main in). If a permission check refuses, send the number to planning.
+The last step is to rewrite `README.md`, `docs/handoff.md` and `docs/architecture.md` from the module map and the generated spec. The handoff must say plainly that Faro can be built core first, then each module on its own. Fix handoff.md's stale R5 line: R5 is written, `spec/requirements/internal/r5-notifications-and-habits.md`. Also draft a one-line GitHub repository description for Lane.
 
-## How the drill is run (reuse this, don't re-invent it)
-All in the scratchpad of the session that ran it, which a new session can't see. Recreate:
-- `kit/`: `git archive <pin> spec llms.txt | tar -x -C <scratch>/kit`.
-- `pin/`: `git worktree add <scratch>/pin <pin>`; `npm ci` there (the harness needs deps on the new main); independent scoring is `cd pin && npm run drill -- <folder>`, sent to a Sonnet subagent.
-- Each stage: a folder with a copy of `kit/spec`, `kit/llms.txt` and `rebuild/` (the previous stage's passing rebuild). A subagent told to read only that folder builds the stage and keeps GAPS.md. Module stages start from the core rebuild (stages 1 to 3), each module on its own, with `BRIEF.md` (text below) in the folder; then a Sonnet reviewer, also kit-only, runs the harness and the module's `exit.test.mjs` and rates each exit criterion VERIFIED / WEAK / NOT MET.
-- **Keep the core rebuild somewhere durable this time** (e.g. commit it to a scratch branch `drill-11-rebuild`, never to main): the last one was lost with its scratchpad, and stages 1 to 3 cost about 1.1M subagent tokens.
+**Who to tell:**
+- Send each merged code PR's number to the build reviewer, now **session_012kbr91tf31zgvoDfJXAVxo** (planning, 15 Nov).
+- Report to planning (session_012kbr91eefh4gwCAztBncNT) once, when every stage on main has passed, or when blocked.
+- Merging (planning, 14 Nov): this item's own kit PRs may be merged by the drill session once CI is green. If a permission check refuses, send the number to planning.
 
-The module brief given to each module builder: read `BRIEF.md`; strict isolation (only the scratch folder; never `/home/user/goals-app`, other folders, git, the web; never read expected CSVs from code); read README, lessons, the stage page and `spec/modules/<m>/`; build in `rebuild/modules/<m>/`, registering into the core, listing every core file changed and why; a switch (`Workspace.modulesOff`); `exit.test.mjs` with one test per exit criterion, on and off; stages 1 to 3 still PASS with the module in; `GAPS.md`; reply under 400 words.
+## How the drill is run
+Nothing is lost with a scratchpad now: **every rebuild is on the scratch branch `drill-11-rebuild`** (never merge it). It has one folder per stage (`stage-1`, `stage-2`, `stage-3`, `m4-ai-access` … `m10-tags`), each with its `GAPS.md`, `JOURNEYS.md` and `CORE-CHANGES.md`. `RESULTS.md` there is the results log, one row per stage with the builder's and the reviewer's verdicts.
 
-## Where it stands
-Scorecard and every gap: `docs/drill/2026-11-full-drill.md` (PR **#512**, draft, the item's own PR; the final rewrites join it; backlog 0v is in it).
+To run a stage (S = your scratchpad):
+1. **Kit:** `git archive <pin> spec llms.txt | tar -x -C S/kit`.
+2. **Pin:** `git worktree add S/pin <pin>`, then `npm ci` there. Independent scoring is `cd S/pin && npm run drill -- <folder>`, done by a Sonnet subagent. Don't run `npm run spec` in the pin; restore it with `git checkout -- spec` if anything does.
+3. **The stage's folder:** a copy of the kit's `spec/` and `llms.txt`, plus `rebuild/` = the previous passing rebuild (for a module: `stage-3`, with an empty `local/`), plus `BRIEF.md` for a module. BRIEF.md is at `drill-11-rebuild:BRIEF.md`; if it's missing there, the text is in RESULTS.md's history. A builder subagent is told to read only that folder.
+4. **Review:** a kit-only Sonnet reviewer runs the harness and `exit.test.mjs`, and rates each exit criterion VERIFIED / WEAK / NOT MET. It also flags gaps that are really the builder's mistakes.
+5. **Builder prompt lines worth keeping:**
+   - journey tests must fail when a check fails: no filtering, no stale results files;
+   - start the app on an unusual port, since other sessions kill common ones;
+   - note in CORE-CHANGES.md what the core lacked.
+6. Save each rebuild to `drill-11-rebuild` (tar without node_modules and drill-out) as soon as it reports.
 
-Lane's three answers (14 Nov) are done and merged, plus the reviewer's #515 finding:
+## Where it stands (re-run on pin 2fce09b4, kit2 = 517e3d04 for tags)
+
+| Stage | Result | Reviewer |
+|---|---|---|
+| 1 core rules | PASS in 2 runs, demo plus edge; 19 gaps, 3 guessed wrong and caught by the edge rows | Scored PASS |
+| 2 core data | PASS in 6 runs without reading expected CSVs; 14 behaviours learned from diffs | Scored PASS |
+| 3 core screens | Harness PASS; journeys only 13 DONE / 24 PART / 36 NOT BUILT of 73 | Scored PASS; 13 of 18 scripted journeys pass |
+| 4 AI access | 6 of 7 met | 1, 2 WEAK; 3–7 VERIFIED |
+| 5 Feedback | 3 of 5 met | 2 WEAK; others VERIFIED |
+| 6 Goal map | 3 of 4 met | 2 NOT MET (3 of 10 journeys run); 1, 3, 4 VERIFIED |
+| 7 Metric library | 7 of 20 met, 13 part; metrics.csv 109/109 | 12 VERIFIED, 6 WEAK, 20 NOT MET |
+| 8 Reviews | 8 of 12 met; reviews.csv 91/91 with a patched harness | 6 VERIFIED, 5 WEAK, 2 NOT MET |
+| 9 Spreadsheets | Was being built at handover in the old session's scratchpad. **If `drill-11-rebuild` has no `m9-spreadsheets` folder, re-run it** | — |
+| 10 Fields (tags) | 11 of 13 met, 4 of 4 journeys DONE; tags.csv 25/25 | **Not yet reviewed** |
+| 11 Watching, 12 Wrap-up | Not started | |
+| Late: GR, MQ, SW2, FT1; MI is folded into stage 7 (#520) | Not started. MC deferred (Lane, 14 Nov) | |
+
+**Kit PRs from this run:**
+
 | PR | What | State |
 |---|---|---|
-| #515 | Stage 2's kit gaps (inputs, sentences) | Merged, sent to the reviewer |
-| #524 | The change engine's seven sentences match the engine (reviewer's medium on #515) | Merged, sent |
-| #521 | Answer 3: a Reached moment is fixed as of its own week; the cuts live in `moment` (`src/domain/habit.ts`); What's new entry | Merged, sent (closes the reviewer's #513 medium) |
-| #527 | Answer 1: every journey's steps and checks generated into `spec/core/journeys/<id>.md` and `spec/modules/<m>/journeys/` (`src/spec/journeySteps.ts`); `spec/core/goals-query.md`; stage 3 gaps 3.2–3.4, 3.7, 3.18, 3.19, 3.27, 3.29, 3.30 | Merged, sent |
-| **#525** | Answer 2: edge-case workspace (`src/spec/edge.ts`, `spec/conformance/edge/`, 1,360 stage 1 rows; the harness scores a stage 1 rebuild on it too; five mutants of 1.3, 1.9, 1.12 pass the demo and fail here) | **Draft, main merged in (656829c2), local gate green (2,137 tests, drill 100%), CI running at handover. Not yet merged or sent to the reviewer** |
+| #525 | The edge-case workspace | Merged, sent to the reviewer |
+| #531 | Journey pages name their entry, not a line number (main had gone red) | Merged, sent |
+| **#536** | Stage 1–2 words: the 3 wrong guesses, the 14 diff-learned engine behaviours, more edge cases | **Draft, gate green locally, CI running at handover** |
+| **#537** | The core's module platform (`spec/rebuild/module-platform.md`); stage 3 builds it; `screen-cases.json`; core-only conformance set; harness reads `also` for reviews, tags and watching; journeys a rebuild can follow; read-back words | **Draft, gate green locally, CI running at handover** |
 
-Stage 3 gaps left for words (not done by #527): 3.1, 3.5, 3.6, 3.8–3.17, 3.20–3.26 (check the words against the conformance rows); 3.28 needs a tool; 3.31 too general. Stages 4 and 5 gaps: no fixer started.
+#536 and #537 both touch `src/spec/rules.ts` and `rebuild.ts`. Merge whichever goes green first, then merge main into the other, run `npm run spec`, run the gate, and merge it.
 
-| Stage | State |
-|---|---|
-| 1 core rules | Passed on the old pin (`dd00ff48`); re-run on the new pin with the edge rows |
-| 2 core data | Passed on the old pin only by reading expected rows; re-run on the new pin |
-| 3 core screens | Re-run on the new pin (this is Lane's answer 1's re-run) |
-| 4 Feedback, 5 Goal map | Switch criteria verified; requirements and journeys weak (journeys now have steps: re-check) |
-| 6 Metric library | Rebuild lost with the old scratchpad; re-run with a reviewer |
-| 7 Reviews, 8 Spreadsheets, 9 Fields (TG1), 10 Watching, 11 Wrap-up | Not started |
-| Late modules: GR, MQ (#502, #505), TG2 (#493), SW2 (#504), FT1 | Add when on main. MC deferred (Lane, 14 Nov) |
-| MI (#520, merged; track 3, 15 Nov) | Ready as a stage: the Metrics sheet in and out, folded into the metrics module's stage (`spec/rebuild/stage-7-module-metrics.md`): the sheet loads back through the core's change engine by the module's planner (`domain/sheetPlan.ts`), with MQ's four columns; exit lines for the round trip and the loop refusal; conformance `spec/conformance/metrics.csv`, rule `sheet`, 15 cases; journey U179 |
-
-Backlog 0v (added in #512): negative days-without-update before a plan starts; the edge rows record today's behaviour, with a note, until it's fixed.
+**Bugs for the backlog** (planning should place them; none are fixed):
+- U69 opens `rel-cfr`, which doesn't exist; it passes only because "Goal not found" counts as a distinct title.
+- `evals/run.mjs` needs `node_modules/vite` in the repo root, so it fails in a worktree.
+- Help's core articles name reviews while Reviews is off.
+- Demo goal G-48 has a 141-character name, so an unchanged export is refused by the change engine (m10 T-14). Check it against the name limit.
+- Backlog 0v (already in): negative days without an update before a plan starts.
 
 ## Next steps
-1. Subscribe to #525 and #512. When #525's CI is green: mark ready, merge, send the number to the reviewer. If it conflicts, merge main in, `npm run spec`, gate, push.
-2. **Re-pin** the drill to main after #525's merge. Recreate `kit/` and `pin/` from it (`npm ci` in `pin/`).
-3. Rebuild the core, stages 1 to 3, from the new kit (one subagent per stage, kit-only), score each independently, record gaps in the scorecard; keep the rebuild on a scratch branch.
-4. Modules 4 to 11 then the late ones, two at a time, each with a kit-only reviewer; record each in the scorecard; fix gaps in small `[no news]` PRs.
-5. Once every stage on main has passed: the doc rewrites, the repo description, report to planning, take #512 out of draft.
+1. Subscribe to #536 and #537. Mark each ready, merge it when green, and send the numbers to the reviewer. Merge main into the second one as above.
+2. **Re-pin** to main after both merge, then recreate kit/ and pin/.
+3. **Re-run the core from the fixed kit:** stage 3 must now build the module platform and pass the core-only set. Score each stage independently. The aim is many more of the 73 core journeys DONE; record the new tally against 13.
+4. **Re-run every module on the new core**, each with a kit-only reviewer. They should now need few or no core changes; CORE-CHANGES.md shows it. Order: 4 to 12, then module 7 again with MI, then the late ones. Fix gaps in small `[no news]` PRs: the module gaps in each `m*/…/GAPS.md` are mostly words not yet fixed (switched-off words, tool outputs, parts the journeys name, `seedStage` data).
+5. Once every stage on main has passed: update the scorecard `docs/drill/2026-11-full-drill.md` from `RESULTS.md` (it still shows the old pin and the old stage numbers: the kit now numbers AI access 4 … Wrap-up 12). Then do the doc rewrites and the repo description, report to planning, and take #512 out of draft.
 
 ## Ready prompt for the next session
-> You take over backlog item 11, the full rebuild drill, for Faro. Read CLAUDE.md, then `docs/handover/item-11.md` on branch `drill-item-11` (#512): the brief, how the drill runs, where it stands, next steps. Then `docs/drill/2026-11-full-drill.md` (the scorecard). Start with "Next steps" 1 (#525). Keep your context lean: every rebuild, scoring run, gap fix and eval run goes to a subagent (Sonnet where it's mechanical); hand over at about 300k tokens by replacing `docs/handover/item-11.md`. Send merged code PR numbers to the build reviewer (session_012kbr8z4ihwvC1ZUTMGey4V) and report to planning (session_012kbr91eefh4gwCAztBncNT, or whichever session says planning has moved) once when every stage on main has passed or you're blocked.
+> You take over backlog item 11, the full rebuild drill, for Faro. Read CLAUDE.md, then `docs/handover/item-11.md` on branch `drill-item-11` (#512): it has the brief, how the drill runs, where it stands and the next steps. Then read `RESULTS.md` on the scratch branch `drill-11-rebuild`, which holds every rebuild so far. Start with "Next steps" 1: #536 and #537. Keep your context lean: every rebuild, scoring run, gap fix and eval run goes to a subagent (Sonnet where it's mechanical). Hand over at about 300k tokens by replacing `docs/handover/item-11.md`. Send merged code PR numbers to the build reviewer (session_012kbr91tf31zgvoDfJXAVxo). Report to planning (session_012kbr91eefh4gwCAztBncNT, or whichever session says planning has moved) once every stage on main has passed, or when you're blocked.
