@@ -1,0 +1,334 @@
+{
+ "U81": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 6,
+    "passes": 22,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 5,
+    "passes": 22,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "U82": {
+  "tally": "PART",
+  "note": "PART: “Use different ones” and the find-and-pick’s “No metric” first are built; the unit field is hidden by script, not replaced",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 19,
+    "passes": 11,
+    "fails": [],
+    "note": "PART: “Use different ones” and the find-and-pick’s “No metric” first are built; the unit field is hidden by script, not replaced"
+   },
+   {
+    "width": "desktop",
+    "steps": 19,
+    "passes": 11,
+    "fails": [],
+    "note": "PART: “Use different ones” and the find-and-pick’s “No metric” first are built; the unit field is hidden by script, not replaced"
+   }
+  ]
+ },
+ "U83": {
+  "tally": "PART",
+  "note": "PART: About’s “1 metric has no owner” needs a person marked as left, and the core has no screen to mark one (U14/U43 not built)",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 13,
+    "passes": 10,
+    "fails": [],
+    "note": "PART: About’s “1 metric has no owner” needs a person marked as left, and the core has no screen to mark one (U14/U43 not built)"
+   },
+   {
+    "width": "desktop",
+    "steps": 13,
+    "passes": 10,
+    "fails": [],
+    "note": "PART: About’s “1 metric has no owner” needs a person marked as left, and the core has no screen to mark one (U14/U43 not built)"
+   }
+  ]
+ },
+ "U105": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 16,
+    "passes": 15,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 16,
+    "passes": 15,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "U106": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 15,
+    "passes": 10,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 15,
+    "passes": 10,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "U145": {
+  "tally": "PART",
+  "note": "PART: changing the team on Who and where doesn’t move “For” to Build & Release: For is set when the metric is chosen",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 9,
+    "passes": 1,
+    "fails": [],
+    "note": "PART: changing the team on Who and where doesn’t move “For” to Build & Release: For is set when the metric is chosen"
+   },
+   {
+    "width": "desktop",
+    "steps": 9,
+    "passes": 1,
+    "fails": [],
+    "note": "PART: changing the team on Who and where doesn’t move “For” to Build & Release: For is set when the metric is chosen"
+   }
+  ]
+ },
+ "U146": {
+  "tally": "NOT BUILT",
+  "note": "NOT BUILT: on a goal being changed, choosing a metric submits the edit form (no re-render step), so From the metric and the parts offered show only after a save",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 2,
+    "passes": 0,
+    "fails": [],
+    "note": "NOT BUILT: on a goal being changed, choosing a metric submits the edit form (no re-render step), so From the metric and the parts offered show only after a save"
+   },
+   {
+    "width": "desktop",
+    "steps": 2,
+    "passes": 0,
+    "fails": [],
+    "note": "NOT BUILT: on a goal being changed, choosing a metric submits the edit form (no re-render step), so From the metric and the parts offered show only after a save"
+   }
+  ]
+ },
+ "U156": {
+  "tally": "PART",
+  "note": "PART: the core’s check-in is one form, not one question per step; the primary is renamed in place",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 1,
+    "passes": 4,
+    "fails": [],
+    "note": "PART: the core’s check-in is one form, not one question per step; the primary is renamed in place"
+   },
+   {
+    "width": "desktop",
+    "steps": 1,
+    "passes": 4,
+    "fails": [],
+    "note": "PART: the core’s check-in is one form, not one question per step; the primary is renamed in place"
+   }
+  ]
+ },
+ "U157": {
+  "tally": "PART",
+  "note": "PART: “Use 19 min” isn’t held until a reason is chosen: the post is refused and re-asked",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 4,
+    "passes": 4,
+    "fails": [],
+    "note": "PART: “Use 19 min” isn’t held until a reason is chosen: the post is refused and re-asked"
+   },
+   {
+    "width": "desktop",
+    "steps": 4,
+    "passes": 4,
+    "fails": [],
+    "note": "PART: “Use 19 min” isn’t held until a reason is chosen: the post is refused and re-asked"
+   }
+  ]
+ },
+ "U158": {
+  "tally": "PART",
+  "note": "PART: “No new number this week” isn’t offered (the core’s check-in has no such answer)",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 0,
+    "passes": 4,
+    "fails": [],
+    "note": "PART: “No new number this week” isn’t offered (the core’s check-in has no such answer)"
+   },
+   {
+    "width": "desktop",
+    "steps": 0,
+    "passes": 4,
+    "fails": [],
+    "note": "PART: “No new number this week” isn’t offered (the core’s check-in has no such answer)"
+   }
+  ]
+ },
+ "U159": {
+  "tally": "NOT BUILT",
+  "note": "NOT BUILT as scripted: moving Main-branch queue wait to CI pipeline time on main needs the edit form’s metric picker to re-render (see U146); the no-slice line itself is built and tested (exit criterion 19)",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 0,
+    "passes": 0,
+    "fails": [],
+    "note": "NOT BUILT as scripted: moving Main-branch queue wait to CI pipeline time on main needs the edit form’s metric picker to re-render (see U146); the no-slice line itself is built and tested (exit criterion 19)"
+   },
+   {
+    "width": "desktop",
+    "steps": 0,
+    "passes": 0,
+    "fails": [],
+    "note": "NOT BUILT as scripted: moving Main-branch queue wait to CI pipeline time on main needs the edit form’s metric picker to re-render (see U146); the no-slice line itself is built and tested (exit criterion 19)"
+   }
+  ]
+ },
+ "U170": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 5,
+    "passes": 10,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 5,
+    "passes": 10,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "U172": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 5,
+    "passes": 5,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 5,
+    "passes": 5,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "N16": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 0,
+    "passes": 1,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 0,
+    "passes": 1,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "F15": {
+  "tally": "PART",
+  "note": "PART: a metric’s goals are a table on a phone, not rows",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 0,
+    "passes": 5,
+    "fails": [],
+    "note": "PART: a metric’s goals are a table on a phone, not rows"
+   },
+   {
+    "width": "desktop",
+    "steps": 0,
+    "passes": 0,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "N29": {
+  "tally": "DONE",
+  "note": "",
+  "res": [
+   {
+    "width": "phone",
+    "steps": 0,
+    "passes": 1,
+    "fails": [],
+    "note": ""
+   },
+   {
+    "width": "desktop",
+    "steps": 0,
+    "passes": 1,
+    "fails": [],
+    "note": ""
+   }
+  ]
+ },
+ "U152": {
+  "tally": "NOT BUILT",
+  "why": "The core has no Start 2027 (its U115 isn’t built); the module’s carry is a function (exit criterion 9)"
+ },
+ "U160": {
+  "tally": "NOT BUILT",
+  "why": "The one table (checkin.table) has no reading place: the core’s quick check-in isn’t a module place yet"
+ },
+ "_off": {
+  "menuHasMetrics": false,
+  "page": true
+ }
+}

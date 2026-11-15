@@ -1,0 +1,29 @@
+U2 DONE steps 1,1 / 1 
+U66 DONE steps 2,2 / 4 
+U65 DONE steps 2,2 / 6 
+U58 PART steps 6,6 / 12 
+   - address becomes /demo/people (the journey’s words; this rebuild has /people)
+   - Goals’ By team (show=teams) is not built: the kit names it but gives no screen words for it
+   - no button that changes people or teams for a member
+   - old addresses: the journey’s table of old addresses (`old`) is not in the kit
+U64 DONE steps 6,6 / 10 
+U69 DONE steps 0,0 / 1 
+U70 PART steps 6,6 / 9 
+   - Save this view… (saved views) is not built
+   - Settings’ section links (`.section-links`) are not built
+U71 DONE steps 8,8 / 10 
+U122 PART steps 3,3 / 6 
+   - Wednesday: both in, one sentence with the next date (“0/2 Check-ins are due by Thursday 12 Nov, tomorrow 2 check-ins to do One-click rollback for every deployable service and Contract tests between the top 40 service pairs. Start check-in”) — the kit’s workspace has no check-ins after 5 Nov
+U77 DONE steps 7,7 / 10 
+U78 DONE steps 3,3 / 6 
+U141 DONE steps 2,2 / 4 
+U24 DONE steps 4,4 / 8 
+U123 DONE steps 2,2 / 4 
+U137 DONE steps 16,16 / 26 
+U1 PART steps 11,11 / 17 
+   - first check-in off its plan: “Keep … and say why” and the cause buttons (“Change landed early”, “What happened”) are not built: the kit names the buttons but not the screen
+   - one question per screen (Continue, then “Still true” as a button) is one form here
+U6 PART steps 4,4 / 3 
+   - a change’s before and after (`.diffs ins`): the demo’s change log is not in the kit’s workspace, so there is no change to show
+   - over budget: 4 steps
+U25 DONE steps 12,12 / 12 

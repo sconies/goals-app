@@ -1,0 +1,16 @@
+U81 DONE  
+U82 PART  PART: “Use different ones” and the find-and-pick’s “No metric” first are built; the unit field is hidden by script, not replaced
+U83 PART  PART: About’s “1 metric has no owner” needs a person marked as left, and the core has no screen to mark one (U14/U43 not built)
+U105 DONE  
+U106 DONE  
+U145 PART  PART: changing the team on Who and where doesn’t move “For” to Build & Release: For is set when the metric is chosen
+U146 NOT BUILT  NOT BUILT: on a goal being changed, choosing a metric submits the edit form (no re-render step), so From the metric and the parts offered show only after a save
+U156 PART  PART: the core’s check-in is one form, not one question per step; the primary is renamed in place
+U157 PART  PART: “Use 19 min” isn’t held until a reason is chosen: the post is refused and re-asked
+U158 PART  PART: “No new number this week” isn’t offered (the core’s check-in has no such answer)
+U159 NOT BUILT  NOT BUILT as scripted: moving Main-branch queue wait to CI pipeline time on main needs the edit form’s metric picker to re-render (see U146); the no-slice line itself is built and tested (exit criterion 19)
+U170 DONE  
+U172 DONE  
+N16 DONE  
+F15 PART  PART: a metric’s goals are a table on a phone, not rows
+N29 DONE  
