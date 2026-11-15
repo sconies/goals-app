@@ -9,6 +9,7 @@ import { planChanges, type Answers, type Tables } from '../../domain/changeset';
 import { currentCycle, scopeToCycle } from '../../domain/cycle';
 import { workbook } from '../../domain/export';
 import { currentWeek } from '../../domain/plan';
+import { importRows } from '../../domain/importRows';
 import { undoImport, undoPreview } from '../../domain/removal';
 import { readLine, readTables, type NamedGrid } from '../../domain/sheets';
 import type { Snapshot } from '../../domain/types';
@@ -63,6 +64,9 @@ describe('the Metrics sheet in and out (MI)', () => {
     const imp = cs.commit!.changes.find((c) => c.action === 'imported')!;
     const later = new Date(today.getTime() + 60_000).toISOString();
     const out = undoImport({ snapshot: scopeToCycle(after, cycle), full: after, cycle, week, actor: after.people.find((p) => p.id === 'amara')!, now: later, newId }, imp.importId!);
+    // Imported's "Saved 2 rows" counts the metrics, as Undo does (#520 review: it said 0).
+    expect(importRows(imp)).toBe(2);
+    expect(out.restored).toBe(2);
     const back = applyCommit(after, out.commit);
     expect(liveMetrics(back).some((m) => m.name === 'Retried test share')).toBe(false);
     expect(metricsOf(back).find((m) => m.id === spare.id)?.caveats).toBe(spare.caveats);
