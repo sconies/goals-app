@@ -12,27 +12,27 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 ## Where the next reviewer starts
 
-Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
+Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `2fce09b4` (#525), the head of main at 00:45 UTC, 15 Nov, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
+- **Last merge fully reviewed:** `18ed7cb4` (#532), the head of main at 01:05 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
-- **Highs open:** one, sent to track 3 and planning 15 Nov, 00:40 UTC: main fails `npm test` since #529 merged (18 generated journey pages are stale; `npm run spec` on main fixes it). Check first that it is fixed: `npx vitest run src/spec` on main.
-- **Mediums open:** two, sent to planning 15 Nov: #527's (the journey pages carry `journeys.cjs` line numbers, so any PR adding a line to a journey makes later pages stale); and what is left of #503's after #529, the merge door (a goal stopped while held, whose gap metric is then merged into a measured one, is still held when restarted; `mergeMetrics` in `rulesChange.ts` still skips stopped and removed goals). Fixed since: #517's by #522, #504's by #519, #497's by #526, #515's by #524, #513's by #521 (Lane chose the kit's rule), #510's and two of #503's three doors by #529.
-- **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
-- **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
-- **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
-- **Who gets what (Lane, 14 Nov):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (deferred to after the handoff, #483). Planning is session_012kbr91eefh4gwCAztBncNT until a new planning session says it has moved.
-- **Lane's answers, 14 Nov (relayed by planning, 12:33 UTC).** Read fixes against these, and don't raise them again:
-  - #334, an admin's pasted row over this week's check-in: a correction, with a reason and the owner kept as author (built, #482).
-  - "Opened" and "Not yet" on a proposed goal: stored on the server (built, #485 and #488).
-  - A check-in added late to an ended year: keep as built (#482 makes every door ask the reason the form asks).
-  - "Before this review": visible to the whole workspace.
-  - Help hides a switched-off module's articles, Reviews included (built, #498).
-  - Admins-only triage on a browser flag: accepted for Faro.
-  - The first-download limit stays at 275 KB.
-  - PR CI caps very large selections of journeys, and since #501 checks too (planning's call, 14 Nov).
+- **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
+- **Mediums open:** one, with planning for item 11: #527's. Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
+- **Fixed in this session:** #503's by #529 and #532; #513's by #521 (Lane chose the kit's rule: a moment is fixed as of its own week, and History follows); #497's by #526; #517's by #522; #504's by #519; #515's by #524; #510's by #529.
+- **Expected next:** MI (#520, track 3, after its gate). TG2 (#493, track 2). More of item 11's kit-gap PRs (its sessions change; the latest were session_012kbr8yzCbkjiihKi6sbjNe and session_012kbr91xr465aJnuHqSW7tT). Lane deferred MC and FT4 on 14 Nov.
+- **Read, not walked on screen by this session:** #504 (SW2; U175 is its browser run, and tokens exist only in the real app), #519, #521 (History's row after a later check-in: unit-tested, not opened), #529's Board lane (U170 checks it). #497's own-teams set (`scope=team`) and #510 on the Map and at a phone's width were not seen: nobody in the demo has an own-teams set drawn as teams.
+- **How merges reach you:** no timer works here. Each track messages its PR's number when it merges; planning relays for the track 1 merge helper, whose own messages are refused. On any message run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat.
+- **Who gets what (Lane, 14 Nov):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (deferred to after the handoff, #483). Planning is session_012kbr91eefh4gwCAztBncNT until a new planning session says it has moved. Track 3 is session_012kbr91S2dzmsnp2LfvYMFm, track 1 session_012kbr92NxNQoUrfKVQhmD9m, track 2 session_012kbr8yvYag7HFTg115Wbhw.
+- **Lane's answers.** Read fixes against these, and don't raise them again:
+  - 14 Nov, late: a "Reached" moment is fixed as of its own week; History changes to match (built, #521). A build without AI access keeps the MCP server open, and only the workspace's switch shuts it (planning's call, built in #504). "Not measured yet" is a status of its own (built, #510).
+  - 14 Nov, 12:33 UTC: #334, an admin's pasted row over this week's check-in is a correction, with a reason and the owner kept as author (#482); "Opened" and "Not yet" on a proposed goal are stored on the server (#485, #488); a check-in added late to an ended year stays as built; "Before this review" is visible to the whole workspace; Help hides a switched-off module's articles, Reviews included (#498); admins-only triage on a browser flag is accepted for Faro; the first-download limit stays at 275 KB; PR CI caps very large selections of journeys and checks.
   - Earlier: an untouched filled-in reading needs a touch before it posts (13 Nov); readings stay visible with the Metric library off (14 Nov).
-- **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`, piped through `grep '^[+-]' | cut -c1-500` to keep it small; fix PRs read against the findings they answer; a probe as a throwaway vitest file under `src/zz/` (write to stderr, delete it after) for a rule or a save (PGlite through `freshPostgres`, with `SupabaseStore` over `pgSupabase` and `PostgresStore`, as `src/adapters/stores.test.ts` builds them); a Sonnet subagent with Playwright for a screen (a production build served by `vite preview`, pages opened with `?store=browser&today=…`, which is how #475's medium was found in a minute). PGlite only, never the live database. Keep the log in a second worktree (`git worktree add ../br origin/build-reviews -B build-reviews`) so main stays checked out. Before saying a door is open, look for the refusal in the action the tool calls, not only in the tool's file. Don't read another session's events to check a message arrived: the answer is huge.
+- **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`, piped through `grep '^[+-]' | cut -c1-500`; fix PRs read against the findings they answer. A probe is a throwaway vitest file under `src/zz/` (write to stderr, delete it after) over `buildPlatformOrg(new Date('2026-11-05T12:00:00Z'))`, with the `world()` pattern of `src/modules/metrics/rulesMeasured.test.ts` for a save. A screen is a Sonnet subagent with Playwright on a fresh production build served by `vite preview`, told to copy a journey's own steps from `evals/journeys.cjs`. Keep the log in a second worktree (`git worktree add ../br origin/build-reviews -B build-reviews`). PGlite only, never the live database. Before saying a door is open, look for the refusal in the action the tool calls.
+- **What found things this session:**
+  - A PR that adds a value to a shared type (a status, a kind): grep for every list of the old values (`'stale'.*'none'`), since a `Record` is checked by the compiler and a list isn't. That is how #510's missing Board lane was found.
+  - Kit PRs that say "words only": the generated tables and worked examples are run by `npm test`, the hand-written paragraphs by nothing. A subagent told to run each added sentence against the code found a real mismatch in #513 and seven in #515; give it the diff and the files, not your guess.
+  - A fix PR for a finding with several doors: probe each door again (#529 closed two of #503's three).
+  - After a merge that touches generated files' sources, run `npm run spec` on main and see that it writes nothing.
 
 ## State
 
@@ -275,6 +275,8 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #527 Rebuild kit: every journey's steps and checks in words, and Goals' filters and sort | item 11 | 0 | 1 | 1 |
 | #529 A goal stopped while held, and the Board's lane (#503's and #510's mediums) | 3 | 1 | 1 | 0 |
 | #525 Rebuild kit: the edge-case workspace, scored with stage 1 | item 11 | 0 | 0 | 0 |
+| #530 The spec regenerated on main (#529's high) | 3 | 0 | 0 | 0 |
+| #532 A merge re-works stopped and removed goals too (the last door of #503's medium) | 3 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2389,3 +2391,12 @@ Read against #503's and #510's mediums; the merge door probed.
 ### #525 Rebuild kit: the edge-case workspace (item 11, merged 15 Nov)
 
 Read: `src/spec/edge.ts` (fifteen goals written by hand as inputs, each for a case the demo never has), the harness and the tests. Every expected row under `spec/conformance/edge/` is made by the same code as the demo's rows, so no rule is restated; the tests hold each file to that code and assert the rows the drill's three wrong guesses would miss (the week before across a gap, a share over 100%, a full tie in posting time), with below-zero by unit, a range between two bounds and an action in hand. The harness runs the rebuild's command a second time on the edge workspace and scores stage 1's files from it; a command that fails there, or writes nothing, fails the drill rather than being skipped. Ran `npm run drill -- scripts/drill-faro` on main: 100.0% of 457,186 cells with the edge rows in, and 56 of 56 contract cases. No finding. (The one failing test in `src/spec` on main at this merge is #529's high above, not this PR's.)
+
+### #530 The spec regenerated on main, and #532 the merge door (track 3, merged 15 Nov)
+
+Read against #529's high and what was left of #503's medium; both run on main at `18ed7cb4`.
+
+- **#529's high: closed by #530.** Eighteen generated journey pages, as `npm run spec` writes them and nothing else. On main now `npx vitest run src/spec` passes and `npm run spec` writes nothing.
+- **#503's medium, the merge door: closed by #532.** `mergeMetrics` re-works every goal it moves, stopped and removed ones too, and the merge is the third case in #529's test (stop while held, merge into a measured metric, restart: held to its plan). The metric tests pass.
+
+#527's medium (line numbers in the journey pages) is not answered by #530: the next PR that adds a line to a journey above another will leave main stale again unless it regenerates after merging main.
