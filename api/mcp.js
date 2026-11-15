@@ -13678,14 +13678,15 @@ function measurementProblems(m) {
 	return out;
 }
 /**
-* The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link, the goal
-* neither removed nor stopped), whose hold differs from what the metric says. Each with its History line. Empty when
-* nothing changes, so a save that leaves the gap as it was writes no goal.
+* The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link), whose hold
+* differs from what the metric says. Each with its History line. Empty when nothing changes, so a save that leaves the
+* gap as it was writes no goal. Stopped and removed goals are kept in step too (#503 review): restarting or restoring
+* one re-works nothing, so it must come back held exactly as its metric says now.
 */
 function heldBy(x, m, goals, links) {
 	const ids = new Set(links.filter((l) => l.metricId === m.id && !l.removedAt).map((l) => l.goalId));
 	const held = holdsToNoNumber(m);
-	const moved = goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt && !!g.unmeasuredSince !== held && g.kind !== "milestone");
+	const moved = goals.filter((g) => ids.has(g.id) && !!g.unmeasuredSince !== held && g.kind !== "milestone");
 	return {
 		goals: moved.map((g) => heldToNoNumber(g, held, x.now)),
 		changes: moved.map((g) => heldChange(x, g, m, held))
@@ -13727,7 +13728,7 @@ Null when no goal moves. */
 function heldOnSwitch(x, on, metrics, links) {
 	const goals = (x.full ?? x.snapshot).goals;
 	if (!on) {
-		const held = goals.filter((g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt);
+		const held = goals.filter((g) => !!g.unmeasuredSince);
 		if (!held.length) return null;
 		return {
 			goals: held.map((g) => heldToNoNumber(g, false, x.now)),
@@ -14907,7 +14908,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 	const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
 	const holds = moved.flatMap((l) => {
 		const g = goals.get(l.goalId);
-		const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null;
+		const h = g ? heldByLink(x, g, into) : null;
 		return h ? [h] : [];
 	});
 	return {
@@ -25251,7 +25252,8 @@ function systemOverview() {
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action, and its fields, states and buttons (with who sees each); the views and overlays with no route of their own",
 		"- [The design rules](spec/core/design-rules.md): the look, what is banned and what we do instead",
 		"- [The Help guide](spec/core/help-guide.md): every Help article in full",
-		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
+		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them; each journey’s steps and checks, in words, at `spec/core/journeys/<id>.md` (a module’s at `spec/modules/<module>/journeys/<id>.md`)",
+		"- [Goals’ filters and sort](spec/core/goals-query.md): every filter and sort a Goals link can say, its values and words",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
 		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
 		"- [The actions](spec/core/actions.md): every change a person can make, as the command port runs it: input, result, who may and refusals",

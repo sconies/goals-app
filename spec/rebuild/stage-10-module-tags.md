@@ -24,7 +24,7 @@ It keeps records of its own, which the core stores without knowing what they are
 ## Exit criteria
 
 1. Its requirements hold: `TAGS-FIELDS`, `TAGS-FILTER`, `TAGS-SHEET`, `TAGS-OFF` (words in [its section](../modules/tags/README.md#requirements)).
-2. Its journeys and checks can be done: U174, U177, U178, N34 ([its section](../modules/tags/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U174, U177, U178, N34 ([its section](../modules/tags/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
 3. fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.
 4. The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a value over 80 characters (src/spec/limits.ts).
 5. As an admin, Workspace → Fields with no field says “No fields yet” and “Add a field”; adding “Stage” with Discover, Build and Run lists it as “A list: Discover, Build, Run”; setting a goal's Stage on its page to Discover and then Build shows “Stage · Build”, and its History says “Stage: Discover → Build” (journey U174).

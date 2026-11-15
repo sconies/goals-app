@@ -19,11 +19,15 @@ export type SortKey = 'worst' | 'title' | 'owner' | 'team' | 'level' | 'gap' | '
 export interface GoalQuery {
   /** Words that must all appear in the goal's title, owner, team, level, reason, recovery plan or definition. */
   q: string;
+  /** Goals with any of these statuses (the status this week, with No check-in yet and Not started). */
   status: QStatus[];
+  /** Goals at any of these levels, by the level's id. */
   level: Level[];
+  /** Goals of any of these teams, by the team's id. */
   team: string[];
   /** Owners by id; `-me` (NOT_ME) means "not the person asking" (Home rule 4, HM3), said as "Owner: not you". */
   owner: string[];
+  /** Goals of any of these kinds: move a number, keep in range, dated stages. */
   kind: GoalKind[];
   /** Only the goals on the Needs attention list (those being handled with them, grouped below): the same rule as Home, Watching, the map, reviews and the AI (domain/attention.ts). */
   attention: boolean;
@@ -35,11 +39,13 @@ export interface GoalQuery {
   quiet: number | null;
   /** How the last closed quarter went. */
   quarter: 'met' | 'missed' | null;
+  /** Goals whose result, once it is due, is any of these: met, met late, not met, or not finished yet. */
   result: Result[];
   /** Only this goal and the goals that feed it, all the way down. */
   feeds: string | null;
   /** Only goals with a dotted "also helps" line, to or from them. */
   helps: boolean;
+  /** The order (SORT_OPTIONS); none keeps the order the goals were given in. */
   sort: SortKey | null;
   /** 1: the natural order for the key (worst first, A to Z, oldest check-in first, soonest due); -1 reverses it. */
   dir: 1 | -1;

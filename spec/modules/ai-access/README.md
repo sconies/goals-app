@@ -30,11 +30,13 @@ Module id `ai-access`, in [src/modules/ai-access/](../../../src/modules/ai-acces
 
 ## Journeys and checks
 
+Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).
+
 | Id | What | Where |
 |---|---|---|
-| U22 | MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart | `evals/journeys.cjs` |
-| U62 | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave | `evals/journeys.cjs` |
-| U175 | Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only, Settings has no “Your MCP tokens” and the inbox’s Connect Claude says it is switched off, with a link to Features; switched back on, the section is back after Access | `evals/journeys.cjs` |
+| [U22](journeys/U22.md) | MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart | `evals/journeys.cjs` |
+| [U62](journeys/U62.md) | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave | `evals/journeys.cjs` |
+| [U175](journeys/U175.md) | Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only, Settings has no “Your MCP tokens” and the inbox’s Connect Claude says it is switched off, with a link to Features; switched back on, the section is back after Access | `evals/journeys.cjs` |
 
 ## Help
 
