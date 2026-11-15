@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `59ed597b` (#537), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520, #533, #536, #537) are at the end. **Open from it:** #520's high (Undo removes another year's goal) and four mediums, all fixed on track 3's branch `mi-review`, not merged when this was written: read that PR against each, probing each door. #493's three mediums were closed by #533. #536's medium (eight kit sentences) and #537's three (journey pages, the module platform page, three journeys classed as core) are with planning for item 11. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `1a7243b9` (#534), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520, #533, #536, #537, #534) are at the end. **Open from it:** #520's high and mediums were closed by #534 but for two, sent to planning 05:40 UTC: a goals sheet headed Title, Goal name or Objective with a Metric column is still read as Metrics; Undo overwrites a field value changed since. #493's three mediums were closed by #533. #536's medium (eight kit sentences) and #537's three (journey pages, the module platform page, three journeys classed as core) are with planning for item 11. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
@@ -283,6 +283,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #533 TG2 review: field names, Undo and Help (#493's three mediums) | 2 | 0 | 0 | 1 |
 | #536 Kit: stage 1 and 2 words from the full drill's re-run | item 11 | 0 | 1 | 1 |
 | #537 Kit: the core's module platform, stage 3's inputs and journeys a rebuild can follow | item 11 | 0 | 3 | 1 |
+| #534 MI review: #520's high and four mediums | 3 | 0 | 2 | 0 |
 
 **High findings, and where each stands**
 
@@ -2486,3 +2487,14 @@ Run on main at `59ed597b`: `npx vitest run src/spec` passes (111); `scripts/chec
   5. "A notification (no id)… No reply": `initialize` and `tools/list` with no id are answered with `id: null`.
 - **Medium: three journeys that need a module are classed as the core's.** U179 (#520's, on /metrics and the library's switch), U161 and U72 are in no `module.json`, so their pages say "Belongs to: the core… the core journeys run again with each module left out", and stage 3's "each core journey can be done" can't hold for them. U179 belongs in the metrics module's list (#520 left it out).
 - **Low: smaller ones.** readback.csv's key is `case` alone, though the stage 3 line says each CSV's keys are its inputs; `STAGE3_GAPS` still lists saved views and the step-by-step check-in as not described, which this PR describes; the core-only README says no row scores a switched-off module's address, and about fourteen rows do, with the module's page names; `goal.measure` is drawn after "What it measures", not after the name; "module order" is id order.
+
+### #534 MI review: #520's high and four mediums (track 3, merged 15 Nov)
+
+Read against #520's five findings, and each door probed again on main at `1a7243b9` with the probes that found them (deleted after).
+
+- **#520's high: closed.** The undo's `before` for a goal a module's planner changed comes from every year's goals. Probed as before (the held goal moved to a second year, the metric retired by a Metrics row, Undo): the goal is not removed and is held again.
+- **Its first medium: closed.** A goal both the planner and the Goals sheet change takes the planner's changed fields too. Probed: metric retired and goal renamed in one file: saved with the new name and no longer held; Undo puts both back.
+- **Its second: closed for metrics, open for field values (below).** Probed: a metric changed in the app after the import is left as it is and listed ("Its source was changed on 5 Nov"); the import's other rows go back.
+- **Its fourth: closed, by its test.** `importRows` counts the module's rows, so "Saved {n} rows" and Undo's count agree. Not opened on screen again.
+- **Medium, left of #520's third: a goals sheet headed with another name for Goal is still read as Metrics.** `isMetricsHeader` now stands aside for a Goal or Key column only. Probed, now against before MI: "Title, Metric, Unit, Target, Owner", "Goal name, Metric, Unit, Start, Target" and "Objective, Metric, Unit, Target, Owner" were Goals and are Metrics. Ask the core's own header reading (`headerMatch('goals', …)`, as #533's `coreGoalsColumn` does) rather than two names.
+- **Medium: Undo still overwrites a field value changed since (#493's Undo, #520's rule 9).** `undoPlan` looks for a later change by `entityId === row id`; a field value's later change isn't found that way. Probed: a Goals sheet sets Stage on two goals; an hour later one is set to Discover on its page; Undo: restored 2, skipped none, and that goal's Stage is empty, the later value gone. Track 2's module, track 3's seam.
