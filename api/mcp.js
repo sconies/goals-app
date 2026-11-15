@@ -10807,7 +10807,7 @@ function headerMatch(kind, header) {
 		as: null
 	};
 }
-var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf, moduleOffLine;
+var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf, coreGoalsColumn, moduleOffLine;
 var init_sheets = __esmMin((() => {
 	init_columns();
 	init_problemLevels();
@@ -10839,6 +10839,10 @@ var init_sheets = __esmMin((() => {
 	];
 	NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
 	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
+	coreGoalsColumn = (name) => {
+		const m = headerMatch("goals", name);
+		return (m.how === "exact" || m.how === "also") && m.as ? m.as.charAt(0).toUpperCase() + m.as.slice(1) : null;
+	};
 	moduleOffLine = (module, workspace, sheet) => `${module} is off${workspace ? ` in ${workspace}` : ""}, so the ${sheet} sheet was not read.`;
 }));
 // src/domain/importLimits.ts
@@ -13385,6 +13389,18 @@ function* planChangesInChunks(input) {
 		for (const p of planned) changes.push(...p.result.commit.changes ?? []);
 		const moduleRowsOut = planned.reduce((m, p) => mergeModuleRows(m, p.result.commit.modules), void 0);
 		const moduleUndo = planned.flatMap((p) => p.result.undo);
+		for (const [module, keys] of Object.entries(moduleOut ?? {})) for (const [key, rows] of Object.entries(keys)) {
+			if (!rows.length) continue;
+			const saved = s.modules?.[module]?.[key] ?? [];
+			moduleUndo.push({
+				module,
+				key,
+				rows: rows.map((r) => ({
+					id: r.id,
+					before: saved.find((x) => x.id === r.id) ?? null
+				}))
+			});
+		}
 		const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
 		for (const ch of changes) ch.importId = importId;
 		const requestsBefore = asksOf(s);
@@ -16302,7 +16318,8 @@ var init_filter = __esmMin((() => {
 // src/modules/tags/rules.ts
 /**
 * Rule 1. What stops a field being saved, or null: a name of 1 to 40 characters that no other live field has (whatever
-* the case); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
+* the case) and that isn't the name of one of the Goals sheet's own columns (or another name it reads one by, whatever
+* the case or accents); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
 * six live fields. `fields`
 * is the workspace's fields as they are now (the one being changed among them, by id, or not yet).
 */
@@ -16310,6 +16327,8 @@ function fieldProblem(field, fields) {
 	const name = field.name.trim();
 	if (!name) return "Give the field a name.";
 	if (name.length > FIELD_LIMITS.name) return `Keep the name to ${FIELD_LIMITS.name} characters.`;
+	const core = coreGoalsColumn(name);
+	if (live$1(field) && core) return `The Goals sheet already has a column called “${core}”. Call the field something else.`;
 	const others = fields.filter((f) => f.id !== field.id && live$1(f));
 	if (live$1(field) && others.some((f) => key$1(f.name) === key$1(name))) return `There’s already a field called “${others.find((f) => key$1(f.name) === key$1(name)).name.trim()}”.`;
 	if (live$1(field) && !fields.some((f) => f.id === field.id && live$1(f)) && others.length >= FIELD_LIMITS.fields) return `A workspace has at most ${FIELD_LIMITS.fields} fields. Retire one first.`;
@@ -16341,6 +16360,7 @@ function valueProblem(field, typed) {
 }
 var FIELD_LIMITS, key$1, live$1;
 var init_rules = __esmMin((() => {
+	init_sheets();
 	init_filter();
 	FIELD_LIMITS = {
 		fields: 6,
@@ -17504,18 +17524,18 @@ var _virtual_faro_modules_default = [
 				"fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.",
 				"The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a value over 80 characters (src/spec/limits.ts).",
 				"As an admin, Workspace → Fields with no field says “No fields yet” and “Add a field”; adding “Stage” with Discover, Build and Run lists it as “A list: Discover, Build, Run”; setting a goal's Stage on its page to Discover and then Build shows “Stage · Build”, and its History says “Stage: Discover → Build” (journey U174).",
-				"Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).",
+				"Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, a name the Goals sheet already reads as one of its own columns (Owner, Team, Type…, whatever the case or accents), and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).",
 				"A retired field leaves goals' pages and list_fields' live fields, keeps every value, and brought back shows them again.",
 				"Starting the next year copies each goal's values to its copy; a copy that leaves, or a start undone, clears the copy's values (the tables have no removed_at: src/modules/tags/records.test.ts).",
 				"Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, Goals has no Stage filter and Data no Stage column, a link's f.<field id> narrows nothing, and list_fields, set_goal_fields, save_field and find_goals' fields refuse with the switched-off sentence; switched back on, every value is there (check N34).",
 				"filterGoals gives the tags-filter rule's worked examples (src/modules/tags/filter.test.ts): a goal matches every field filtered, Not set matches a goal with no value, and a filter's text reads a value with a comma in it as one.",
 				"As Amara, with Stage on two goals, Goals' Filters sheet has a Stage row; ticking Build lists only the goal in Build, the filter line says “Stage is Build” with Remove, the address carries f.<field id>=Build, a view saved from it brings the same goals back, and Data's Goals table has a Stage column (journey U177).",
 				"The workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once, and added, both goals are in Operate, the list holds it and History says “Stage: Build → Operate” via the spreadsheet (journey U178; src/modules/tags/sheet.test.ts, which also covers an admin's Add, anyone else's Leave these cells empty, free text over 80 characters and a goal the loader may not change).",
+				"Undo this import puts back the field values a Goals sheet changed and takes out a list value it added, with the goals they sit on; an import that changed only field values has those rows to undo (src/modules/tags/sheet.test.ts).",
 				"find_goals' fields filter finds the same goals as the Goals link with the same filter, and refuses an unknown field, a free-text field and a value the list doesn't hold in words (src/modules/tags/tools.test.ts)."
 			],
 			"gaps": [
 				"Find doesn't search a free-text field's words: Find searches a goal's own row (its name, key, owner, team, reason and definition), and a module adds a kind to Find, not words to a goal's row.",
-				"Undo this import puts goals, plans and check-ins back, but not a field's values or a value added to a list (the core's import undo keeps no module rows yet).",
 				"Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); only the Goals sheet asks the question.",
 				"A field's kind can't be changed once it is added: a list and free text hold values of different shapes."
 			]
@@ -21306,6 +21326,7 @@ var help$2 = [{
 			list: [
 				"Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.",
 				`An admin adds one with Add a field: a name of up to ${FIELD_LIMITS.name} characters, and for a list its values, one per line (1 to ${FIELD_LIMITS.values}, each up to ${FIELD_LIMITS.option} characters, none twice). Free text holds up to ${FIELD_LIMITS.value} characters on each goal. A workspace has at most ${FIELD_LIMITS.fields} fields.`,
+				"A field can’t be called like a column the Goals sheet already has, such as Owner, Team or Status: the sheet would have two columns of that name.",
 				"Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.",
 				"A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.",
 				"With no field yet, the page says “No fields yet” and offers Add a field to admins."
@@ -21324,7 +21345,7 @@ var help$2 = [{
 			list: [
 				"Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.",
 				"The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.",
-				"A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort, filter or edit like any other."
+				"A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort or filter by. To change values there, change them on each goal’s page, or in an exported Goals sheet loaded back."
 			]
 		},
 		{
@@ -21333,7 +21354,8 @@ var help$2 = [{
 				"Every export’s Goals sheet has a column for each field, headed with its name: the goal’s value, or empty for none.",
 				"Change a cell and load the file back on Import: the goal takes the value, under the same rules as its page, and History says it. An empty cell clears the value. A file exported and loaded straight back changes nothing.",
 				"A value a list doesn’t hold is asked once, however many rows say it: “Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?” Only an admin can add it to the list; anyone else leaves those cells empty, or fixes the file.",
-				"A column headed with a name no field has is named as a column nothing reads."
+				"A column headed with a name no field has is named as a column nothing reads.",
+				"Undo this import, under Past imports, puts back the values the file changed and takes out a value it added to a list."
 			]
 		},
 		{
@@ -23064,7 +23086,7 @@ var CORE_ARTICLES = [
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
 					"Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
-					"When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other.",
+					"When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other. Its cells can’t be edited here: change a goal’s values on its page, or in a Goals sheet loaded back.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
 				]
 			},
@@ -24025,6 +24047,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "fields-import-undo",
+		date: "2026-11-15",
+		title: "Undo puts a spreadsheet’s field values back",
+		points: ["Undo this import now puts back the field values a Goals sheet changed, and takes out a value it added to a list. An import that changed only field values can be undone too.", "A field can’t be called like one of the Goals sheet’s own columns, such as Owner or Status, so a workbook always loads back as it went out."],
+		articles: ["fields", "import"]
+	},
 	{
 		id: "metrics-sheet-in",
 		date: "2026-11-14",
