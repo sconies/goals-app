@@ -2,15 +2,19 @@
 
 Replace this entry at each handover; don't append. Last written 15 Nov, about 10:20 UTC, by session_012kbr8y96rDDDHpuiFBfDVA, which handed over at about 240k tokens of context, before the re-run, because the re-run of stage 3 and nine modules would not fit under 300k.
 
-## The brief, in short
-Backlog item 11: a fresh session rebuilds Faro stage by stage from the kit alone (`spec/` and `llms.txt`): the core first, then each module, one at a time. Record every gap with its stage and evidence, and fix gaps in the kit (`src/spec/*`, a module.json's `rebuild`, conformance rows, `scripts/drill.mjs`): `npm run spec`, then small `[no news]` PRs through the gate. Never point the drill at the source.
-
-The last step is to rewrite `README.md`, `docs/handoff.md` and `docs/architecture.md` from the module map and the generated spec. The handoff must say plainly that Faro can be built core first, then each module on its own. Fix handoff.md's stale R5 line: R5 is written, `spec/requirements/internal/r5-notifications-and-habits.md`. Also draft a one-line GitHub repository description for Lane.
+## The brief, in short (redefined by Lane, 15 Nov; replaces the kit-only framing)
+The internal team will have Faro's code. Their problem is rebuilding Faro on their own platform (their sign-in and SSO, data store and hosting), not on Supabase and Vercel. So the drill tests that:
+1. **Inputs:** each rebuild session gets the kit (`spec/`, `llms.txt`), the running app with its demo (https://goals-app-puce-five.vercel.app/demo?today=2026-11-11, no sign-in) and Faro's code.
+2. **Target:** "the stand-in platform": Node 22 `node:http` server, SQLite (`node:sqlite`), its own email-and-password sign-in, a stub SSO, a local files folder, a `setInterval` scheduler; no Supabase, no Vercel. Described in `drill-11-rebuild:standin/PLATFORM.md`.
+3. **Measure, per stage:** (a) what ported as-is (src/domain expected almost unchanged); (b) what was rewired (auth, storage, migrations, MCP server, the import's files), and how much; (c) whether the spec's platform requirements were complete (anything needed that the spec didn't name is a gap); (d) behaviour: rules and conformance rows met on the new platform. Journeys are secondary; say which failures are only class names or wording.
+4. **Order and time-box:** #547's mediums fixed first (#548, merged). Then the core on the stand-in, then each module, one pass each. Note gaps; fix only one-line kit corrections. No further rounds.
+5. **Write-up:** `docs/drill/2026-11-full-drill.md` and `docs/handoff.md` tell the team what ports, what to rewire to their platform, the list of platform requirements, and that the running app and the code are the reference (app URL, and the demo needs no sign-in).
+6. Then the rewrites of `README.md`, `docs/handoff.md` and `docs/architecture.md` (the handoff says Faro can be built core first, then each module; fix handoff.md's stale R5 line: R5 is `spec/requirements/internal/r5-notifications-and-habits.md`), a one-line GitHub description draft for Lane, and #512 out of draft.
 
 **Who to tell:**
 - Merged code PR numbers go to the build reviewer, **session_012kbr8yEo9vztTkpARWNy66**.
-- Report to planning (session_012kbr91eefh4gwCAztBncNT) once, when every stage on main has passed, or when blocked.
-- Merging (planning, 14 Nov): this item's own kit PRs may be merged by the drill session once CI is green.
+- Report to planning (session_012kbr91eefh4gwCAztBncNT) when done or blocked.
+- This item's own kit PRs may be merged by the drill session once CI is green (planning, 14 Nov).
 
 ## How the drill is run
 Every rebuild is on the scratch branch **`drill-11-rebuild`** (never merge it): one folder per stage with `GAPS.md`, `JOURNEYS.md`, `CORE-CHANGES.md` and `REVIEW.md`. `RESULTS.md` there is the log.
@@ -24,12 +28,6 @@ To set up (S = your scratchpad):
 2. Pin: `git worktree add --detach S/pin <pin>`, then `npm ci` there. Never symlink node_modules (it breaks `api/mcp.js`'s comments).
 3. Core: for modules, extract the passing stage-3 folder to S/stage-3 (BUILDER.md copies `S/stage-3/rebuild` into each module's folder).
 4. Save each rebuild to `drill-11-rebuild` as soon as it reports (the builder writes `S/<folder>.tgz`; untar it in a worktree of the branch), plus REVIEW.md and a RESULTS.md row.
-
-## Time-box (Lane, 15 Nov, via planning)
-The drill is time-boxed. One re-run on main only: stage 3, then each module, with no further rounds of kit fixes to chase journey scores. Gaps the re-run finds are written down, not fixed in the kit, unless they are one-line corrections. Score on behaviour first (the rules and conformance rows a rebuild meets); report journeys alongside, saying plainly which failures are only class names or wording. Then write it up in `docs/drill/2026-11-full-drill.md`, saying honestly what a kit-only rebuild gets right and where the internal team should read the code, with the same message in `docs/handoff.md`; then the README, handoff and architecture rewrites, the GitHub description draft for Lane, and #512 out of draft.
-
-## The running app is part of the handoff (Lane, 15 Nov, via planning)
-The internal team gets three things: the kit (`spec/` and `llms.txt`) says what to build and the rules; the running app, with its demo workspace, shows how it looks and behaves; the code is the final word where the kit is unclear. Say this plainly in `docs/handoff.md`, the README and the rebuild kit's README, with the app's URL and how to sign in to the demo. In the re-run, rebuild sessions may use the running app as a reference (look at screens, try flows), still with no access to Faro's code. The write-up records which gaps the app closed and which needed the code.
 
 ## Where it stands
 **Run on pin 752d6c97 is complete:** every stage 3–12 built and reviewed; all rows and REVIEW.md files are on `drill-11-rebuild` (last commit 3a47d8cf, then 9a200812 for vercel.json). Summary of that run: every module scores 100% on the harness and its own CSV where one exists, exit tests are honest; but each module changed 3–8 core files and most journeys stayed PART, because stage 3 lacked screens and the platform lacked places. Late GR, MQ, SW2, FT1 have no module on main yet (MC deferred, Lane 14 Nov).
