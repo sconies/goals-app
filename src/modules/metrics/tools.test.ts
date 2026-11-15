@@ -64,7 +64,7 @@ describe('metric library tools', () => {
     const mine = (await call('list_metrics', { sort_out: true })).structuredContent!.metrics as { name: string; needs: { id: string }[] }[];
     // Rule 3's needs and MQ2's loose ends together: CI compute cost needs a goal and (a Draft) a source link.
     expect(mine).toContainEqual(expect.objectContaining({ name: 'CI compute cost per pipeline run', needs: [{ id: 'unused', sentence: 'No goal uses it' }], stage: 'draft', missing: 'needs a source link' }));
-    expect(mine.every((r) => (r as { needs: unknown[]; sortOut: unknown[] }).needs.length + (r as { sortOut: unknown[] }).sortOut.length > 0)).toBe(true);
+    expect(mine.every((r) => r.needs.length + ((r as unknown as { sortOut: unknown[] }).sortOut.length) > 0)).toBe(true);
     expect((await call('get_metric', { metric: 'metric_ci-cost' })).structuredContent).toMatchObject({ goals: [], needs: [{ id: 'unused', sentence: 'No goal uses it' }] });
     expect((await call('list_metrics', { team: 'Nowhere' })).isError).toBe(true);
   });

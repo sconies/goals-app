@@ -56,7 +56,7 @@ export function qualityData(ctx: McpContext, m: Metric) {
     toVerify: st.toVerify, dueBy: st.dueBy,
     lapsed: st.lapsed ? { kind: st.lapsed.kind, at: st.lapsed.at, what: st.lapsed.what, why: st.lapsed.why, by: n(st.lapsed.by) } : null,
     calculation: m.calculation ?? null, calculationWords: Q.calcWords(m.calculation),
-    window: m.window ?? null, windowWords: Q.windowWords(m.window), refreshWords: Q.refreshWords(m), refreshNote: m.refreshNote ?? '',
+    window: m.timeWindow ?? null, windowWords: Q.windowWords(m.timeWindow), refreshWords: Q.refreshWords(m), refreshNote: m.refreshNote ?? '',
     sourceLink: m.sourceLink ?? '', sourceQuery: m.sourceQuery ?? '', sourceOwnerInFaro: m.sourceOwnerId ? V.sourceOwnerName(ctx.snapshot, m) : null,
     baselines: Q.liveBaselines(m).map(base), baselineHistory: (m.baselines ?? []).filter((b) => !!b.replacedAt).map(base),
     verification: m.verification ? ver(m.verification) : null, failedAttempts: (m.verifyAttempts ?? []).map(ver),
@@ -105,7 +105,7 @@ export function qualityInput(ctx: McpContext, a: Record<string, unknown>): Parti
   if (a.verifiers !== undefined && !ctx.actor.admin) throw new NotAllowed('Only an admin can name a metric’s verifiers.');
   return {
     ...(a.calculation !== undefined ? { calculation: Q.calcFrom(a.calculation) } : {}),
-    ...(a.window !== undefined ? { window: Q.windowFrom(a.window) } : {}),
+    ...(a.window !== undefined ? { timeWindow: Q.windowFrom(a.window) } : {}),
     ...(a.source_link !== undefined ? { sourceLink: String(a.source_link ?? '') } : {}),
     ...(a.source_query !== undefined ? { sourceQuery: String(a.source_query ?? '') } : {}),
     ...(a.source_owner_in_faro !== undefined ? { sourceOwnerId: ownerRef(ctx, a.source_owner_in_faro) } : {}),

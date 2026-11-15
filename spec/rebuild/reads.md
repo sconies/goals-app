@@ -36,11 +36,11 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `deleteCheckIn` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 0 of 126, past the rest by `id`, `ownerId`; `requests` 0 of 41, past the rest by `checkInId` | `checkIns` |
 | `saveRetro` | rhea | refused: “2026’s wrap-up opens on Mon 21 Dec 2026.” | `goals` 0 of 126, past the rest by `cycleId`, `id`, `ownerId` | — |
 | `recordStagesDone` | diego | refused: “This goal has check-ins already: say a stage is done in a check-in.” | `checkIns` 5,249 of 5,249; `goals` 0 of 126, past the rest by `id`, `ownerId` | `checkIns` |
-| `undoImport` | amara | saved | `changes` 6,330 of 6,330; `checkIns` 18 of 5,249, past the rest by `id`; `goals` 126 of 126; `teams` 0 of 14, past the rest by `id` | `changes`, `goals` |
+| `undoImport` | amara | saved | `changes` 6,350 of 6,350; `checkIns` 18 of 5,249, past the rest by `id`; `goals` 126 of 126; `teams` 0 of 14, past the rest by `id` | `changes`, `goals` |
 | `addNote` | rhea | saved | `goals` 0 of 126, past the rest by `id` | — |
 | `addAction` | amara | saved | `goals` 0 of 126, past the rest by `id`; `people` 1 of 97, past the rest by `id` | — |
-| `editComment` | amara | saved | `changes` 6,330 of 6,330 | `changes` |
-| `deleteComment` | amara | saved | `changes` 6,330 of 6,330 | `changes` |
+| `editComment` | amara | saved | `changes` 6,350 of 6,350 | `changes` |
+| `deleteComment` | amara | saved | `changes` 6,350 of 6,350 | `changes` |
 | `askForUpdate` | amara | saved | `checkIns` 5,249 of 5,249; `goals` 0 of 126, past the rest by `id`, `ownerId`; `people` 1 of 97, past the rest by `id`; `requests` 41 of 41 | `checkIns`, `requests` |
 | `askQuestion` | amara | saved | `goals` 0 of 126, past the rest by `id`, `ownerId`; `people` 1 of 97, past the rest by `id` | — |
 | `undoUpdateAsk` | amara | saved | `goals` 0 of 126, past the rest by `id`; `requests` 41 of 41 | `requests` |
@@ -65,24 +65,24 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `pinView` | amara | nothing to save | `views` 1 of 10 | — |
 | `savePerson` | amara | saved | `people` 97 of 97; `teams` 0 of 14, past the rest by `id` | `people` |
 | `markPersonLeft` | amara | saved | `goals` 1 of 126, past the rest by `cycleId`, `ownerId`; `people` 2 of 97, past the rest by `id`; `requests` 41 of 41; `reviews` 6 of 6; `teams` 0 of 14, past the rest by `leadId` | `requests`, `reviews` |
-| `deletePerson` | amara | refused: “Grace Achterberg has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.” | `changes` 6,330 of 6,330; `checkIns` 0 of 5,249, past the rest by `authorId`; `decisions` 0 of 798, past the rest by `byId`; `goals` 0 of 126, past the rest by `ownerId`; `people` 2 of 97; `requests` 41 of 41 | `changes`, `requests` |
+| `deletePerson` | amara | refused: “Grace Achterberg has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.” | `changes` 6,350 of 6,350; `checkIns` 0 of 5,249, past the rest by `authorId`; `decisions` 0 of 798, past the rest by `byId`; `goals` 0 of 126, past the rest by `ownerId`; `people` 2 of 97; `requests` 41 of 41 | `changes`, `requests` |
 | `leaveWorkspace` | rhea | saved | `goals` 8 of 126, past the rest by `cycleId`, `ownerId`; `people` 2 of 97, past the rest by `id`; `requests` 41 of 41; `reviews` 6 of 6; `teams` 1 of 14, past the rest by `leadId` | `requests`, `reviews` |
 | `saveTeam` | amara | saved | `people` 0 of 97, past the rest by `id`; `teams` 14 of 14 | `teams` |
 | `removeTeam` | amara | saved | `goals` 5 of 126, past the rest by `teamId`; `people` 6 of 97, past the rest by `teamId`; `teams` 2 of 14, past the rest by `id` | — |
 | `startNextCycle` | amara | refused: “2027 can be started from Mon 21 Dec 2026, when 2026’s wrap-up opens.” | nothing in the workspace’s lists | — |
 | `deleteCycle` | amara | refused: “It’s the only cycle, so it stays.” | nothing in the workspace’s lists | — |
-| `undoStart` | amara | refused: “2026 can’t be undone now: it wasn’t started from the wrap-up.” | `changes` 6,330 of 6,330 | `changes` |
-| `arrive` | rhea | saved | `changes` 6,330 of 6,330; `people` 1 of 97 | `changes` |
+| `undoStart` | amara | refused: “2026 can’t be undone now: it wasn’t started from the wrap-up.” | `changes` 6,350 of 6,350 | `changes` |
+| `arrive` | rhea | saved | `changes` 6,350 of 6,350; `people` 1 of 97 | `changes` |
 | `renameWorkspace` | amara | saved | nothing in the workspace’s lists | — |
 | `setRecording` | amara | saved | nothing in the workspace’s lists | — |
 | `setModule` | amara | saved | `goals` 126 of 126 | `goals` |
 | `setRhythm` | amara | saved | nothing in the workspace’s lists | — |
 | `undoRemoval` | amara | saved | nothing in the workspace’s lists | — |
-| `restoreRemoved` | amara | refused: “There’s nothing removed with that ID.” | `changes` 6,330 of 6,330; `checkIns` 5,249 of 5,249; `decisions` 798 of 798; `goals` 126 of 126; `modules.metrics.metrics` 13 of 13; `people` 97 of 97; `reviews` 6 of 6; `views` 10 of 10; `watches` 80 of 80 | `changes`, `checkIns`, `decisions`, `goals`, `modules.metrics.metrics`, `people`, `reviews`, `views`, `watches` |
+| `restoreRemoved` | amara | refused: “There’s nothing removed with that ID.” | `changes` 6,350 of 6,350; `checkIns` 5,249 of 5,249; `decisions` 798 of 798; `goals` 126 of 126; `modules.metrics.metrics` 13 of 13; `people` 97 of 97; `reviews` 6 of 6; `views` 10 of 10; `watches` 80 of 80 | `changes`, `checkIns`, `decisions`, `goals`, `modules.metrics.metrics`, `people`, `reviews`, `views`, `watches` |
 | `createToken` | amara | saved | `people` 1 of 97 | — |
 | `revokeToken` | amara | saved | `tokens` 1 of 2 | — |
 | `sendFeedback` | rhea | saved | nothing in the workspace’s lists | — |
-| `saveMetric` | amara | refused: “Answer this question first: This looks like “Remote build cache hit rate” (%, higher is better, owned by Rhea Kapoor, 1 goal).” | `changes` 6,330 of 6,330; `goals` 126 of 126; `modules.metrics.metricLinks` 12 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id` | `changes`, `goals`, `modules.metrics.metricLinks`, `modules.metrics.metrics` |
+| `saveMetric` | amara | refused: “Answer this question first: This looks like “Remote build cache hit rate” (%, higher is better, owned by Rhea Kapoor, 1 goal).” | `changes` 6,350 of 6,350; `goals` 126 of 126; `modules.metrics.metricLinks` 12 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id` | `changes`, `goals`, `modules.metrics.metricLinks`, `modules.metrics.metrics` |
 | `removeMetric` | amara | saved | `modules.metrics.metricLinks` 0 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13, past the rest by `id` | — |
 | `linkGoalMetric` | amara | nothing to save | `checkIns` 0 of 5,249, past the rest by `goalId`; `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
 | `unlinkGoalMetric` | amara | saved | `goals` 1 of 126; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 1 of 13 | — |

@@ -168,7 +168,7 @@ export function addDemoMetrics(b: DemoBuild) {
     if (q) {
       const id = `metric_${m.slug}`;
       const at = (h: number) => new Date(when.getTime() + h * HOUR);
-      const def = saveMetric(b.act(m.ownerId, at(1), mid), { id, ...(q.calculation ? { calculation: q.calculation } : {}), ...(q.window ? { window: q.window } : {}), ...(q.sourceLink ? { sourceLink: q.sourceLink } : {}) } as Parameters<typeof saveMetric>[1]).commit;
+      const def = saveMetric(b.act(m.ownerId, at(1), mid), { id, ...(q.calculation ? { calculation: q.calculation } : {}), ...(q.window ? { timeWindow: q.window } : {}), ...(q.sourceLink ? { sourceLink: q.sourceLink } : {}) } as Parameters<typeof saveMetric>[1]).commit;
       if (def) b.save(def);
       if (q.baseline) b.save(saveBaselines(b.act(m.ownerId, at(2), mid), id, [{ teamId: null, value: q.baseline[0], period: q.baseline[1], takenOn: at(2).toISOString().slice(0, 10), how: q.baseline[2] }]).commit);
       if (q.verified && q.baseline) b.save(verifyMetric(b.act(q.verified[0], at(3), mid), id, { period: q.baseline[1], figure: q.verified[1], note: q.verified[2], openedLink: true, outcome: 'verified' }).commit);

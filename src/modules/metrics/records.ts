@@ -38,7 +38,7 @@ export const metricToRow = (ws: string, m: Metric): DbRow => ({
   // MQ (migration 0055): always written, null when not said, so a mixed batch never leaves a key out.
   level: m.level ?? null, parent_id: m.parentId ?? null, confidence: m.confidence ?? null, gaming: m.gaming || null,
   // MQ2 (migration 0056): always written, null when not said, so a mixed batch never leaves a key out.
-  calculation: m.calculation ?? null, time_window: m.window ?? null, source_link: m.sourceLink || null, source_query: m.sourceQuery || null,
+  calculation: m.calculation ?? null, time_window: m.timeWindow ?? null, source_link: m.sourceLink || null, source_query: m.sourceQuery || null,
   source_owner_id: m.sourceOwnerId ?? null, refresh_note: m.refreshNote || null, calc_changed_by: m.calcChangedBy ?? null, calc_changed_at: m.calcChangedAt ?? null,
   baselines: m.baselines?.length ? m.baselines : null, verification: m.verification ?? null, verify_attempts: m.verifyAttempts?.length ? m.verifyAttempts : null,
   lapse: m.lapse ?? null, verifiers: m.verifiers?.length ? m.verifiers : null, handover: m.handover ?? null, to_confirm: m.toConfirm ?? null,
@@ -49,7 +49,7 @@ const list = <T,>(v: unknown): T[] | undefined => (Array.isArray(v) && v.length 
 const quality = (r: DbRow): Partial<Metric> => {
   const q: Partial<Metric> = {};
   const c = obj<Metric['calculation']>(r.calculation); if (c) q.calculation = c;
-  const w = obj<NonNullable<Metric['window']>>(r.time_window); if (w) q.window = w;
+  const w = obj<NonNullable<Metric['timeWindow']>>(r.time_window); if (w) q.timeWindow = w;
   if (r.source_link) q.sourceLink = String(r.source_link);
   if (r.source_query) q.sourceQuery = String(r.source_query);
   if (r.source_owner_id) q.sourceOwnerId = String(r.source_owner_id);

@@ -41,7 +41,7 @@ const RATIO: MetricCalc = {
 };
 const P90: MetricCalc = { measure: 'duration', aggregate: 'percentile', percentile: 90, part: { counts: 'Wall-clock minutes from push to a finished pipeline on main', filters: 'Branch is main', excludes: 'Cancelled runs' } };
 /** The fields that take the demo's CI pipeline time from Draft to Defined. */
-const FULL = { calculation: P90, window: { kind: 'rolling' as const, days: 7 }, sourceLink: 'https://ci.example.com/pipelines/main/duration-p90?window=7d' };
+const FULL = { calculation: P90, timeWindow: { kind: 'rolling' as const, days: 7 }, sourceLink: 'https://ci.example.com/pipelines/main/duration-p90?window=7d' };
 
 describe('the stage (MQ2)', () => {
   const at = '2026-11-15T12:00:00Z';
@@ -52,7 +52,7 @@ describe('the stage (MQ2)', () => {
     expect(s.missing.map((m) => m.part)).toEqual(['source']);
     expect(s.missing[0]!.why).toBe('without it the number can’t be checked');
     expect(Q.missingLine(s.missing)).toBe('needs a source link');
-    const none = Q.stageOf(base({ calculation: null, window: null, sourceLink: '', refresh: null }), { now: at, ownerIsHere: false });
+    const none = Q.stageOf(base({ calculation: null, timeWindow: null, sourceLink: '', refresh: null }), { now: at, ownerIsHere: false });
     expect(none.missing.map((m) => m.part)).toEqual(['calculation', 'scope', 'window', 'source', 'refresh', 'owner']);
     expect(Q.missingLine([{ part: 'window' }, { part: 'scope' }])).toBe('needs a window and filters and exclusions');
   });
@@ -106,12 +106,12 @@ describe('saving the structured definition (MQ2)', () => {
     expect(m).toMatchObject({ ...FULL, calcChangedBy: 'daniel' });
     expect(V.stageNow(w.x('daniel'), m).stage).toBe('defined');
     expect(metricFromRow(metricToRow('ws', m))).toMatchObject(FULL);
-    expect(Object.keys(metricFromRow(metricToRow('ws', w.metric('mttd')))).filter((k) => ['window', 'baselines', 'verification', 'sourceLink'].includes(k))).toEqual([]);
+    expect(Object.keys(metricFromRow(metricToRow('ws', w.metric('mttd')))).filter((k) => ['timeWindow', 'baselines', 'verification', 'sourceLink'].includes(k))).toEqual([]);
   });
   it('refuses a link that isn’t a web address, and an unknown window', () => {
     const w = world();
     refused(() => saveMetricAsked(w.x('daniel'), { id: 'metric_ci-time', sourceLink: 'ci analytics' }), /web address starting with https/);
-    refused(() => saveMetricAsked(w.x('daniel'), { id: 'metric_ci-time', window: { kind: 'rolling', days: 0 } }), /1 to 730 days/);
+    refused(() => saveMetricAsked(w.x('daniel'), { id: 'metric_ci-time', timeWindow: { kind: 'rolling', days: 0 } }), /1 to 730 days/);
   });
 });
 
@@ -121,7 +121,7 @@ describe('verifying (MQ2)', () => {
   it('refuses the owner and whoever last changed the calculation, in words that say who can', () => {
     const w = ready();
     refused(() => V.verifyMetric(w.x('daniel'), 'metric_ci-time', ok), /You own this metric, so someone else must verify it\. Ask an admin, someone in Developer Experience/);
-    w.apply(saveMetricAsked(w.x('grace'), { id: 'metric_ci-time', window: { kind: 'rolling', days: 14 } }).commit);
+    w.apply(saveMetricAsked(w.x('grace'), { id: 'metric_ci-time', timeWindow: { kind: 'rolling', days: 14 } }).commit);
     refused(() => V.verifyMetric(w.x('grace'), 'metric_ci-time', ok), /You last changed its calculation, window or source/);
   });
   it('refuses someone who is neither an admin, in the source’s owner nor a named verifier', () => {
@@ -163,7 +163,7 @@ describe('lapsing (MQ2)', () => {
   };
   it('a new window asks first (lapse: go), then drops to Defined with the reason kept', () => {
     const w = verified();
-    const input = { id: 'metric_ci-time', window: { kind: 'rolling' as const, days: 28 } };
+    const input = { id: 'metric_ci-time', timeWindow: { kind: 'rolling' as const, days: 28 } };
     expect(openChecks(w.x('daniel'), input).open.map((c) => c.field)).toEqual(['lapse']);
     refused(() => saveMetricAsked(w.x('daniel'), input), /is Verified\. Changing the window takes it back to Defined/);
     w.apply(saveMetricAsked(w.x('daniel'), { ...input, answers: { lapse: 'go' }, reason: 'Seven days was too noisy.' }).commit);

@@ -65,7 +65,7 @@ export interface Metric {
   /** What is measured and how it is aggregated, with a ratio's numerator and denominator. */
   calculation?: MetricCalc | null;
   /** The window the number is taken over. */
-  window?: MetricWindow | null;
+  timeWindow?: MetricWindow | null;
   /** A link to the exact report or query; without one a metric is not Defined. */
   sourceLink?: string;
   /** The query text, optional. */

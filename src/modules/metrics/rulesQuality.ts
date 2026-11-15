@@ -125,7 +125,7 @@ export function qualityProblems(m: Metric, people: readonly Pick<Person, 'id'>[]
     for (const p of [c.part, c.numerator, c.denominator]) if (p && [p.counts, p.filters, p.excludes, p.name ?? ''].some((x) => x.length > QUALITY_LIMITS.part)) out.push(`Keep each part’s counts, filters and exclusions to ${QUALITY_LIMITS.part} characters or fewer.`);
     if ((c.formula ?? '').length > QUALITY_LIMITS.formula) out.push(`Keep the formula to ${QUALITY_LIMITS.formula.toLocaleString('en-GB')} characters or fewer.`);
   }
-  const w = m.window;
+  const w = m.timeWindow;
   if (w) {
     if (!WINDOW_KINDS.includes(w.kind)) out.push('The window is a point in time, rolling N days, per period (week, month, quarter) or cumulative since a date.');
     else if (w.kind === 'rolling' && !(Number.isInteger(w.days) && w.days >= 1 && w.days <= 730)) out.push('A rolling window is 1 to 730 days.');
@@ -174,7 +174,7 @@ export function partSaid(m: Metric, part: DefinedPart, ownerIsHere: boolean): bo
       return c.measure === 'ratio' ? partHas(c.numerator, 'scope') && partHas(c.denominator, 'scope') : partHas(c.part, 'scope');
     case 'unit': return said(m.unit);
     case 'direction': return m.direction === 'higher' || m.direction === 'lower';
-    case 'window': return !!m.window && WINDOW_KINDS.includes(m.window.kind);
+    case 'window': return !!m.timeWindow && WINDOW_KINDS.includes(m.timeWindow.kind);
     case 'source': return said(m.source) && said(m.sourceLink);
     case 'sourceOwner': return said(m.sourceOwner);
     case 'refresh': return m.refresh != null;
@@ -258,7 +258,7 @@ export function qualityChanges(before: Metric, after: Metric): { lapses: string[
   const calcHead = (c: MetricCalc | null) => JSON.stringify(c ? [c.measure, c.aggregate, c.percentile ?? null, norm(c.per), norm(c.formula)] : null);
   const counts = (c: MetricCalc | null) => JSON.stringify(c ? [norm(c.part?.counts), norm(c.numerator?.counts), norm(c.denominator?.counts)] : null);
   if (calcHead(a) !== calcHead(b) || counts(a) !== counts(b)) lapses.push('the calculation');
-  if (!sameWindow(before.window, after.window)) lapses.push('the window');
+  if (!sameWindow(before.timeWindow, after.timeWindow)) lapses.push('the window');
   const sourceChanged = norm(before.source) !== norm(after.source) || norm(before.sourceLink) !== norm(after.sourceLink);
   if (sourceChanged) lapses.push('the source');
   if (before.direction !== after.direction) lapses.push('the direction');

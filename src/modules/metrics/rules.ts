@@ -69,7 +69,7 @@ export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 
 
 /** What someone gives to add or change a metric: everything but the bookkeeping. Left out, a field keeps its value
     (a new metric: empty text, 0 decimals, no refresh, owned by whoever adds it). */
-export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming' | 'calculation' | 'window' | 'sourceLink' | 'sourceQuery' | 'sourceOwnerId' | 'refreshNote' | 'verifiers'>>;
+export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming' | 'calculation' | 'sourceLink' | 'sourceQuery' | 'sourceOwnerId' | 'refreshNote' | 'verifiers' | 'timeWindow'>>;
 
 /* ---------- reading ---------- */
 
@@ -169,7 +169,7 @@ function qualityFrom(input: MetricInput & { reason?: string }, before: Metric | 
   const pick = <K extends keyof Metric>(k: K) => (k in input && (input as Record<string, unknown>)[k] !== undefined ? (input as Partial<Metric>)[k] : before?.[k]);
   const q: Partial<Metric> = {};
   const calc = pick('calculation'); if (calc) q.calculation = calc;
-  const w = pick('window'); if (w) q.window = w;
+  const w = pick('timeWindow'); if (w) q.timeWindow = w;
   for (const k of ['sourceLink', 'sourceQuery', 'refreshNote'] as const) { const v = clean(pick(k) as string); if (v) q[k] = v; }
   const so = pick('sourceOwnerId'); if (so) q.sourceOwnerId = so;
   const vs = pick('verifiers'); if (vs?.length) q.verifiers = [...new Set(vs)];
@@ -179,7 +179,7 @@ function qualityFrom(input: MetricInput & { reason?: string }, before: Metric | 
   // exclusion asks the last verifier to confirm; a new source flags the baselines taken from the old one.
   const after = { ...(before ?? {}), ...q, direction: (input.direction ?? before?.direction) as Metric['direction'], source: clean(input.source !== undefined ? input.source : before?.source ?? '') } as Metric;
   if (!before) {
-    if (q.calculation || q.window || q.sourceLink) { q.calcChangedBy = x.actor.id; q.calcChangedAt = x.now; }
+    if (q.calculation || q.timeWindow || q.sourceLink) { q.calcChangedBy = x.actor.id; q.calcChangedAt = x.now; }
     return q;
   }
   const ch = qualityChanges(before, after);
@@ -252,7 +252,7 @@ export function metricFields(m: Metric, s: { people: Person[]; modules?: ModuleR
     'How it could be gamed': m.gaming || '—',
     // MQ2: the structured definition, so a save that changes only these is logged.
     Calculation: m.calculation ? calcText(m.calculation) : '—',
-    Window: m.window ? windowWords(m.window) : '—',
+    Window: m.timeWindow ? windowWords(m.timeWindow) : '—',
     'Source link': m.sourceLink || '—',
     Query: m.sourceQuery || '—',
     'Source owner in Faro': m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? (s as { teams?: { id: string; name: string }[] }).teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? '—' : '—',

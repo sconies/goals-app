@@ -4,12 +4,6 @@
 
 What the metric library deliberately leaves out, so a rebuild knows these are choices, not gaps, and how each could be added later. None of them is needed for the rules in [its rules page](rules.md) to hold.
 
-## Draft and Ready states
-
-**Why it was left out:** A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.
-
-**How it could grow:** Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes.
-
 ## Versions, with a reason for each change
 
 **Why it was left out:** Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.

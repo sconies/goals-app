@@ -69,6 +69,18 @@
       {
         "ask": "retired=true",
         "retired": true
+      },
+      {
+        "ask": "stage=verified",
+        "stage": "verified"
+      },
+      {
+        "ask": "stage=draft",
+        "stage": "draft"
+      },
+      {
+        "ask": "toVerify=true",
+        "toVerify": true
       }
     ],
     "sheet": {

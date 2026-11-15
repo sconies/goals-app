@@ -897,6 +897,24 @@
       "use": "copy"
     },
     {
+      "id": "METRIC-STAGE",
+      "area": "Metrics",
+      "text": "Every metric is Draft, Defined or Verified (MQ2), worked out from what it says and shown as a step shape plus its word. Defined needs ten parts: meaning; what is measured, how it is aggregated and what each part counts (a ratio's numerator and denominator); each part's filters and exclusions; unit; direction; a structured window; the source with a link to the report or query; the source's owner; refresh; and an owner who is here. A Draft metric can measure a goal (it warns, never blocks). Verified lasts 12 months; changing the calculation, window, source or direction asks once and drops it to Defined with the reason kept; a reworded filter or exclusion asks the last verifier to confirm instead. list_metrics filters by stage and to_verify and gives each row's stage, refresh, window and what it still needs; get_metric and save_metric give the stage, save_metric before and after.",
+      "use": "copy"
+    },
+    {
+      "id": "METRIC-VERIFY",
+      "area": "Metrics",
+      "text": "A metric is verified by anyone but its owner and whoever last changed its calculation, window or source, and then only by an admin, someone in the source's owner or a verifier an admin named. They say they opened the link and give the period, the figure they got and a note; Faro shows the difference from the figure it has (a baseline, else the latest reading), with no fixed tolerance. The outcome is Verified, or Couldn't reproduce (kept, the stage unchanged, on the owner's To sort out until answered). verify_metric does the same and refuses in words that say who can instead.",
+      "use": "copy"
+    },
+    {
+      "id": "METRIC-BASELINES",
+      "area": "Metrics",
+      "text": "A metric keeps a baseline per slice (the company, or a team, and an optional part): value, the period it covers, the day taken and how, all required. A new one moves the old one to History; a new figure for the same period, or one changed from the figure read, needs a reason. Baselines never change the stage. A new source flags them as taken from the old source, to retake. save_baselines sets one or many, and from_readings fills last quarter's figures for confirming without saving.",
+      "use": "copy"
+    },
+    {
       "id": "METRICS-CARE",
       "area": "Metrics",
       "text": "A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks \"This looks like …\" as a Check (METRIC-DEFINED), with Use that one or Mine is different: keep it. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.",

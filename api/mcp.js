@@ -1312,7 +1312,7 @@ function parseAsk(needs, people) {
 	const t = needs.trim();
 	const i = t.indexOf(":");
 	if (i > 0) {
-		const who = people.find((p) => norm$3(p.name) === norm$3(t.slice(0, i)));
+		const who = people.find((p) => norm$4(p.name) === norm$4(t.slice(0, i)));
 		if (who) return {
 			recipientId: who.id,
 			ask: t.slice(i + 1).trim()
@@ -1500,7 +1500,7 @@ function requestsAfterCheckIn(goal, c, s, actorId, now, newId) {
 		const { recipientId, ask } = parseAsk(needs, s.people);
 		const same = open.find((r) => r.recipientId === recipientId);
 		if (same) {
-			if (same.goalIds[0] === goal.id && norm$3(same.ask) !== norm$3(ask)) {
+			if (same.goalIds[0] === goal.id && norm$4(same.ask) !== norm$4(ask)) {
 				const next = {
 					...same,
 					ask,
@@ -1718,11 +1718,11 @@ function liveNotes(changes) {
 	}
 	return writtenNotes(changes).filter((c) => !removed.has(c.entityId));
 }
-var norm$3, ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, openAsksFor, openFor, openForPerson, openUpdateAsk, isOverdue, isResolved, canAnswer, canMarkDone, change$2, FIELD, UPDATE_ASK, normaliseAsk, isLegacyUpdateAsk, updateAskText;
+var norm$4, ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, openAsksFor, openFor, openForPerson, openUpdateAsk, isOverdue, isResolved, canAnswer, canMarkDone, change$2, FIELD, UPDATE_ASK, normaliseAsk, isLegacyUpdateAsk, updateAskText;
 var init_asks = __esmMin((() => {
 	init_status();
 	init_vocabulary();
-	norm$3 = (s) => s.trim().toLowerCase();
+	norm$4 = (s) => s.trim().toLowerCase();
 	ASK_KIND_LABEL = labels(ASK_KIND);
 	ASK_STATUS_LABEL = {
 		open: ASK_STATUS.open.label,
@@ -4930,18 +4930,18 @@ function personProblems(p, people, before) {
 }
 /** Someone else with this person's name, said beside the name field: allowed, and how they'll be told apart. */
 function sameNameNote(p, people, teamName) {
-	const twin = p.name.trim() ? people.find((x) => x.id !== p.id && norm$2(x.name) === norm$2(p.name)) : void 0;
+	const twin = p.name.trim() ? people.find((x) => x.id !== p.id && norm$3(x.name) === norm$3(p.name)) : void 0;
 	if (!twin) return null;
 	const where = twin.teamId ? teamName(twin.teamId) : twin.role;
 	return `${twin.name}${where ? ` (${where})` : ""} is already here. That’s fine: their email tells you apart, and Faro shows a team or job title beside the name.`;
 }
 /** Every other goal with this title (compared without case or outer spaces): New goal names them as links (OB1). */
 function sameTitleGoals(title, id, goals) {
-	return title.trim() ? goals.filter((g) => g.id !== id && norm$2(g.title) === norm$2(title)) : [];
+	return title.trim() ? goals.filter((g) => g.id !== id && norm$3(g.title) === norm$3(title)) : [];
 }
 /** The warning when a new goal's title is one another goal already has: allowed (two teams can both "Reduce latency"). */
 function sameTitleNote(title, id, goals, teamName) {
-	const twin = title.trim() ? goals.find((g) => g.id !== id && norm$2(g.title) === norm$2(title)) : void 0;
+	const twin = title.trim() ? goals.find((g) => g.id !== id && norm$3(g.title) === norm$3(title)) : void 0;
 	if (!twin) return null;
 	return `Another goal is called “${twin.title}” (${[twin.key, teamName(twin.teamId)].filter(Boolean).join(", ")}). That’s allowed; Faro shows each one’s key beside the title so people can tell them apart.`;
 }
@@ -4995,9 +4995,9 @@ function personChange(before, after, teamName, actorId, at, id) {
 		diffs
 	};
 }
-var norm$2, normalEmail, isEmail;
+var norm$3, normalEmail, isEmail;
 var init_people = __esmMin((() => {
-	norm$2 = (s) => s.trim().toLowerCase();
+	norm$3 = (s) => s.trim().toLowerCase();
 	normalEmail = (s) => (s ?? "").trim().toLowerCase();
 	isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) && s.length <= 254;
 }));
@@ -5073,7 +5073,7 @@ function goalChange(before, after, l, actorId, at, id) {
 		entity: "goal",
 		entityId: after.id,
 		action: before ? "edited" : "created",
-		summary: before ? `Changed ${list$2(diffs)}` : `Created the goal “${after.title}”`,
+		summary: before ? `Changed ${list$3(diffs)}` : `Created the goal “${after.title}”`,
 		diffs
 	};
 }
@@ -5094,7 +5094,7 @@ function checkInChange(before, after, g, actorId, id) {
 		diffs
 	};
 }
-var shapeName, RECOVERY_LABEL, list$2;
+var shapeName, RECOVERY_LABEL, list$3;
 var init_changes = __esmMin((() => {
 	init_baseline();
 	init_checkin();
@@ -5112,7 +5112,7 @@ var init_changes = __esmMin((() => {
 		help: "Needs a decision or help",
 		target: "Target should change"
 	};
-	list$2 = (d) => {
+	list$3 = (d) => {
 		const names = d.map((x) => x.field.toLowerCase());
 		return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
 	};
@@ -5206,9 +5206,9 @@ var init_reading = __esmMin((() => {
 // src/domain/columns.ts
 /** A word's code; null for an empty cell; undefined for a word it doesn't know. */
 function codeOf(w, raw) {
-	const v = norm$1(raw);
+	const v = norm$2(raw);
 	if (!v) return null;
-	for (const [code, word] of Object.entries(w.word)) if (norm$1(word) === v || (w.also[code] ?? []).includes(v) || code === v) return code;
+	for (const [code, word] of Object.entries(w.word)) if (norm$2(word) === v || (w.also[code] ?? []).includes(v) || code === v) return code;
 	for (const [code, list] of Object.entries(w.prefix ?? {})) if (list.some((p) => v.startsWith(p))) return code;
 }
 /** A check-in's stages as the owner gave them (done, expected or on its due week), so loading it back changes nothing. */
@@ -5286,7 +5286,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e$1, w$1, sh$1, moduleColumn, cellOr, blank, or$2, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
+var ROLE_WORD, norm$2, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e$1, w$1, sh$1, moduleColumn, cellOr, blank, or$2, metricOf$3, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -5304,7 +5304,7 @@ var init_columns = __esmMin((() => {
 		worked: "Worked out",
 		shown: "For reading"
 	};
-	norm$1 = (s) => s.trim().toLowerCase().replace(/[‐-―]/g, "-").replace(/\s+/g, " ");
+	norm$2 = (s) => s.trim().toLowerCase().replace(/[‐-―]/g, "-").replace(/\s+/g, " ");
 	unknownWord = (w, raw) => `${w.what} says “${raw.trim()}”. Use ${oneOf(Object.values(w.word))}.`;
 	wordsAndAlso = (w) => [...Object.values(w.word), ...Object.values(w.also).flat()];
 	oneOf = (list) => list.length < 2 ? list.join("") : `${list.slice(0, -1).join(", ")} or ${list.at(-1)}`;
@@ -5512,7 +5512,7 @@ var init_columns = __esmMin((() => {
 	cellOr = (v) => v == null || v === "" ? null : v;
 	blank = () => null;
 	or$2 = (v) => v == null || v === "" ? null : v;
-	metricOf$2 = (g) => g.kind === "metric" ? g : null;
+	metricOf$3 = (g) => g.kind === "metric" ? g : null;
 	rangeOf = (g) => g.kind === "range" ? g : null;
 	parentOf = (r) => r.c.goal(r.g.parentId);
 	quarter = (n) => (r) => {
@@ -5552,34 +5552,34 @@ var init_columns = __esmMin((() => {
 			e$1("State", "active or proposed.", (r) => r.g.stoppedAt ? "stopped" : r.g.proposedAt ? "proposed" : "active"),
 			e$1("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$2(r.g.unit)),
 			e$1("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
-			e$1("Start", "Number goals: where the plan starts.", (r) => metricOf$2(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("Baseline period", "Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.", (r) => metricOf$2(r.g)?.baseline?.period ?? null),
+			e$1("Start", "Number goals: where the plan starts.", (r) => metricOf$3(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e$1("Baseline period", "Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.", (r) => metricOf$3(r.g)?.baseline?.period ?? null),
 			e$1("Baseline is", `Number goals with a baseline period: ${oneOf(Object.values(FIRMNESS_WORDS.word))}. Firming up a provisional baseline isn’t a plan change.`, (r) => {
-				const b = metricOf$2(r.g)?.baseline;
+				const b = metricOf$3(r.g)?.baseline;
 				return b ? FIRMNESS_WORDS.word[b.provisional ? "provisional" : "firm"] : null;
 			}),
 			e$1("Target", "Number goals: where the plan ends, by its due week.", (r) => {
-				const m = metricOf$2(r.g);
+				const m = metricOf$3(r.g);
 				return m && !m.targetUnset ? m.plan.target : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e$1("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
-				const g = metricOf$2(r.g);
+				const g = metricOf$3(r.g);
 				return g ? SHAPE_WORDS.word[g.plan.shape] : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e$1("From", "Number goals: the week the plan starts from (2026-W46).", (r) => {
-				const g = metricOf$2(r.g);
+				const g = metricOf$3(r.g);
 				return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e$1("Plan from week", "Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).", (r) => {
-				const g = metricOf$2(r.g);
+				const g = metricOf$3(r.g);
 				return g ? g.plan.fromWeek ?? 0 : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e$1("To", "Number goals: the week the target is due (2027-W13).", (r) => {
-				const g = metricOf$2(r.g);
+				const g = metricOf$3(r.g);
 				return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e$1("Due week", "Number goals: the week the target is due, counted from the cycle’s start.", (r) => {
-				const g = metricOf$2(r.g);
+				const g = metricOf$3(r.g);
 				return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e$1("Limit", "Range goals: the number it must stay within, or both of two (99.5–99.95).", (r) => {
@@ -6313,16 +6313,16 @@ function parseQuery(p) {
 	const qtr = p.get("qtr");
 	return {
 		q: (p.get("q") ?? "").slice(0, 200),
-		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
+		status: list$2(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
 		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
 		team: (p.get("team") ?? "").split(",").filter(Boolean),
 		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
-		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
+		kind: list$2(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
 		...needsOf(p),
 		due: due === "quarter" ? "quarter" : int$4(due),
 		quiet: int$4(p.get("quiet")),
 		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
-		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
+		result: list$2(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
 		feeds: p.get("feeds") || null,
 		helps: p.get("helps") === "1",
 		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
@@ -6442,7 +6442,7 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$4, COLUMN_PARAMS, COLUMN_PREFIXES, familyParam, columnPasses, QUERY_KEYS, GAP_RANK;
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$2, int$4, COLUMN_PARAMS, COLUMN_PREFIXES, familyParam, columnPasses, QUERY_KEYS, GAP_RANK;
 var init_query = __esmMin((() => {
 	init_levels();
 	init_attention();
@@ -6509,7 +6509,7 @@ var init_query = __esmMin((() => {
 		["last", "Longest since a check-in"],
 		["due", "Due soonest"]
 	];
-	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
+	list$2 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
 	int$4 = (v) => {
 		const n = v == null ? NaN : Number(v);
 		return Number.isInteger(n) && n > 0 ? n : null;
@@ -7197,7 +7197,7 @@ function askForUpdate(x, goal) {
 		goalIds: [goal.id],
 		askedBy: x.actor.id,
 		recipientId: goal.ownerId,
-		ask: updateAskText(nameOf$1(x, goal.ownerId)?.split(" ")[0], latest?.week ?? null),
+		ask: updateAskText(nameOf$3(x, goal.ownerId)?.split(" ")[0], latest?.week ?? null),
 		summary: UPDATE_ASK
 	}, x.now, x.newId);
 	return {
@@ -7231,7 +7231,7 @@ function askQuestion(x, goal, text, opts = {}) {
 		ask: t,
 		reviewId: review?.id ?? null,
 		week: opts.week ?? null,
-		summary: review ? `Asked the owner a question in ${review.name}` : `Asked ${nameOf$1(x, goal.ownerId) ?? "the owner"} a question`
+		summary: review ? `Asked the owner a question in ${review.name}` : `Asked ${nameOf$3(x, goal.ownerId) ?? "the owner"} a question`
 	}, x.now, x.newId);
 	return {
 		requests: [ask],
@@ -7261,7 +7261,7 @@ function addAction(x, goal, text, opts = {}) {
 	change.diffs.splice(1, 0, {
 		field: "Who",
 		from: "—",
-		to: nameOf$1(x, who) ?? "—"
+		to: nameOf$3(x, who) ?? "—"
 	});
 	return {
 		requests: [ask],
@@ -7272,7 +7272,7 @@ function addAction(x, goal, text, opts = {}) {
 function answerRequest(x, r, answer) {
 	if (r.status !== "open") no$5("That ask isn’t open any more.");
 	if (r.kind === "action") no$5("An action is marked done, not answered.");
-	if (!canAnswer(r, x.actor)) no$5(`Only ${nameOf$1(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
+	if (!canAnswer(r, x.actor)) no$5(`Only ${nameOf$3(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
 	if (answer.trim().length < 2) no$5("Write the answer.");
 	const { request, changes } = answerAsk(r, answer, x.actor.id, x.now, x.newId);
 	return {
@@ -7284,7 +7284,7 @@ function answerRequest(x, r, answer) {
 function markActionDone(x, r, note = "") {
 	if (r.status !== "open") no$5("That action isn’t open any more.");
 	if (r.kind !== "action") no$5("Only an action is marked done; answer the others.");
-	if (!canMarkDone(r, x.actor)) no$5(`Only ${nameOf$1(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
+	if (!canMarkDone(r, x.actor)) no$5(`Only ${nameOf$3(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
 	const { request, changes } = markDone(r, note, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -8174,7 +8174,7 @@ function canDeleteWorkspace(actor, kind, name, confirmName) {
 	if (kind === "example") no$5("Examples can be reset, not deleted.");
 	if (confirmName.trim() !== name) no$5(`To confirm, give the workspace’s name exactly: “${name}”.`);
 }
-var NotAllowed, no$5, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$1, watchWhat, initialsOf$1, liveView;
+var NotAllowed, no$5, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$3, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -8204,7 +8204,7 @@ var init_actions = __esmMin((() => {
 	ownsOrAdmin$2 = (x, g) => mayChangeGoal(x.actor, g);
 	latestOf = (x, g) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 	askById = (x, id) => asksOf(x.snapshot).find((r) => r.id === id);
-	nameOf$1 = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
+	nameOf$3 = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
 	watchWhat = (x, w) => {
 		const title = (x.full ?? x.snapshot).goals.find((g) => g.id === w.ref)?.title ?? "a goal";
 		return w.kind === "level" ? `every ${w.ref.replace("-", " ")} goal` : w.kind === "tree" ? `${title} and what feeds it` : title;
@@ -8897,7 +8897,7 @@ function activated(goal, fromWeek) {
 function activate(x, i) {
 	const g = goalIn(x, i.goalId) ?? no$4("That goal no longer exists. Reload to see the latest.");
 	if (!isProposed(g)) no$4(`“${g.title}” is already active.`);
-	if (!mayActivate(x.actor, g)) no$4(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
+	if (!mayActivate(x.actor, g)) no$4(`${nameOf$2(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
 	const from = i.fromWeek ?? Math.max(0, x.week);
 	const to = g.kind === "metric" ? planEnd(g.plan, x.cycle.weeks) : 0;
 	if (g.kind === "metric" && (!Number.isInteger(from) || from < 0 || from >= to)) no$4(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
@@ -8946,7 +8946,7 @@ function backToProposed(x, i) {
 	const g = goalIn(x, i.goalId) ?? no$4("That goal no longer exists. Reload to see the latest.");
 	if (isProposed(g)) no$4(`“${g.title}” is already proposed.`);
 	if (g.stoppedAt) no$4(`“${g.title}” is stopped.`);
-	if (!mayChangeGoal(x.actor, g)) no$4(`Only ${nameOf(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
+	if (!mayChangeGoal(x.actor, g)) no$4(`Only ${nameOf$2(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
 	if (g.cycleId !== x.cycle.id) no$4(`“${g.title}” is in another year, so it can’t go back to proposed.`);
 	if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no$4(HAS_CHECK_INS);
 	const goal = {
@@ -8967,7 +8967,7 @@ function backToProposed(x, i) {
 		goal
 	};
 }
-var NOTHING_TO_CHECK_IN, mayActivate, no$4, goalIn, nameOf, change$1, HAS_CHECK_INS;
+var NOTHING_TO_CHECK_IN, mayActivate, no$4, goalIn, nameOf$2, change$1, HAS_CHECK_INS;
 var init_proposedActions = __esmMin((() => {
 	init_actions();
 	init_goalRights();
@@ -8981,7 +8981,7 @@ var init_proposedActions = __esmMin((() => {
 		throw new NotAllowed(msg);
 	};
 	goalIn = (x, ref) => withProposed(x.snapshot).find((g) => g.id === ref || g.key === ref) ?? (x.allGoals ?? []).find((g) => !g.removedAt && (g.id === ref || g.key === ref));
-	nameOf = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
+	nameOf$2 = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
 	change$1 = (x, g, summary, diffs) => ({
 		id: x.newId("chg"),
 		at: x.now,
@@ -9695,7 +9695,7 @@ function undoStart(x, cycleId) {
 /** Why a row changed since, from the latest change that touched it (spec 2.6's sentences). */
 function keptReason(rows, c, of) {
 	const who = rows.people.find((p) => p.id === c.actorId)?.name ?? "Someone";
-	const on = onDay$1(c.at);
+	const on = onDay$2(c.at);
 	if (c.entity === "check-in" && (c.action === "posted" || c.action === "created")) {
 		const week = rows.checkIns.find((v) => v.id === c.entityId)?.week;
 		return `${who} posted a check-in${week != null ? ` for week ${week}` : ""} on ${on}`;
@@ -10244,7 +10244,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$3, fullOf, plural$3, ownsOrAdmin$1, log$2, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$3, fullOf, plural$3, ownsOrAdmin$1, log$2, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$2, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -10304,7 +10304,7 @@ var init_removal = __esmMin((() => {
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
 	importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
 	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin) && !changesLeftOut(s, entry.at);
-	onDay$1 = (iso) => new Date(iso).toLocaleDateString("en-GB", {
+	onDay$2 = (iso) => new Date(iso).toLocaleDateString("en-GB", {
 		day: "numeric",
 		month: "short",
 		timeZone: "UTC"
@@ -14019,6 +14019,637 @@ var init_rulesStructure = __esmMin((() => {
 	live$3 = (s) => s.metrics.filter((m) => !m.removedAt);
 	childrenOf = (s, id) => live$3(s).filter((m) => m.parentId === id).sort((a, b) => a.name.localeCompare(b.name, "en"));
 }));
+// src/modules/metrics/rulesQuality.ts
+/** "Duration, p90", "Count, mean per day", "Ratio", "Other or composite": the calculation's two fields in a few words. */
+function calcWords(c) {
+	if (!c) return "No type yet";
+	const head = MEASURE_LABEL[c.measure];
+	if (c.measure === "ratio" || c.measure === "other" || !c.aggregate) return head;
+	return `${head}, ${c.aggregate === "percentile" ? `p${c.percentile ?? "?"}` : AGGREGATE_LABEL[c.aggregate]}${c.aggregate === "mean" && c.per ? ` per ${c.per}` : ""}`;
+}
+/** "Rolling 28 days", "Per month", "Point in time", "Cumulative since 1 Jan 2026", or "Not said". */
+function windowWords(w) {
+	if (!w) return "Not said";
+	if (w.kind === "point") return "Point in time";
+	if (w.kind === "rolling") return `Rolling ${w.days} ${w.days === 1 ? "day" : "days"}`;
+	if (w.kind === "period") return `Per ${w.period}`;
+	const d = /* @__PURE__ */ new Date(`${w.since}T00:00:00Z`);
+	return `Cumulative since ${isNaN(d.getTime()) ? w.since : d.toLocaleDateString("en-GB", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		timeZone: "UTC"
+	})}`;
+}
+/** "Refreshed weekly", with its note: "Refreshed weekly, Mondays"; "Refresh not said". */
+function refreshWords(m) {
+	if (!m.refresh) return "Refresh not said";
+	return `Refreshed ${m.refresh === "live" ? "live" : m.refresh}${m.refreshNote ? `, ${m.refreshNote}` : ""}`;
+}
+/** A calculation from a form or a tool's input (snake or camel case); null for "not said". Unknown values are kept so
+`qualityProblems` can say what is wrong with them. */
+function calcFrom(v) {
+	if (v == null || v === "") return null;
+	if (typeof v !== "object") return {
+		measure: String(v),
+		aggregate: null
+	};
+	const o = v;
+	const measure = t(o.measure ?? o.what);
+	let aggregate = t(o.aggregate ?? o.how) || null;
+	let percentile = o.percentile == null || o.percentile === "" ? void 0 : Number(o.percentile);
+	const p = aggregate ? /^p(\d{1,2})$/i.exec(aggregate) : null;
+	if (p) {
+		aggregate = "percentile";
+		percentile = Number(p[1]);
+	}
+	const c = {
+		measure,
+		aggregate
+	};
+	if (aggregate === "percentile" && percentile !== void 0) c.percentile = percentile;
+	if (t(o.per)) c.per = t(o.per);
+	const part = partFrom(o.part ?? (o.counts !== void 0 || o.filters !== void 0 || o.excludes !== void 0 ? o : void 0));
+	if (part && measure !== "ratio") {
+		const { name: _n, ...rest } = part;
+		c.part = rest;
+	}
+	const num = partFrom(o.numerator);
+	const den = partFrom(o.denominator);
+	if (num) c.numerator = num;
+	if (den) c.denominator = den;
+	if (t(o.formula)) c.formula = t(o.formula);
+	return c;
+}
+/** A window from a form or a tool's input: an object, or words ("rolling 28 days", "per month", "point in time",
+"cumulative since 2026-01-01"); null for "not said". Unknown kinds are kept for `qualityProblems` to name. */
+function windowFrom(v) {
+	if (v == null || v === "") return null;
+	if (typeof v === "string") {
+		const s = v.trim().toLowerCase();
+		let m;
+		if (m = /^rolling\s+(\d+)\s*(d|days?)?$/.exec(s)) return {
+			kind: "rolling",
+			days: Number(m[1])
+		};
+		if (m = /^(?:per|each|every)\s+(week|month|quarter)$/.exec(s)) return {
+			kind: "period",
+			period: m[1]
+		};
+		if (/^point( in time)?$/.test(s)) return { kind: "point" };
+		if (m = /^cumulative(?: since)?\s+(\d{4}-\d{2}-\d{2})$/.exec(s)) return {
+			kind: "cumulative",
+			since: m[1]
+		};
+		return { kind: s };
+	}
+	if (typeof v !== "object") return null;
+	const o = v;
+	const kind = t(o.kind);
+	if (kind === "rolling") return {
+		kind,
+		days: Number(o.days)
+	};
+	if (kind === "period") return {
+		kind,
+		period: t(o.period)
+	};
+	if (kind === "cumulative") return {
+		kind,
+		since: t(o.since)
+	};
+	return { kind };
+}
+/** What is wrong with the quality fields as typed, in words; empty when they can be saved. None of them is required:
+an incomplete definition saves as Draft. */
+function qualityProblems(m, people) {
+	const out = [];
+	const c = m.calculation;
+	if (c) {
+		if (!MEASURES.includes(c.measure)) out.push(`What is measured is one of ${MEASURES.join(", ")}.`);
+		if (c.aggregate != null && !AGGREGATES.includes(c.aggregate)) out.push(`How it is aggregated is one of total, mean, median, pXX (a percentile, e.g. p90) or latest.`);
+		if (c.aggregate === "percentile" && !(Number.isInteger(c.percentile) && c.percentile >= 1 && c.percentile <= 99)) out.push("Say which percentile, from p1 to p99.");
+		for (const p of [
+			c.part,
+			c.numerator,
+			c.denominator
+		]) if (p && [
+			p.counts,
+			p.filters,
+			p.excludes,
+			p.name ?? ""
+		].some((x) => x.length > QUALITY_LIMITS.part)) out.push(`Keep each part’s counts, filters and exclusions to ${QUALITY_LIMITS.part} characters or fewer.`);
+		if ((c.formula ?? "").length > QUALITY_LIMITS.formula) out.push(`Keep the formula to ${QUALITY_LIMITS.formula.toLocaleString("en-GB")} characters or fewer.`);
+	}
+	const w = m.timeWindow;
+	if (w) {
+		if (!WINDOW_KINDS.includes(w.kind)) out.push("The window is a point in time, rolling N days, per period (week, month, quarter) or cumulative since a date.");
+		else if (w.kind === "rolling" && !(Number.isInteger(w.days) && w.days >= 1 && w.days <= 730)) out.push("A rolling window is 1 to 730 days.");
+		else if (w.kind === "period" && !PERIODS.includes(w.period)) out.push("A window per period is per week, per month or per quarter.");
+		else if (w.kind === "cumulative" && !/^\d{4}-\d{2}-\d{2}$/.test(w.since)) out.push("A cumulative window says the day it counts from (yyyy-mm-dd).");
+	}
+	if (m.sourceLink && (!/^https?:\/\/\S+$/i.test(m.sourceLink) || m.sourceLink.length > QUALITY_LIMITS.link)) out.push(`The source link is a web address starting with https:// (up to ${QUALITY_LIMITS.link} characters).`);
+	if ((m.sourceQuery ?? "").length > QUALITY_LIMITS.query) out.push(`Keep the query to ${QUALITY_LIMITS.query.toLocaleString("en-GB")} characters or fewer.`);
+	if ((m.refreshNote ?? "").length > QUALITY_LIMITS.refreshNote) out.push(`Keep when it refreshes to ${QUALITY_LIMITS.refreshNote} characters or fewer.`);
+	if ((m.verifiers ?? []).length > QUALITY_LIMITS.verifiers) out.push(`Name at most ${QUALITY_LIMITS.verifiers} verifiers.`);
+	if ((m.verifiers ?? []).some((v) => !people.some((p) => p.id === v))) out.push("Each verifier is someone in this workspace.");
+	return out;
+}
+/** Whether each of the ten parts is said. Exclusions may be "None", but must be said. */
+function partSaid(m, part, ownerIsHere) {
+	const c = m.calculation;
+	switch (part) {
+		case "meaning": return said$1(m.meaning);
+		case "calculation":
+			if (!c || !MEASURES.includes(c.measure)) return false;
+			if (c.measure === "ratio") return partHas(c.numerator, "counts") && partHas(c.denominator, "counts");
+			if (c.measure === "other") return said$1(c.formula);
+			return !!c.aggregate && (c.aggregate !== "percentile" || !!c.percentile) && partHas(c.part, "counts");
+		case "scope":
+			if (!c) return false;
+			return c.measure === "ratio" ? partHas(c.numerator, "scope") && partHas(c.denominator, "scope") : partHas(c.part, "scope");
+		case "unit": return said$1(m.unit);
+		case "direction": return m.direction === "higher" || m.direction === "lower";
+		case "window": return !!m.timeWindow && WINDOW_KINDS.includes(m.timeWindow.kind);
+		case "source": return said$1(m.source) && said$1(m.sourceLink);
+		case "sourceOwner": return said$1(m.sourceOwner);
+		case "refresh": return m.refresh != null;
+		case "owner": return ownerIsHere;
+	}
+}
+/** What a metric still needs to reach Defined, in order (empty: it is Defined). The source part says "a source" when no
+system is named either. */
+function definedMissing(m, ownerIsHere) {
+	return DEFINED_PARTS.filter((d) => !partSaid(m, d.part, ownerIsHere)).map((d) => d.part === "source" && !said$1(m.source) ? {
+		...d,
+		words: "its source, with a link to the report or query"
+	} : d);
+}
+/** "needs a source link", "needs a window and exclusions": a Draft's line under its name in the library. */
+function missingLine(missing) {
+	if (!missing.length) return "";
+	const short = {
+		meaning: "a meaning",
+		calculation: "a type and its parts",
+		scope: "filters and exclusions",
+		unit: "a unit",
+		direction: "a direction",
+		window: "a window",
+		source: "a source link",
+		sourceOwner: "a source owner",
+		refresh: "a refresh",
+		owner: "an owner"
+	};
+	const w = missing.map((x) => short[x.part]);
+	return `needs ${w.length === 1 ? w[0] : `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}`}`;
+}
+/** The stage of a metric (MQ2), worked out, never stored. `now` is an ISO time; names says who someone is. */
+function stageOf(m, o) {
+	const nameOf = o.nameOf ?? ((id) => id);
+	const missing = definedMissing(m, o.ownerIsHere);
+	if (missing.length) return {
+		stage: "draft",
+		missing,
+		dueBy: null,
+		lapsed: null,
+		toVerify: false,
+		why: `Still needs ${missing.map((x) => x.words).join(", ")}.`
+	};
+	const v = m.verification && m.verification.outcome === "verified" ? m.verification : null;
+	const gap = m.measurement === "gap";
+	if (v && !gap) {
+		const dueBy = addMonths(v.at, 12);
+		if (o.now < dueBy) return {
+			stage: "verified",
+			missing: [],
+			dueBy,
+			lapsed: null,
+			toVerify: days(o.now, dueBy) <= 30,
+			why: `Verified by ${nameOf(v.by)}, ${onDay$1(v.at)}. Due again by ${onDay$1(dueBy)}.`
+		};
+		return {
+			stage: "defined",
+			missing: [],
+			dueBy,
+			lapsed: {
+				kind: "age",
+				at: dueBy,
+				what: [],
+				why: "",
+				by: null
+			},
+			toVerify: true,
+			why: `Its verification ran out on ${onDay$1(dueBy)}, 12 months after ${nameOf(v.by)} verified it.`
+		};
+	}
+	const l = m.lapse ?? null;
+	const lapsed = l ? {
+		kind: l.kind,
+		at: l.at,
+		what: l.what,
+		why: l.why,
+		by: l.by
+	} : null;
+	const why = gap ? "Defined. Not measured yet, so it can’t be verified." : l ? `No longer Verified: ${l.what.join(", ")} changed on ${onDay$1(l.at)}${l.by ? ` (${nameOf(l.by)})` : ""}.` : "Defined. Not verified yet.";
+	return {
+		stage: "defined",
+		missing: [],
+		dueBy: null,
+		lapsed,
+		toVerify: !gap,
+		why
+	};
+}
+/**
+* What a save changes that matters to Verified (MQ2): `lapses` are the calculation parts (what is measured, how it is
+* aggregated, what each part counts, the formula), the window, the source or its link, and the direction; `confirm` are
+* reworded filters and exclusions, which ask the last verifier to confirm instead. Baselines, the meaning's wording,
+* the owner and caveats change neither. `calcChanged` is true when any of these change (whoever changes them may not
+* verify it).
+*/
+function qualityChanges(before, after) {
+	const a = before.calculation ?? null;
+	const b = after.calculation ?? null;
+	const lapses = [];
+	const confirm = [];
+	const calcHead = (c) => JSON.stringify(c ? [
+		c.measure,
+		c.aggregate,
+		c.percentile ?? null,
+		norm$1(c.per),
+		norm$1(c.formula)
+	] : null);
+	const counts = (c) => JSON.stringify(c ? [
+		norm$1(c.part?.counts),
+		norm$1(c.numerator?.counts),
+		norm$1(c.denominator?.counts)
+	] : null);
+	if (calcHead(a) !== calcHead(b) || counts(a) !== counts(b)) lapses.push("the calculation");
+	if (!sameWindow(before.timeWindow, after.timeWindow)) lapses.push("the window");
+	const sourceChanged = norm$1(before.source) !== norm$1(after.source) || norm$1(before.sourceLink) !== norm$1(after.sourceLink);
+	if (sourceChanged) lapses.push("the source");
+	if (before.direction !== after.direction) lapses.push("the direction");
+	for (const k of ["filters", "excludes"]) if ([
+		[a?.part, b?.part],
+		[a?.numerator, b?.numerator],
+		[a?.denominator, b?.denominator]
+	].some(([x, y]) => !sameParts(x, y, k))) confirm.push(k === "filters" ? "the filters" : "the exclusions");
+	return {
+		lapses,
+		confirm,
+		calcChanged: lapses.length > 0 || confirm.length > 0,
+		sourceChanged
+	};
+}
+/**
+* Who may verify (MQ2): anyone but the metric's owner and whoever last changed its calculation, window or source; and
+* then an admin, someone in the source's owner, or a verifier an admin named. Null when they may; otherwise why not, in
+* words that say who can instead. A Draft can't be verified (it isn't fully defined), nor a Gap (nothing to reproduce).
+*/
+function whyCantVerify(m, actor, o) {
+	const instead = `Ask an admin${o.sourceOwnerName ? `, someone in ${o.sourceOwnerName} (the source owner)` : ""} or a named verifier.`;
+	if (m.ownerId === actor.id) return `You own this metric, so someone else must verify it. ${instead}`;
+	if (m.calcChangedBy === actor.id) return `You last changed its calculation, window or source, so someone else must verify it. ${instead}`;
+	if (o.stage === "draft") return "It isn’t fully defined yet, so there is nothing agreed to verify. Its owner finishes the definition first.";
+	if (m.measurement === "gap") return "It isn’t measured yet, so there is no figure to reproduce.";
+	if (actor.admin || inSourceOwner(m, actor, o.teams) || (m.verifiers ?? []).includes(actor.id)) return null;
+	return `Only an admin, someone in the source’s owner or a verifier an admin named can verify it. ${instead}`;
+}
+/** The figure Faro has for a period: the slice's live baseline for that period (company, all of it), else the latest
+reading, else nothing. */
+function storedFigure(m, period, reading) {
+	const b = liveBaselines(m).find((x) => x.teamId == null && !x.part && norm$1(x.period).toLowerCase() === norm$1(period).toLowerCase());
+	if (b) return {
+		value: b.value,
+		from: "baseline"
+	};
+	if (reading != null && Number.isFinite(reading)) return {
+		value: reading,
+		from: "reading"
+	};
+	return {
+		value: null,
+		from: null
+	};
+}
+/** "Your 21 min against 22 min stored (1 min lower)", "the same as stored", or "No stored figure to compare with". */
+function differenceWords(figure, stored, unit, decimals) {
+	const n = (v) => `${v.toLocaleString("en-GB", { maximumFractionDigits: Math.max(decimals, 2) })}${unit === "%" ? "%" : ` ${unit}`}`;
+	if (stored == null) return `${n(figure)}. No stored figure to compare with.`;
+	const d = Math.round((figure - stored) * 1e6) / 1e6;
+	if (d === 0) return `Your ${n(figure)}, the same as stored.`;
+	return `Your ${n(figure)} against ${n(stored)} stored (${n(Math.abs(d))} ${d < 0 ? "lower" : "higher"}).`;
+}
+/** What is wrong with a baseline as typed; empty when it can be saved. All four are required: the value, the period it
+covers, the day taken and how. A figure changed from the one read, or a new figure for the same period, needs a reason. */
+function baselineProblems(b, m) {
+	const out = [];
+	if (!Number.isFinite(b.value)) out.push("Give the baseline’s value as a number.");
+	if (!norm$1(b.period)) out.push("Say the period it covers (“Jul–Sep 2026”).");
+	else if (b.period.length > QUALITY_LIMITS.period) out.push(`Keep the period to ${QUALITY_LIMITS.period} characters or fewer.`);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(b.takenOn ?? "")) out.push("Say the day it was taken (yyyy-mm-dd).");
+	if (!norm$1(b.how)) out.push("Say how it was taken: the query, report or filter.");
+	else if (b.how.length > QUALITY_LIMITS.how) out.push(`Keep how it was taken to ${QUALITY_LIMITS.how} characters or fewer.`);
+	const was = baselineFor(m, b);
+	const changedRead = b.read != null && Number.isFinite(b.value) && b.read !== b.value;
+	const samePeriodNewFigure = !!was && norm$1(was.period).toLowerCase() === norm$1(b.period).toLowerCase() && was.value !== b.value && !was.oldSource;
+	if ((changedRead || samePeriodNewFigure) && !norm$1(b.reason)) out.push(changedRead ? `Say why you changed the figure read (${b.read}).` : `Say why the figure for ${was.period} changes from ${was.value}.`);
+	if ((b.reason ?? "").length > QUALITY_LIMITS.reason) out.push(`Keep the reason to ${QUALITY_LIMITS.reason} characters or fewer.`);
+	return out;
+}
+/** The baselines once these are saved: each slice's old one moves to History, "replaced by {period}" (or the reason).
+Adding or renewing a baseline never changes the stage. */
+function withBaselines(m, input, x) {
+	let out = [...m.baselines ?? []];
+	for (const b of input) {
+		const reason = norm$1(b.reason);
+		out = out.map((o) => !o.replacedAt && sameSlice$1(o, b) ? {
+			...o,
+			replacedAt: x.now,
+			replacedBy: x.actor,
+			replacedWhy: reason || `Replaced by ${norm$1(b.period)}`
+		} : o);
+		const how = b.read != null && b.read !== b.value && reason ? `${norm$1(b.how)}; ${reason}` : norm$1(b.how);
+		out.push({
+			id: x.newId("base"),
+			teamId: b.teamId ?? null,
+			...norm$1(b.part) ? { part: norm$1(b.part) } : {},
+			value: b.value,
+			period: norm$1(b.period),
+			takenOn: b.takenOn,
+			how,
+			by: x.actor,
+			at: x.now
+		});
+	}
+	while (out.length > QUALITY_LIMITS.baselines) {
+		const i = out.findIndex((o) => !!o.replacedAt);
+		if (i < 0) break;
+		out.splice(i, 1);
+	}
+	return out;
+}
+/** The quarter before the one `now` is in: its words ("Jul–Sep 2026") and its last day, for "Take this quarter's
+baselines". */
+function lastQuarter(now) {
+	const d = new Date(now);
+	const q = Math.floor(d.getUTCMonth() / 3);
+	const y = q === 0 ? d.getUTCFullYear() - 1 : d.getUTCFullYear();
+	const pq = (q + 3) % 4;
+	const mon = (i) => new Date(Date.UTC(2e3, i, 1)).toLocaleDateString("en-GB", {
+		month: "short",
+		timeZone: "UTC"
+	});
+	const end = new Date(Date.UTC(y, pq * 3 + 3, 0, 23, 59, 59)).toISOString();
+	return {
+		words: `${mon(pq * 3)}–${mon(pq * 3 + 2)} ${y}`,
+		end,
+		next: `${mon(q * 3)}–${mon(q * 3 + 2)} ${d.getUTCFullYear()}`
+	};
+}
+/**
+* Every loose end on a metric (MQ2 sketch 11), each with the one thing to do and who should do it: a Draft's missing
+* part, a Gap, baselines from an old source, an unanswered "Couldn't reproduce", a new owner to confirm, a rewording the
+* last verifier should confirm. Lapsed metrics are on "To verify", not here.
+*/
+function sortOutOf(m, o) {
+	const out = [];
+	if (m.handover) out.push({
+		kind: "newOwner",
+		words: `New owner, please confirm: ${o.nameOf(m.handover.from)} left on ${onDay$1(m.handover.at)}; passed to ${o.nameOf(m.ownerId)}`,
+		who: m.ownerId
+	});
+	const old = liveBaselines(m).filter((b) => b.oldSource).length;
+	if (old) out.push({
+		kind: "oldSource",
+		words: `Retake ${old} ${old === 1 ? "baseline" : "baselines"} from the new source`,
+		who: m.ownerId
+	});
+	const open = (m.verifyAttempts ?? []).filter((a) => !a.answered).slice(-1)[0];
+	if (open) out.push({
+		kind: "couldntReproduce",
+		words: `Couldn’t reproduce: answer ${o.nameOf(open.by)}’s note`,
+		who: m.ownerId
+	});
+	if (m.toConfirm) out.push({
+		kind: "confirmReword",
+		words: `Confirm the reworded ${m.toConfirm.what.join(" and ")}`,
+		who: m.toConfirm.verifier
+	});
+	if (m.measurement === "gap") out.push({
+		kind: "gap",
+		words: `Not measured yet${o.stage.missing.length ? `; ${missingLine(o.stage.missing).replace(/^needs /, "set ")}` : ""}`,
+		who: m.ownerId
+	});
+	else if (o.stage.stage === "draft") out.push({
+		kind: "draft",
+		words: `Add ${o.stage.missing.map((x) => x.words).join(", ")}`,
+		who: m.ownerId
+	});
+	return out;
+}
+/**
+* Metrics like one being added (MQ2 sketch 12): matched on name, source and meaning, best first. A metric is similar
+* when the names share most of their words, or the source is the same and the meanings share most of theirs. The same
+* check runs on the form, the import and save_metric.
+*/
+function similarMetrics(m, all) {
+	const n = words(m.name);
+	const mean = words(m.meaning);
+	return all.filter((x) => x.id !== m.id && !x.removedAt && !x.retiredAt).map((x) => {
+		const byName = overlap(n, words(x.name));
+		const sameSource = !!norm$1(m.source) && norm$1(m.source).toLowerCase() === norm$1(x.source).toLowerCase();
+		const byMeaning = overlap(mean, words(x.meaning));
+		return {
+			x,
+			score: byName >= .6 ? 2 + byName : sameSource && byMeaning >= .5 ? 1 + byMeaning : 0
+		};
+	}).filter((s) => s.score > 0).sort((a, b) => b.score - a.score || a.x.name.localeCompare(b.x.name)).map((s) => s.x);
+}
+var STAGES, STAGE_LABEL, MEASURES, MEASURE_LABEL, AGGREGATES, AGGREGATE_LABEL, WINDOW_KINDS, PERIODS, QUALITY_LIMITS, t, said$1, partFrom, DEFINED_PARTS, partHas, addMonths, days, onDay$1, norm$1, sameParts, sameWindow, inSourceOwner, sameSlice$1, liveBaselines, baselineFor, flagOldSource, words, STOP, overlap;
+var init_rulesQuality = __esmMin((() => {
+	STAGES = [
+		"draft",
+		"defined",
+		"verified"
+	];
+	STAGE_LABEL = {
+		draft: "Draft",
+		defined: "Defined",
+		verified: "Verified"
+	};
+	MEASURES = [
+		"count",
+		"sum",
+		"value",
+		"duration",
+		"ratio",
+		"other"
+	];
+	MEASURE_LABEL = {
+		count: "Count",
+		sum: "Sum",
+		value: "Value",
+		duration: "Duration",
+		ratio: "Ratio",
+		other: "Other or composite"
+	};
+	AGGREGATES = [
+		"total",
+		"mean",
+		"median",
+		"percentile",
+		"latest"
+	];
+	AGGREGATE_LABEL = {
+		total: "total",
+		mean: "mean",
+		median: "median",
+		percentile: "percentile",
+		latest: "latest"
+	};
+	WINDOW_KINDS = [
+		"point",
+		"rolling",
+		"period",
+		"cumulative"
+	];
+	PERIODS = [
+		"week",
+		"month",
+		"quarter"
+	];
+	QUALITY_LIMITS = {
+		part: 500,
+		formula: 1e3,
+		link: 500,
+		query: 4e3,
+		refreshNote: 60,
+		period: 60,
+		how: 300,
+		note: 1e3,
+		reason: 300,
+		attempts: 20,
+		verifiers: 20,
+		baselines: 400
+	};
+	t = (v) => typeof v === "string" ? v.trim() : "";
+	said$1 = (v) => !!(v ?? "").trim();
+	partFrom = (v) => {
+		if (!v || typeof v !== "object") return void 0;
+		const o = v;
+		const p = {
+			counts: t(o.counts),
+			filters: t(o.filters),
+			excludes: t(o.excludes ?? o.leaves_out ?? o.leavesOut)
+		};
+		if (t(o.name)) p.name = t(o.name);
+		return p.counts || p.filters || p.excludes || p.name ? p : void 0;
+	};
+	DEFINED_PARTS = [
+		{
+			part: "meaning",
+			words: "what it means, in plain words",
+			why: "so everyone reads the number the same way"
+		},
+		{
+			part: "calculation",
+			words: "what is measured, how it is aggregated and its parts",
+			why: "so two people get the same figure from the same data"
+		},
+		{
+			part: "scope",
+			words: "its filters and what it leaves out",
+			why: "so nobody counts what it doesn’t"
+		},
+		{
+			part: "unit",
+			words: "its unit",
+			why: "so a goal can’t be set in a different scale"
+		},
+		{
+			part: "direction",
+			words: "which way is better",
+			why: "so a goal aims the right way"
+		},
+		{
+			part: "window",
+			words: "its window",
+			why: "so a figure is read over the same span each time"
+		},
+		{
+			part: "source",
+			words: "a link to the report or query",
+			why: "without it the number can’t be checked"
+		},
+		{
+			part: "sourceOwner",
+			words: "who owns the source",
+			why: "so someone answers when it breaks"
+		},
+		{
+			part: "refresh",
+			words: "how often it refreshes",
+			why: "so a goal’s check-ins follow it"
+		},
+		{
+			part: "owner",
+			words: "a metric owner who is here",
+			why: "so someone answers for the definition"
+		}
+	];
+	partHas = (p, k) => !!p && (k === "counts" ? said$1(p.counts) : said$1(p.filters) && said$1(p.excludes));
+	addMonths = (iso, n) => {
+		const d = new Date(iso);
+		d.setUTCMonth(d.getUTCMonth() + n);
+		return d.toISOString();
+	};
+	days = (a, b) => (new Date(b).getTime() - new Date(a).getTime()) / 864e5;
+	onDay$1 = (iso) => new Date(iso).toLocaleDateString("en-GB", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		timeZone: "UTC"
+	});
+	norm$1 = (v) => (v ?? "").trim().replace(/\s+/g, " ");
+	sameParts = (a, b, k) => norm$1(a?.[k]) === norm$1(b?.[k]);
+	sameWindow = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+	inSourceOwner = (m, p, teams) => !!m.sourceOwnerId && (m.sourceOwnerId === p.id || p.teamId === m.sourceOwnerId || teams.some((t) => t.id === m.sourceOwnerId && t.leadId === p.id));
+	sameSlice$1 = (a, b) => (a.teamId ?? null) === (b.teamId ?? null) && norm$1(a.part).toLowerCase() === norm$1(b.part).toLowerCase();
+	liveBaselines = (m) => (m.baselines ?? []).filter((b) => !b.replacedAt);
+	baselineFor = (m, slice) => liveBaselines(m).find((b) => sameSlice$1(b, slice)) ?? null;
+	flagOldSource = (bs) => bs.map((b) => b.replacedAt ? b : {
+		...b,
+		oldSource: true
+	});
+	words = (s) => new Set(norm$1(s).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+	STOP = /* @__PURE__ */ new Set([
+		"the",
+		"and",
+		"for",
+		"per",
+		"with",
+		"from",
+		"over",
+		"last",
+		"that",
+		"which",
+		"are",
+		"not",
+		"its",
+		"all",
+		"each",
+		"every",
+		"days",
+		"day"
+	]);
+	overlap = (a, b) => {
+		if (!a.size || !b.size) return 0;
+		let n = 0;
+		for (const w of a) if (b.has(w)) n++;
+		return n / Math.min(a.size, b.size);
+	};
+}));
 // src/modules/metrics/rules.ts
 /** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
 cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
@@ -14068,7 +14699,7 @@ function measureOf(s, goal) {
 	return {
 		link,
 		metric,
-		slice: sliceName(s, link.teamId),
+		slice: sliceName$1(s, link.teamId),
 		part: (link.part ?? "").trim(),
 		target,
 		targetText,
@@ -14110,8 +14741,83 @@ function metricFrom(input, before, x) {
 			retiredWhy: before.retiredWhy ?? "",
 			replacedBy: before.replacedBy ?? null
 		} : {},
-		...before?.marks ? { marks: before.marks } : {}
+		...before?.marks ? { marks: before.marks } : {},
+		...qualityFrom(input, before, x)
 	};
+}
+/** MQ2's fields as they would be saved: those typed, the rest as they were. */
+function qualityFrom(input, before, x) {
+	const pick = (k) => k in input && input[k] !== void 0 ? input[k] : before?.[k];
+	const q = {};
+	const calc = pick("calculation");
+	if (calc) q.calculation = calc;
+	const w = pick("timeWindow");
+	if (w) q.timeWindow = w;
+	for (const k of [
+		"sourceLink",
+		"sourceQuery",
+		"refreshNote"
+	]) {
+		const v = clean$1(pick(k));
+		if (v) q[k] = v;
+	}
+	const so = pick("sourceOwnerId");
+	if (so) q.sourceOwnerId = so;
+	const vs = pick("verifiers");
+	if (vs?.length) q.verifiers = [...new Set(vs)];
+	if (before) {
+		for (const k of [
+			"calcChangedBy",
+			"calcChangedAt",
+			"baselines",
+			"verification",
+			"verifyAttempts",
+			"lapse",
+			"handover",
+			"toConfirm"
+		]) if (before[k] != null) q[k] = before[k];
+	}
+	const after = {
+		...before ?? {},
+		...q,
+		direction: input.direction ?? before?.direction,
+		source: clean$1(input.source !== void 0 ? input.source : before?.source ?? "")
+	};
+	if (!before) {
+		if (q.calculation || q.timeWindow || q.sourceLink) {
+			q.calcChangedBy = x.actor.id;
+			q.calcChangedAt = x.now;
+		}
+		return q;
+	}
+	const ch = qualityChanges(before, after);
+	if (ch.calcChanged) {
+		q.calcChangedBy = x.actor.id;
+		q.calcChangedAt = x.now;
+	}
+	const v = before.verification;
+	if (v && ch.lapses.length && standsVerified(before, x.now)) {
+		delete q.verification;
+		delete q.toConfirm;
+		q.lapse = {
+			at: x.now,
+			by: x.actor.id,
+			kind: "change",
+			what: ch.lapses,
+			why: (input.reason ?? "").trim(),
+			was: {
+				by: v.by,
+				at: v.at
+			}
+		};
+	} else if (v && ch.confirm.length && standsVerified(before, x.now)) q.toConfirm = {
+		verifier: v.by,
+		by: x.actor.id,
+		at: x.now,
+		what: ch.confirm
+	};
+	if (ch.sourceChanged && q.baselines?.length) q.baselines = flagOldSource(q.baselines);
+	return q;
 }
 /**
 * What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
@@ -14142,6 +14848,7 @@ function metricProblems(m, s) {
 	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
 	out.push(...measurementProblems(m));
 	out.push(...structureProblems(m, { metrics: metricsOf(s) }));
+	out.push(...qualityProblems(m, s.people));
 	for (const [k, label] of [
 		["meaning", "meaning"],
 		["source", "source"],
@@ -14168,7 +14875,14 @@ function metricFields(m, s) {
 		"Part of": parent,
 		"How it relates": m.level ? LEVEL_WORDS[m.level].label : "—",
 		Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : "—",
-		"How it could be gamed": m.gaming || "—"
+		"How it could be gamed": m.gaming || "—",
+		Calculation: m.calculation ? calcText(m.calculation) : "—",
+		Window: m.timeWindow ? windowWords(m.timeWindow) : "—",
+		"Source link": m.sourceLink || "—",
+		Query: m.sourceQuery || "—",
+		"Source owner in Faro": m.sourceOwnerId ? s.people.find((p) => p.id === m.sourceOwnerId)?.name ?? s.teams?.find((t) => t.id === m.sourceOwnerId)?.name ?? "—" : "—",
+		"When it refreshes": m.refreshNote || "—",
+		Verifiers: (m.verifiers ?? []).map((v) => s.people.find((p) => p.id === v)?.name ?? "—").join(", ") || "—"
 	};
 }
 /**
@@ -14319,7 +15033,7 @@ function unlinkGoalMetric(x, goal) {
 		}), ...hold ? [hold.change] : []]
 	};
 }
-var MODULE$1, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log$1, live$2, ownsOrAdmin, canEditMetric, canLinkGoal;
+var calcText, MODULE$1, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName$1, measured, clean$1, standsVerified, log$1, live$2, ownsOrAdmin, canEditMetric, canLinkGoal;
 var init_rules$1 = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -14328,6 +15042,17 @@ var init_rules$1 = __esmMin((() => {
 	init_records();
 	init_rulesMeasured();
 	init_rulesStructure();
+	init_rulesQuality();
+	calcText = (c) => {
+		const part = (label, p) => p ? `${label}: counts ${p.counts || "—"}; filters ${p.filters || "—"}; leaves out ${p.excludes || "—"}` : "";
+		return [
+			calcWords(c),
+			part("Counts", c.part),
+			part("Numerator", c.numerator),
+			part("Denominator", c.denominator),
+			c.formula ? `Formula: ${c.formula}` : ""
+		].filter(Boolean).join(". ");
+	};
 	MODULE$1 = "metrics";
 	METRICS_KEY = "metrics";
 	LINKS_KEY = "metricLinks";
@@ -14372,14 +15097,15 @@ var init_rules$1 = __esmMin((() => {
 		decimals: 4
 	};
 	liveMetrics = (s, o = {}) => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
-	markLabel = (m) => `${m.kind === "direction" ? "Direction" : "Definition"} changed, week ${m.week}`;
+	markLabel = (m) => `${m.kind === "direction" ? "Direction" : m.kind === "source" ? "Source" : "Definition"} changed, week ${m.week}`;
 	everUsed = (metricId, links) => links.some((l) => l.metricId === metricId);
-	sliceName = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
+	sliceName$1 = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
 	measured = (k, note) => k && k !== "measured" ? {
 		measurement: k,
 		measurementNote: (note ?? "").trim()
 	} : {};
 	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
+	standsVerified = (m, now) => !!m.verification && m.verification.outcome === "verified" && m.measurement !== "gap" && now < new Date(new Date(m.verification.at).setUTCMonth(new Date(m.verification.at).getUTCMonth() + 12)).toISOString();
 	log$1 = (x, v) => ({
 		id: x.newId("chg"),
 		at: x.now,
@@ -14736,6 +15462,30 @@ function metricChecks(next, before, r) {
 			});
 		}
 	}
+	if (!before && !out.length) {
+		const like = similarMetrics({
+			id: next.id,
+			name: next.name,
+			source: next.source ?? "",
+			meaning: next.meaning
+		}, r.metrics)[0];
+		if (like) {
+			const owner = r.people.find((p) => p.id === like.ownerId && !p.leftAt)?.name;
+			const n = r.goalsOf(like.id);
+			out.push({
+				field: "similar",
+				level: "check",
+				words: `There’s a similar metric in the library: “${like.name}”${like.meaning ? ` (${like.meaning.trim().replace(/\s+/g, " ").slice(0, 160)})` : ""}${like.source ? `, from ${like.source}` : ""}${owner ? `, owned by ${owner}` : ""}, measuring ${n} ${n === 1 ? "goal" : "goals"}.`,
+				answers: [{
+					choice: `use:${like.id}`,
+					label: "Use this one"
+				}, {
+					choice: "carry-on",
+					label: "It’s different, carry on"
+				}]
+			});
+		}
+	}
 	if (!before || before.unit.trim() !== next.unit.trim()) {
 		const u = unitChecks(next.unit, [...new Set(others.map((m) => m.unit))]);
 		if (u) out.push({
@@ -14770,21 +15520,22 @@ function metricChecks(next, before, r) {
 */
 function answersFrom(raw) {
 	if (raw == null) return {};
-	if (typeof raw !== "object" || Array.isArray(raw)) throw new NotAllowed("Answers are words for name, unit or meaning, from the questions you were asked.");
+	if (typeof raw !== "object" || Array.isArray(raw)) throw new NotAllowed("Answers are words for name, unit, meaning, similar or lapse, from the questions you were asked.");
 	const out = {};
 	for (const [k, v] of Object.entries(raw)) {
-		if (k !== "name" && k !== "unit" && k !== "meaning") throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit or meaning.`);
+		if (!CHECK_FIELDS.includes(k)) throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit, meaning, similar or lapse.`);
 		if (typeof v !== "string") throw new NotAllowed(`The answer for ${k} is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.`);
 		out[k] = v;
 	}
 	return out;
 }
-var bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
+var bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, CHECK_FIELDS, OUT_OF_WHAT, unansweredChecks;
 var init_rulesDefine = __esmMin((() => {
 	init_actions();
 	init_fold();
 	init_edits();
 	init_names();
+	init_rulesQuality();
 	init_rulesStill();
 	bare$1 = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
 	UNIT_SPELLINGS = {
@@ -14818,6 +15569,13 @@ var init_rulesDefine = __esmMin((() => {
 		"percentage of",
 		"proportion of",
 		"fraction of"
+	];
+	CHECK_FIELDS = [
+		"name",
+		"unit",
+		"meaning",
+		"similar",
+		"lapse"
 	];
 	OUT_OF_WHAT = "This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.";
 	unansweredChecks = (checks, answers) => checks.filter((c) => !c.answers.some((a) => a.choice === answers[c.field]));
@@ -14894,7 +15652,8 @@ function saveMetricChange(x, input) {
 	if (!before) return saveMetric(x, rest);
 	const dry = saveMetric(x, {
 		...rest,
-		confirm: true
+		confirm: true,
+		reason
 	});
 	if (!dry.commit) return dry;
 	const after = dry.metric;
@@ -14917,6 +15676,18 @@ function saveMetricChange(x, input) {
 		was: kind === "direction" ? DIRECTION_LABEL[before.direction] : words(before),
 		now: kind === "direction" ? DIRECTION_LABEL[after.direction] : words(after)
 	}));
+	if (linked.length && comparable !== false && qualityChanges(before, after).sourceChanged) {
+		const src = (m) => [m.source, m.sourceLink].filter(Boolean).join(" · ") || "—";
+		marks.push({
+			week: x.week,
+			at: x.now,
+			by: x.actor.id,
+			kind: "source",
+			why,
+			was: src(before),
+			now: src(after)
+		});
+	}
 	const metric = marks.length ? {
 		...after,
 		marks: [...before.marks ?? [], ...marks]
@@ -14931,7 +15702,7 @@ function saveMetricChange(x, input) {
 		entityId: after.id,
 		goalId: g.id,
 		action: "edited",
-		summary: marks.some((m) => m.kind === "definition") ? `Definition changed: what “${after.name}” means, from week ${x.week}: ${why} Weeks before ${x.week} were measured the old way.` : marks.length ? `Direction changed: for “${after.name}” ${DIRECTION_LABEL[after.direction].toLowerCase()}, from week ${x.week}: ${why}` : `Its unit changed from “${before.unit}” to “${after.unit}”, as “${after.name}” did`,
+		summary: marks.some((m) => m.kind === "definition") ? `Definition changed: what “${after.name}” means, from week ${x.week}: ${why} Weeks before ${x.week} were measured the old way.` : marks.some((m) => m.kind === "direction") ? `Direction changed: for “${after.name}” ${DIRECTION_LABEL[after.direction].toLowerCase()}, from week ${x.week}: ${why}` : marks.some((m) => m.kind === "source") ? `Source changed: “${after.name}” is read from ${marks.find((m) => m.kind === "source").now}, from week ${x.week}${why ? `: ${why}` : ""}` : `Its unit changed from “${before.unit}” to “${after.unit}”, as “${after.name}” did`,
 		diffs: goals.length ? [{
 			field: "Unit",
 			from: before.unit,
@@ -14964,7 +15735,7 @@ function saveMetricChange(x, input) {
 * its goals' owners are offered.
 */
 function retireMetric(x, id, why, replacedBy = null) {
-	const m = metricOf$1(x, id);
+	const m = metricOf$2(x, id);
 	mayChange(x, m);
 	if (m.retiredAt) no$2(`“${m.name}” is already retired.`);
 	const w = why.trim();
@@ -15010,7 +15781,7 @@ function retireMetric(x, id, why, replacedBy = null) {
 }
 /** Bring a retired metric back (rule 5): the same people. It is as it was before it was retired. */
 function unretireMetric(x, id) {
-	const m = metricOf$1(x, id);
+	const m = metricOf$2(x, id);
 	mayChange(x, m);
 	if (!m.retiredAt) no$2(`“${m.name}” isn’t retired.`);
 	const back = {
@@ -15043,8 +15814,8 @@ function unretireMetric(x, id) {
 */
 function mergeMetrics(x, fromId, intoId, why = "") {
 	if (!x.actor.admin) no$2("Only admins can merge metrics: it changes what other people’s goals are measured by.");
-	const from = metricOf$1(x, fromId);
-	const into = metricOf$1(x, intoId);
+	const from = metricOf$2(x, fromId);
+	const into = metricOf$2(x, intoId);
 	if (from.id === into.id) no$2("Choose another metric to merge it into.");
 	if (into.retiredAt) no$2(`“${into.name}” is retired. Bring it back first, or merge into another.`);
 	if (from.retiredAt) no$2(`“${from.name}” is already retired.`);
@@ -15112,9 +15883,10 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 		]
 	};
 }
-var same$1, onDay, goalsWord$1, metricOf$1, mayChange, retiredWords;
+var same$1, onDay, goalsWord$1, metricOf$2, mayChange, retiredWords;
 var init_rulesChange = __esmMin((() => {
 	init_rulesMeasured();
+	init_rulesQuality();
 	init_rules$1();
 	same$1 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
@@ -15123,7 +15895,7 @@ var init_rulesChange = __esmMin((() => {
 		timeZone: "UTC"
 	});
 	goalsWord$1 = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
-	metricOf$1 = (x, id) => {
+	metricOf$2 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id && !v.removedAt);
 		if (!m) no$2("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
 		return m;
@@ -15158,12 +15930,28 @@ function openChecks(x, input) {
 	};
 	return {
 		input: next,
-		open: unansweredChecks(metricChecks(typed, before, r), answers)
+		open: unansweredChecks([...metricChecks(typed, before, r), ...lapseChecks(x, before, typed)], answers)
 	};
+}
+/** MQ2: a change that would take a Verified metric back to Defined is asked once (answer `lapse: "go"`), at every door. */
+function lapseChecks(x, before, typed) {
+	if (!before || !standsVerified(before, x.now)) return [];
+	const { lapses } = qualityChanges(before, typed);
+	if (!lapses.length) return [];
+	const owner = x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "Its owner";
+	return [{
+		field: "lapse",
+		level: "check",
+		words: `“${before.name}” is Verified. Changing ${lapses.join(", ")} takes it back to Defined until someone other than you verifies it again; ${owner} is told.`,
+		answers: [{
+			choice: "go",
+			label: "Change it, and lapse Verified"
+		}]
+	}];
 }
 /** Add or change a metric once every Check is answered; refused, with the questions in words, while one is open. */
 function saveMetricAsked(x, input) {
-	if (input.answers?.name?.startsWith("use:")) no$2("Nothing saved: use that metric instead.");
+	if (input.answers?.name?.startsWith("use:") || input.answers?.similar?.startsWith("use:")) no$2("Nothing saved: use that metric instead.");
 	const { input: next, open } = openChecks(x, input);
 	if (open.length) no$2(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
 	const { answers: _, ...rest } = next;
@@ -15172,6 +15960,7 @@ function saveMetricAsked(x, input) {
 var init_rulesSave = __esmMin((() => {
 	init_checkReads();
 	init_rules$1();
+	init_rulesQuality();
 	init_rulesChange();
 	init_rulesDefine();
 }));
@@ -15210,7 +15999,7 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 		removedAt: null,
 		removedBy: null
 	};
-	const slice = sliceName(x.snapshot, teamId);
+	const slice = sliceName$1(x.snapshot, teamId);
 	const diffs = [
 		...!current || current.metricId !== m.id ? [{
 			field: "Measured by",
@@ -15219,7 +16008,7 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 		}] : [],
 		...!current || current.teamId !== teamId ? [{
 			field: "Slice",
-			from: current ? sliceName(x.snapshot, current.teamId) : "—",
+			from: current ? sliceName$1(x.snapshot, current.teamId) : "—",
 			to: slice
 		}] : [],
 		...(current?.part ?? "").trim() !== p ? [{
@@ -15270,7 +16059,7 @@ function linkReads(x, goal, metricId) {
 		} : null,
 		others,
 		hasCheckIns: s.checkIns.some((c) => c.goalId === goal.id),
-		sliceName: (t) => sliceName(x.snapshot, t)
+		sliceName: (t) => sliceName$1(x.snapshot, t)
 	};
 }
 var init_rulesLink = __esmMin((() => {
@@ -15279,6 +16068,221 @@ var init_rulesLink = __esmMin((() => {
 	init_rulesParts();
 	init_rulesSave();
 	init_rulesChange();
+}));
+// src/modules/metrics/rulesVerify.ts
+/**
+* Verify a metric, or record that its figure couldn't be reproduced (MQ2). Who may is `whyCantVerify`'s. Both need "I
+* opened the link", the period and the figure got from it, and a note. Verified stores the record (re-verify in 12
+* months) and clears a lapse or a rewording to confirm; "Couldn't reproduce" keeps the attempt, the stage unchanged,
+* and puts it on the owner's "To sort out". Returns the commit and the comparison in words.
+*/
+function verifyMetric(x, metricId, i) {
+	const m = live$2(x, metricId);
+	if (m.retiredAt) no$2(`“${m.name}” is retired. Bring it back before verifying it.`);
+	const st = stageNow(x, m);
+	const why = whyCantVerify(m, x.actor, {
+		stage: st.stage,
+		teams: x.snapshot.teams,
+		sourceOwnerName: sourceOwnerName(x.snapshot, m)
+	});
+	if (why) no$2(why);
+	if (i.outcome !== "verified" && i.outcome !== "couldnt_reproduce") no$2("The outcome is “verified” or “couldnt_reproduce”.");
+	if (!i.openedLink) no$2("Open the source link first, and say so (opened_link): the figure must come from it.");
+	const period = (i.period ?? "").trim();
+	if (!period) no$2("Say the period the figure covers (“Aug–Oct 2026”).");
+	if (period.length > QUALITY_LIMITS.period) no$2(`Keep the period to ${QUALITY_LIMITS.period} characters or fewer.`);
+	if (typeof i.figure !== "number" || !Number.isFinite(i.figure)) no$2("Give the figure you got from the link, as a number.");
+	const note = (i.note ?? "").trim();
+	if (!note) no$2(i.outcome === "verified" ? "Add a note: what you checked it against." : "Add a note: what differs, or what the definition doesn’t say.");
+	if (note.length > QUALITY_LIMITS.note) no$2(`Keep the note to ${QUALITY_LIMITS.note.toLocaleString("en-GB")} characters or fewer.`);
+	const stored = storedFigure(m, period, i.reading);
+	const record = {
+		outcome: i.outcome,
+		by: x.actor.id,
+		at: x.now,
+		period,
+		figure: i.figure,
+		stored: stored.value,
+		storedFrom: stored.from,
+		note
+	};
+	const diff = differenceWords(i.figure, stored.value, m.unit, m.decimals);
+	const owner = nameOf$1(x, m.ownerId);
+	let next;
+	let said;
+	if (i.outcome === "verified") {
+		const { lapse: _l, toConfirm: _t, ...rest } = m;
+		next = {
+			...rest,
+			verification: record,
+			updatedAt: x.now
+		};
+		const due = new Date(x.now);
+		due.setUTCMonth(due.getUTCMonth() + 12);
+		said = `Verified “${m.name}” by ${nameOf$1(x, x.actor.id)}, ${onDay$1(x.now)}. ${diff} Due again ${onDay$1(due.toISOString())}. ${owner} was told.`;
+	} else {
+		next = {
+			...m,
+			verifyAttempts: [...m.verifyAttempts ?? [], record].slice(-QUALITY_LIMITS.attempts),
+			updatedAt: x.now
+		};
+		said = `Couldn’t reproduce “${m.name}” for ${period}: ${diff} It stays ${st.stage === "verified" ? "Verified" : "Defined"}; ${owner} was told.`;
+	}
+	return {
+		commit: {
+			...metricRows({ metrics: [next] }),
+			changes: [log$1(x, {
+				entityId: m.id,
+				action: "edited",
+				summary: said,
+				diffs: [{
+					field: i.outcome === "verified" ? "Verification" : "Couldn’t reproduce",
+					from: "—",
+					to: `${i.figure} ${m.unit}, ${period}: ${note}`
+				}]
+			})]
+		},
+		metric: next,
+		said
+	};
+}
+/**
+* Save baselines for one or many slices of a metric (MQ2): its owner or an admin. Each needs its value, the period it
+* covers, the day taken and how; a figure changed from the one read, or a new figure for a period already stored, needs
+* a reason. The old baseline of each slice moves to History. Never changes the stage.
+*/
+function saveBaselines(x, metricId, entries) {
+	const m = live$2(x, metricId);
+	if (!canEditMetric(x.actor, m)) no$2(`Only ${nameOf$1(x, m.ownerId)} or an admin can set this metric’s baselines.`);
+	if (m.retiredAt) no$2(`“${m.name}” is retired. Bring it back before setting its baselines.`);
+	if (!entries.length) no$2("Give at least one baseline.");
+	const seen = /* @__PURE__ */ new Set();
+	const problems = [];
+	entries.forEach((b, i) => {
+		const key = `${b.teamId ?? ""}|${(b.part ?? "").trim().toLowerCase()}`;
+		if (seen.has(key)) problems.push(`Baseline ${i + 1}: that slice is given twice.`);
+		seen.add(key);
+		if (b.teamId != null && !x.snapshot.teams.some((t) => t.id === b.teamId)) problems.push(`Baseline ${i + 1}: there’s no team with that ID.`);
+		for (const p of baselineProblems(b, m)) problems.push(entries.length > 1 ? `Baseline ${i + 1}: ${p}` : p);
+	});
+	if (problems.length) no$2(problems.join(" "));
+	const next = {
+		...m,
+		baselines: withBaselines(m, entries, {
+			actor: x.actor.id,
+			now: x.now,
+			newId: x.newId
+		}),
+		updatedAt: x.now
+	};
+	const slice = (b) => `${b.teamId == null ? "the company" : x.snapshot.teams.find((t) => t.id === b.teamId).name}${b.part ? ` · ${b.part}` : ""}`;
+	const said = entries.length === 1 ? `Set the baseline of “${m.name}” for ${slice(entries[0])}: ${entries[0].value} ${m.unit}, ${entries[0].period}` : `Set ${entries.length} baselines of “${m.name}”`;
+	return {
+		commit: {
+			...metricRows({ metrics: [next] }),
+			changes: [log$1(x, {
+				entityId: m.id,
+				action: "edited",
+				summary: said,
+				diffs: entries.map((b) => ({
+					field: `Baseline, ${slice(b)}`,
+					from: "—",
+					to: `${b.value} ${m.unit}, ${b.period}, taken ${b.takenOn}: ${b.how}`
+				}))
+			})]
+		},
+		metric: next,
+		said
+	};
+}
+/** The new owner of a handed-over metric confirms it (or an admin does): the handover leaves "To sort out". */
+function confirmOwner(x, metricId) {
+	const m = live$2(x, metricId);
+	if (!m.handover) no$2(`“${m.name}” has no handover to confirm.`);
+	if (m.ownerId !== x.actor.id && !x.actor.admin) no$2(`Only ${nameOf$1(x, m.ownerId)} (the new owner) or an admin can confirm it.`);
+	const { handover: _h, ...rest } = m;
+	return {
+		...metricRows({ metrics: [{
+			...rest,
+			updatedAt: x.now
+		}] }),
+		changes: [log$1(x, {
+			entityId: m.id,
+			action: "edited",
+			summary: `${nameOf$1(x, m.ownerId)} confirmed owning “${m.name}”`,
+			diffs: [{
+				field: "Owner",
+				from: `${nameOf$1(x, m.ownerId)} (to confirm)`,
+				to: nameOf$1(x, m.ownerId)
+			}]
+		})]
+	};
+}
+/** The last verifier confirms a reworded filter or exclusion still means the same (or an admin does); Verified stands. */
+function confirmReword(x, metricId) {
+	const m = live$2(x, metricId);
+	if (!m.toConfirm) no$2(`“${m.name}” has no rewording to confirm.`);
+	if (m.toConfirm.verifier !== x.actor.id && !x.actor.admin) no$2(`Only ${nameOf$1(x, m.toConfirm.verifier)} (who last verified it) or an admin can confirm the rewording.`);
+	const { toConfirm: _t, ...rest } = m;
+	return {
+		...metricRows({ metrics: [{
+			...rest,
+			updatedAt: x.now
+		}] }),
+		changes: [log$1(x, {
+			entityId: m.id,
+			action: "edited",
+			summary: `${nameOf$1(x, x.actor.id)} confirmed the reworded ${m.toConfirm.what.join(" and ")} of “${m.name}”: still Verified`,
+			diffs: []
+		})]
+	};
+}
+/** The owner (or an admin) answers the latest "Couldn't reproduce": it leaves "To sort out", kept on the page. */
+function answerAttempt(x, metricId, note) {
+	const m = live$2(x, metricId);
+	if (!canEditMetric(x.actor, m)) no$2(`Only ${nameOf$1(x, m.ownerId)} or an admin can answer it.`);
+	const i = (m.verifyAttempts ?? []).map((a) => !a.answered).lastIndexOf(true);
+	if (i < 0) no$2(`“${m.name}” has no failed verification to answer.`);
+	const text = (note ?? "").trim();
+	if (!text) no$2("Say what you changed, or why the figures differ.");
+	if (text.length > QUALITY_LIMITS.note) no$2(`Keep the answer to ${QUALITY_LIMITS.note.toLocaleString("en-GB")} characters or fewer.`);
+	const attempts = (m.verifyAttempts ?? []).map((a, k) => k === i ? {
+		...a,
+		answered: {
+			by: x.actor.id,
+			at: x.now,
+			note: text
+		}
+	} : a);
+	return {
+		...metricRows({ metrics: [{
+			...m,
+			verifyAttempts: attempts,
+			updatedAt: x.now
+		}] }),
+		changes: [log$1(x, {
+			entityId: m.id,
+			action: "edited",
+			summary: `Answered ${nameOf$1(x, attempts[i].by)}’s “Couldn’t reproduce” on “${m.name}”`,
+			diffs: [{
+				field: "Answer",
+				from: "—",
+				to: text
+			}]
+		})]
+	};
+}
+var nameOf$1, stageNow, sourceOwnerName;
+var init_rulesVerify = __esmMin((() => {
+	init_rules$1();
+	init_rulesQuality();
+	nameOf$1 = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "someone who has left";
+	stageNow = (x, m) => stageOf(m, {
+		now: x.now,
+		ownerIsHere: x.snapshot.people.some((p) => p.id === m.ownerId && !p.leftAt),
+		nameOf: (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? id
+	});
+	sourceOwnerName = (s, m) => m.sourceOwnerId && (s.teams.find((t) => t.id === m.sourceOwnerId)?.name ?? s.people.find((p) => p.id === m.sourceOwnerId)?.name) || m.sourceOwner || "";
 }));
 // src/data/examples.ts
 /** The modules an eval build starts the example with switched off (FARO_MODULES_OFF, evals/run.mjs): CI's smoke run with
@@ -16090,7 +17094,7 @@ var METRICS_SHEET = {
 				const g = s.goals.find((v) => v.id === l.goalId);
 				return g ? [{
 					g,
-					slice: sliceName(s, l.teamId)
+					slice: sliceName$1(s, l.teamId)
 				}] : [];
 			})
 		}));
@@ -16146,8 +17150,56 @@ var metricToRow = (ws, m) => ({
 	level: m.level ?? null,
 	parent_id: m.parentId ?? null,
 	confidence: m.confidence ?? null,
-	gaming: m.gaming || null
+	gaming: m.gaming || null,
+	calculation: m.calculation ?? null,
+	time_window: m.timeWindow ?? null,
+	source_link: m.sourceLink || null,
+	source_query: m.sourceQuery || null,
+	source_owner_id: m.sourceOwnerId ?? null,
+	refresh_note: m.refreshNote || null,
+	calc_changed_by: m.calcChangedBy ?? null,
+	calc_changed_at: m.calcChangedAt ?? null,
+	baselines: m.baselines?.length ? m.baselines : null,
+	verification: m.verification ?? null,
+	verify_attempts: m.verifyAttempts?.length ? m.verifyAttempts : null,
+	lapse: m.lapse ?? null,
+	verifiers: m.verifiers?.length ? m.verifiers : null,
+	handover: m.handover ?? null,
+	to_confirm: m.toConfirm ?? null
 });
+var obj = (v) => v && typeof v === "object" && !Array.isArray(v) ? v : void 0;
+var list$1 = (v) => Array.isArray(v) && v.length ? v : void 0;
+/** MQ2's fields, each only when said, so a metric that never had them reads exactly as before. */
+var quality = (r) => {
+	const q = {};
+	const c = obj(r.calculation);
+	if (c) q.calculation = c;
+	const w = obj(r.time_window);
+	if (w) q.timeWindow = w;
+	if (r.source_link) q.sourceLink = String(r.source_link);
+	if (r.source_query) q.sourceQuery = String(r.source_query);
+	if (r.source_owner_id) q.sourceOwnerId = String(r.source_owner_id);
+	if (r.refresh_note) q.refreshNote = String(r.refresh_note);
+	if (r.calc_changed_by) {
+		q.calcChangedBy = String(r.calc_changed_by);
+		q.calcChangedAt = r.calc_changed_at ? iso$4(r.calc_changed_at) : null;
+	}
+	const b = list$1(r.baselines);
+	if (b) q.baselines = b;
+	const v = obj(r.verification);
+	if (v) q.verification = v;
+	const a = list$1(r.verify_attempts);
+	if (a) q.verifyAttempts = a;
+	const l = obj(r.lapse);
+	if (l) q.lapse = l;
+	const vs = list$1(r.verifiers);
+	if (vs) q.verifiers = vs.map(String);
+	const h = obj(r.handover);
+	if (h) q.handover = h;
+	const tc = obj(r.to_confirm);
+	if (tc) q.toConfirm = tc;
+	return q;
+};
 var metricFromRow = (r) => ({
 	id: r.id,
 	name: String(r.name),
@@ -16176,7 +17228,8 @@ var metricFromRow = (r) => ({
 		measurement: r.measurement,
 		measurementNote: String(r.measurement_note ?? "")
 	} : {},
-	...structured(LEVELS$2.includes(r.level) ? r.level : null, r.parent_id ? String(r.parent_id) : null, CONFIDENCES.includes(r.confidence) ? r.confidence : null, r.gaming ? String(r.gaming) : null)
+	...structured(LEVELS$2.includes(r.level) ? r.level : null, r.parent_id ? String(r.parent_id) : null, CONFIDENCES.includes(r.confidence) ? r.confidence : null, r.gaming ? String(r.gaming) : null),
+	...quality(r)
 });
 var metricLinkToRow = (ws, l) => ({
 	workspace_id: ws,
@@ -17221,7 +18274,9 @@ var _virtual_faro_modules_default = [
 			"remove_metric",
 			"retire_metric",
 			"merge_metrics",
-			"link_goal_metric"
+			"link_goal_metric",
+			"save_baselines",
+			"verify_metric"
 		],
 		help: [
 			"metrics",
@@ -17231,7 +18286,8 @@ var _virtual_faro_modules_default = [
 			"metric-change",
 			"metric-measurement",
 			"metric-structure",
-			"metric-sheet"
+			"metric-sheet",
+			"metric-quality"
 		],
 		requirements: [
 			"METRICS-LIBRARY",
@@ -17243,6 +18299,9 @@ var _virtual_faro_modules_default = [
 			"METRIC-MEASUREMENT",
 			"METRIC-STRUCTURE",
 			"METRIC-SHEET",
+			"METRIC-STAGE",
+			"METRIC-VERIFY",
+			"METRIC-BASELINES",
 			"READING-PREFILL",
 			"READING-RECORDED-ONLY",
 			"READING-SEVEN-DAYS",
@@ -17319,7 +18378,9 @@ var _virtual_faro_modules_default = [
 				"get_metric",
 				"save_metric",
 				"remove_metric",
-				"restore_removed"
+				"restore_removed",
+				"save_baselines",
+				"verify_metric"
 			],
 			"MetricPlaces": [
 				"get_goal",
@@ -21023,6 +22084,79 @@ var help$5 = [
 			"metric-measurement",
 			"metrics"
 		]
+	},
+	{
+		id: "metric-quality",
+		title: "Draft, Defined and Verified metrics",
+		summary: "How far a metric can be trusted: whether its definition is complete, and whether someone other than its owner has reproduced its figure.",
+		group: "you",
+		after: "metric-structure",
+		sections: [
+			{
+				heading: "The three stages",
+				list: [
+					"Draft: the definition is still missing something. A Draft metric can still measure a goal; the goal shows a warning until it is finished.",
+					"Defined: all ten parts are said: what it means, what is measured and how it is aggregated with its parts, the filters and what it leaves out, the unit, which way is better, the window, the source with a link to the report, who owns the source, how often it refreshes, and its owner. It becomes Defined by itself; there is no button.",
+					"Verified: someone other than its owner reproduced its figure from the source link in the last 12 months. Thirty days before the year is up it appears under To verify."
+				]
+			},
+			{
+				heading: "Verifying a metric",
+				list: [
+					"An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.",
+					"Open the source link, then give the period, the figure you got from it and a note. Faro shows the difference from the figure it has for that period, without judging it.",
+					"If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out."
+				]
+			},
+			{
+				heading: "What takes Verified away",
+				list: [
+					"Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. The reason you give is kept.",
+					"Rewording a filter or an exclusion asks the last verifier to confirm instead. Baselines, the owner and caveats change nothing.",
+					"A new source marks the baselines taken from the old one, so you can retake them, and the charts of its goals show the week the source changed."
+				]
+			},
+			{
+				heading: "Baselines per slice",
+				list: [
+					"A baseline belongs to the whole company or to a team (and optionally one part). Give its value, the period it covers, the day you took it and how.",
+					"A new baseline moves the old one to History. A new figure for the same period, or one you changed from the figure read, needs a reason.",
+					"Through the AI assistant: save_baselines sets them, verify_metric verifies, and list_metrics finds metrics by stage or waiting To verify."
+				]
+			}
+		],
+		routes: ["/metrics", "/metrics/:metricId"],
+		screens: [],
+		reqs: [
+			"METRIC-STAGE",
+			"METRIC-VERIFY",
+			"METRIC-BASELINES"
+		],
+		keywords: [
+			"stage",
+			"draft",
+			"defined",
+			"verified",
+			"verify",
+			"verification",
+			"baseline",
+			"baselines",
+			"lapse",
+			"reproduce",
+			"window",
+			"calculation",
+			"ratio",
+			"numerator",
+			"denominator",
+			"source link",
+			"to verify",
+			"quality"
+		],
+		related: [
+			"metric-define",
+			"metric-structure",
+			"metrics"
+		]
 	}
 ];
 // src/modules/reviews/help.ts
@@ -24137,6 +25271,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metric-quality",
+		date: "2026-11-15",
+		title: "Metrics are Draft, Defined or Verified",
+		points: [
+			"Every metric now has a stage. It is Defined once its definition is complete, with a link to the report its number comes from. It is Verified once someone other than its owner has reproduced its figure.",
+			"A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”.",
+			"Baselines are kept per team, with History. A changed figure needs a reason.",
+			"For now this is through the AI assistant: list_metrics, get_metric and save_metric show and take the new parts, and save_baselines and verify_metric are new. The screens follow."
+		],
+		articles: ["metric-quality"]
+	},
+	{
 		id: "feedback-own-sent",
 		date: "2026-11-15",
 		title: "Your own feedback, and the steps it can carry",
@@ -26075,7 +27221,7 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-var str$12 = (description, extra = {}) => ({
+var str$13 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -26098,14 +27244,14 @@ var READ$5 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-var WRITE$3 = {
+var WRITE$4 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
 	openWorldHint: false
 };
 var VIA$3 = VIA_MCP;
-var ax$3 = (ctx) => ({
+var ax$4 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -26117,7 +27263,7 @@ var ax$3 = (ctx) => ({
 	records: MODULE_RECORDS
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
-async function save$3(ctx, c, done, nothing) {
+async function save$4(ctx, c, done, nothing) {
 	if (!c) return { text: nothing };
 	await ctx.save({
 		...c,
@@ -26153,7 +27299,7 @@ var personOf$2 = (ctx, ref) => {
 	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
 	return p;
 };
-var teamOf = (ctx, ref) => {
+var teamOf$1 = (ctx, ref) => {
 	if (ref === "" || ref === null) return null;
 	const t = String(ref).trim().toLowerCase();
 	const team = ctx.snapshot.teams.find((x) => x.id === ref || x.name.toLowerCase() === t);
@@ -26448,20 +27594,20 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$12(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$13(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$12("Only one kind.", { enum: [
+				kind: str$13("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$12("Only asks on a goal (its ID or key).")
+				goal_id: str$13("Only asks on a goal (its ID or key).")
 			}
 		},
 		annotations: READ$5,
@@ -26499,7 +27645,7 @@ var WORK_TOOLS = [
 					goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length
 				})),
 				teams: ctx.snapshot.teams.map((t) => {
-					const m = teamMembers(ax$3(ctx), t.id);
+					const m = teamMembers(ax$4(ctx), t.id);
 					return {
 						id: t.id,
 						name: t.name,
@@ -26519,7 +27665,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$12("An Activity link’s query string."),
+				query: str$13("An Activity link’s query string."),
 				limit: int$3("How many changes, newest first (default 50, at most 500).")
 			}
 		},
@@ -26587,8 +27733,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$12("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$12("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$13("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$13("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
 		annotations: READ$5,
@@ -26667,7 +27813,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$12("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$13("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$3("How many entries, newest first (default all).")
 			}
 		},
@@ -26701,14 +27847,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$12("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$12("The answer, decision or help offered.")
+				request_id: str$13("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$13("The answer, decision or help offered.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save$3(ctx, answerRequest(ax$3(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$4(ctx, answerRequest(ax$4(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -26720,13 +27866,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$12("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$12("Optional: what was done.")
+				request_id: str$13("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$13("Optional: what was done.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			return save$3(ctx, markActionDone(ax$3(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
+			return save$4(ctx, markActionDone(ax$4(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
 		}
 	},
 	{
@@ -26738,14 +27884,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$12("The goal’s ID or its key, e.g. G-12."),
-				question: str$12("The question.")
+				goal_id: str$13("The goal’s ID or its key, e.g. G-12."),
+				question: str$13("The question.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const g = goalOf$3(ctx, a.goal_id);
-			return save$3(ctx, askQuestion(ax$3(ctx), g, String(a.question ?? "")), `Asked ${name$1(ctx, g.ownerId)} a question on ${g.title}`, "");
+			return save$4(ctx, askQuestion(ax$4(ctx), g, String(a.question ?? "")), `Asked ${name$1(ctx, g.ownerId)} a question on ${g.title}`, "");
 		}
 	},
 	{
@@ -26757,13 +27903,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$12("The request’s ID."),
-				goal_id: str$12("The goal that waits on it (its ID or key).")
+				request_id: str$13("The request’s ID."),
+				goal_id: str$13("The goal that waits on it (its ID or key).")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			return save$3(ctx, linkRequest(ax$3(ctx), requestOf(ctx, a.request_id), goalOf$3(ctx, a.goal_id)), "Linked the goal to the request", "");
+			return save$4(ctx, linkRequest(ax$4(ctx), requestOf(ctx, a.request_id), goalOf$3(ctx, a.goal_id)), "Linked the goal to the request", "");
 		}
 	},
 	{
@@ -26775,14 +27921,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$12("The ask’s ID."),
-				goal_id: str$12("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$13("The ask’s ID."),
+				goal_id: str$13("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save$3(ctx, withdrawRequest(ax$3(ctx), r, a.goal_id ? goalOf$3(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$4(ctx, withdrawRequest(ax$4(ctx), r, a.goal_id ? goalOf$3(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -26793,15 +27939,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$12("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$13("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			const g = goalOf$3(ctx, a.goal_id);
-			return save$3(ctx, askForUpdate(ax$3(ctx), g), `Asked ${name$1(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
+			return save$4(ctx, askForUpdate(ax$4(ctx), g), `Asked ${name$1(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
 		}
 	},
 	{
@@ -26812,11 +27958,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$12("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$13("The goal’s ID or its key, e.g. G-12.") }
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			return save$3(ctx, undoUpdateAsk(ax$3(ctx), goalOf$3(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
+			return save$4(ctx, undoUpdateAsk(ax$4(ctx), goalOf$3(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
 		}
 	},
 	{
@@ -26832,16 +27978,16 @@ var WORK_TOOLS = [
 				"who"
 			],
 			properties: {
-				goal_id: str$12("The goal’s ID or its key, e.g. G-12."),
-				text: str$12("What needs doing."),
-				who: str$12("Who does it (name or ID)."),
+				goal_id: str$13("The goal’s ID or its key, e.g. G-12."),
+				text: str$13("What needs doing."),
+				who: str$13("Who does it (name or ID)."),
 				due_week: int$3("The week it’s due by.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const g = goalOf$3(ctx, a.goal_id);
-			return save$3(ctx, addAction(ax$3(ctx), g, String(a.text ?? ""), {
+			return save$4(ctx, addAction(ax$4(ctx), g, String(a.text ?? ""), {
 				assigneeId: personOf$2(ctx, a.who).id,
 				dueWeek: a.due_week == null ? null : Number(a.due_week)
 			}), `Agreed a next step on ${g.title}`, "");
@@ -26856,13 +28002,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$12("Its ID, from get_review."),
-				text: str$12("The new wording."),
-				who: str$12("Actions: who does it."),
+				call_id: str$13("Its ID, from get_review."),
+				text: str$13("The new wording."),
+				who: str$13("Actions: who does it."),
 				due_week: int$3("Actions: the week it’s due by (0 for none).")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
 			if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
@@ -26882,7 +28028,7 @@ var WORK_TOOLS = [
 				assigneeId: a.who ? personOf$2(ctx, a.who).id : was.who,
 				dueWeek: a.due_week === void 0 ? was.due : Number(a.due_week) || null
 			} : void 0;
-			return save$3(ctx, editCall(ax$3(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
+			return save$4(ctx, editCall(ax$4(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
 		}
 	},
 	{
@@ -26893,15 +28039,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$12("The person to change (their ID or email). Leave out to add someone."),
-				name: str$12("Their full name."),
-				email: str$12("Their email: required for someone new."),
-				job_title: str$12("Their job title."),
-				team: str$12("Their team (name or ID); empty string for none."),
+				person_id: str$13("The person to change (their ID or email). Leave out to add someone."),
+				name: str$13("Their full name."),
+				email: str$13("Their email: required for someone new."),
+				job_title: str$13("Their job title."),
+				team: str$13("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const before = a.person_id ? personOf$2(ctx, a.person_id) : null;
 			const nm = a.name !== void 0 ? String(a.name).trim() : before?.name ?? "";
@@ -26911,12 +28057,12 @@ var WORK_TOOLS = [
 				name: nm,
 				role: a.job_title !== void 0 ? String(a.job_title).trim() : before?.role ?? "",
 				initials: before && before.name === nm ? before.initials : initialsOf$1(nm),
-				teamId: a.team !== void 0 ? teamOf(ctx, a.team) : before?.teamId ?? ctx.actor.teamId ?? null,
+				teamId: a.team !== void 0 ? teamOf$1(ctx, a.team) : before?.teamId ?? ctx.actor.teamId ?? null,
 				admin: a.admin !== void 0 ? !!a.admin : before?.admin ?? false,
 				...email ? { email } : {}
 			};
 			return {
-				...await save$3(ctx, savePerson(ax$3(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
+				...await save$4(ctx, savePerson(ax$4(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
 				data: { id: p.id }
 			};
 		}
@@ -26934,7 +28080,7 @@ var WORK_TOOLS = [
 			}
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			destructiveHint: true
 		},
 		async run(a, ctx) {
@@ -26959,9 +28105,9 @@ var WORK_TOOLS = [
 					}
 				};
 			}
-			const out = startNextCycle(ax$3(ctx));
+			const out = startNextCycle(ax$4(ctx));
 			return {
-				...await save$3(ctx, out.commit, `Started ${out.name}`, ""),
+				...await save$4(ctx, out.commit, `Started ${out.name}`, ""),
 				data: { name: out.name }
 			};
 		}
@@ -26975,20 +28121,20 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$12("The view to change."),
-				name: str$12("Its name."),
-				query: str$12("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$13("The view to change."),
+				name: str$13("Its name."),
+				query: str$13("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			const out = saveView(ax$3(ctx), {
+			const out = saveView(ax$4(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				params: String(a.query ?? "").replace(/^.*\?/, "")
 			});
 			return {
-				...await save$3(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$4(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -27002,28 +28148,28 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$12("The saved layout to change."),
-				name: str$12("Its name."),
-				table: str$12("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$13("The saved layout to change."),
+				name: str$13("Its name."),
+				table: str$13("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids$2("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$12("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$13("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
-			const out = saveTableView(ax$3(ctx), {
+			const out = saveTableView(ax$4(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				layout
 			}, headOf(ctx, layout.table));
 			return {
-				...await save$3(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$4(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -27036,15 +28182,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$12("The view’s ID, from list_views.") }
+			properties: { view_id: str$13("The view’s ID, from list_views.") }
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$3(ctx, deleteView(ax$3(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
+			return save$4(ctx, deleteView(ax$4(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
 		}
 	},
 	{
@@ -27056,16 +28202,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$12("The view’s ID."),
+				view_id: str$13("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$3(ctx, pinView(ax$3(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
+			return save$4(ctx, pinView(ax$4(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
 		}
 	},
 	{
@@ -27076,15 +28222,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$12("The new name.") }
+			properties: { name: str$13("The new name.") }
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			const from = ctx.ws.name;
-			return save$3(ctx, renameWorkspace(ax$3(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
+			return save$4(ctx, renameWorkspace(ax$4(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
 		}
 	},
 	{
@@ -27098,14 +28244,14 @@ var WORK_TOOLS = [
 			properties: { on: bool$1("true to record how the app is used here, false to stop.") }
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to record, or on: false to stop.");
 			const on = a.on;
 			return {
-				...await save$3(ctx, setRecording(ax$3(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
+				...await save$4(ctx, setRecording(ax$4(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
 				data: { recording: ctx.ws.recording !== false }
 			};
 		}
@@ -27119,19 +28265,19 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$12("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$13("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to switch it on, or on: false to switch it off.");
 			const id = String(a.feature ?? "");
 			const m = MODULES.find((x) => x.id === id);
-			const res = await save$3(ctx, setModule(ax$3(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
+			const res = await save$4(ctx, setModule(ax$4(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
 			const r = modulesOn(ctx.ws);
 			const last = !a.on && !res.isError && !aiAccessOn(r.on) && aiAccessOn(modulesOn(null).on);
 			return {
@@ -27153,13 +28299,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["every"],
 			properties: {
-				every: str$12("“week” or “none”.", { enum: ["week", "none"] }),
-				due_by: str$12("With every week: the weekday check-ins are due by. Leave out to keep it.", { enum: WEEKDAY }),
+				every: str$13("“week” or “none”.", { enum: ["week", "none"] }),
+				due_by: str$13("With every week: the weekday check-ins are due by. Leave out to keep it.", { enum: WEEKDAY }),
 				confirm: bool$1("true to make the change; leave out to see what it would do first.")
 			}
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
@@ -27185,7 +28331,7 @@ var WORK_TOOLS = [
 				};
 			}
 			return {
-				...await save$3(ctx, setRhythm(ax$3(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`),
+				...await save$4(ctx, setRhythm(ax$4(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`),
 				data: {
 					rhythm: weeks ? "every week" : "none",
 					dueBy: weeks ? WEEKDAY[dueDay] : null
@@ -27202,24 +28348,24 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$12("The team to change (name or ID). Leave out to add a team."),
-				name: str$12("The team’s name."),
-				lead: str$12("The team lead (a person’s name or ID); empty string for none."),
-				purpose: str$12("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
+				team: str$13("The team to change (name or ID). Leave out to add a team."),
+				name: str$13("The team’s name."),
+				lead: str$13("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$13("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			const id = a.team !== void 0 ? teamOf(ctx, a.team) ?? void 0 : void 0;
+			const id = a.team !== void 0 ? teamOf$1(ctx, a.team) ?? void 0 : void 0;
 			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf$2(ctx, a.lead).id;
-			const out = saveTeam(ax$3(ctx), {
+			const out = saveTeam(ax$4(ctx), {
 				id,
 				name: String(a.name ?? ""),
 				...leadId !== void 0 ? { leadId } : {},
 				...a.purpose !== void 0 && a.purpose !== null ? { objective: String(a.purpose) } : {}
 			});
 			return {
-				...await save$3(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
+				...await save$4(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
 				data: { id: out.id }
 			};
 		}
@@ -27233,8 +28379,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$12("The team to remove (name or ID)."),
-				move_to: str$12("Where its people and goals go (a team’s name or ID).")
+				team: str$13("The team to remove (name or ID)."),
+				move_to: str$13("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -27244,11 +28390,11 @@ var WORK_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			const id = teamOf(ctx, a.team);
+			const id = teamOf$1(ctx, a.team);
 			if (!id) throw new Error("Name the team to remove.");
 			const name = ctx.snapshot.teams.find((t) => t.id === id).name;
-			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf(ctx, a.move_to) : null;
-			return save$3(ctx, removeTeam(ax$3(ctx), id, to), `Removed the team ${name}`, "");
+			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf$1(ctx, a.move_to) : null;
+			return save$4(ctx, removeTeam(ax$4(ctx), id, to), `Removed the team ${name}`, "");
 		}
 	},
 	{
@@ -27259,7 +28405,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$12("The workspace’s exact name.") }
+			properties: { confirm_name: str$13("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -27287,7 +28433,7 @@ init_removal();
 init_status();
 init_vocabulary();
 init_via();
-var str$11 = (description, extra = {}) => ({
+var str$12 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -27302,7 +28448,7 @@ var REMOVE = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var WRITE$2 = {
+var WRITE$3 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
@@ -27311,7 +28457,7 @@ var WRITE$2 = {
 var VIA$2 = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 var KINDS = removedKinds(MODULE_RECORDS);
-var ax$2 = (ctx) => ({
+var ax$3 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -27322,7 +28468,7 @@ var ax$2 = (ctx) => ({
 	...ctx.full ? { full: ctx.full } : {},
 	records: MODULE_RECORDS
 });
-async function save$2(ctx, c, done) {
+async function save$3(ctx, c, done) {
 	await ctx.save({
 		...c,
 		changes: c.changes.map((x) => ({
@@ -27381,14 +28527,14 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$11("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$11("Its ID, from list_removed.")
+				kind: str$12("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$12("Its ID, from list_removed.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
-			const c = restoreRemoved(ax$2(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
+			const c = restoreRemoved(ax$3(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
 			await ctx.save({
 				...c,
 				changes: c.changes.map((x) => ({
@@ -27408,15 +28554,15 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$11("Their ID or full name."),
-				goals_to: str$11("Who takes over their goals: an ID or full name."),
-				asks_to: str$11("Who takes over their open asks: an ID or full name.")
+				person: str$12("Their ID or full name."),
+				goals_to: str$12("Who takes over their goals: an ID or full name."),
+				asks_to: str$12("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const p = personOf$1(ctx, a.person);
-			return save$2(ctx, markPersonLeft(ax$2(ctx), p.id, {
+			return save$3(ctx, markPersonLeft(ax$3(ctx), p.id, {
 				goalsTo: optPerson(ctx, a.goals_to),
 				asksTo: optPerson(ctx, a.asks_to)
 			}), `Marked ${p.name} as left`);
@@ -27430,12 +28576,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$11("Their ID or full name.") }
+			properties: { person: str$12("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const p = personOf$1(ctx, a.person);
-			return save$2(ctx, deletePerson(ax$2(ctx), p.id), `Deleted ${p.name}`);
+			return save$3(ctx, deletePerson(ax$3(ctx), p.id), `Deleted ${p.name}`);
 		}
 	},
 	{
@@ -27447,14 +28593,14 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$11("The goal’s ID or key, e.g. G-12."),
-				reason: str$11("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$12("The goal’s ID or key, e.g. G-12."),
+				reason: str$12("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const g = goalOf$2(ctx, a.goal_id);
-			return save$2(ctx, stopGoal(ax$2(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
+			return save$3(ctx, stopGoal(ax$3(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
 		}
 	},
 	{
@@ -27465,12 +28611,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$11("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$12("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const g = goalOf$2(ctx, a.goal_id);
-			return save$2(ctx, deleteGoal(ax$2(ctx), g.id), `Deleted ${g.title}`);
+			return save$3(ctx, deleteGoal(ax$3(ctx), g.id), `Deleted ${g.title}`);
 		}
 	},
 	{
@@ -27481,8 +28627,8 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$11("The check-in’s ID, from get_goal."),
-				goal_id: str$11("Or: the goal’s ID or key…"),
+				check_in_id: str$12("The check-in’s ID, from get_goal."),
+				goal_id: str$12("Or: the goal’s ID or key…"),
 				week: int$2("…and the week of its latest check-in.")
 			}
 		},
@@ -27496,7 +28642,7 @@ var REMOVE_TOOLS = [
 				id = c.id;
 			}
 			const c = ctx.snapshot.checkIns.find((x) => x.id === id);
-			return save$2(ctx, deleteCheckIn(ax$2(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
+			return save$3(ctx, deleteCheckIn(ax$3(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
 		}
 	},
 	{
@@ -27508,16 +28654,16 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$11("The comment’s or note’s ID."),
-				text: str$11("The corrected words.")
+				comment_id: str$12("The comment’s or note’s ID."),
+				text: str$12("The corrected words.")
 			}
 		},
-		annotations: WRITE$2,
+		annotations: WRITE$3,
 		async run(a, ctx) {
 			const id = String(a.comment_id ?? "");
 			const note = ctx.snapshot.decisions.find((d) => d.id === id);
 			if (note) {
-				const c = editCall(ax$2(ctx), note, String(a.text ?? ""));
+				const c = editCall(ax$3(ctx), note, String(a.text ?? ""));
 				if (!c) return { text: "Nothing to change: it already says that." };
 				await ctx.save({
 					...c,
@@ -27528,7 +28674,7 @@ var REMOVE_TOOLS = [
 				});
 				return { text: `Corrected the note (as ${ctx.actor.name}).` };
 			}
-			const c = editComment(ax$2(ctx), id, String(a.text ?? ""));
+			const c = editComment(ax$3(ctx), id, String(a.text ?? ""));
 			if (!c) return { text: "Nothing to change: it already says that." };
 			await ctx.save({
 				...c,
@@ -27548,13 +28694,13 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$11("The comment’s or note’s ID.") }
+			properties: { comment_id: str$12("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const id = String(a.comment_id ?? "");
-			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$2(ctx, deleteNote(ax$2(ctx), id), "Removed the note");
-			return save$2(ctx, deleteComment(ax$2(ctx), id), "Removed the comment");
+			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$3(ctx, deleteNote(ax$3(ctx), id), "Removed the note");
+			return save$3(ctx, deleteComment(ax$3(ctx), id), "Removed the comment");
 		}
 	},
 	{
@@ -27565,12 +28711,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$11("The cycle’s ID.") }
+			properties: { cycle_id: str$12("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save$2(ctx, deleteCycle(ax$2(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
+			return save$3(ctx, deleteCycle(ax$3(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
 		}
 	},
 	{
@@ -27581,12 +28727,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$11("The started cycle’s ID, from get_workspace.") }
+			properties: { cycle_id: str$12("The started cycle’s ID, from get_workspace.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save$2(ctx, undoStart(ax$2(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
+			return save$3(ctx, undoStart(ax$3(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
 		}
 	},
 	{
@@ -27598,7 +28744,7 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["import_id"],
 			properties: {
-				import_id: str$11("The import’s ID (imp_…), from get_activity."),
+				import_id: str$12("The import’s ID (imp_…), from get_activity."),
 				dry_run: {
 					type: "boolean",
 					description: "Say what Undo would do without saving anything."
@@ -27613,7 +28759,7 @@ var REMOVE_TOOLS = [
 				at: k.at
 			});
 			if (a.dry_run === true) {
-				const p = undoPreview(ax$2(ctx), String(a.import_id ?? ""));
+				const p = undoPreview(ax$3(ctx), String(a.import_id ?? ""));
 				return {
 					data: {
 						restores: p.restores,
@@ -27623,7 +28769,7 @@ var REMOVE_TOOLS = [
 					text: !p.restores ? `Nothing saved. ${nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(keptText).join("; ")}.` : ""}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
 				};
 			}
-			const out = undoImport(ax$2(ctx), String(a.import_id ?? ""));
+			const out = undoImport(ax$3(ctx), String(a.import_id ?? ""));
 			await ctx.save({
 				...out.commit,
 				changes: out.commit.changes.map((x) => ({
@@ -27644,13 +28790,13 @@ var REMOVE_TOOLS = [
 // src/modules/ai-access/tools.ts
 init_actions();
 init_via();
-var str$10 = (description, extra = {}) => ({
+var str$11 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
 var VIA$1 = VIA_MCP;
-var tools$7 = [
+var tools$8 = [
 	{
 		name: "list_tokens",
 		title: "AI assistant tokens",
@@ -27680,14 +28826,14 @@ var tools$7 = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$10("Who it acts as (name or ID)."),
-				name: str$10("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$11("Who it acts as (name or ID)."),
+				name: str$11("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const p = personOf$2(ctx, a.person);
-			const c = createToken(ax$3(ctx), p.id, String(a.name ?? ""));
+			const c = createToken(ax$4(ctx), p.id, String(a.name ?? ""));
 			const token = await ctx.issueToken({
 				...c,
 				changes: c.changes.map((x) => ({
@@ -27709,15 +28855,15 @@ var tools$7 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$10("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$11("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$3(ctx, revokeToken(ax$3(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
+			return save$4(ctx, revokeToken(ax$4(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
 		}
 	}
 ];
@@ -28021,7 +29167,7 @@ function markupOps(o) {
 	};
 }
 // src/mcp/markupTools.ts
-var str$9 = (description, extra = {}) => ({
+var str$10 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -28086,8 +29232,8 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$9("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$9("Only this workspace’s (its id)."),
+				status: str$10("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$10("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -28123,8 +29269,8 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$9("The markup’s id (mk_…), from list_markups or review_inbox."),
-				picture: str$9("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+				id: str$10("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$10("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
 			}
 		},
 		annotations: READ$4,
@@ -28173,8 +29319,8 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$9("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
-				workspace: str$9("Only this workspace’s (its id)."),
+				status: str$10("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$10("Only this workspace’s (its id)."),
 				pictures: {
 					type: "integer",
 					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
@@ -28271,11 +29417,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$9("The markup’s id (mk_…)."),
-				status: str$9("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$9("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$9("With wont-fix: why it won’t be fixed."),
-				issue_url: str$9("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$10("The markup’s id (mk_…)."),
+				status: str$10("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$10("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$10("With wont-fix: why it won’t be fixed."),
+				issue_url: str$10("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -28309,7 +29455,7 @@ var MARKUP_TOOLS = [
 	}
 ];
 // src/mcp/feedbackTools.ts
-var str$8 = (description, extra = {}) => ({
+var str$9 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -28334,8 +29480,8 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$8("Only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$8("Only this workspace’s (its id)."),
+				status: str$9("Only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$9("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -28386,7 +29532,7 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$8("The feedback’s id, from list_feedback.") }
+			properties: { id: str$9("The feedback’s id, from list_feedback.") }
 		},
 		annotations: READ$3,
 		async run(a, ctx) {
@@ -28412,10 +29558,10 @@ var FEEDBACK_TOOLS = [
 			additionalProperties: false,
 			required: ["id", "status"],
 			properties: {
-				id: str$8("The feedback’s id."),
-				status: str$8("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$8("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$8("With wont-fix: why it won’t be fixed.")
+				id: str$9("The feedback’s id."),
+				status: str$9("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$9("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$9("With wont-fix: why it won’t be fixed.")
 			}
 		},
 		annotations: {
@@ -28446,12 +29592,12 @@ var FEEDBACK_TOOLS = [
 ];
 // src/modules/feedback/tools.ts
 init_actions();
-var str$7 = (description, extra = {}) => ({
+var str$8 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var tools$6 = [
+var tools$7 = [
 	...MARKUP_TOOLS,
 	...FEEDBACK_TOOLS,
 	{
@@ -28463,22 +29609,23 @@ var tools$6 = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$7("How it felt.", { enum: [
+				mood: str$8("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$7("What happened, or what would help.")
+				text: str$8("What happened, or what would help.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			return save$3(ctx, sendFeedback(ax$3(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
+			return save$4(ctx, sendFeedback(ax$4(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
 		}
 	}
 ];
 // src/modules/metrics/rulesLibrary.ts
 init_rulesLink();
+init_rulesQuality();
 init_rulesMeasured();
 init_find$1();
 init_numbers();
@@ -28573,6 +29720,14 @@ function findMetrics(r, ask = {}) {
 		if (ask.dir && m.direction !== ask.dir) return false;
 		if (ask.unused && links.length) return false;
 		if (ask.sortout && !needs.length) return false;
+		if (ask.stage || ask.toVerify) {
+			const st = stageOf(m, {
+				now: r.now,
+				ownerIsHere: !!owner
+			});
+			if (ask.stage && st.stage !== ask.stage) return false;
+			if (ask.toVerify && !st.toVerify) return false;
+		}
 		return true;
 	}).map(({ links: _, ...row }) => row);
 	const byName = (a, b) => fold$2(a.metric.name).localeCompare(fold$2(b.metric.name));
@@ -28667,15 +29822,8 @@ function proposedOfMetric(s, metricId) {
 }
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
-// src/mcp/checkInReaders.ts
-var READERS = [];
-/** Registers a module's reader, once. */
-function addCheckInReader(r) {
-	if (!READERS.some((x) => x.module === r.module)) READERS.push(r);
-}
-/** The readers registered by the modules in this build. */
-var checkInReaders = () => READERS;
 // src/modules/metrics/rulesReading.ts
+init_rulesVerify();
 init_reading();
 init_thresholds();
 /** How long a source has to answer before the step treats it as unreachable. */
@@ -28978,6 +30126,488 @@ var metricReader = {
 	module: "metrics",
 	read: readForTool
 };
+// src/modules/metrics/toolsQuality.ts
+init_actions();
+init_via();
+init_rules$1();
+init_rulesQuality();
+var str$7 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var WRITE$2 = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: false,
+	openWorldHint: false
+};
+var ax$2 = (ctx) => ({
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	actor: ctx.actor,
+	now: ctx.now,
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
+	...ctx.full ? { full: ctx.full } : {}
+});
+var save$2 = (ctx, c) => ctx.save({
+	...c,
+	changes: c.changes.map((x) => ({
+		...x,
+		diffs: [...x.diffs, VIA_MCP]
+	}))
+});
+async function ruled$2(run) {
+	try {
+		return await run();
+	} catch (e) {
+		if (e instanceof NotAllowed) return {
+			isError: true,
+			text: e.message
+		};
+		throw e;
+	}
+}
+var metricOf$1 = (ctx, ref) => {
+	const m = findMetric(ctx.snapshot, String(ref ?? ""));
+	if (!m) throw new NotAllowed(`There’s no metric called or with the ID ${String(ref)}. Use list_metrics.`);
+	return m;
+};
+var nameOf = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? (id ? "someone who has left" : null);
+var sliceName = (ctx, b) => `${sliceName$1(ctx.snapshot, b.teamId)}${b.part ? ` · ${b.part}` : ""}`;
+/** A team by ID or name, or the whole company (left out, empty, null or "company"). */
+var teamOf = (ctx, ref) => {
+	if (ref == null || ref === "" || /^(the )?(whole )?company$/i.test(String(ref).trim())) return null;
+	const t = String(ref).trim().toLowerCase();
+	const team = ctx.snapshot.teams.find((x) => x.id === ref || x.name.toLowerCase() === t);
+	if (!team) throw new NotAllowed(`There’s no team called ${String(ref)}. Leave team out for the whole company.`);
+	return team.id;
+};
+/** A team or a person here, by ID or name (a source's owner). */
+var ownerRef = (ctx, ref) => {
+	if (ref == null || ref === "") return null;
+	const t = String(ref).trim().toLowerCase();
+	const hit = ctx.snapshot.teams.find((x) => x.id === ref || x.name.toLowerCase() === t)?.id ?? ctx.snapshot.people.find((x) => x.id === ref || x.name.toLowerCase() === t || (x.email ?? "").toLowerCase() === t)?.id;
+	if (!hit) throw new NotAllowed(`There’s no team or person called ${String(ref)} here. Leave source_owner_in_faro out, and say the owner in source_owner as text.`);
+	return hit;
+};
+/** A metric's stage, why, and everything MQ2 adds, as get_metric and list_metrics return it. */
+function qualityData(ctx, m) {
+	const st = stageNow(ax$2(ctx), m);
+	const n = (id) => nameOf(ctx, id);
+	const base = (b) => ({
+		id: b.id,
+		slice: sliceName(ctx, b),
+		teamId: b.teamId,
+		part: b.part ?? "",
+		value: b.value,
+		period: b.period,
+		takenOn: b.takenOn,
+		how: b.how,
+		by: n(b.by),
+		oldSource: !!b.oldSource,
+		...b.replacedAt ? {
+			replacedAt: b.replacedAt,
+			replacedBy: n(b.replacedBy),
+			replacedWhy: b.replacedWhy ?? ""
+		} : {}
+	});
+	const ver = (v) => ({
+		outcome: v.outcome,
+		by: n(v.by),
+		at: v.at,
+		period: v.period,
+		figure: v.figure,
+		stored: v.stored,
+		storedFrom: v.storedFrom,
+		note: v.note,
+		difference: differenceWords(v.figure, v.stored, m.unit, m.decimals),
+		...v.answered ? { answered: {
+			by: n(v.answered.by),
+			at: v.answered.at,
+			note: v.answered.note
+		} } : {}
+	});
+	return {
+		stage: st.stage,
+		stageLabel: STAGE_LABEL[st.stage],
+		stageWhy: st.why,
+		missing: st.missing.map((x) => ({
+			part: x.part,
+			words: x.words,
+			why: x.why
+		})),
+		missingLine: missingLine(st.missing),
+		toVerify: st.toVerify,
+		dueBy: st.dueBy,
+		lapsed: st.lapsed ? {
+			kind: st.lapsed.kind,
+			at: st.lapsed.at,
+			what: st.lapsed.what,
+			why: st.lapsed.why,
+			by: n(st.lapsed.by)
+		} : null,
+		calculation: m.calculation ?? null,
+		calculationWords: calcWords(m.calculation),
+		window: m.timeWindow ?? null,
+		windowWords: windowWords(m.timeWindow),
+		refreshWords: refreshWords(m),
+		refreshNote: m.refreshNote ?? "",
+		sourceLink: m.sourceLink ?? "",
+		sourceQuery: m.sourceQuery ?? "",
+		sourceOwnerInFaro: m.sourceOwnerId ? sourceOwnerName(ctx.snapshot, m) : null,
+		baselines: liveBaselines(m).map(base),
+		baselineHistory: (m.baselines ?? []).filter((b) => !!b.replacedAt).map(base),
+		verification: m.verification ? ver(m.verification) : null,
+		failedAttempts: (m.verifyAttempts ?? []).map(ver),
+		verifiers: (m.verifiers ?? []).map((v) => n(v)),
+		lastCalculationChange: m.calcChangedBy ? {
+			by: n(m.calcChangedBy),
+			at: m.calcChangedAt ?? null
+		} : null,
+		handover: m.handover ? {
+			from: n(m.handover.from),
+			at: m.handover.at,
+			why: m.handover.why
+		} : null,
+		toConfirm: m.toConfirm ? {
+			verifier: n(m.toConfirm.verifier),
+			by: n(m.toConfirm.by),
+			at: m.toConfirm.at,
+			what: m.toConfirm.what
+		} : null,
+		sortOut: sortOutOf(m, {
+			stage: st,
+			nameOf: (id) => n(id) ?? id
+		}).map((s) => ({
+			kind: s.kind,
+			words: s.words,
+			who: n(s.who)
+		}))
+	};
+}
+/** The lines get_metric adds for MQ2. */
+function qualityLines(d) {
+	return [
+		`Stage: ${d.stageLabel} · ${d.stageWhy}`,
+		`Calculation: ${d.calculationWords} · window: ${d.windowWords} · ${d.refreshWords}`,
+		...d.sourceLink ? [`Source link: ${d.sourceLink}`] : [],
+		...d.baselines.length ? [`Baselines: ${d.baselines.map((b) => `${b.slice} ${b.value} for ${b.period} (taken ${b.takenOn}: ${b.how})${b.oldSource ? ", from the old source: retake" : ""}`).join("; ")}`] : ["Baselines: none yet"],
+		...d.verification ? [`Verification: ${d.verification.by}, ${d.verification.at.slice(0, 10)}, for ${d.verification.period}. ${d.verification.difference} Note: ${d.verification.note}`] : [],
+		...d.failedAttempts.filter((a) => !a.answered).map((a) => `Couldn’t reproduce: ${a.by}, ${a.at.slice(0, 10)}, for ${a.period}. ${a.difference} Note: ${a.note}`),
+		...d.sortOut.length ? [`To sort out (quality): ${d.sortOut.map((s) => `${s.words}${s.who ? ` (${s.who})` : ""}`).join("; ")}`] : []
+	];
+}
+var PART = {
+	type: "object",
+	additionalProperties: false,
+	properties: {
+		name: str$7("What this part is called (“Failed changes”)."),
+		counts: str$7("What it counts."),
+		filters: str$7("Its filters (what is in)."),
+		excludes: str$7("What it leaves out (“None” if nothing).")
+	}
+};
+/** The structured fields save_metric takes for MQ2. */
+var QUALITY_FIELDS = {
+	calculation: {
+		type: "object",
+		additionalProperties: false,
+		description: "The calculation, two fields plus its parts. measure: count, sum, value, duration, ratio or other. aggregate: total, mean, median, pXX (a percentile, e.g. p90) or latest (not for a ratio). A ratio gives numerator and denominator; other gives formula (in words); the rest give counts, filters and excludes. Each part’s filters and exclusions must be said for Defined (“None” is an answer).",
+		properties: {
+			measure: str$7("What is measured.", { enum: [...MEASURES] }),
+			aggregate: str$7("How it is aggregated: total, mean, median, p50…p99, latest."),
+			per: str$7("For a mean of a count: per what (“day”)."),
+			counts: str$7("What it counts."),
+			filters: str$7("Its filters."),
+			excludes: str$7("What it leaves out."),
+			numerator: PART,
+			denominator: PART,
+			formula: str$7("For other or composite: the formula in words.")
+		}
+	},
+	window: str$7("The window: “point in time”, “rolling N days”, “per week”, “per month”, “per quarter” or “cumulative since yyyy-mm-dd”. Empty for not said."),
+	source_link: str$7("A link (https://…) to the exact report or query. Without one the metric stays Draft."),
+	source_query: str$7("The query text, optional."),
+	source_owner_in_faro: str$7("The team or person here who owns the source, by ID or name: their people may verify it. Empty for none."),
+	refresh_note: str$7("When in the period it refreshes (“Mondays”)."),
+	verifiers: {
+		type: "array",
+		items: { type: "string" },
+		description: "Admins only: the people (ID, email or name) who may verify it besides admins and the source’s owner."
+	},
+	confirm_owner: {
+		type: "boolean",
+		description: "You are the new owner of a metric passed to you when its owner left: confirm you own it."
+	},
+	answer_attempt: str$7("Its owner’s answer to the latest “Couldn’t reproduce” (what changed, or why the figures differ).")
+};
+var people = (ctx, v) => (Array.isArray(v) ? v : []).map((r) => {
+	const t = String(r ?? "").trim().toLowerCase();
+	const p = ctx.snapshot.people.find((x) => x.id === r || x.name.toLowerCase() === t || (x.email ?? "").toLowerCase() === t);
+	if (!p) throw new NotAllowed(`There’s no one called ${String(r)} in this workspace. Use list_people.`);
+	return p.id;
+});
+/** save_metric's MQ2 fields as a MetricInput. Verifiers are an admin's to name. */
+function qualityInput(ctx, a) {
+	if (a.verifiers !== void 0 && !ctx.actor.admin) throw new NotAllowed("Only an admin can name a metric’s verifiers.");
+	return {
+		...a.calculation !== void 0 ? { calculation: calcFrom(a.calculation) } : {},
+		...a.window !== void 0 ? { timeWindow: windowFrom(a.window) } : {},
+		...a.source_link !== void 0 ? { sourceLink: String(a.source_link ?? "") } : {},
+		...a.source_query !== void 0 ? { sourceQuery: String(a.source_query ?? "") } : {},
+		...a.source_owner_in_faro !== void 0 ? { sourceOwnerId: ownerRef(ctx, a.source_owner_in_faro) } : {},
+		...a.refresh_note !== void 0 ? { refreshNote: String(a.refresh_note ?? "") } : {},
+		...a.verifiers !== void 0 ? { verifiers: people(ctx, a.verifiers) } : {}
+	};
+}
+/** save_metric's two MQ2 acts that aren't a change of definition: confirming a handover, answering a failed attempt.
+Null when neither was asked. */
+async function qualityActs(ctx, a) {
+	if (a.confirm_owner !== true && a.answer_attempt === void 0) return null;
+	const m = metricOf$1(ctx, a.id);
+	const out = [];
+	if (a.confirm_owner === true) {
+		const c = confirmOwner(ax$2(ctx), m.id);
+		await save$2(ctx, c);
+		out.push(c.changes[0].summary);
+	}
+	if (a.answer_attempt !== void 0) {
+		const c = answerAttempt(ax$2(ctx), m.id, String(a.answer_attempt ?? ""));
+		await save$2(ctx, c);
+		out.push(c.changes[0].summary);
+	}
+	return {
+		data: {
+			saved: true,
+			id: m.id
+		},
+		text: `${out.join(". ")} (as ${ctx.actor.name}).`
+	};
+}
+/** The stage before and after a save, in words, for save_metric's result. */
+function stageMove(ctx, before, after) {
+	const b = before ? stageNow(ax$2(ctx), before) : null;
+	const a = stageNow(ax$2(ctx), after);
+	const lab = (s) => STAGE_LABEL[s];
+	const line = b && b.stage !== a.stage ? `${lab(b.stage)} → ${lab(a.stage)}.` : `${lab(a.stage)}.`;
+	return {
+		stageBefore: b ? b.stage : null,
+		stageAfter: a.stage,
+		missing: a.missing.map((x) => x.words),
+		line: `${line}${a.missing.length ? ` To reach Defined, still needed: ${a.missing.map((x) => x.words).join("; ")}.` : ""}`
+	};
+}
+/** The latest reading of a metric for the whole company, from its source, if one reads it (for verify_metric's comparison). */
+async function latestReading(ctx, m) {
+	const src = toolSources(ctx).find((s) => s.name === m.source && s.reads(m, {
+		teamId: null,
+		part: ""
+	}));
+	if (!src) return null;
+	try {
+		return (await src.read(m, new Date(ctx.now), {
+			teamId: null,
+			part: ""
+		}))?.value ?? null;
+	} catch {
+		return null;
+	}
+}
+var tools$6 = [{
+	name: "save_baselines",
+	title: "Set a metric’s baselines",
+	description: "Set one or many baselines of a metric (its owner or an admin), each for a slice: the whole company or a team, and optionally one part. Each needs its value, the period it covers (“Jul–Sep 2026”), the day taken and how it was taken; the old one for that slice moves to History. A new figure for a period already stored, or a figure changed from one read (read), needs a reason. Baselines never change the metric’s stage. from_readings: true fills, for every slice its goals use and the company, last quarter’s figure from the source for the person to confirm, and saves nothing. The result lists any baselines taken from an old source, to retake.",
+	inputSchema: {
+		type: "object",
+		additionalProperties: false,
+		required: ["metric"],
+		properties: {
+			metric: str$7("The metric’s ID or name."),
+			from_readings: {
+				type: "boolean",
+				description: "Fill last quarter’s baselines from the source for confirming; nothing is saved."
+			},
+			baselines: {
+				type: "array",
+				items: {
+					type: "object",
+					additionalProperties: false,
+					required: [
+						"value",
+						"period",
+						"taken_on",
+						"how"
+					],
+					properties: {
+						team: str$7("The team (ID or name); left out for the whole company."),
+						part: str$7("One part of the number (“tier-1 services”); left out for all of it."),
+						value: { type: "number" },
+						period: str$7("The period it covers."),
+						taken_on: str$7("The day it was taken, yyyy-mm-dd."),
+						how: str$7("How it was taken: the query, report or filter."),
+						read: {
+							type: "number",
+							description: "The figure the source gave, when you changed it (from_readings)."
+						},
+						reason: str$7("Why the figure changed (required for a changed figure).")
+					}
+				}
+			}
+		}
+	},
+	annotations: WRITE$2,
+	async run(a, ctx) {
+		return ruled$2(async () => {
+			const m = metricOf$1(ctx, a.metric);
+			if (a.from_readings === true) {
+				const q = lastQuarter(ctx.now);
+				const slices = [{
+					teamId: null,
+					part: ""
+				}, ...linksOf(ctx.snapshot).filter((l) => l.metricId === m.id && !l.removedAt).map((l) => ({
+					teamId: l.teamId,
+					part: l.part ?? ""
+				}))].filter((s, i, all) => all.findIndex((o) => sameSlice$1(o, s)) === i);
+				const filled = await Promise.all(slices.map(async (s) => {
+					const src = toolSources(ctx).find((x) => x.name === m.source && x.reads(m, s));
+					let value = null;
+					try {
+						value = src ? (await src.read(m, new Date(q.end), s))?.value ?? null : null;
+					} catch {
+						value = null;
+					}
+					return {
+						slice: sliceName(ctx, s),
+						team: s.teamId,
+						part: s.part,
+						value,
+						period: q.words,
+						taken_on: ctx.now.slice(0, 10),
+						how: src ? `Read from ${m.source}, ${ctx.now.slice(0, 10)}` : ""
+					};
+				}));
+				const gap = m.measurement === "gap";
+				const rows = gap ? [] : filled.filter((f) => f.value != null);
+				return {
+					data: {
+						saved: false,
+						period: q.words,
+						baselines: rows,
+						skipped: filled.filter((f) => gap || f.value == null).map((f) => ({
+							slice: f.slice,
+							why: gap ? "Gap: not measured yet" : "No reading"
+						}))
+					},
+					text: `Nothing saved. ${rows.length ? `From ${m.source} for ${q.words}: ${rows.map((r) => `${r.slice} ${r.value}`).join("; ")}. Ask the person to confirm, then call again with baselines (give read and a reason for any figure they change).` : `No reading for ${q.words}${gap ? ": the metric isn’t measured yet" : ""}.`}`
+				};
+			}
+			const entries = (Array.isArray(a.baselines) ? a.baselines : []).map((b) => ({
+				teamId: teamOf(ctx, b.team),
+				part: String(b.part ?? ""),
+				value: Number(b.value),
+				period: String(b.period ?? ""),
+				takenOn: String(b.taken_on ?? ""),
+				how: String(b.how ?? ""),
+				...typeof b.read === "number" ? { read: b.read } : {},
+				...b.reason !== void 0 ? { reason: String(b.reason) } : {}
+			}));
+			const r = saveBaselines(ax$2(ctx), m.id, entries);
+			await save$2(ctx, r.commit);
+			const old = liveBaselines(r.metric).filter((b) => b.oldSource).map((b) => sliceName(ctx, b));
+			return {
+				data: {
+					saved: true,
+					baselines: liveBaselines(r.metric).map((b) => ({
+						slice: sliceName(ctx, b),
+						value: b.value,
+						period: b.period
+					})),
+					oldSource: old,
+					stage: stageNow(ax$2(ctx), r.metric).stage
+				},
+				text: `${r.said} (as ${ctx.actor.name}). The stage doesn’t change.${old.length ? ` Still taken from the old source, to retake: ${old.join(", ")}.` : ""}`
+			};
+		});
+	}
+}, {
+	name: "verify_metric",
+	title: "Verify a metric",
+	description: "Verify a metric (anyone but its owner and whoever last changed its calculation, window or source; and then an admin, someone in the source’s owner, or a verifier an admin named). Open its source link first: opened_link must be true. Give the period, the figure you got from the link, a note, and the outcome: verified (Verified for 12 months) or couldnt_reproduce (the attempt is kept, the stage doesn’t change, and the owner sees it under To sort out). The result compares your figure with the one Faro has for that period (a baseline, else the latest reading), with no fixed tolerance. confirm_reword: true instead confirms, as its last verifier, that a reworded filter or exclusion still means the same.",
+	inputSchema: {
+		type: "object",
+		additionalProperties: false,
+		required: ["metric"],
+		properties: {
+			metric: str$7("The metric’s ID or name."),
+			period: str$7("The period the figure covers (“Aug–Oct 2026”)."),
+			figure: {
+				type: "number",
+				description: "The figure you got from the source link."
+			},
+			note: str$7("What you checked it against, or what differs."),
+			opened_link: {
+				type: "boolean",
+				description: "You opened the source link and it shows this metric, for this window."
+			},
+			outcome: str$7("verified, or couldnt_reproduce.", { enum: ["verified", "couldnt_reproduce"] }),
+			confirm_reword: {
+				type: "boolean",
+				description: "Confirm a reworded filter or exclusion (as its last verifier); nothing else is read."
+			}
+		}
+	},
+	annotations: WRITE$2,
+	async run(a, ctx) {
+		return ruled$2(async () => {
+			const m = metricOf$1(ctx, a.metric);
+			if (a.confirm_reword === true) {
+				const c = confirmReword(ax$2(ctx), m.id);
+				await save$2(ctx, c);
+				return {
+					data: {
+						saved: true,
+						stage: "verified"
+					},
+					text: `${c.changes[0].summary} (as ${ctx.actor.name}).`
+				};
+			}
+			const reading = await latestReading(ctx, m);
+			const r = verifyMetric(ax$2(ctx), m.id, {
+				period: String(a.period ?? ""),
+				figure: typeof a.figure === "number" ? a.figure : NaN,
+				note: String(a.note ?? ""),
+				openedLink: a.opened_link === true,
+				outcome: a.outcome === "couldnt_reproduce" ? "couldnt_reproduce" : a.outcome === "verified" ? "verified" : String(a.outcome),
+				reading
+			});
+			await save$2(ctx, r.commit);
+			const v = a.outcome === "verified" ? r.metric.verification : r.metric.verifyAttempts.at(-1);
+			return {
+				data: {
+					saved: true,
+					outcome: v.outcome,
+					stage: stageNow(ax$2(ctx), r.metric).stage,
+					figure: v.figure,
+					stored: v.stored,
+					storedFrom: v.storedFrom,
+					difference: differenceWords(v.figure, v.stored, m.unit, m.decimals)
+				},
+				text: r.said
+			};
+		});
+	}
+}];
+// src/mcp/checkInReaders.ts
+var READERS = [];
+/** Registers a module's reader, once. */
+function addCheckInReader(r) {
+	if (!READERS.some((x) => x.module === r.module)) READERS.push(r);
+}
+/** The readers registered by the modules in this build. */
+var checkInReaders = () => READERS;
 // src/modules/metrics/tools.ts
 init_rulesMeasured();
 init_rulesStructure();
@@ -28990,6 +30620,7 @@ init_rulesSave();
 init_rulesParts();
 init_status();
 init_vocabulary();
+init_rulesQuality();
 init_via();
 addCheckInReader(metricReader);
 var str$6 = (description, extra = {}) => ({
@@ -29111,6 +30742,7 @@ function metricData(ctx, m) {
 			now: k.now,
 			by: name(ctx, k.by)
 		})),
+		...qualityData(ctx, m),
 		measures: goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
 			const me = measureOf(ctx.snapshot, g);
 			return {
@@ -29148,11 +30780,11 @@ var FIELDS = {
 	confidence: str$6("How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.", { enum: [...CONFIDENCES, ""] }),
 	gaming: str$6("How the number could be gamed, in words (up to 500 characters). Empty for not said.")
 };
-var tools$5 = [
+var tools_default$1 = [...[
 	{
 		name: "list_metrics",
 		title: "List the metric library",
-		description: "The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.",
+		description: "The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its stage (Draft, Defined or Verified) and what a Draft still needs, its refresh and window, its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -29172,7 +30804,12 @@ var tools$5 = [
 				},
 				sort_out: {
 					type: "boolean",
-					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
+					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days; and (metric quality) a Draft’s missing part, a Gap, baselines from an old source, an unanswered “Couldn’t reproduce”, a new owner to confirm. Each row says why."
+				},
+				stage: str$6("Only metrics at this stage.", { enum: [...STAGES] }),
+				to_verify: {
+					type: "boolean",
+					description: "Only metrics waiting to be verified: Defined (never verified, or lapsed), or Verified within 30 days of its 12 months."
 				},
 				sort: str$6("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
 					"name",
@@ -29197,12 +30834,24 @@ var tools$5 = [
 					ownerId: a.owner ? personOf(ctx, a.owner) : void 0,
 					dir: a.direction === "higher" || a.direction === "lower" ? a.direction : void 0,
 					unused: a.unused === true,
-					sortout: a.sort_out === true,
+					sortout: false,
 					retired: a.retired === true,
+					...STAGES.includes(a.stage) ? { stage: a.stage } : {},
+					...a.to_verify === true ? { toVerify: true } : {},
+					size: 1e5,
 					sort: a.sort === "goals" || a.sort === "changed" ? a.sort : "name",
 					page: typeof a.page === "number" ? a.page : 1
 				};
-				const found = findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
+				const all = findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
+				const q = new Map(all.rows.map((r) => [r.metric.id, qualityData(ctx, r.metric)]));
+				const kept = a.sort_out === true ? all.rows.filter((r) => r.needs.length || q.get(r.metric.id).sortOut.length) : all.rows;
+				const pageN = Math.min(Math.max(1, typeof a.page === "number" ? Math.floor(a.page) : 1), Math.max(1, Math.ceil(kept.length / 50)));
+				const found = {
+					total: kept.length,
+					page: pageN,
+					pages: Math.max(1, Math.ceil(kept.length / 50)),
+					rows: kept.slice((pageN - 1) * 50, pageN * 50)
+				};
 				const statusOf = (id) => {
 					const g = ctx.snapshot.goals.find((x) => x.id === id);
 					return g ? goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status : null;
@@ -29224,7 +30873,17 @@ var tools$5 = [
 						needs: canEditMetric(ctx.actor, m) ? needs.map((x) => ({
 							id: x.id,
 							sentence: x.sentence
-						})) : []
+						})) : [],
+						stage: q.get(m.id).stage,
+						stageLabel: q.get(m.id).stageLabel,
+						missing: q.get(m.id).missingLine,
+						refresh: m.refresh,
+						refreshWords: q.get(m.id).refreshWords,
+						window: q.get(m.id).windowWords,
+						calculation: q.get(m.id).calculationWords,
+						toVerify: q.get(m.id).toVerify,
+						...q.get(m.id).lapsed ? { lapsed: q.get(m.id).lapsed } : {},
+						sortOut: q.get(m.id).sortOut
 					};
 				});
 				return listed({
@@ -29326,7 +30985,8 @@ var tools$5 = [
 					summary: c.summary
 				}));
 				if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? "—"}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${metricsOf(ctx.snapshot).find((x) => x.id === d.retired.replacedBy)?.name ?? d.retired.replacedBy}.` : ""}`);
-				if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === "direction" ? "direction" : "definition"} changed in week ${k.week}: ${k.why}`).join("; ")}`);
+				lines.splice(2, 0, ...qualityLines(d));
+				if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind} changed in week ${k.week}: ${k.why}`).join("; ")}`);
 				return {
 					data: {
 						...d,
@@ -29347,7 +31007,7 @@ var tools$5 = [
 	{
 		name: "save_metric",
 		title: "Add or change a metric",
-		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.",
+		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score. Metric quality: it takes the structured definition (calculation, window, source_link…) and returns the stage before and after (Draft → Defined happens by itself once the ten parts are said) and what is still needed. A change that would take a Verified metric back to Defined (its calculation, window, source or direction) returns a `lapse` check; adding a metric like one in the library returns a `similar` check (“use:<id>” or “carry-on”). confirm_owner and answer_attempt act on their own.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -29377,9 +31037,12 @@ var tools$5 = [
 					properties: {
 						name: str$6("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
 						unit: str$6("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
-						meaning: str$6("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
+						meaning: str$6("“as-written”: the meaning is right as written.", { enum: ["as-written"] }),
+						similar: str$6("“use:<id>” to use that similar metric instead (nothing is saved), or “carry-on”: it’s different."),
+						lapse: str$6("“go”: change it, and it goes back to Defined until verified again.", { enum: ["go"] })
 					}
-				}
+				},
+				...QUALITY_FIELDS
 			}
 		},
 		annotations: WRITE$1,
@@ -29406,9 +31069,22 @@ var tools$5 = [
 					...a.confirm === true ? { confirm: true } : {},
 					...typeof a.comparable === "boolean" ? { comparable: a.comparable } : {},
 					...typeof a.reason === "string" ? { reason: a.reason } : {},
-					...a.relabel === true ? { relabel: true } : {}
+					...a.relabel === true ? { relabel: true } : {},
+					...qualityInput(ctx, a)
 				};
+				const acted = await qualityActs(ctx, a);
+				if (acted) return acted;
 				const answers = answersFrom(a.answers);
+				if (answers.similar?.startsWith("use:")) {
+					const use = metricOf(ctx, answers.similar.slice(4));
+					return {
+						data: {
+							saved: false,
+							use: use.id
+						},
+						text: `Nothing saved: use ${use.name} (${use.id}) instead.`
+					};
+				}
 				if (answers.name?.startsWith("use:")) {
 					const use = metricOf(ctx, answers.name.slice(4));
 					return {
@@ -29457,15 +31133,19 @@ var tools$5 = [
 				const still = lineOf(ctx.snapshot, metric).line;
 				const more = was && metric.decimals < was.decimals ? linkedGoals(x.full ?? x.snapshot, metric.id).filter((g) => g.decimals > metric.decimals) : [];
 				const places = more.length ? ` ${more.length === 1 ? "1 goal shows" : `${more.length} goals show`} more decimal places than ${metric.name} now does: ${more.map((g) => g.title).join(", ")}. They keep theirs until their owners change them.` : "";
+				const moved = stageMove(ctx, was, metric);
 				return {
 					data: {
 						saved: true,
 						id: metric.id,
 						changes: commit.changes[0].diffs,
 						stillToSay: still,
+						stageBefore: moved.stageBefore,
+						stageAfter: moved.stageAfter,
+						missing: moved.missing,
 						...more.length ? { moreDecimals: more.map((g) => g.id) } : {}
 					},
-					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}${places}`
+					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still} Stage: ${moved.line}${places}`
 				};
 			});
 		}
@@ -29647,7 +31327,7 @@ var tools$5 = [
 						saved: false,
 						warnings
 					},
-					text: `${g.title} is already measured by ${m.name} for ${forWords(sliceName(ctx.snapshot, teamId), part)}.`
+					text: `${g.title} is already measured by ${m.name} for ${forWords(sliceName$1(ctx.snapshot, teamId), part)}.`
 				};
 				await save$1(ctx, c);
 				return {
@@ -29660,7 +31340,7 @@ var tools$5 = [
 			});
 		}
 	}
-];
+], ...tools$6];
 // src/domain/habit.ts
 init_format();
 init_progress();
@@ -29966,10 +31646,10 @@ var tools$4 = [
 				due_week: int$1("Actions: the week it’s due by.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id), g = goalOf$3(ctx, a.goal_id);
-			if (a.kind === "accept") return save$3(ctx, acceptRisk(ax$3(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
+			if (a.kind === "accept") return save$4(ctx, acceptRisk(ax$4(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
 			const kind = a.kind;
 			if (![
 				"acknowledge",
@@ -29978,7 +31658,7 @@ var tools$4 = [
 				"action"
 			].includes(kind)) throw new Error("kind is acknowledge, note, ask, action or accept.");
 			const assigneeId = kind === "action" && a.who ? personOf$2(ctx, a.who).id : void 0;
-			return save$3(ctx, reviewCall(ax$3(ctx), g, r, kind, String(a.text ?? ""), {
+			return save$4(ctx, reviewCall(ax$4(ctx), g, r, kind, String(a.text ?? ""), {
 				assigneeId,
 				dueWeek: a.due_week
 			}), `${{
@@ -30003,12 +31683,12 @@ var tools$4 = [
 				description: "The marks’ IDs (kind acknowledge), from get_review."
 			} }
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const ids = (a.call_ids ?? []).map(String);
 			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
 			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
-			return save$3(ctx, unmarkReviewed(ax$3(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
+			return save$4(ctx, unmarkReviewed(ax$4(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
 		}
 	},
 	{
@@ -30035,7 +31715,7 @@ var tools$4 = [
 				people: ids$1("Who’s in it (names or IDs). New reviews include you.")
 			}
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
 			const day = a.weekday === void 0 ? void 0 : [
 				"monday",
@@ -30061,9 +31741,9 @@ var tools$4 = [
 					scope,
 					people: people ?? before.people
 				};
-				return save$3(ctx, saveReview(ax$3(ctx), after, before), `Changed the review “${after.name}”`, "");
+				return save$4(ctx, saveReview(ax$4(ctx), after, before), `Changed the review “${after.name}”`, "");
 			}
-			const r = newReview(ax$3(ctx), {
+			const r = newReview(ax$4(ctx), {
 				name: String(a.name ?? ""),
 				everyWeeks: Number(a.every_weeks ?? 1),
 				weekday: day ?? ctx.cycle.reviewDay,
@@ -30073,7 +31753,7 @@ var tools$4 = [
 				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
 			});
 			return {
-				...await save$3(ctx, saveReview(ax$3(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
+				...await save$4(ctx, saveReview(ax$4(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
 				data: { id: r.id }
 			};
 		}
@@ -30091,8 +31771,8 @@ var tools$4 = [
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			const out = endReview(ax$2(ctx), String(a.review_id ?? ""));
-			return save$2(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
+			const out = endReview(ax$3(ctx), String(a.review_id ?? ""));
+			return save$3(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
 		}
 	},
 	{
@@ -30108,7 +31788,7 @@ var tools$4 = [
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			return save$2(ctx, deleteReview(ax$2(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
+			return save$3(ctx, deleteReview(ax$3(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
 		}
 	}
 ];
@@ -30495,12 +32175,12 @@ var tools$1 = [
 			}
 		},
 		annotations: {
-			...WRITE$3,
+			...WRITE$4,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$3(ctx, a.ref).id;
-			return save$3(ctx, watch(ax$3(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$3(ctx, ref).title}`, "Already watching that.");
+			return save$4(ctx, watch(ax$4(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$3(ctx, ref).title}`, "Already watching that.");
 		}
 	},
 	{
@@ -30513,9 +32193,9 @@ var tools$1 = [
 			required: ["watch_id"],
 			properties: { watch_id: str$2("The watch’s ID, from list_watching.") }
 		},
-		annotations: WRITE$3,
+		annotations: WRITE$4,
 		async run(a, ctx) {
-			return save$3(ctx, unwatch(ax$3(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
+			return save$4(ctx, unwatch(ax$4(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
 		}
 	}
 ];
@@ -30591,7 +32271,7 @@ var tools = [{
 		}
 	},
 	annotations: {
-		...WRITE$3,
+		...WRITE$4,
 		idempotentHint: true
 	},
 	async run(a, ctx) {
@@ -30602,7 +32282,7 @@ var tools = [{
 			"missed"
 		].includes(String(a.result))) throw new Error("result is hit, partly or missed.");
 		if (!["carry", "stop"].includes(String(a.next))) throw new Error("next is carry or stop.");
-		return save$3(ctx, saveRetro(ax$3(ctx), g, {
+		return save$4(ctx, saveRetro(ax$4(ctx), g, {
 			result: a.result,
 			learned: String(a.learned ?? ""),
 			next: a.next
@@ -30613,15 +32293,15 @@ var tools = [{
 var tools_default = [
 	{
 		id: "ai-access",
-		part: tools$7
+		part: tools$8
 	},
 	{
 		id: "feedback",
-		part: tools$6
+		part: tools$7
 	},
 	{
 		id: "metrics",
-		part: tools$5
+		part: tools_default$1
 	},
 	{
 		id: "reviews",
