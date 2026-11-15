@@ -7,5 +7,7 @@ import type { Change } from './types';
 export function importRows(entry: Change): number {
   const u = entry.undo;
   if (!u) return 0;
-  return u.goals.length + u.checkIns.length + u.people.length + u.requests.length + (u.reviews ?? []).filter((r) => r.before).length + (u.teams ?? []).length;
+  return u.goals.length + u.checkIns.length + u.people.length + u.requests.length + (u.reviews ?? []).filter((r) => r.before).length + (u.teams ?? []).length
+    // A module's own rows (the Metrics sheet's metrics, a Goals sheet's field values): Undo puts those back too (#520 review).
+    + (u.moduleRows ?? []).reduce((k, m) => k + m.rows.length, 0);
 }

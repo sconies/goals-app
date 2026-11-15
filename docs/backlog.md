@@ -12,6 +12,17 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **After Wednesday, in order:** RD's held items, then RD2's first cuts (CY1, CY2, CY4 before 3 Jan 2027); 0c is done; RD (the app redesign, three tracks; it takes in AS parts 2 and 3 and replaces 0a, GD 2–7, NAV, 0u and LV's leftovers), with L (1, 3, 4) and LP's U20 and U22 in the gaps, R5, 3a, 0t, 11. Wednesday's feedback may change it.
 
+## Bugs found by the drill (15 Nov)
+
+Found by the full rebuild drill. Wording only; none is fixed here.
+
+- U69 opens `rel-cfr`, which doesn't exist.
+- `evals/run.mjs` needs vite at the repo root.
+- Help names reviews while Reviews is off.
+- Demo goal G-48's 141-character name makes an unchanged export refused.
+- An unedited export needs engine fixes to load back (m9).
+- `home.csv` depends on the time zone (Pacific/Auckland).
+
 ## Build, in order
 
 | # | Item | Why here | Effort | Depends on | Source |

@@ -61,7 +61,9 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
 };
 
 /** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
-    Direction or Measures. */
+    Direction or Measures; never one with a Goal or Key column, which is a Goals sheet. */
 export function isMetricsHeader(h: ReadonlySet<string>): boolean {
+  // A Goals sheet made by hand may have a Metric column too: one with a Goal or Key column is goals (#520 review).
+  if (h.has('goal') || h.has('key')) return false;
   return (h.has('metric') && (h.has('unit') || h.has('direction') || h.has('measures'))) || (h.has('name') && h.has('unit') && h.has('direction'));
 }
