@@ -447,6 +447,20 @@ module.exports = {
       chk(await q.getByRole('dialog', { name: 'Motion lab' }).isVisible().catch(() => false), 'Motion lab: the Konami code does not open it');
       await c2.close();
     }
+
+    /* ---------- deep dive, 15 Nov, item 9: a goal's status is a shape and a word, not a control ----------
+       It once hid an Easter egg (five quick taps opened the Motion lab), so it took clicks and did nothing visible. */
+    {
+      const [c, p] = await at(browser, url, { w: 390, h: 844, touch: true, who: 'oskar', route: '/goals/devsat-localdev' });
+      const st = p.locator('.goal-bar .bar-status').first();
+      await st.waitFor({ timeout: 10000 });
+      for (let i = 0; i < 5; i++) await st.tap();
+      chk(!(await p.getByRole('dialog', { name: 'Motion lab' }).isVisible().catch(() => false)), 'Status: tapping a goal’s status five times opens the Motion lab, a control that looks like none');
+      const look = await st.evaluate((e) => { const cs = getComputedStyle(e); return { cursor: cs.cursor, bg: cs.backgroundColor, border: cs.borderTopStyle, tag: e.tagName, role: e.getAttribute('role'), parent: e.parentElement.tagName }; });
+      chk(look.cursor !== 'pointer' && look.bg === 'rgba(0, 0, 0, 0)' && look.border === 'none' && look.tag === 'SPAN' && !look.role && look.parent !== 'BUTTON' && look.parent !== 'A', `Status: the goal page’s status looks like a control (${JSON.stringify(look)})`);
+      chk(await st.locator('svg.status-shape').count() === 1 && /On track|At risk|Off track|No recent update|Not measured yet|Done|No check-in yet/.test(await st.innerText()), 'Status: the goal page’s status is not a shape and a word');
+      await c.close();
+    }
     return fails;
   },
 };

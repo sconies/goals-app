@@ -19,7 +19,7 @@ const help: Article[] = [
         'Group and Sort can’t be changed on the Map, which is always the trees.',
         'Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.',
         'Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. The Needs attention switch in the bar above narrows the map to those goals and what they feed, every branch unfolded.',
-        'Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.',
+        'Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it, and a screen reader is told so. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.',
         'Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.',
         'The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story.',
       ] },

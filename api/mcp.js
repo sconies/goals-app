@@ -17157,7 +17157,11 @@ var _virtual_faro_modules_default = [
 			"status": "outline",
 			"builds": "The Goal map, as a feature a workspace can switch off: one of Goals' layouts, drawing every goal on a canvas, north stars at the top, solid lines for feeds into and dotted for also helps, with the critical path bold and each goal's roll-up of what feeds it. It owns no records. Off, Goals offers List, Table, Board and History, and a link or saved view that asked for the Map (view=map) opens the List and says once “The Goal map is off here, so this is the List.”",
 			"entry": ["Goals’ layouts (`view=` in the address, with a module’s layout added through `goals.layouts`) and the roll-up of what feeds a goal (a goal and everything under it summed up by one status, the worst) are the core’s (stage 3, “The core screens the module stages stand on”); the map draws them and adds nothing to them. So are the proposed state and the phone’s View sheet with its Group and Views menus, which U134 and U135 step through."],
-			"exit": ["Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U165).", "Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U165, check N22)."],
+			"exit": [
+				"Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U165).",
+				"Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U165, check N22).",
+				"Delete and Backspace do nothing on the map, and nothing on it tells a screen reader they remove a goal: its goals' descriptions say the map never removes one (deep dive, 15 Nov; check F6)."
+			],
 			"gaps": [
 				"The Goal map is a switch, not yet a folder of its own (SW5 moves it): its screen (src/screens/GoalMap.tsx), the drawing half of src/domain/map.ts and the Map layout's control in src/screens/GoalsScreen.tsx are still the core's. src/app/reads.ts goalMapOn is the one place that asks whether it is on; the rule that opens the List instead is src/domain/query.ts layoutOn.",
 				"Dragged positions and the Troubled trees choice are kept in the browser per workspace (goals-map:<ws>, goals-map-troubled:<ws>), not on the server.",
@@ -20586,7 +20590,7 @@ var help$6 = [{
 			"Group and Sort can’t be changed on the Map, which is always the trees.",
 			"Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.",
 			"Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. The Needs attention switch in the bar above narrows the map to those goals and what they feed, every branch unfolded.",
-			"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.",
+			"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it, and a screen reader is told so. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.",
 			"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
 			"The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story."
 		]
