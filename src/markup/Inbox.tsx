@@ -494,7 +494,9 @@ function FeedbackDetail({ f, busy, form, setForm, onChange }: { f: InboxFeedback
       </div>
       <StatusBy t={f} />
       {said ? <p className="mk-said">{said}</p> : <p className="hint">Only a mood, no words.</p>}
-      <Actions status={f.status} busy={busy} form={form} setForm={setForm} onChange={onChange} n={1} />
+      {f.onlyHere
+        ? <p className="tiny muted mk-readonly">Sent from the demo, so it is kept in this browser and goes to the people building Faro. Only you see it here, and its status doesn’t change.</p>
+        : <Actions status={f.status} busy={busy} form={form} setForm={setForm} onChange={onChange} n={1} />}
       {form === 'fixed' && <FixedForm label="Mark fixed" hint={`${f.personName || 'The sender'} sees “You raised this” on that entry. List the feedback’s id (${f.id}) in the entry’s fixes, too.`} onFixed={(fixedIn) => onChange({ status: 'fixed', fixedIn })} onCancel={() => setForm(null)} />}
       {form === 'wont-fix' && <WontFixForm label="Won’t fix" onWontFix={(reason) => onChange({ status: 'wont-fix', reason })} onCancel={() => setForm(null)} />}
       {f.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${f.fixedIn}`}>{NEWS.find((e) => e.id === f.fixedIn)?.title ?? f.fixedIn}</Link>.</p>}

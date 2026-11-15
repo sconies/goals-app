@@ -1144,7 +1144,8 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'When you send a markup', list: [
         'A markup is sent only when you press Send. It carries the picture of your screen as it was (nothing on it is hidden, and you see it before sending), your marks, your line, your name, the page, your screen size, light or dark, your accent and the app’s version.',
-        'It also carries your last 20 steps on this visit (the pages you opened and the buttons you pressed, never what you typed) unless you untick them, and any errors or saves that didn’t go through on this visit.',
+        'Apart from Recording, whether it is on or off, the app keeps the last 20 steps of a visit in your browser’s memory: the pages you opened, the buttons you pressed and any errors, never what you typed. They go when you close the tab, and leave your browser only in a markup you send with them included.',
+        'The form shows those steps before you send (See the steps), and the box to include them starts unticked. It also carries any errors or saves that didn’t go through on this visit.',
         'Only the people building Faro read markups.',
       ] },
       { heading: 'Turning it off', list: [

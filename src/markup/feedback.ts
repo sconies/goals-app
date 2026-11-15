@@ -24,6 +24,21 @@ export interface InboxFeedback {
   wontFixReason: string | null;
   statusBy: string | null;
   statusAt: string | null;
+  /** Kept only in this browser (the demo's, beside a shared inbox): listed for its sender alone, and never triaged. */
+  onlyHere?: boolean;
+}
+
+/**
+ * Senders see their own feedback (deep dive, 15 Nov). Where the inbox reads the shared database, feedback sent in the
+ * demo is kept in this browser's copy of the example and never reaches it, so it never came back to the person who
+ * sent it. The inbox lists it beside the shared feedback, for its sender only, newest first. The inbox itself stays
+ * everyone's, and a status still changes only for an admin, on the shared list.
+ */
+export function withOwnSent(listed: InboxFeedback[], here: InboxFeedback[], viewerId: string): InboxFeedback[] {
+  const known = new Set(listed.map((f) => f.id));
+  const mine = here.filter((f) => f.personId === viewerId && !known.has(f.id)).map((f) => ({ ...f, onlyHere: true }));
+  if (!mine.length) return listed;
+  return [...listed, ...mine].sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
 }
 
 export type Triage = Pick<InboxFeedback, 'status' | 'fixedIn' | 'wontFixReason' | 'statusBy' | 'statusAt'>;

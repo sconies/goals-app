@@ -86,6 +86,13 @@ export interface Markup {
 export const MARKUP_REPO = 'sconies/goals-app';
 export const LINE_MAX = 500;
 export const STEPS_MAX = 20;
+
+/**
+ * What happens to a visit's steps, said once wherever Recording is (Lane, 15 Nov, "Explain it": option A). Apart from
+ * Recording, the app keeps a visit's last steps in the browser's memory (telemetry `recentSteps`); they leave it only
+ * in a markup sent with them included, which its form shows first and starts unticked.
+ */
+export const STEPS_NOTE = `Apart from Recording, the last ${STEPS_MAX} steps of a visit (pages opened, buttons pressed, errors) stay in your browser’s memory, and go when you close the tab. They leave it only if you send a markup and tick to include them; the form shows them first.`;
 export const ERRORS_MAX = 25;
 export const PICTURES = ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'] as const;
 /** How big a numbered pin is on screen, for what it covers. */

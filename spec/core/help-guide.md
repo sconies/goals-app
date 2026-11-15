@@ -1609,7 +1609,8 @@ Routes: `/workspace/privacy`. Requirements: `TELEMETRY-SIGNALS`, `TELEMETRY-PRIV
 #### When you send a markup
 
 - A markup is sent only when you press Send. It carries the picture of your screen as it was (nothing on it is hidden, and you see it before sending), your marks, your line, your name, the page, your screen size, light or dark, your accent and the app’s version.
-- It also carries your last 20 steps on this visit (the pages you opened and the buttons you pressed, never what you typed) unless you untick them, and any errors or saves that didn’t go through on this visit.
+- Apart from Recording, whether it is on or off, the app keeps the last 20 steps of a visit in your browser’s memory: the pages you opened, the buttons you pressed and any errors, never what you typed. They go when you close the tab, and leave your browser only in a markup you send with them included.
+- The form shows those steps before you send (See the steps), and the box to include them starts unticked. It also carries any errors or saves that didn’t go through on this visit.
 - Only the people building Faro read markups.
 
 #### Turning it off
@@ -1683,6 +1684,7 @@ Routes: `/feedback`, `/workspace/inbox`, `/inbox`. Screens: `Feedback`. Requirem
 
 - The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.
 - It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.
+- You always see what you sent. Feedback sent in the demo stays in your browser’s copy of the example and goes to the people building Faro; the inbox lists it for you alone, marked as kept in this browser, and its status doesn’t change.
 - It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.
 - Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it.
 
