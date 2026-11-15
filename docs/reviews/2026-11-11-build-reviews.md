@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `517e3d04` (#520, MI), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520) are at the end. **Open from it:** #520's high (Undo removes another year's goal; with track 3 since 02:25 UTC) and its three mediums; #493's three mediums, with planning. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `517e3d04` (#520, MI), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520) are at the end. **Open from it:** #520's high (Undo removes another year's goal) and four mediums, all fixed on track 3's branch `mi-review`, not merged when this was written: read that PR against each, probing each door. #493's three mediums were closed by #533. Merged and not yet in the log: #536 (kit words; being checked). Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
@@ -280,6 +280,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #531 Spec: journey pages name their entry, not a line number (#527's medium) | item 11 | 0 | 0 | 0 |
 | #493 TG2: Fields' filters, sheet columns, import and find_goals | 2 | 0 | 3 | 1 |
 | #520 MI: the Metrics sheet in and out | 3 | 1 | 4 | 3 |
+| #533 TG2 review: field names, Undo and Help (#493's three mediums) | 2 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2440,3 +2441,12 @@ Read: the planner (`src/modules/metrics/sheetPlan.ts`), the core seam (`src/doma
 - **Low: after Undo the metric's History still says "changed the metric…" with nothing saying it was undone.**
 
 Walked on a production build, desktop and phone: the full workbook loaded straight back ("Nothing would change", Metrics 13 read, 13 unchanged); add and change with their rows; Undo from Past imports ("2 rows go back…", both back); the same-number question, its Reason Must fix and "Definition changed, week 45" on the goal; five Must fixes and the rows-to-fix file with the Metrics headers; the library off ("Metric library is off in …, so the Metrics sheet was not read."); a member refused; no stripe, pill or emoji. The hand-made goals file of the third medium, on screen: file line "Read goals-by-hand.csv.", then "Nothing would change" when its Metric cells name metrics already here. Not run: bulk_change's `metrics` argument over HTTP, bringing a metric back, a Part of naming an earlier row, retired rows in an export.
+
+### #533 TG2 review: a field's name, Undo and Help (track 2, merged 15 Nov)
+
+Read against #493's three mediums; run on main at `5d857a70`. `npx vitest run src/modules/tags src/spec` passes. #535, merged beside it, is docs only.
+
+- **#493's first medium: closed.** `fieldProblem` refuses a name the Goals sheet reads as one of its own columns (`coreGoalsColumn`, by `headerMatch`: the header or another name the field table gives it, any case or accents). Probed: every header the export writes on Goals is refused.
+- **#493's second: closed.** The engine keeps each module row its Goals columns wrote as it was (`moduleUndo`, #520's seam), so Undo puts field values back and takes an added list value out; an import of field cells alone has rows to undo. Its test undoes both. Whether Undo leaves alone a field value changed since rides on #520's second medium, which track 3 is fixing for every module row.
+- **#493's third: closed.** Help and the guide now say Data's field cells can't be edited there.
+- **Low: a name one letter from a core column still asks on every round trip.** "Targets" is allowed (`coreGoalsColumn` takes exact and also-known names only), and the engine then asks "Two columns on Goals are read as Target…" each time the workbook is loaded back (seen on #493).
