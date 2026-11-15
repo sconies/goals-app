@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { weekSays, yearWeek } from '../domain/weeks';
 import { readWeek, weekChoices, weekIs, type WeekField } from '../domain/weekChoices';
 import type { Cycle } from '../domain/types';
+import { focusBackLater } from './focusBack';
 
 export function WeekPick({ cycle, week, field, label, value, onChange, from, labelClass = 'field-label', invalid = false, dataField, disabled = false }: {
   cycle: Pick<Cycle, 'startDate' | 'weeks'>;
@@ -58,7 +59,7 @@ export function WeekPick({ cycle, week, field, label, value, onChange, from, lab
   }, [open]);
 
   const shut = () => { setOpen(false); setQ(''); setUnread(''); };
-  const close = () => { shut(); requestAnimationFrame(() => opener.current?.focus()); };
+  const close = () => { shut(); focusBackLater(opener); };
   // Escape anywhere in the panel closes it; Tab out of it closes it without taking the focus back (GE9 review).
   const keyOnPanel = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
