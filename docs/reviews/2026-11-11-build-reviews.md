@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `517e3d04` (#520, MI), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520) are at the end. **Open from it:** #520's high (Undo removes another year's goal) and four mediums, all fixed on track 3's branch `mi-review`, not merged when this was written: read that PR against each, probing each door. #493's three mediums were closed by #533. Merged and not yet in the log: #536 (kit words; being checked). Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `5d857a70` (#536), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520, #533, #536) are at the end. **Open from it:** #520's high (Undo removes another year's goal) and four mediums, all fixed on track 3's branch `mi-review`, not merged when this was written: read that PR against each, probing each door. #493's three mediums were closed by #533. #536's medium (eight kit sentences) is with planning for item 11. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
@@ -281,6 +281,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #493 TG2: Fields' filters, sheet columns, import and find_goals | 2 | 0 | 3 | 1 |
 | #520 MI: the Metrics sheet in and out | 3 | 1 | 4 | 3 |
 | #533 TG2 review: field names, Undo and Help (#493's three mediums) | 2 | 0 | 0 | 1 |
+| #536 Kit: stage 1 and 2 words from the full drill's re-run | item 11 | 0 | 1 | 1 |
 
 **High findings, and where each stands**
 
@@ -2450,3 +2451,20 @@ Read against #493's three mediums; run on main at `5d857a70`. `npx vitest run sr
 - **#493's second: closed.** The engine keeps each module row its Goals columns wrote as it was (`moduleUndo`, #520's seam), so Undo puts field values back and takes an added list value out; an import of field cells alone has rows to undo. Its test undoes both. Whether Undo leaves alone a field value changed since rides on #520's second medium, which track 3 is fixing for every module row.
 - **#493's third: closed.** Help and the guide now say Data's field cells can't be edited there.
 - **Low: a name one letter from a core column still asks on every round trip.** "Targets" is allowed (`coreGoalsColumn` takes exact and also-known names only), and the engine then asks "Two columns on Goals are read as Target…" each time the workbook is loaded back (seen on #493).
+
+### #536 Kit: stage 1 and 2 words from the full drill's re-run (item 11, merged 15 Nov)
+
+Words only, in `src/spec/rules.ts`, `changeEngineDoc.ts`, `rebuild.ts`, `edge.ts`, `build.ts` and the store contract's descriptions. A subagent split the added sentences into about 60 statements and checked each against the code: about 35 by running the real functions (throwaway tests, deleted after) and the generated rows, the rest by reading. Five were then checked again here (the code lines and the backlog). Most hold, among them status rules 3 and 7 on the edge goals, the between tie-breaks, the trend's direction, the "ends reading" orders and the Undo "changed since" rule.
+
+- **Medium: eight added sentences say what the code doesn't do.** Each would send a rebuilder the wrong way on a scored row or an item's fields.
+  1. `saves` is "`yes` when… no Must fix, no open question, no reason missing and at least one item": in set-up from a file nothing is ever committed, so it is `no` there with all four true (import.csv `past-stage-setup-answered`, changes.csv `as-recorded`).
+  2. "Days without an update never count from before `rhythmFrom`": not with no set rhythm. `daysWithoutUpdate` reads `rhythmOf(cycle)?.from`, and `rhythmOf` is null when `checkInWeeks` is 0: run, `{rhythmFrom: 5 Mar}` gives 5 days and `{checkInWeeks: 0, rhythmFrom: 5 Mar}` gives 64.
+  3. "a change to a goal's plan alone counts in `plans`, not `goals`": any row whose plan changed is a `plan` item, whatever else it changes (a Target and a Definition together: `plans=1 goals=0`).
+  4. A new goal's item "also" lists Feeds into, Level, Role, Guardrail, Decimals and Plan from week: it writes Plan shape (a number goal) and Warning margin (a range) too.
+  5. "One place still writes them bare… Plan from week and Target due": Stages ("(wk 8)") and Plan numbers ("wk N: value") are bare weeks too; the kit's own fields table shows one.
+  6. "The prefixes are `p`, `team`, `st`, `goal`, `chg`, `ci` and `imp`": the engine asks for `req` and `ask` too (a check-in row that needs a decision gives `req_c3`).
+  7. With `near-header` on Target a new number goal's row "raises its owner's and team's notes": it raises a third, the Type default.
+  8. `undo` is "`{ goals, checkIns, people, requests }`, and `teams` and `reviews`": since #520 it has `moduleRows` as well, which is not a list of `{ id, before }`.
+- **Low: two more.** The unmeasured paragraph names projection.csv's E-15 rows as showing the goal projects like any other, but E-15 has one check-in and every one of its projection rows is empty. "A known fault, backlog 0v": `docs/backlog.md` has no 0v (edge.ts's text, older than this PR, says the same).
+
+Found beside them, in sentences this PR didn't add (not counted): New IDs' order "the change log's entries, then the check-ins and asks" (they interleave: `ci_c1`, `chg_c2`, `req_c3`, `chg_c4`); `needs_reason` is also yes for a check-in corrected with no reason; the store contract's `load` keeps the newest two years whatever `from` says. Not checked: the Postgres and Supabase adapters against the `load` words.
