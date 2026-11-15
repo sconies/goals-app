@@ -1,0 +1,41 @@
+const { chromium } = require('playwright');
+(async () => {
+  const b = await chromium.launch();
+  for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const p = await (await b.newContext({ viewport: vp })).newPage();
+    const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+    await p.goto('http://localhost:47101/goals?scope=all&view=map&as=amara');
+    await p.locator('.react-flow__node').first().waitFor();
+    const onPath = await p.locator('.react-flow__node[aria-label*="critical path"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-id')));
+    const box = await p.locator('.react-flow__node[data-id="lead-mq"]').boundingBox(); const area = await p.getByRole('region', { name: /Goal map/ }).boundingBox();
+    console.log(vp.width, 'path', onPath.join(','), 'entry', !!box && box.x >= area.x - 1 && box.x + box.width <= area.x + area.width + 1);
+    const before = await p.locator('.react-flow__node').count();
+    await p.getByRole('button', { name: 'Unfold all' }).click(); const all = await p.locator('.react-flow__node').count();
+    await p.getByRole('button', { name: 'Fold to the top' }).click(); const folded = await p.locator('.react-flow__node').count();
+    console.log('nodes', before, all, folded, 'helps', await p.locator('.react-flow__edge.helps').count());
+    await p.locator('.react-flow__node[data-id="lead-mq"]').click();
+    const panel = p.getByRole('complementary', { name: /Merge queue live for every monorepo/ });
+    const t = await panel.innerText(); console.log('panel', /Why/.test(t), /On the critical path/.test(t), await panel.getByRole('link', { name: 'Open the goal' }).isVisible());
+    await p.keyboard.press('Escape');
+    await p.locator('.react-flow__node[data-id="ns-lead"]').focus(); await p.keyboard.press('Enter');
+    const pn = p.getByRole('complementary', { name: /Lead time for changes/ });
+    const opened = await pn.isVisible(); const focused = await pn.evaluate((el) => el.contains(document.activeElement));
+    await p.keyboard.press('Escape');
+    const back = !(await pn.isVisible()) && await p.locator('.react-flow__node[data-id="ns-lead"]').evaluate((el) => el === document.activeElement);
+    console.log('keys', opened, focused, back);
+    await p.getByRole('searchbox', { name: 'Find a goal' }).or(p.locator('.list-bar input[type=search]')).first().fill('G-48');
+    await p.getByRole('option', { name: 'G-48' }).first().click();
+    console.log('found', await p.locator('.react-flow__node[data-id="mttr-oncall"] .map-node.found').count(), p.url());
+    await p.locator('.attention-switch:visible').click(); await p.waitForURL(/attention=1/);
+    await p.locator('.react-flow__node').first().waitFor();
+    console.log('attention', await p.locator('.react-flow__node').count(), await p.locator('.count-line').innerText());
+    await p.locator('.attention-switch:visible').click(); await p.waitForURL((u) => !/attention/.test(u.search));
+    await p.locator('.react-flow__node').first().waitFor();
+    console.log('helps after', await p.locator('.react-flow__edge.helps').count());
+    await p.locator('.list-bar input[type=search]').fill('merge'); await p.mouse.move(0, 0); await p.locator('.list-bar input[type=search]').press('Enter');
+    await p.waitForURL(/q=merge/); console.log('narrow', p.url(), await p.locator('.react-flow__node').count());
+    await p.screenshot({ path: `${process.env.OUT}/map-${vp.width}.png` });
+    console.log('errors', errs);
+  }
+  await b.close();
+})();

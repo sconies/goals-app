@@ -1,0 +1,225 @@
+week,goal,flags,handled,needs_attention,attention_group
+0,E-1,,,no,
+0,E-2,,,no,
+0,E-3,,,no,
+0,E-4,,,no,
+0,E-5,,,no,
+0,E-6,,,no,
+0,E-7,,,no,
+0,E-8,,,no,
+0,E-9,,,no,
+0,E-10,,,no,
+0,E-12,,,no,
+0,E-13,,,no,
+0,E-14,,,no,
+0,E-15,,,no,
+0,E-16,,,no,
+0,E-17,,,no,
+0,E-18,,,no,
+1,E-1,,,no,
+1,E-2,,,no,
+1,E-3,,,no,
+1,E-4,greener,,yes,needs
+1,E-5,,,no,
+1,E-6,,,no,
+1,E-7,,,no,
+1,E-8,,,no,
+1,E-9,,,no,
+1,E-10,greener,,yes,needs
+1,E-12,,,no,
+1,E-13,due,,no,
+1,E-14,greener,,yes,needs
+1,E-15,,,no,
+1,E-16,,,no,
+1,E-17,,,no,
+1,E-18,due,,no,
+2,E-1,greener,,yes,needs
+2,E-2,,,no,
+2,E-3,,,no,
+2,E-4,,,no,
+2,E-5,,,no,
+2,E-6,,,no,
+2,E-7,,,no,
+2,E-8,risk greener,,yes,needs
+2,E-9,due,,no,
+2,E-10,greener due,,yes,needs
+2,E-12,due,,no,
+2,E-13,greener,,yes,needs
+2,E-14,,,no,
+2,E-15,,,no,
+2,E-16,,,no,
+2,E-17,due,,no,
+2,E-18,stale due,,yes,needs
+3,E-1,greener,,yes,needs
+3,E-2,trend greener,,yes,needs
+3,E-3,trend greener,,yes,needs
+3,E-4,,,no,
+3,E-5,off,,yes,needs
+3,E-6,due,,no,
+3,E-7,,,no,
+3,E-8,off trend,,yes,needs
+3,E-9,off,,yes,needs
+3,E-10,stale due,,yes,needs
+3,E-11,,,no,
+3,E-12,greener,,yes,needs
+3,E-13,greener due,,yes,needs
+3,E-14,due,,no,
+3,E-15,,,no,
+3,E-16,due,,no,
+3,E-17,risk,,yes,needs
+3,E-18,stale due,,yes,needs
+4,E-1,greener,,yes,needs
+4,E-2,trend greener,,yes,needs
+4,E-3,greener,,yes,needs
+4,E-4,,,no,
+4,E-5,off due,,yes,needs
+4,E-6,,,no,
+4,E-7,due,,no,
+4,E-8,off trend due,,yes,needs
+4,E-9,off due,,yes,needs
+4,E-10,stale due,,yes,needs
+4,E-11,,,no,
+4,E-12,greener due,,yes,needs
+4,E-13,stale due,,yes,needs
+4,E-14,stale due,,yes,needs
+4,E-15,,,no,
+4,E-16,,,no,
+4,E-17,risk due,,yes,needs
+4,E-18,,,no,
+5,E-1,greener,,yes,needs
+5,E-2,off no-path trend,,yes,needs
+5,E-3,off no-path,,yes,needs
+5,E-4,due,,no,
+5,E-5,stale due,,yes,needs
+5,E-6,,,no,
+5,E-7,,,no,
+5,E-8,risk trend greener,,yes,needs
+5,E-9,stale due,,yes,needs
+5,E-10,risk greener,,yes,needs
+5,E-11,due,,no,
+5,E-12,off trend due,action,no,handled
+5,E-13,risk greener,,yes,needs
+5,E-14,stale due,,yes,needs
+5,E-15,,,no,
+5,E-16,,,no,
+5,E-17,stale due,,yes,needs
+5,E-18,greener,,yes,needs
+6,E-1,off no-path,,yes,needs
+6,E-2,greener,,yes,needs
+6,E-3,off no-path due,,yes,needs
+6,E-4,stale due,,yes,needs
+6,E-5,stale due,,yes,needs
+6,E-6,due,,no,
+6,E-7,due,,no,
+6,E-8,,,no,
+6,E-9,trend,,yes,needs
+6,E-10,risk greener due,,yes,needs
+6,E-11,greener,,yes,needs
+6,E-12,off missed-path trend due,,yes,needs
+6,E-14,stale due,,yes,needs
+6,E-15,,,no,
+6,E-16,due,,no,
+6,E-17,trend,,yes,needs
+6,E-18,,,no,
+7,E-1,off no-path trend,,yes,needs
+7,E-2,greener due,,yes,needs
+7,E-3,stale due,,yes,needs
+7,E-4,stale due,,yes,needs
+7,E-5,stale due,,yes,needs
+7,E-6,,,no,
+7,E-7,stale due,,yes,needs
+7,E-8,,,no,
+7,E-9,trend due,,yes,needs
+7,E-10,stale due,,yes,needs
+7,E-11,greener due,,yes,needs
+7,E-12,risk trend greener,,yes,needs
+7,E-14,stale due,,yes,needs
+7,E-15,,,no,
+7,E-16,stale due,,yes,needs
+7,E-17,trend due,,yes,needs
+7,E-18,due,,no,
+8,E-1,greener,,yes,needs
+8,E-2,stale due,,yes,needs
+8,E-3,stale due,,yes,needs
+8,E-4,stale due,,yes,needs
+8,E-5,stale due,,yes,needs
+8,E-6,due,,no,
+8,E-7,,,no,
+8,E-8,risk,,yes,needs
+8,E-9,stale trend due,,yes,needs
+8,E-10,stale due,,yes,needs
+8,E-11,risk greener,,yes,needs
+8,E-12,risk trend greener due,,yes,needs
+8,E-14,stale due,,yes,needs
+8,E-15,,,no,
+8,E-16,stale due,,yes,needs
+8,E-17,stale trend due,,yes,needs
+8,E-18,stale due,,yes,needs
+9,E-1,greener due,,yes,needs
+9,E-2,stale due,,yes,needs
+9,E-3,stale due,,yes,needs
+9,E-4,stale due,,yes,needs
+9,E-5,stale due,,yes,needs
+9,E-6,stale due,,yes,needs
+9,E-7,,,no,
+9,E-8,,,no,
+9,E-9,stale trend due,,yes,needs
+9,E-10,,,no,
+9,E-11,risk,,yes,needs
+9,E-12,stale trend due,,yes,needs
+9,E-14,stale due,,yes,needs
+9,E-15,,,no,
+9,E-16,stale due,,yes,needs
+9,E-17,stale trend due,,yes,needs
+9,E-18,stale due,,yes,needs
+10,E-1,stale due,,yes,needs
+10,E-2,stale due,,yes,needs
+10,E-3,stale due,,yes,needs
+10,E-4,stale due,,yes,needs
+10,E-5,stale due,,yes,needs
+10,E-6,stale due,,yes,needs
+10,E-7,due,,no,
+10,E-8,due,,no,
+10,E-9,stale trend due,,yes,needs
+10,E-10,due,,no,
+10,E-11,risk due,,yes,needs
+10,E-12,stale trend due,,yes,needs
+10,E-14,stale due,,yes,needs
+10,E-15,,,no,
+10,E-16,stale due,,yes,needs
+10,E-17,stale trend due,,yes,needs
+10,E-18,stale due,,yes,needs
+11,E-1,stale due,,yes,needs
+11,E-2,stale due,,yes,needs
+11,E-3,stale due,,yes,needs
+11,E-4,stale due,,yes,needs
+11,E-5,stale due,,yes,needs
+11,E-6,stale due,,yes,needs
+11,E-7,stale due,,yes,needs
+11,E-8,stale due,,yes,needs
+11,E-9,stale trend due,,yes,needs
+11,E-10,stale due,,yes,needs
+11,E-11,stale due,,yes,needs
+11,E-12,stale trend due,,yes,needs
+11,E-14,stale due,,yes,needs
+11,E-15,,,no,
+11,E-16,stale due,,yes,needs
+11,E-17,stale trend due,,yes,needs
+11,E-18,stale due,,yes,needs
+12,E-1,stale due,,yes,needs
+12,E-2,stale due,,yes,needs
+12,E-3,stale due,,yes,needs
+12,E-4,stale due,,yes,needs
+12,E-5,stale due,,yes,needs
+12,E-6,stale due,,yes,needs
+12,E-7,stale due,,yes,needs
+12,E-8,stale due,,yes,needs
+12,E-9,stale trend due,,yes,needs
+12,E-10,stale due,,yes,needs
+12,E-11,stale due,,yes,needs
+12,E-12,stale trend due,,yes,needs
+12,E-14,stale due,,yes,needs
+12,E-15,,,no,
+12,E-16,stale due,,yes,needs
+12,E-17,stale trend due,,yes,needs
+12,E-18,stale due,,yes,needs

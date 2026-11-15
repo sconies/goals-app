@@ -1,0 +1,2 @@
+Platform: 37 checks pass.
+exit 0
