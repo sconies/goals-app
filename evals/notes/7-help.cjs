@@ -109,8 +109,10 @@ module.exports = {
         fail(/[?&]q=dark/.test(p.url()), `[HELP-GUIDE] ${w}: the search is not in the link`);
         await box.fill('plan change reason'); await p.waitForTimeout(200);
         fail((await p.locator('.help-row-title').allInnerTexts()).includes('Changing a goal or its plan'), `[HELP-GUIDE] ${w}: “plan change reason” misses Changing a goal or its plan`);
-        await box.fill('xylophone'); await p.waitForTimeout(200);
-        fail(await p.getByText('No article matches “xylophone”.').isVisible(), `[HELP-GUIDE] ${w}: no “No article matches” for a search that finds nothing`);
+        // Waits for the message rather than a fixed 200 ms: with the CPU slowed 4× on a phone page the list can still be
+        // redrawing then (it failed once that way on the MQ2 gate, 15 Nov).
+        await box.fill('xylophone');
+        fail(await p.getByText('No article matches “xylophone”.').waitFor({ timeout: 3000 }).then(() => true, () => false), `[HELP-GUIDE] ${w}: no “No article matches” for a search that finds nothing`);
         await box.fill('');
         await p.locator('.help-row-link', { hasText: 'Checking in on a goal' }).click(); await p.waitForTimeout(300);
         fail(path(p) === '/help/check-in' && (await h1(p)) === 'Checking in on a goal', `[HELP-GUIDE] ${w}: the article opened at ${path(p)}`);
