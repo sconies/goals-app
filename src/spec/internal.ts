@@ -82,13 +82,14 @@ export const ACCESS: Access[] = [
   { area: 'Comments and asks', what: 'Withdraw an ask', who: 'Whoever asked, or an admin; for a decision or help, also the owner of the goal it was raised on', code: [`${A}withdrawRequest`, 'src/domain/asks.ts#canWithdraw'] },
   { area: 'Reviews', what: 'Set up a review', who: 'Anyone', code: [`${A}saveReview`] },
   { area: 'Reviews', what: 'Change a review', who: 'Someone in it, whoever set it up, or an admin', code: [`${A}saveReview`] },
-  { area: 'Reviews', what: 'Say something about a goal in a review (seen, a note, a question, an action)', who: 'Anyone; a question or action on your own goal is a note instead', code: [`${A}reviewCall`] },
-  { area: 'Reviews', what: 'Mark goals reviewed in a session; accept the risk on a goal behind, with a reason', who: 'Anyone', code: [`${A}markReviewed`, `${A}acceptRisk`] },
+  { area: 'Reviews', what: 'Say something about a goal in a review (seen, a note, a question, an action)', who: 'Someone in the review, or an admin, about a goal it walks; a question or action on your own goal is a note instead', code: [`${A}reviewCall`] },
+  { area: 'Reviews', what: 'Mark goals reviewed in a session; accept the risk on a goal behind, with a reason', who: 'Someone in the review, or an admin', code: [`${A}markReviewed`, `${A}acceptRisk`] },
+  { area: 'Reviews', what: 'Propose a goal in a review', who: 'Someone in the review, or an admin; only a new proposed goal', code: [G] },
   { area: 'Reviews', what: 'Correct what was said in a review, or an ask’s words', who: 'Whoever said or asked it, or an admin', code: [`${A}editCall`] },
   { area: 'Reviews', what: 'Undo marking goals reviewed in a session', who: 'Whoever marked them, or an admin', code: [`${R}unmarkReviewed`] },
   { area: 'Reviews', what: 'Remove a note said in a review', who: 'Whoever said it, or an admin', code: [`${R}deleteNote`] },
   { area: 'Reviews', what: 'End a review, or delete one never held', who: 'Whoever set it up, or an admin', code: [`${R}endReview`, `${R}deleteReview`, `${R}reviewHeld`] },
-  { area: 'Views and watching', what: 'Watch a goal, a tree or a level; stop watching', who: 'Anyone, for their own watches', code: [`${A}watch`, `${A}unwatch`] },
+  { area: 'Views and watching', what: 'Watch a goal, a tree or a level; stop watching', who: 'Each person, for their own watches only; nobody, admins included, starts or stops someone else’s', code: [`${A}watch`, `${A}unwatch`] },
   { area: 'Views and watching', what: 'Save a view of the goals; change or delete one', who: 'Anyone saves; its owner or an admin changes or deletes it', code: [`${A}saveView`, `${A}saveTableView`, `${A}deleteView`] },
   { area: 'Views and watching', what: 'Pin a view for everyone', who: 'Admins', code: [`${A}pinView`] },
   { area: 'People, teams and the workspace', what: 'Add someone; change their name, job title, team or admin rights', who: 'Admins', code: [`${A}savePerson`, C] },
@@ -101,8 +102,8 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was', who: 'Whoever removed it, or an admin', code: [`${R}undoRemoval`] },
   { area: 'People, teams and the workspace', what: 'Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed', who: 'An admin (everything), or whoever removed it (their own)', code: [`${R}restoreRemoved`, `${R}canRestore`] },
   { area: 'People, teams and the workspace', what: 'Make an MCP token for someone', who: 'Admins', code: [`${A}createToken`] },
-  { area: 'People, teams and the workspace', what: 'Revoke an MCP token', who: 'An admin, or the token’s person', code: [`${A}revokeToken`] },
-  { area: 'People, teams and the workspace', what: 'Send feedback about the app', who: 'Anyone', code: [`${A}sendFeedback`] },
+  { area: 'People, teams and the workspace', what: 'Revoke an MCP token', who: 'An admin, or the token’s person. A token is never changed, only revoked.', code: [`${A}revokeToken`] },
+  { area: 'People, teams and the workspace', what: 'Send feedback about the app', who: 'Anyone, as themselves; it is always New (okr_feedback_add)', code: [`${A}sendFeedback`] },
   { area: 'People, teams and the workspace', what: 'Start over: reset the shared example in this browser, or remove a workspace of your own', who: 'Anyone in the example; admins in a workspace of their own', code: [`${A}mayStartOver`] },
   { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage'] },
   { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked'] },
@@ -154,6 +155,7 @@ export const INTERNAL: InternalRequirement[] = [
       '9. **Opening the app without signing in shows the sign-in** (set-up spec SR1), never Welcome with a list of workspaces, a workspace or a name picker. After sign-in: no workspace, Welcome; one, its Home; several, the last one opened.',
       '10. **An invitation is addressed to a person** (SR2). Adding someone to a workspace (their email, rule 2) is what invites them; the platform tells them by its own means (email, chat), with the same three lines Faro’s invitation has. Faro’s copy-and-paste link is the stand-in.',
       '11. **Arriving is the first sign-in** (SR3). There is no “Which one are you?”: the signed-in email is matched to the person record. Someone with no record sees “You’re not in {workspace}. Ask {admins} to add you.” and nothing of the workspace. The server records the arrival at the first sign-in (the same log entry Faro writes when someone first chooses their name: `arrive`).',
+      '12. **The server checks every record kind, not every save.** A platform that stores rows (any database without Faro’s actions running beside it) must check each record a save writes against the stored rows before keeping it: who may write that kind (the access table), which fields are fixed once written, and which side-effect writes an action makes. The drill (item 11, 15 Nov) rebuilt Faro on a row store and found that a guard covering only goals, check-ins, people, teams, cycles, settings and views let a member forge decisions, retros, watches, asks, reviews and feedback, and that each module’s own guard still let side-effect writes through when the browser sent them along with a goal. The platform enforces this; the browser’s checks only explain early. The table **Record kinds the server checks** below lists every kind and every side-effect write.',
     ].join('\n'),
     today: [
       'The app asks “Who are you?” and remembers the answer on the device (Help, “Saying who you are”; `src/screens/Start.tsx`).',
@@ -561,13 +563,54 @@ export const INTERNAL: InternalRequirement[] = [
       'A connector that fails, or falls a refresh behind, alerts the source’s owner within one refresh.',
       'A reading is refused to anyone who may not read the goal it measures.',
     ],
-    stage: { file: 'stage-4-module-metrics.md', title: 'Stage 4: Metric library', why: 'the number step, rule 1’s states and rule 4’s words are the metric library module’s; the rebuild plugs its connectors in behind the same `NumberSource` port.' },
+    stage: { file: 'stage-7-module-metrics.md', title: 'Stage 7: Metric library', why: 'the number step, rule 1’s states and rule 4’s words are the metric library module’s; the rebuild plugs its connectors in behind the same `NumberSource` port.' },
     decided: [
       'Numbered R12 because R7 to R11 are taken (MT4’s spec calls it R7); its rules are R12.1 to R12.8.',
       'A reading nobody confirmed (R12.8) stays out of Faro: a number is a check-in only when its owner says so.',
     ],
   },
 ];
+
+/* ---------- R1's record kinds: what the server checks when a platform stores rows (the drill, 15 Nov) ---------- */
+
+export interface RecordCheck {
+  kind: string;
+  /** The names the kind goes by in the store's save (`goals`, `checkIns` …). */
+  where: string;
+  who: string;
+  fixed: string;
+  sideEffects: string;
+}
+
+export const RECORDS: RecordCheck[] = [
+  { kind: 'People', where: 'people', who: 'Admins; a person themselves only by arriving and by leaving', fixed: 'id, workspace, and whose email it is (a person’s email changes only by an admin)', sideEffects: 'Marking someone as left, or a leaver leaving, hands over their goals and asks, takes them out of reviews and ends their watches.' },
+  { kind: 'Goals', where: 'goals', who: 'The owner, an admin, or while proposed whoever proposed it; anyone adds one for anyone', fixed: 'id, workspace, cycle, who created it', sideEffects: 'The next cycle’s start copies goals (and their watches, values and links). A metric’s save relabels the unit of the goals it measures and holds them to no number on a Gap, whoever owns them. A hand-over changes the owner. A goal can be proposed in a review.' },
+  { kind: 'Check-ins', where: 'checkIns', who: 'The goal’s owner only (an admin’s import and undo, as the access table says)', fixed: 'goal, week, who posted it', sideEffects: 'None beyond the goal’s version.' },
+  { kind: 'Decisions', where: 'decisions', who: 'Whoever records it, as themselves', fixed: 'who recorded it, when, its goal', sideEffects: 'None.' },
+  { kind: 'Asks', where: 'requests', who: 'Asking: anyone but the goal’s owner. Answering: the person asked, or an admin. Withdrawing and marking done as the access table says', fixed: 'who asked, when, the goals it is about, and a removed ask’s remover', sideEffects: 'A hand-over re-addresses open asks; a review raises asks.' },
+  { kind: 'Reviews, and what is said in them', where: 'reviews', who: 'Set up by anyone; changed by someone in it, its setter or an admin. A note, question, action or mark only by someone in the review (or an admin), about a goal the review walks', fixed: 'who set it up, who said each thing and when, who removed a note', sideEffects: 'A leaver leaves reviews; an undo restores them. Carrying a goal into a review is the review’s change, never accepted as a goal riding another save.' },
+  { kind: 'Wrap-ups', where: 'retros', who: 'The goal’s owner or an admin, while the wrap-up is open by the server’s own clock; one per goal per year', fixed: 'goal, year, who wrote it, when', sideEffects: 'None.' },
+  { kind: 'Cycles', where: 'cycles', who: 'Admins', fixed: 'id, workspace', sideEffects: 'None.' },
+  { kind: 'Watches', where: 'watches, unwatch', who: 'Each person their own only; nobody, admins included, starts or stops someone else’s', fixed: 'whose watch, what it watches', sideEffects: 'A cycle’s start, its undoing and a goal leaving a later year carry watchers’ watches along with the goals: the server makes these itself and never accepts a watch for someone else sent with a goal.' },
+  { kind: 'Saved views', where: 'views', who: 'Anyone saves their own; its owner or an admin changes or deletes it; admins pin', fixed: 'its owner, workspace', sideEffects: 'None.' },
+  { kind: 'Tokens', where: 'tokens', who: 'Made on the server by an admin, only while AI access is on (the database function too); revoked by its person or an admin; never changed otherwise', fixed: 'its person, workspace, hash', sideEffects: 'None.' },
+  { kind: 'Feedback and markups', where: 'feedback', who: 'Anyone adds, as themselves, always New; only whoever may triage changes a status (rule 6), never an admin of some other workspace', fixed: 'sender, workspace, text, when', sideEffects: 'None.' },
+  { kind: 'Teams, the workspace’s name, recording and feature switches', where: 'teams, removeTeams, workspace, recording, modulesOff', who: 'Admins of that workspace', fixed: 'id, workspace', sideEffects: 'Switching a feature off changes nothing stored; its rows are kept.' },
+  { kind: 'The change log', where: 'changes', who: 'Written by the server as the signed-in person; an entry is kept only beside the record change it describes, in the same save', fixed: 'everything: an entry is never changed', sideEffects: 'None.' },
+  { kind: 'Module rows', where: 'modules', who: 'Each module’s own check (metrics and their links, field values, import jobs); refused while the module is switched off or left out of the build, whatever marks the save carries; an unknown kind or key is refused, not ignored', fixed: 'as each module says', sideEffects: 'As each module says.' },
+  { kind: 'Files', where: 'files', who: 'Scoped to a workspace and to whoever may read them; an import’s upload only to its job; readings drops only admins; the path is normalised before any check', fixed: 'the path, once written', sideEffects: 'None.' },
+];
+
+const recordsTable = () => [
+  '### Record kinds the server checks',
+  '',
+  'When a platform stores rows, with none of Faro’s actions running beside the store, each record a save writes is checked against the stored rows before it is kept (rule 12). Every kind has the same three parts: who may write it, which fields are fixed once written, and which side-effect writes an action makes that the server makes itself, never taking them from the browser.',
+  '',
+  table(['Record kind', 'Who may write it', 'Fixed once written', 'Side-effect writes the server makes itself'], RECORDS.map((r) => [`${cell(r.kind)} (\`${r.where}\`)`, cell(r.who), cell(r.fixed), cell(r.sideEffects)])),
+  '',
+  'The values the database checks today are part of the check: the allowed moods and statuses, lengths, and dates set by the server’s clock. They are in [`spec/core/schema.sql`](../../core/schema.sql); timestamps written by the server are [R3](r3-time-zones.md).',
+  '',
+].join('\n');
 
 /* ---------- the pages ---------- */
 
@@ -599,7 +642,7 @@ function page(q: InternalRequirement): string {
     '',
     q.rule,
     '',
-    ...(q.id === 'R1' ? ['## Who may change what', '', 'Read from Faro’s shared actions: each line names the function that enforces it today, in the app and the AI assistant alike. `src/spec/internal.test.ts` fails when an action that says who may do something isn’t listed here. Anything not listed, any member may do.', '', accessTable()] : []),
+    ...(q.id === 'R1' ? ['## Who may change what', '', 'Read from Faro’s shared actions: each line names the function that enforces it today, in the app and the AI assistant alike. `src/spec/internal.test.ts` fails when an action that says who may do something isn’t listed here. Anything not listed, any member may do.', '', accessTable(), recordsTable()] : []),
     '## What Faro does today',
     '',
     ...q.today.map((t) => `- ${t}`),

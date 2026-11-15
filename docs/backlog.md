@@ -24,6 +24,9 @@ Found by the full rebuild drill. Wording only; none is fixed here.
 - `home.csv` depends on the time zone (Pacific/Auckland).
 - 0v: a goal whose plan hasn't started yet shows a negative number of days without an update.
 - Reviews' switch-off read-back says "1 open next step … on their goals" for one goal (from #547).
+- `okr_token_create` doesn't check `modules_off`: a token can be made while AI access is off.
+- Settings' "On this page" links to "Your MCP tokens" while AI access is off.
+- R1's access table said "Anyone" for what is said in a review, where REVIEW-SPEAK says someone in the review or an admin (fixed in the spec by this PR; the stand-in showed the server must enforce it).
 
 ## Build, in order
 
