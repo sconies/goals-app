@@ -1,12 +1,129 @@
 # The full rebuild drill (backlog item 11), November 2026
 
+The last proof before the handoff. It was redefined by Lane on 15 November, and this page reports the drill as redefined. The first version, a fresh session rebuilding Faro from the kit alone, is kept at the end as an earlier run.
+
+## What the drill tested
+
+The internal team will have Faro's code, its kit (`spec/`, `llms.txt`) and the running app. Their problem is not writing Faro again; it is moving it onto their own platform: their sign-in and single sign-on, their data store, their hosting. So each rebuild session got all three inputs, and a small generic stand-in for the company's platform to move Faro onto:
+
+- **The stand-in platform:** Node 22 and `node:http`, SQLite through `node:sqlite` (no row rules, no database functions: every access rule is in the server), its own email-and-password sign-in, a stub single sign-on, a local files folder, a `setInterval` scheduler. No Supabase, no Vercel.
+- **Time-boxed:** the core first, then each module on its own, one pass each (the core and nine modules, ten stages). Gaps were noted, not chased; only one-line kit corrections were made.
+- **Pinned to** main at `dfe97c0e` (15 November). Each module was built on top of the core's stand-in.
+- **Measured per stage:** (a) what ported as it was; (b) what was rewired, and how much; (c) what the platform must provide, marked NAMED when the spec says it and GAP when it needed it and the spec did not; (d) behaviour: the rules and the conformance rows on the new platform. Journeys were secondary, because they ran against the browser store in `/demo` and so prove nothing about the server.
+
+The running app, https://goals-app-puce-five.vercel.app/demo (the demo needs no sign-in), and the code are the reference. Where the kit and the app disagree, the app wins; report it.
+
+## The result in one table
+
+| Stage | Ported as it was | Rewired | Behaviour |
+|---|---|---|---|
+| Core (every module out) | 2,300 of 2,304 files; `src/domain` 0 lines changed | 4 Faro files (11 lines) and 20 new files (+1,915 lines): a SQLite store that ports the database functions, the schema translated, a server guard, an HTTP store, sign-in and stub SSO, files, `/mcp` | typecheck, 2,216 tests, drill 100% (462,003 of 462,003), contracts 56/56, server proof 36/36 |
+| AI access | the module unchanged | 4 files, +21 −2 | 8 of 8 exit criteria |
+| Feedback | unchanged | 12 files, +691 −13: markups and triage in SQLite, pictures on the files API, the inbox API | exits 3 to 5 met, 1 and 2 in part |
+| Goal map | unchanged | 1 line (the build) | all met |
+| Metric library | 50 of 55 module files | 25 files, +905 −110: module migrations, a guard part, the number-source seam | most met; metrics.csv 124 of 124 |
+| Reviews | unchanged | 6 files, +364 −4 | most met; reviews.csv 91 of 91 |
+| Spreadsheets | unchanged | 7 files, +754 −3: the import as a job on the server | the rest in part (the browser import is still in the page) |
+| Fields (tags) | unchanged | 9 files, +474 −5 | most met; tags.csv 25 of 25 |
+| Watching | unchanged | 7 files, +399 −2 | 1 and 3 to 7 met; watching.csv 63 of 63 |
+| Wrap-up | unchanged | 6 files, +342 −7 | 1 and 3 to 6 met |
+
+**What ports as it is:** `src/domain` (the rules, 182 files in the core), `src/screens`, `src/app`, `src/ports` with every contract test, `server/mcp.ts` (the AI tools' handler, wrapped in ten lines of `node:http`), and every module's own folder. In nine modules out of nine the module's code was not touched.
+
+**What is rewired to the platform:** the sign-in and the signed-in person (`Identity`), the goals store (the database functions become code in one transaction per save), the migrations, the server's access checks, the AI tools' endpoint and its dependencies, files, and the import's file handling. A module's rewiring is almost all one thing: the server-side check of its own records (below).
+
+## The most important result: the platform must enforce R1 on the server
+
+Faro's store takes rows, not actions. On a row-based store the server cannot tell, from the rows alone, who a decision, a retro, a watch, an ask, a review or a piece of feedback is for. The first stand-in guard covered goals, check-ins, people, teams, cycles, settings and views. The reviewer then showed that, through the plain save (`POST /commit`) and as an ordinary member, these were all accepted:
+
+- a decision on someone else's goal, recorded as an admin;
+- a watch for another person;
+- a retro on another's goal, recorded as an admin;
+- feedback sent as someone else;
+- asks and reviews written by others.
+
+Each module build then added its own guard for its own records, and every one was reviewed. Even then, writes that ride along with another save could be forged:
+
+- **Metrics:** hold another owner's goal to no number by carrying its link row unchanged; reading values dropped through a `//` path skip the admin check; a record of an unknown module kind is silently dropped.
+- **Reviews:** restore someone else's removed note by rewriting who removed it first; edit an ask a review raised (its text, who asked, its goals, an answer given as another); add any goal to a review you are not in by listing it unchanged, because the carry exemption trusts the client; carried watches and asks.
+- **Feedback:** any member can create a workspace, become its admin, and triage and read every workspace's feedback; the mood, size and date checks went with the database's CHECK rules.
+- **Spreadsheets:** an import's upload could be served and deleted through `./imports/` or `x/../imports/` (the build's claim that it was never served was wrong); the server trusted the client's mark that a module was off; forged "imported" and "undone" log entries.
+- **Fields:** a member adds a goal owned by someone else with a value on it; a backdated time; an unknown key ignored.
+- **Watching:** stop or restore another person's watch riding along with her own goal edit; create a watch for another by adding a goal with a watched goal's key; a forged watch log row; a watch on a goal that does not exist.
+- **Wrap-up:** a change-log row saying "Wrapped up" someone's goal with no retro behind it; a retro with a backdated time.
+- **AI access** and **Goal map:** nothing forgeable. (One bug: `okr_token_create` does not check that AI access is on.)
+
+These share one pattern, and it is what the platform must do:
+
+1. Check each **record kind** against the **stored rows**, not against what the client says.
+2. Set author fields on the server (who acted, when), from the signed-in person and the server's clock.
+3. Derive side-effect writes on the server (a carried watch, a leaver leaving a review, a metric relabelling goals); never accept them as rows riding another save.
+4. Accept a change-log entry only beside the change it describes.
+5. Refuse a module's rows when the module is off or left out, whatever the client marks.
+6. Refuse unknown record kinds.
+7. Give admin rights per workspace (builders for the feedback inbox), and scope files to the workspace and the reader, with paths normalised.
+8. Restate, in the server, the rules the database's CHECK constraints held.
+
+**R1 now lists every record kind and side-effect write the server checks:** [`spec/requirements/internal/r1-sign-in-and-access.md#record-kinds-the-server-checks`](../../spec/requirements/internal/r1-sign-in-and-access.md#record-kinds-the-server-checks) (that section lands with the kit PR, `drill-11-kit`). **The internal platform must enforce this, per record kind, against stored rows.** Faro's browser store does not, on purpose: it never holds real data. In several modules the guard was covered only by a proof script, not by `npm test`; a platform should have unit tests for it.
+
+## The platform requirements
+
+Everything the stand-in needed from a platform, as the kit stands after this drill's one-line corrections.
+
+**NAMED (the spec says it):**
+
+- Sign-in; the signed-in person is the actor (R1 rule 1, R2 rule 1).
+- Membership is a live person with the email, in lower case (R1 rule 2, `adapters.md`).
+- Non-members read nothing; workspaces are listed only to members (R1 rule 3).
+- The server enforces who may change what (R1 rule 4, `adapters.md`, `ports-at-scale.md`), but see the gap below for how.
+- A token's secret stays on the server, only its hash is kept, and it stops when the person leaves (R1 rule 5).
+- A leaver's sessions end and their tokens stop (R2 rule 3 and check 4).
+- Signed out shows the sign-in (R1 rule 9).
+- The ports, each with a contract: `Store`, `Files`, `Clock`, `Identity`, the AI tools' `Deps` (`adapters.md`).
+- Load windows and paging at scale (R4 rule 3, `ports-at-scale.md`).
+- Jobs on a timer: reminders and digests (R5, `spec/requirements/internal/r5-notifications-and-habits.md`); Faro's core has none.
+- A telemetry sink (`adapters.md`, R9).
+- Large imports as a job (R11).
+
+**GAP (needed, and the spec did not name it):**
+
+1. **Per-kind access beyond goals and check-ins.** The access table says what each row kind needs, but a store given rows, not actions, cannot apply it. The largest gap, and the section above.
+2. **What the database functions do**, in a form that is not plpgsql: the null-fill upsert, the version bump, the goal-key counter, token creation, the same-workspace check.
+3. **Which rules the database's CHECK constraints restate**, so a platform without them knows what to enforce.
+4. **The browser-to-server API.** The kit gives no route shape for a store that lives on the server (the whoami route, the commit route, the inbox, an import job).
+5. **The contract's module table** is Postgres-only, and `Store.kind` is a closed list, so a store for another platform cannot be proved with it.
+6. **Where a module's own rows are checked.** There is no hook for a module's guard; two builds invented a registry independently (`platform` in metrics, `guard` in tags). The kit should name one.
+7. **The server refuses a switched-off or left-out module's rows**, not only its tools, menu, Home card and import.
+8. **The server's own clock** for every time it records (wrap-up weeks, retro time, watches).
+9. **Side-effect writes**: a metric's save relabelling others' goals, a watch carried at cycle start and undone with it, a leaver leaving a review, a carried goal joining a review. R1 does not list them (the kit PR now does).
+10. **Module tables in their own migration**, kept while the module is left out of a build.
+11. **Files:** list and delete are missing from the port; `/api/files` served any path to any signed-in person.
+12. **Smaller:** who creates a workspace and becomes its first admin (by email); which admin triages an inbox that spans workspaces; who sees and answers an import job; an admin writing another person's watch (silent in R1); who may wrap up a goal (the owner or an admin, stated in the code and stage words); the Supabase client chunk still shipped in the app bundle.
+
+## Behaviour
+
+- **Rules:** the conformance harness scored 100% on the core and on every module stage, run from the stand-in (462,003 of 462,003 core cells; each module's own csv at 100%); contracts 56 of 56; `src/domain` needed no change.
+- **On, off and left out:** every module was proved on, off, and left out of the build on the running stand-in server. Left out, its rows were still accepted by the core's save until each module's guard was added (gap 7).
+- **Journeys** ran in `/demo` against the browser store. The failures were modules left out, never class names or wording, and they prove nothing about the server.
+- **Reviews:** a second session rebuilt each stage from its patch and re-ran the numbers. All matched. Five claims in the build reports were wrong: metrics' "switched-off rows" gap was already named (`ports-at-scale.md`); the Wrap-up row and the AI-access revoke row were already in R1; the spreadsheets upload was served; tags' "not its proposer" citation was wrong.
+
+## Faro bugs the drill found
+
+Not fixed here; for the backlog. `okr_token_create` does not check that AI access is on; Settings' "On this page" links to AI access's tokens while the module is off; R1 says "Anyone" can speak for a review while the review wording says otherwise; plus the list in `docs/backlog.md` under "Bugs found by the drill".
+
+## Where the evidence is
+
+The stand-in builds, their reports, patches and reviews are on the scratch branch `drill-11-rebuild` (never merged): `RESULTS.md`, `standin/PLATFORM.md`, and per stage `standin/<stage>/REPORT.md` and `REVIEW.md` (stages: core, ai-access, feedback, goal-map, metrics, reviews, spreadsheets, tags, watching, wrap-up).
+
+## Earlier run: from the kit alone (14 to 15 November, superseded)
+
 The last proof before the handoff: a fresh session rebuilds Faro stage by stage from the rebuild kit alone (`spec/` and `llms.txt`), the core first and then each module on its own, and each stage ships when its exit criteria pass.
 
 - **Pinned to:** main at `dd00ff48` (KL's merge, #508). The kit read by every stage is `spec/` and `llms.txt` from that commit; later merges don't change this run.
 - **How each stage runs:** a fresh subagent sees only a scratch folder with a copy of the pinned `spec/` and `llms.txt` (never Faro's source), builds the stage under `rebuild/` on top of the previous stage's passing rebuild, and keeps `GAPS.md`. Stages 1 to 3 are scored by the harness (`npm run drill -- <folder>`, run from the pinned commit). Module stages (4 to 11) are outlines with no harness of their own: the rebuild must still score 100% on stages 1 to 3 with the module in it, and a separate reviewer checks each exit criterion by hand against the rebuild.
 - **A gap** is a place where the kit alone wasn't enough. Each one is fixed in the kit itself (`src/spec/*`, a module's `rebuild` stage, conformance rows), never by pointing the drill at the source.
 
-## Scorecard
+### Scorecard
 
 | Stage | Result | Gaps found | PRs |
 |---|---|---|---|
@@ -22,15 +139,15 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 | 10. Module: Watching | Waiting | | |
 | 11. Module: Wrap-up | Waiting | | |
 
-### To add when merged
+#### To add when merged
 
 Modules not on main at `dd00ff48`, each added later as a stage of its own with its section, conformance rows, stage and switch: GR (#464, merged after the pin), MQ (migration #502 merged after the pin; structure #505 to come), FT1 (#465, merged after the pin), TG2 (#493), SW2 (#504) and MI. (MC was deferred by Lane on 14 Nov, so it is no longer on this list.)
 
-## Gaps
+### Gaps
 
 Each gap: the stage, what the kit didn't say, the evidence, and the fix.
 
-### Stage 1: the core rules
+#### Stage 1: the core rules
 
 The rebuild passed: 43,373 of 43,373 rows on the first stage 1 rebuild, after three scoring runs (the first scored 99.9%). The conformance data settled what the words left open; the gaps below are where the words should have said it. "Unproven" means that neither the words nor the demo data decide it.
 
@@ -55,7 +172,7 @@ The rebuild passed: 43,373 of 43,373 rows on the first stage 1 rebuild, after th
 
 In #513 the code showed the drill's guess was wrong on 1.3 (the week before is the latest earlier week with a check-in), 1.9 (both numbers are refused for a share) and 1.12 (a full tie takes the later record). The demo data doesn't exercise any of the three, so the rebuild still passed: that, more than the words, is the gap.
 
-### Stage 2: the core data and the change engine
+#### Stage 2: the core data and the change engine
 
 The rebuild passed, 135 of 135 rows in `changes.csv` and 70 of 70 in `import.csv`, plus the store contract's 13 cases, with stage 1 still at 100%. But it passed first time only because the session read the expected rows case by case before writing the engine: **most of the engine's words and many of its behaviours are in the conformance data, not the kit's words.** That is the stage's main gap. The exit criteria the harness doesn't score (the store, undo, one workspace never changing another's, module records riding in the same save) were checked by hand with the session's own tests. The last of these can't be checked against Faro's own mechanism, which is only in `src/domain/records.ts`.
 
@@ -84,7 +201,7 @@ The rebuild passed, 135 of 135 rows in `changes.csv` and 70 of 70 in `import.csv
 | 2.21 | Pages point at code files for detail (`src/domain/records.ts`) that aren't in the kit | Words |
 | 2.22 | Not built: the Plan sheet, Left on People, new teams, other-workspace files | Not scored |
 
-### Stage 3: the core screens and journeys
+#### Stage 3: the core screens and journeys
 
 The harness passed: `navigation.csv` 60 of 60, `readback.csv` 6 of 6, `find.csv` 23 of 23 and `home.csv` 56 of 56, with stages 1 and 2 still at 100%. The rebuild is a small server-rendered app with every core route, its named parts and one main action, and saving goes through the stage 2 engine. The exit criteria the harness doesn't score fall short: **a journey in the kit is a title and a budget, with no steps**, so of 71 core journeys the session carried out 15 fully and 18 in part, and didn't build 38 (set-up, proposed or stopped goals, stopping and deleting, quarters, Access, imports, walkthroughs). It can't drive the two widths (the kit has no portable journey runner), and the core requirements can't be checked from the kit alone. So the core is proved where the kit has data, and only outlined where it has words.
 
@@ -122,7 +239,7 @@ The harness passed: `navigation.csv` 60 of 60, `readback.csv` 6 of 6, `find.csv`
 | 3.30 | Goals' filters and sort live only in a source file not in the kit | Words |
 | 3.31 | Some screen behaviours are a line, not a specification | Words |
 
-### Stage 5: Goal map
+#### Stage 5: Goal map
 
 Built as its own folder over the core. With it on, stages 1 to 3 still score 100%; its own exit tests pass 13 of 16, with 3 journeys (U39, U90, F6) not checkable. A separate reviewer, also seeing only the kit, verified criteria 3 and 4 (off: Layout offers List, Table, Board and History and nothing says Map; `view=map` opens the List with "The Goal map is off here, so this is the List." once, character for character) and rated 1 and 2 weak: pan, zoom, the keyboard and the phone width need a browser, and the journeys are titles. **The module isn't self-contained in the kit's terms:** the core rebuild had no Layout menu, no Table, Board or History, and no Workspace → Features, because the kit doesn't specify them, so the module's builder added them to the core.
 
@@ -151,7 +268,7 @@ Built as its own folder over the core. With it on, stages 1 to 3 still score 100
 | 5.21 | The stage page's own listed gaps: the source files it names aren't in the kit | Kit |
 | 5.22 | The phone's View sheet isn't built | Not built |
 
-### Stage 4: Feedback
+#### Stage 4: Feedback
 
 Built as its own folder over the core; stages 1 to 3 still pass with it on, and its own 23 exit tests pass. The reviewer verified criteria 3 to 5 (off: no menu row and no Ctrl+Shift+M; the four addresses give Page not found with "Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features."; all eight tools refuse; sending gives "Feedback is off in {workspace}." and every record is kept and comes back) and rated 1 and 2 weak where they need a browser, a captured picture, an MCP endpoint or a journey's steps. **Its entry criterion was false:** stage 4 says the core already keeps `Workspace.modulesOff` and refuses a switched-off module's actions and tools (stage 2), but the core rebuilt from the kit has neither, so the module added the switch, the registry and a Features page to the core (as stage 5 did).
 
@@ -181,7 +298,7 @@ Built as its own folder over the core; stages 1 to 3 still pass with it on, and 
 | 4.22 | No MCP endpoint or picture check in the core | Kit |
 | 4.23 | The `src`, migrations, `docs` and `evals` files the spec links to aren't in the kit | Kit |
 
-### Stage 6: Metric library
+#### Stage 6: Metric library
 
 Built as its own folder over the core; stages 1 to 3 pass with it on, and with it off on a copy of the workspace; its own conformance file, `metrics.csv`, scores 109 of 109; its 21 exit tests pass (criteria 3 to 17 in full; 1, 2, 18, 19 and 20 in part, for want of a browser, journey steps, the source contract and parts of the core: the one table, `post_check_in`'s readings, the review agenda, `get_goal`). **Not yet checked by an independent reviewer** (the session handed over first). **The records extension point had to be invented:** how a module declares its records to the core's store, undo, Recently removed, restore, carry and export is only in `src/domain/records.ts`, so the builder wrote `records.mjs` from the README's words; stage 3 also builds none of the places, hooks or module routes the module READMEs name, the next-year cycle, or the core rule "held to no number".
 
@@ -207,4 +324,5 @@ Built as its own folder over the core; stages 1 to 3 pass with it on, and with i
 | 6.18 | Starting the next year is simplified; the copied link's date is a guess | Guessed |
 | 6.19 | Form niceties not built (a draft kept through a reload, "Use different ones") | Not built |
 | 6.20 | The source code the spec links to is absent | Kit |
+
 
