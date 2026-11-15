@@ -9,6 +9,7 @@ See every goal and what feeds it on one canvas, with the path the risk runs alon
 ## Entry criteria
 
 - Stages 1 to 3 pass their exit criteria.
+- The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - Goals' layouts and the roll-up of what feeds a goal are the core's (stage 3); the map draws them and adds nothing to them.
 
 ## What to build

@@ -39,6 +39,9 @@ export interface ConformanceWorkspace {
   builtFor: string;
   /** The edge-case workspace (src/spec/edge.ts, spec/conformance/edge): only stage 1's files are made from it. */
   edge?: boolean;
+  /** The feature modules switched off in the workspace (Workspace.modulesOff): stage 3's rows follow it (the core alone,
+      spec/conformance/core-only, has every one off). Missing: every module on. */
+  modulesOff?: string[];
   cycle: Cycle;
   people: Pick<Person, 'id' | 'name' | 'teamId' | 'admin'>[];
   teams: Team[];
@@ -208,7 +211,7 @@ export function checkInRows(w: ConformanceWorkspace): string[][] {
 /* ---------- finding things ---------- */
 
 /** The searches find.csv answers: the find rules' worked examples (docs/design/find/spec.md, rules 1, 5 and 7). */
-export const FIND_SEARCHES: [kind: 'goal' | 'person' | 'team', q: string][] = [
+const FIND_SEARCHES: [kind: 'goal' | 'person' | 'team', q: string][] = [
   ['goal', 'G-48'], ['goal', 'g48'], ['goal', '48'], ['goal', 'G-4'], ['goal', 'tunde'], ['goal', 'one click roll'], ['goal', 'off track'],
   ['goal', 'back'], ['goal', 'rollback'], ['goal', 'rolback'], ['goal', 'kafak'], ['goal', 'qeue wait'], ['goal', 'piplin'], ['goal', 'zzzz'], ['goal', ''],
   ['person', 'tunde'], ['person', 'rhea'], ['person', 'LUCIA'], ['person', 'kapor'], ['person', ''],
@@ -217,12 +220,12 @@ export const FIND_SEARCHES: [kind: 'goal' | 'person' | 'team', q: string][] = [
 export const FIND_HEADER = ['kind', 'q', 'total', 'near', 'ids'];
 
 /** What each search finds in the workspace as it was built for: how many, the near miss if any, and every id in order. */
-export function findRowsOf(w: ConformanceWorkspace): string[][] {
+export function findRowsOf(w: ConformanceWorkspace, searches: ScreenCases['find'] = FIND_SEARCHES.map(([kind, q]) => ({ kind, q }))): string[][] {
   const moment = new Date(w.builtFor);
   const s = asOf(w, moment);
   const week = currentWeek(w.cycle, moment);
   const rows = { goal: goalRows(s, w.cycle, moment, week), person: personRows(s), team: teamRows(s) };
-  return FIND_SEARCHES.map(([kind, q]) => {
+  return searches.map(({ kind, q }) => {
     const a = search(rows[kind], { q, size: 200 });
     return [kind, q, String(a.total), a.near ?? '', a.rows.map((r) => r.id).join(' ')];
   });
@@ -251,55 +254,60 @@ export function goalsQueryRowsOf(w: ConformanceWorkspace): string[][] {
   });
 }
 
+/** Whether a module is on in the conformance workspace: not in its modulesOff. */
+const on = (w: ConformanceWorkspace, id: string) => !(w.modulesOff ?? []).includes(id);
+
 /* ---------- navigation ---------- */
 
 /** The addresses navigation.csv answers for each viewer (the navigation rules, AR2). */
-export const NAV_ADDRESSES = ['/', '/check-in', '/check-in/lead-mq', '/quick-check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/goals/lead-mq/edit', '/goals/lead-mq?review=weekly', '/goals/nowhere', '/reviews/weekly', '/people/rhea', '/teams/cicd', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro', '/retro/x', '/research', '/nowhere'];
+const NAV_ADDRESSES = ['/', '/check-in', '/check-in/lead-mq', '/quick-check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/goals/lead-mq/edit', '/goals/lead-mq?review=weekly', '/goals/nowhere', '/reviews/weekly', '/people/rhea', '/teams/cicd', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro', '/retro/x', '/research', '/nowhere'];
 /** A module's menu item, as a module's app.tsx gives it, for the rows that show where one goes. */
-export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
-/** Home with Reviews switched off in the workspace (FT2): the last two rows, one per viewer. */
-export const NAV_REVIEWS_OFF = '/ (Reviews off)';
-/** Home's address with Feedback switched off (SW1), and with every optional feature off. */
-export const NAV_FEEDBACK_OFF = '/ (Feedback off)';
-export const NAV_ALL_OFF = '/ (every feature off)';
+const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
+/** Home with features switched off (Workspace, Features), each address marked so: Reviews off (FT2), Feedback off
+    (SW1), and every optional feature off. */
+const NAV_SWITCHED_OFF: ScreenCases['navigation']['switchedOff'] = [
+  { address: '/ (Reviews off)', off: ['reviews'] },
+  { address: '/ (Feedback off)', off: ['feedback'] },
+  { address: '/ (every feature off)', off: 'all' },
+];
 /** Two viewers: one who owns goals, one who owns none. */
-export const NAV_VIEWERS = ['rhea', 'oskar'];
+const NAV_VIEWERS = ['rhea', 'oskar'];
 export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'lit', 'page'];
 
 /** The menu, the phone's tabs, the lit item and the page's name, for each viewer at each address. */
-export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
+export function navigationRowsOf(w: ConformanceWorkspace, c: ScreenCases['navigation'] = navigationCases()): string[][] {
   const rows: string[][] = [];
-  for (const viewer of NAV_VIEWERS) {
+  const NAV_MODULE = c.module;
+  for (const viewer of c.viewers) {
     // Check-in for someone with a goal to check in on: one of theirs not stopped or done by then.
     const moment = new Date(w.builtFor);
     const s = asOf(w, moment);
     const owns = s.goals.some((g) => g.ownerId === viewer && goalStatus(g, w.cycle, s.checkIns, moment).status !== 'done');
-    const g = menuGroups(owns, []);
+    const g = menuGroups(owns, [], on(w, 'reviews'), on(w, 'feedback'));
     const side = [...g.work, ...g.lookup, ...g.make, ...g.you];
-    const tabs = phoneTabs(owns);
+    const tabs = phoneTabs(owns, on(w, 'reviews'));
     // A page's name reads goals' titles and reviews' names from the workspace; Help's articles aren't in it.
     const names: PlaceNames = { goal: (id) => s.goals.find((x) => x.id === id)?.title ?? null, review: (id) => s.reviews.find((x) => x.id === id)?.name ?? null, view: () => null, article: () => null, person: (id) => s.people.find((x) => x.id === id)?.name ?? null, team: (id) => s.teams.find((x) => x.id === id)?.name ?? null };
-    for (const address of NAV_ADDRESSES) {
+    for (const address of c.addresses) {
       const [path = '/', q = ''] = address.split('?');
       rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), tabs.join(' '), litItem(path, q, side) ?? '', pageName(path, q, names)]);
     }
     // A module's item (AR2): placed in its group by the same rule, and lit on its own pages; it names its own page.
-    const mg = menuGroups(owns, [NAV_MODULE]);
+    const mg = menuGroups(owns, [NAV_MODULE], on(w, 'reviews'), on(w, 'feedback'));
     const mside = [...mg.work, ...mg.lookup, ...mg.make, ...mg.you];
-    for (const address of [NAV_MODULE.to, NAV_MODULE.to + '/one']) {
+    for (const address of c.moduleAddresses) {
       rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => mg[k].join(' ')).join(' | '), tabs.join(' '), litItem(address, '', mside, [NAV_MODULE]) ?? '', pageName(address, '', { ...names, module: (p) => (p === NAV_MODULE.to || p.startsWith(NAV_MODULE.to + '/') ? NAV_MODULE.label : null) })]);
     }
   }
-  // With Reviews switched off (FT2): Home for each viewer, the address marked so (the menu and tabs without Reviews).
-  for (const viewer of NAV_VIEWERS) {
+  // Home with features switched off (FT2, SW1), for each viewer: Reviews off (the menu and tabs without Reviews),
+  // Feedback off (the menu's last group is Workspace, Settings, Help), and every optional feature off.
+  for (const viewer of c.viewers) {
     const s = asOf(w, new Date(w.builtFor));
     const owns = s.goals.some((g) => g.ownerId === viewer && goalStatus(g, w.cycle, s.checkIns, new Date(w.builtFor)).status !== 'done');
-    const g = menuGroups(owns, [], false);
-    rows.push([viewer, yes(owns), NAV_REVIEWS_OFF, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), phoneTabs(owns, false).join(' '), litItem('/', '', [...g.work, ...g.lookup, ...g.make, ...g.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
-    // With Feedback off (SW1), and with every optional feature off: the menu's last group is Workspace, Settings, Help.
-    for (const [address, reviews] of [[NAV_FEEDBACK_OFF, true], [NAV_ALL_OFF, false]] as const) {
-      const f = menuGroups(owns, [], reviews, false);
-      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => f[k].join(' ')).join(' | '), phoneTabs(owns, reviews).join(' '), litItem('/', '', [...f.work, ...f.lookup, ...f.make, ...f.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
+    for (const x of c.switchedOff) {
+      const reviews = on(w, 'reviews') && x.off !== 'all' && !x.off.includes('reviews'), feedback = on(w, 'feedback') && x.off !== 'all' && !x.off.includes('feedback');
+      const f = menuGroups(owns, [], reviews, feedback);
+      rows.push([viewer, yes(owns), x.address, (['work', 'lookup', 'make', 'you'] as const).map((k) => f[k].join(' ')).join(' | '), phoneTabs(owns, reviews).join(' '), litItem('/', '', [...f.work, ...f.lookup, ...f.make, ...f.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
     }
   }
   return rows;
@@ -308,17 +316,17 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
 /* ---------- home ---------- */
 
 /** Home's viewers (docs/design/home/spec.md): an owner, a manager in a review, a leader who owns none, someone who only watches. */
-export const HOME_VIEWERS = ['tunde', 'rhea', 'amara', 'oskar'];
+const HOME_VIEWERS = ['tunde', 'rhea', 'amara', 'oskar'];
 export const HOME_HEADER = ['viewer', 'day', 'lead', 'title', 'quiet', 'run', 'forgiven'];
 /** The fourteen days up to the moment the workspace is built for, each at noon UTC. */
 export const homeDays = (w: ConformanceWorkspace) => Array.from({ length: 14 }, (_, i) => new Date(Date.parse(w.builtFor) - (13 - i) * 86_400_000));
 
 /** For each viewer on each day: the lead's kind and title (none: empty), or the quiet sentence and its line. No draft is kept. */
-export function homeRowsOf(w: ConformanceWorkspace): string[][] {
+export function homeRowsOf(w: ConformanceWorkspace, c: ScreenCases['home'] = { viewers: HOME_VIEWERS, days: homeDays(w).map((d) => d.toISOString()) }): string[][] {
   const rows: string[][] = [];
-  for (const viewer of HOME_VIEWERS) for (const day of homeDays(w)) {
+  for (const viewer of c.viewers) for (const day of c.days.map((d) => new Date(d))) {
     const s = asOf(w, day);
-    const plan = homeFor(homeFacts(viewer, s, w.cycle, currentWeek(w.cycle, day), day, { workspace: 'Platform Engineering', draft: false }));
+    const plan = homeFor(homeFacts(viewer, s, w.cycle, currentWeek(w.cycle, day), day, { workspace: WORKSPACE_NAME, draft: false, reviews: on(w, 'reviews'), watching: on(w, 'watching'), wrapUp: on(w, 'wrap-up') }));
     // The habit's run (rule 5) on that day: its weeks, and the forgiven week inside it with whether it was late or missed.
     const week = currentWeek(w.cycle, day);
     const f = forgivenWeek(viewer, s.goals, s.checkIns, w.cycle, week);
@@ -525,7 +533,7 @@ export function changeRowsOf(w: ConformanceWorkspace): string[][] {
 /* ---------- the read-back (goal entry, rule 5; GE3) ---------- */
 
 /** The drafts readback.csv reads back: New goal's last step, by `viewer`, at `builtFor`. */
-export const READBACK_CASES: { case: string; viewer: string; draft: Partial<GoalDraft> }[] = [
+const READBACK_CASES: { case: string; viewer: string; draft: Partial<GoalDraft> }[] = [
   { case: 'number-own', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', parentId: 'ns-mttr', title: 'Signed artifacts in staging', unit: '%', start: '40', target: '90' } },
   { case: 'number-for-someone-else', viewer: 'tunde', draft: { ownerId: 'amara', teamId: 'build', title: 'Signed artifacts in staging', unit: '%', start: '40', target: '90' } },
   { case: 'number-answered', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', title: 'Runbook coverage', unit: '%', start: '50', target: '150', decimals: '0', fromWeek: '40', endWeek: '66', shape: 'back' } },
@@ -539,11 +547,11 @@ export const READBACK_HEADER = ['case', 'viewer', 'draft', 'rows', 'after'];
  * What New goal's last step says for each case: its rows (`label: sentence`, separated by ` | `) and its "After you
  * publish" lines (separated by ` | `), with the weekly rhythm and Reviews on. Every question asked is taken as answered.
  */
-export function readBackRowsOf(w: ConformanceWorkspace): string[][] {
+export function readBackRowsOf(w: ConformanceWorkspace, cases: ScreenCases['readback']['cases'] = READBACK_CASES): string[][] {
   const at = new Date(w.builtFor);
   const s = asOf(w, at);
   const week = currentWeek(w.cycle, at);
-  return READBACK_CASES.map((x) => {
+  return cases.map((x) => {
     const d: GoalDraft = { ...blankGoal('', '', ''), ...x.draft };
     const parent = s.goals.find((g) => g.id === d.parentId) ?? null;
     const owner = s.people.find((p) => p.id === d.ownerId) ?? null;
@@ -551,11 +559,69 @@ export function readBackRowsOf(w: ConformanceWorkspace): string[][] {
     const answers = goalChecks({ ...d, level: level ?? d.level }, { week, cycleWeeks: w.cycle.weeks, existing: null, door: 'form', startDate: w.cycle.startDate }).filter((c) => c.id !== 'stage-past' && c.readBack).map((c) => c.readBack);
     const rb = readBack(d, {
       cycle: w.cycle, week, today: at, level, owner: owner ? { name: owner.name, isViewer: owner.id === x.viewer } : null, teamName: s.teams.find((t) => t.id === d.teamId)?.name ?? '',
-      parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: d.alsoHelps.map((id) => s.goals.find((g) => g.id === id)?.title ?? id), metric: null, answers, rhythm: 'weekly', reviewsOn: true,
-      reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, w.reviews as Review[], s.goals, w.cycle) : [], wsName: 'Platform Engineering',
+      parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: d.alsoHelps.map((id) => s.goals.find((g) => g.id === id)?.title ?? id), metric: null, answers, rhythm: 'weekly', reviewsOn: on(w, 'reviews'),
+      reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, w.reviews as Review[], s.goals, w.cycle) : [], wsName: WORKSPACE_NAME,
     });
     return [x.case, x.viewer, JSON.stringify(x.draft), rb.rows.map((r) => `${r.label}: ${r.text}`).join(' | '), rb.after.join(' | ')];
   });
+}
+
+/* ---------- stage 3's inputs (drill 11, gap S3-1) ---------- */
+
+/** The workspace's name as the screens say it: Home's lead and quiet line, and the read-back's "After you publish". */
+export const WORKSPACE_NAME = 'Platform Engineering';
+
+/**
+ * Stage 3's inputs, the screens' cases: what navigation.csv, find.csv, readback.csv and home.csv are made from, beyond
+ * workspace.json. Written to spec/conformance/screen-cases.json, which the harness puts beside the workspace it hands a
+ * stage 3 command, so a rebuild reads its cases from there and never from the expected files (as change-cases.json does
+ * for stage 2). Faro's own drill (scripts/drill-faro) reads them back from that copy.
+ */
+export interface ScreenCases {
+  /** The workspace's name, as the screens say it. */
+  workspaceName: string;
+  navigation: {
+    /** Each viewer, by person id: every address below is answered for each. */
+    viewers: string[];
+    /** The core's addresses, with no module adding a menu item. */
+    addresses: string[];
+    /** A module's menu item, as a module gives it (its id, its address, its label, its menu group), for the rows after the core's. */
+    module: { id: string; to: string; label: string; group: 'work' | 'lookup' };
+    /** The addresses answered with that module's item in the menu: its page and a page under it. */
+    moduleAddresses: string[];
+    /** Home in a workspace with features switched off, each a row per viewer: `address` is the marked address the row
+        carries, `off` the module ids switched off, or `all` for every optional feature. */
+    switchedOff: { address: string; off: string[] | 'all' }[];
+  };
+  /** One search per row, in order: the kind (`goal`, `person` or `team`) and what is typed. */
+  find: { kind: 'goal' | 'person' | 'team'; q: string }[];
+  readback: {
+    /** A blank goal, every field of New goal's draft as the form starts it: each case's `draft` is set over it. Numbers
+        and weeks are text, as typed; weeks count from the cycle's start (`fromWeek`, `endWeek`, a stage's `dueWeek`);
+        `alsoHelps` holds goal ids. */
+    blank: GoalDraft;
+    /** Each draft, by case: who is looking, and the fields set over the blank goal. */
+    cases: { case: string; viewer: string; draft: Partial<GoalDraft> }[];
+  };
+  home: {
+    /** Each viewer, by person id. */
+    viewers: string[];
+    /** Each moment Home is asked about, as an ISO time (noon UTC on each of the fourteen days up to builtFor). */
+    days: string[];
+  };
+}
+
+const navigationCases = (): ScreenCases['navigation'] => ({ viewers: NAV_VIEWERS, addresses: NAV_ADDRESSES, module: NAV_MODULE, moduleAddresses: [NAV_MODULE.to, NAV_MODULE.to + '/one'], switchedOff: NAV_SWITCHED_OFF });
+
+/** Stage 3's cases for this workspace (screen-cases.json). */
+export function screenCases(w: ConformanceWorkspace): ScreenCases {
+  return {
+    workspaceName: WORKSPACE_NAME,
+    navigation: navigationCases(),
+    find: FIND_SEARCHES.map(([kind, q]) => ({ kind, q })),
+    readback: { blank: blankGoal('', '', ''), cases: READBACK_CASES },
+    home: { viewers: HOME_VIEWERS, days: homeDays(w).map((d) => d.toISOString()) },
+  };
 }
 
 /* ---------- CSV ---------- */
@@ -571,11 +637,11 @@ export function edgeFiles(w: ConformanceWorkspace): Record<string, string> {
 }
 
 /** The CSV files, by name: from the edge-case workspace, only stage 1's (edgeFiles). */
-export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
+export function conformanceFiles(w: ConformanceWorkspace, cases: ScreenCases = screenCases(w)): Record<string, string> {
   if (w.edge) return edgeFiles(w);
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

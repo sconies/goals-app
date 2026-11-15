@@ -44,7 +44,7 @@
     "builds": "Watching, as a feature a workspace can switch off. Anyone can watch a goal, a goal and everything feeding it, or every goal at a level; the goals a person's watches cover are on their Home under “Goals you watch” (what needs attention first) and under the Watching tab of Goals, a goal's page has Watch (or Watching) for anyone but its owner, and an AI tool lists, adds and stops watches. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; /watching says it is switched off and who can switch it on; someone who owns no goal is led to every goal that needs attention. Every watch is kept, and switching it back on restores each person's. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
     "entry": [
       "The core rules (stage 1) work out each goal's status, flags and attention; Watching reads them and adds nothing to them.",
-      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."
+      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."
     ],
     "exit": [
       "Switched off, /watching shows Page not found with “Watching is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_watching, watch and unwatch answer “Watching is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” (check N22).",

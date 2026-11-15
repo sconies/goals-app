@@ -272,6 +272,8 @@ export interface ScreenParts {
   regions: string[];
   /** The text of its primary buttons and links (class "primary"), where written as plain text. */
   primary: string[];
+  /** Its parts' names as the markup writes them in `data-part` (what a markup's parts are named by), where written as plain text. */
+  dataParts: string[];
 }
 
 const clean = (s: string) => s.replace(/\{' '\}/g, ' ').replace(/\s+/g, ' ').replace(/&rsquo;|’/g, '’').trim();
@@ -283,5 +285,6 @@ export function screenParts(r: Repo, file: string): ScreenParts {
   const headings = uniq([...t.matchAll(/<h[1-3][^>]*>([^<{]+)</g)].map((m) => m[1]!));
   const regions = uniq([...t.matchAll(/<(?:section|nav|aside|form)[^>]*\baria-label="([^"]+)"/g)].map((m) => m[1]!));
   const primary = uniq([...t.matchAll(/className="btn primary[^"]*"[^>]*>([^<{]+)</g)].map((m) => m[1]!));
-  return { headings, regions, primary };
+  const dataParts = uniq([...t.matchAll(/data-part="([^"]+)"/g)].map((m) => m[1]!));
+  return { headings, regions, primary, dataParts };
 }

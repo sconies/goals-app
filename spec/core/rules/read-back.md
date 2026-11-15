@@ -30,6 +30,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A north star, with the demo’s reviews; then with Reviews off. | `It joins Platform leadership weekly and Quarterly business review. / no review line` |
 | A range at most 12%, no margin; one stage due week 50. | `A number to keep in range: at or under 12%. It warns only once the limit is crossed. / Dated stages: 1 stage, the last due week 50 (7–13 Dec 2026).` |
 | Left as usual for a goal that feeds nothing; nothing defaulted. | `Whole numbers. From this week to the end of 2026. Steady. Not a guardrail. Helps no other goal. / no row` |
+| A north star that feeds nothing; a target week past the year (week 66 of a 53-week year). | `Tunde Bakare owns it, in Build & Release. It’s a north star and feeds nothing: it’s at the top of its own tree. / A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 13 of 2027 (29 Mar–4 Apr 2027), the same amount each week. Higher is better.` |
+| Owned by Amara, added by Tunde: its last After line. | `Only Amara or an admin can change it once it is published. Until its first check-in they can change anything, or delete it.` |
+| A target of 150% answered as right, with decimals set to 0 (still the default by value); You said, then Left as usual. | `You said 150% is right. / Whole numbers. From this week to the end of 2026. Steady. Not a guardrail. Helps no other goal.` |
 | Stages, one of two already done. | `Its stage already done is its first check-in, so it can be stopped, with a reason, but not deleted. A change to the plan needs a reason.` |
 
 ## Not self-explanatory

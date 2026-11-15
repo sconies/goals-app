@@ -65,6 +65,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
 - **Named parts:** “Getting started”, “This week (region)”, “For you (region)”
+- **Parts by name** (`data-part`): “This week’s main action”, “Needs your response”, “This week”, “The workspace’s line”, “Home”, “Getting started”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
@@ -272,6 +273,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/goals` (`GoalsScreen`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look. Help: “Goals and its layouts” (`goals`).
 
 - **Named parts:** “Goals”, “Not linked”
+- **Parts by name** (`data-part`): “Goals”, “Views, search and filters”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.
 - **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
@@ -377,6 +379,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/goals/:goalId` (`GoalScreen`): Everything about one goal: how it’s doing, why, what’s being done, where it’s heading, and what has happened. Help: “A goal’s page” (`goal-page`).
 
 - **Named parts:** “Chart and recent check-ins”, “For you”, “Done lately”, “About this goal”, “First check-in (region)”, “Next steps and asks (region)”, “On this page (region)”, “Respond (region)”, “Chart (region)”, “Show (region)”
+- **Parts by name** (`data-part`): “Chart and recent check-ins”, “Goal page”, “Section links”, “Summary bar”, “Scorecard”, “Guardrail”, “Next steps and asks”, “Chart”, “Why”, “Path to green”, “Review notes”, “What feeds it”, “Quarters”, “History”, “About this goal”
 - **Main action:** The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.
 - **Primary buttons in its markup:** “Post the first check-in”
 - **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `make_goal_proposed`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
@@ -841,6 +844,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/workspace/cycles/next` (`StartNext`): An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it. Help: “Starting the next year” (`start-next-year`).
 
 - **Named parts:** “What happens to each goal (region)”
+- **Parts by name** (`data-part`): “Start the next year”
 - **Main action:** For an admin, once the wrap-up opens: read what carries on, finishes and stops, then Start the next year (it opens for everyone on its first Monday).
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `start_next_cycle`, `list_people`
@@ -1009,6 +1013,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/reviews/:reviewId/summary` (`ReviewSummary`)
 
 - **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
+- **Parts by name** (`data-part`): “Reviews”, “You’re in”, “Other reviews”, “What was said”, “Review”, “Last time”, “Still to review”, “Nothing flagged”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
@@ -1059,6 +1064,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/watching` (`Watching`)
 
 - **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
+- **Parts by name** (`data-part`): “What changed this week”, “What you watch”
 - **Main action:** Open a goal you watch that needs attention.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
@@ -1127,6 +1133,17 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Carry it on” | button | always |
 | “Stop it here” | button | always |
 | “Saving… / Save changes / Save and continue” | primary | always |
+
+## Parts by name
+
+A screen’s parts are named in its markup by `data-part` (listed under each screen above, where written as plain text; a name worked out when it shows, such as a goal’s title, isn’t listed). A part inside another reads as a path (Goal page › Scorecard › Will it hit): Feedback’s markups name the parts a drawing covers this way, and the journeys find some parts by it. These shared components, drawn by several screens, name theirs:
+
+| Component | Parts by name |
+|---|---|
+| [src/ui/HealthLine.tsx](../../src/ui/HealthLine.tsx) | “Health” |
+| [src/ui/HomeSets.tsx](../../src/ui/HomeSets.tsx) | “Your team”, “Goals you watch”, “How the week’s check-ins stand”, “Without being asked”, “This week”, “Changed since” |
+| [src/ui/ProposedFeeders.tsx](../../src/ui/ProposedFeeders.tsx) | “Proposed feeders” |
+| [src/ui/Shell.tsx](../../src/ui/Shell.tsx) | “Header”, “Sidebar”, “Tab bar” |
 
 ## Views, overlays and pages with no route of their own
 
@@ -1529,6 +1546,130 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | button | `match.length > 0` |
 | “Clear filters” | button | always |
 | “Show the goals” | primary | always |
+
+### Goals: the View sheet
+
+[src/screens/GoalsScreen.tsx](../../src/screens/GoalsScreen.tsx) (`ViewSheet`)
+
+- **Where:** View, on Goals on a phone: the layout and the group, the saved views and Save this view….
+- **Help:** “Goals and its layouts” (`goals`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
+- **Main action:** Choose a layout or a group, or open a saved view; each choice applies at once, and Done closes it.
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Save this view…” | button | `canSave` |
+| “Copy link” | button | always |
+| “… (worked out when it shows)” | button | always |
+| “Done” | primary | always |
+
+### Check-in: one goal, a step at a time
+
+[src/screens/CheckInFlow.tsx](../../src/screens/CheckInFlow.tsx) (`GoalCheckIn`)
+
+- **Where:** /check-in/:goalId, once a goal is chosen.
+- **Help:** “Checking in on a goal” (`check-in`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next.
+- **Main action:** Post this goal’s check-in, one question a step: its number or stage, whether the reason and path to green still hold, and on a first check-in off the plan, Start the plan from this number or Keep it and say why.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “This week’s value” | text | `step === 'measure'` and `!(goal.kind === 'milestone')` |
+| “Why are you changing it? …” | textarea | `step === 'measure'` and `correcting` |
+| “Keep this request open on their Home” | checkbox | `step === 'carry'` and `previous` and `priorAsk` |
+| “What happened” | textarea | `step === 'account'` and `needsWhy` |
+| “Who can decide or help?” | PickOne | `step === 'account'` and `needsWay` and `draft.ptgState === 'help'` |
+| “Also need a decision or help? Optional; shown at the top of the goal and in reviews” | text | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `showNeeds` |
+
+**States**
+
+| State | What it says | Shown when |
+|---|---|---|
+| error | “Type this week’s number.” | `step === 'measure' and !(goal.kind === 'milestone') and empty` |
+| error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
+| error | “Say why it’s better than the numbers: tap Change.” | `step === 'measure' and valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0) and tried && e.codes.includes('greener-why')` |
+| error | “Pick a cause, then write a sentence. / Write a sentence about what happened.” | `step === 'account' and needsWhy and tried and !whyOk` |
+| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried and !wayOk` |
+| error | “Pick who it goes to.” | `step === 'account' and needsWay and draft.ptgState === 'help' and tried and !helpFrom` |
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Waiting on a decision already asked for another goal?” | button | `othersAsked.length > 0` |
+| “… For … · asked by …” | button | `linking` |
+| “Keep … for this goal” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `shown?.block` and `!(keep == null)` |
+| “Measured again: unchanged” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!numberStep` and `lastNumber?.value != null && !draft.value` |
+| “Start from …” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
+| “Keep … and say why” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
+| “Undo” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `rebased === 'start'` and `rebasedFrom` |
+| “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip && !numberStep` |
+| “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
+| “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
+| “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
+| “… (worked out when it shows)” | primary | `step !== 'carry'` |
+| “Back” | button | `!(step !== 'carry')` |
+| “Something changed” | button | `!(step !== 'carry')` |
+| “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
+
+### The week picker
+
+[src/ui/WeekPick.tsx](../../src/ui/WeekPick.tsx) (`WeekPick`)
+
+- **Where:** Wherever a goal’s week is chosen: a number goal’s From and To, and a stage’s Due, in New goal and Change a goal.
+- **Help:** “Setting up a goal” (`new-goal`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing.
+- **Main action:** Choose a week from the goal year’s short list with its dates, opened at the chosen week; or type a week or a date (“50”, “14 Dec”) and press Enter.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “…: type a week or a date” | text | `open` |
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Close” | button | `open` |
+
+### Workspace: Features
+
+[src/screens/Workspace.tsx](../../src/screens/Workspace.tsx) (`Features`)
+
+- **Where:** /workspace/features, for an admin.
+- **Help:** “Features: switching parts of Faro on or off” (`features`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.
+- **Main action:** Switch an optional feature on or off for everyone (reading first what it keeps, for one that owns something), or change the check-in rhythm.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “… Off until … is on. On / Off” | checkbox | always |
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “See the token / See the … tokens” | button | always |
+| “Change” | button | always |
 
 ### Check-in: the week’s list
 

@@ -9,8 +9,9 @@ Let Claude or another AI tool read and act here through MCP, as one person, with
 ## Entry criteria
 
 - Stages 1 to 3 pass their exit criteria.
-- The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 2).
-- The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (the AI tools' stage).
+- The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
+- The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 3, the module platform).
+- The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (stage 3, the module platform); this stage adds the tokens and the switch that shuts its door.
 
 ## What to build
 

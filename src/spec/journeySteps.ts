@@ -12,7 +12,7 @@ import { read, type Repo } from './sources';
 export const JOURNEYS_FILE = 'evals/journeys.cjs';
 
 export interface JourneyLine {
-  kind: 'step' | 'action' | 'check' | 'note' | 'branch';
+  kind: 'step' | 'action' | 'check' | 'note' | 'branch' | 'row';
   text: string;
   /** A branch's lines (an if, its else, a loop). */
   lines?: JourneyLine[];
@@ -28,6 +28,8 @@ export interface JourneyDoc {
   /** Who it starts as and where, from its first browser and first address. */
   start: string;
   lines: JourneyLine[];
+  /** The parts it finds by CSS selector, each with its words. */
+  parts: [selector: string, words: string][];
 }
 
 /* ---------- words for values ---------- */
@@ -109,8 +111,16 @@ const PARTS: Record<string, string> = {
   '.checklist': 'the checklist',
 };
 
+/** The parts named by CSS selector while reading one journey: the selector and its words (gap S3-12). */
+let partsNamed = new Map<string, string>();
+
 /** A selector in words: Faro's name for the part when it has one, else the class names read as words, and the selector itself. */
 function cssWords(sel: string): string {
+  const w = cssWordsOf(sel);
+  partsNamed.set(sel, w);
+  return w;
+}
+function cssWordsOf(sel: string): string {
   if (PARTS[sel]) return PARTS[sel]!;
   const raw = sel;
   sel = sel.replace(/\.btn\.primary\b/g, '.main-button').replace(/\.btn\b/g, '.button');
@@ -129,6 +139,9 @@ function regexWords(src: string): string {
 }
 
 const quote = (s: string) => `“${s}”`;
+/** “/demo/people…” as the other lines say a demo address: Faro serves its demo under /demo, a rebuild at its own addresses
+    (drill 11, gap S3-15). */
+const demoAddress = (v: string) => (/^“\/demo(\/|\?|”)/.test(v) ? `${v.replace(/^“\/demo/, '“').replace(/^“(\?|”)/, '“/$1')} in the demo` : v);
 const cap = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 const person = (id: string) => id.split('-').map(cap).join(' ');
 
@@ -143,8 +156,10 @@ interface Scope {
   pages: Set<string>;
   /** The journey's own small helpers that make an address. */
   fns: Map<string, { params: string[]; body: ts.Expression }>;
+  /** Lists the journey writes out (an array of literal rows), each row in words: a loop over one shows them (gap S3-14). */
+  lists?: Map<string, string[]>;
 }
-const child = (s: Scope): Scope => ({ parts: new Map(s.parts), values: new Map(s.values), pages: new Set(s.pages), fns: new Map(s.fns) });
+const child = (s: Scope): Scope => ({ parts: new Map(s.parts), values: new Map(s.values), pages: new Set(s.pages), fns: new Map(s.fns), lists: new Map(s.lists) });
 
 /** A date as words: Sunday 8 November 2026. */
 const dayWords = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).replace(',', '');
@@ -221,7 +236,10 @@ class Reader {
     }
     if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.PlusToken) return q(this.value(n.left, s, true) + this.value(n.right, s, true));
     const t = this.src(n);
-    return t.length <= 40 ? `{${t}}` : '{a value worked out in the journey}';
+    if (t.length <= 40) return `{${t}}`;
+    // Longer: the code itself, so the words it works out can still be read (drill 11, gap S3-14); past a line, too long.
+    const one = t.replace(/\s+/g, ' ');
+    return one.length <= 160 ? `{worked out in the journey as \`${one.replace(/`/g, "'")}\`}` : '{a value worked out in the journey}';
   }
 
   /** A part of the page in words, or null when the expression isn't one. */
@@ -437,7 +455,9 @@ function statement(R: Reader, st: ts.Statement, s: Scope, out: JourneyLine[]): v
     walk(R, ts.isBlock(body) ? body.statements : [body], child(s), inner);
     if (!inner.some((l) => l.kind !== 'note')) return;
     const over = ts.isForOfStatement(st) && R.src(st.expression).length <= 90 ? `For each of \`${R.src(st.expression).replace(/\s+/g, ' ')}\`:` : 'Repeated, as the code loops:';
-    out.push({ kind: 'branch', text: over, lines: inner });
+    // A loop over a list the journey writes out: its rows first, so the loop can be followed without the code.
+    const listed = ts.isForOfStatement(st) ? listRows(R, st.expression, s) : null;
+    out.push({ kind: 'branch', text: listed ? over.replace(/:$/, `, ${listed.length} ${listed.length === 1 ? 'row' : 'rows'}:`) : over, lines: listed ? [...listed.map((text) => ({ kind: 'row' as const, text })), ...inner] : inner });
     return;
   }
   if (ts.isTryStatement(st)) { walk(R, st.tryBlock.statements, s, out); return; }
@@ -452,6 +472,7 @@ function declare(R: Reader, d: ts.VariableDeclaration, s: Scope, out: JourneyLin
       return;
     }
     if (ts.isStringLiteral(init) || ts.isNumericLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init) || ts.isTemplateExpression(init)) s.values.set(name, R.value(init, s));
+    if (ts.isArrayLiteralExpression(init)) { const rows = literalRows(R, init); if (rows) (s.lists ??= new Map()).set(name, rows); return; }
     const part = R.part(init, s) ?? (ts.isArrowFunction(init) && !ts.isBlock(init.body) && !init.parameters.length ? R.part(init.body, s) : null);
     if (part) { s.parts.set(name, part); return; }
     if (/\bnewPage\(|\.newPage\(|h\.use\(/.test(R.src(init))) s.pages.add(name);
@@ -464,6 +485,36 @@ function declare(R: Reader, d: ts.VariableDeclaration, s: Scope, out: JourneyLin
     return;
   }
   if (ts.isCallExpression(init)) expression(R, init, s, out);
+}
+
+/** A literal list's rows in words, or null when a row needs running the code: each row a value, or the values of a
+    literal array (a string quoted, a pattern as the words it matches, null as “none”). */
+function literalRows(R: Reader, n: ts.ArrayLiteralExpression): string[] | null {
+  const lit = (e: ts.Expression): string | null => {
+    e = unwrap(e);
+    if (e.kind === ts.SyntaxKind.NullKeyword) return 'none';
+    if (e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword) return R.src(e);
+    if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e)) return quote(e.text);
+    if (ts.isNumericLiteral(e)) return e.text;
+    if (ts.isRegularExpressionLiteral(e)) return `${quote(regexWords(e.text))} (a pattern)`;
+    return null;
+  };
+  const rows: string[] = [];
+  for (const el of n.elements) {
+    const e = unwrap(el);
+    const one = ts.isArrayLiteralExpression(e) ? e.elements.map((x) => lit(x)) : [lit(e)];
+    if (one.some((x) => x === null)) return null;
+    rows.push(one.join(', '));
+  }
+  return rows.length ? rows : null;
+}
+
+/** The rows of the list a loop goes over, when it is one the journey wrote out (by name, or written in the loop). */
+function listRows(R: Reader, e: ts.Expression, s: Scope): string[] | null {
+  e = unwrap(e);
+  if (ts.isIdentifier(e)) return s.lists?.get(e.text) ?? null;
+  if (ts.isArrayLiteralExpression(e) && R.src(e).length > 90) return literalRows(R, e);
+  return null;
 }
 
 /** The parts the helpers open, by helper. */
@@ -586,7 +637,7 @@ function expression(R: Reader, e: ts.Expression, s: Scope, out: JourneyLine[]): 
     case 'focus': if (part) out.push({ kind: 'action', text: `Move the focus to ${part}.` }); return;
     case 'selectOption': if (part) out.push({ kind: 'action', text: `Choose ${a[0] ? R.value(a[0], s) : 'an option'} in ${part}.` }); return;
     case 'setInputFiles': out.push({ kind: 'action', text: `Choose ${a[0] ? R.file(a[0], s) : 'a file'} to load${part && !/file chooser/.test(part) ? ` in ${part}` : ''}.` }); return;
-    case 'waitForURL': out.push({ kind: 'check', text: a[0] && (ts.isArrowFunction(unwrap(a[0])) || ts.isFunctionExpression(unwrap(a[0]))) ? 'The address changes.' : `The address becomes ${a[0] ? R.value(a[0], s) : 'the next page'}.` }); return;
+    case 'waitForURL': out.push({ kind: 'check', text: a[0] && (ts.isArrowFunction(unwrap(a[0])) || ts.isFunctionExpression(unwrap(a[0]))) ? 'The address changes.' : `The address becomes ${a[0] ? demoAddress(R.value(a[0], s)) : 'the next page'}.` }); return;
     case 'waitFor': {
       if (!part) return;
       const o = a[0] && ts.isObjectLiteralExpression(a[0]) ? R.src(a[0]) : '';
@@ -641,6 +692,7 @@ export function journeyDocs(r: Repo, modules: Map<string, string> = new Map()): 
     const scope: Scope = { parts: new Map(), values: new Map(), pages: new Set(['p']), fns: new Map() };
     const lines: JourneyLine[] = [];
     const body = fnA.body;
+    partsNamed = new Map();
     if (ts.isBlock(body)) walk(R, body.statements, scope, lines);
     out.push({
       id: idA.text,
@@ -651,6 +703,7 @@ export function journeyDocs(r: Repo, modules: Map<string, string> = new Map()): 
       line: R.sf.getLineAndCharacterOfPosition(st.getStart(R.sf)).line + 1,
       start: startOf(lines),
       lines,
+      parts: [...partsNamed],
     });
   }
   return out;
@@ -675,7 +728,7 @@ export function withoutSteps(docs: JourneyDoc[]): string[] {
 
 /** How many lines of each kind, the branches' included. */
 export function tally(lines: JourneyLine[]): Record<JourneyLine['kind'], number> {
-  const t = { step: 0, action: 0, check: 0, note: 0, branch: 0 };
+  const t = { step: 0, action: 0, check: 0, note: 0, branch: 0, row: 0 };
   const f = (ls: JourneyLine[]) => { for (const l of ls) { t[l.kind]++; if (l.lines) f(l.lines); } };
   f(lines);
   return t;
@@ -683,7 +736,7 @@ export function tally(lines: JourneyLine[]): Record<JourneyLine['kind'], number>
 
 /* ---------- the pages ---------- */
 
-const LABEL: Record<JourneyLine['kind'], string> = { step: '**Step.** ', action: '', check: '**Check:** ', note: '_Note:_ ', branch: '' };
+const LABEL: Record<JourneyLine['kind'], string> = { step: '**Step.** ', action: '', check: '**Check:** ', note: '_Note:_ ', branch: '', row: '_Row:_ ' };
 
 function lineMarkdown(lines: JourneyLine[], depth: number): string[] {
   const pad = '  '.repeat(depth);
@@ -705,11 +758,48 @@ export const HOW_TO_READ = [
   '- **Check:** what must then be true. A check in brackets names the ease-test point it scores (`entry`, `one-action`, `progress`, `errors`, `finish`, `attention`, `a11y`, `logged`); the words after “else:” are what the eval reports when it isn’t. “It fails if …” is a check the journey can’t pass without.',
   '- **Checkpoint:** the screen as it is then is checked for the ease test’s `one-action` (at most one main button in view, or in the open sheet) and `a11y` (no serious or critical axe-core fault, no sideways scrolling, and on a phone the main button at least 44px tall).',
   '- _Note:_ the journey author’s own comment, the why behind the next lines.',
-  '- Text in “quotes” is what the screen says; `{name}` is a value the journey works out as it runs (a goal’s planned number, say). A part named by Faro’s markup is given in words with its CSS class in backticks: a rebuild has its own markup, so it matches the words, not the class.',
+  '- Text in “quotes” is what the screen says; `{name}` is a value the journey works out as it runs (a goal’s planned number, say), and {worked out in the journey as `…`} gives the code that works it out when it is longer than a name. A part named by Faro’s markup is given in words with its CSS class in backticks: a rebuild has its own markup, so it matches the words, not the class. Every part the journeys name, with its words, is in [the parts the journeys name](#the-parts-the-journeys-name).',
+  '- **For each of …, N rows:** a loop over a list the journey writes out; each _Row:_ is one entry, its values in the order the code writes them (the note above the loop, when there is one, says what each value is), then the lines done for every row.',
   '- **If …:** lines that apply only on one width (a phone is 390 × 844, a desktop 1440 × 900), with a module on or off, or in one case the code tests.',
   '',
-  '**Where it starts.** “In the demo” is Faro’s example workspace, Platform Engineering ([the conformance workspace](../conformance/workspace.json)), on Thursday 5 November 2026, week 45 (every demo address carries `?today=2026-11-05`). A fresh browser as someone is that person chosen as the viewer before the app loads. “The real app, its data kept in this browser” is the app at its own addresses with `?store=browser`, starting empty.',
+  '**Where it starts.** “In the demo” is Faro’s example workspace, Platform Engineering, on Thursday 5 November 2026, week 45 unless the line names another day (every demo address carries `?today=2026-11-05`, or that day). It is the workspace [the conformance data](../conformance/workspace.json) is made from, and more: `workspace.json` keeps only what the rules read, and [`demo-extra.json`](../conformance/demo-extra.json) adds what the journeys also read on 5 November (each person’s job title and email, and the change log). Faro builds its demo for the day it is opened, so on a later day the demo has moved on: check-ins planned after 5 November are posted, the story’s later weeks have happened. A journey that runs on another day reads that demo, which the kit doesn’t hold (the journeys that do are [listed below](#journeys-on-another-day)). A fresh browser as someone is that person chosen as the viewer before the app loads (Faro keeps the choice in the browser; a rebuild may take it from a cookie or the address). Faro serves the demo under `/demo` (`/demo/people` is People in the demo); the lines give each address without it. “The real app, its data kept in this browser” is the app at its own addresses with `?store=browser`, starting empty.',
 ];
+
+/** The days other than 5 November that a journey's lines name (“… in the demo on Sunday 8 November 2026”). */
+export function otherDays(j: JourneyDoc): string[] {
+  const out = new Set<string>();
+  const f = (ls: JourneyLine[]) => { for (const l of ls) { for (const m of l.text.matchAll(/in the demo[^`]*? on ((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) \d+ \w+ \d{4})/g)) out.add(m[1]!); if (l.lines) f(l.lines); } };
+  f(j.lines);
+  return [...out];
+}
+
+/**
+ * Two sections for the journeys' page (drill 11, gaps S3-12 and S3-13): every part a journey finds by Faro's CSS, with
+ * its words and the journeys that use it, so a rebuild can name its own parts the same way; and the journeys that run
+ * on another day than the demo's 5 November, whose demo the kit doesn't hold.
+ */
+export function partsAndDays(docs: JourneyDoc[], link: (id: string) => string): string[] {
+  const parts = new Map<string, { words: string; ids: string[] }>();
+  for (const j of docs) for (const [sel, words] of j.parts) { const p = parts.get(sel) ?? { words, ids: [] }; if (!p.ids.includes(j.id)) p.ids.push(j.id); parts.set(sel, p); }
+  const cell = (x: string) => x.replace(/\|/g, '\\|');
+  const days = docs.map((j) => [j, otherDays(j)] as const).filter(([, d]) => d.length);
+  return [
+    '## The parts the journeys name',
+    '',
+    `Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (${parts.size} parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and \`data-part\` names on each screen are in [the screens](screens.md).`,
+    '',
+    '| Selector | In words | Journeys |',
+    '|---|---|---|',
+    ...[...parts].sort(([a], [b]) => a.localeCompare(b)).map(([sel, p]) => `| \`${cell(sel)}\` | ${cell(p.words.replace(/ \(`[^`]*`\)$/, ''))} | ${p.ids.map(link).join(', ')} |`),
+    '',
+    '## Journeys on another day',
+    '',
+    'These journeys open the demo on a day other than Thursday 5 November 2026. Faro builds its demo as it stands on the day it is opened: on a later day check-ins planned for the weeks since are posted and the story’s later weeks have happened; on an earlier day they haven’t yet. The kit holds the demo as it stood on 5 November only ([`workspace.json`](../conformance/workspace.json) and [`demo-extra.json`](../conformance/demo-extra.json)), so on those days a rebuild has to post the records the journey expects itself, from what its checks say; it is a gap in the kit.',
+    '',
+    ...days.map(([j, d]) => `- ${link(j.id)}: ${d.join('; ')}`),
+    '',
+  ];
+}
 
 /** One journey's page. `up` is the path back to spec/ from the page. */
 export function journeyPage(j: JourneyDoc, up: string, owner: string): string {
@@ -720,7 +810,7 @@ export function journeyPage(j: JourneyDoc, up: string, owner: string): string {
     '',
     `- **Belongs to:** ${owner}`,
     `- **Requirements:** ${j.reqs.map((x) => `\`${x}\``).join(', ') || 'none'}`,
-    `- **Budget:** ${j.budget != null ? `at most ${j.budget} steps on each width` : 'none'}`,
+    `- **Budget:** ${j.budget == null ? 'none' : j.na.includes('budget') ? `${j.budget} steps, not scored: this journey’s ease test leaves \`budget\` out, so it may take more (the steps below are counted all the same)` : `at most ${j.budget} steps on each width`}`,
     `- **Ease test:** ${j.na.length ? `every point but ${j.na.map((x) => `\`${x}\``).join(', ')}` : 'all ten points'} ([the ease test](${up}core/journeys.md#the-ease-test))`,
     `- **Runs on:** a phone (390 × 844) and a desktop (1440 × 900), the same lines on each unless one says otherwise`,
     `- **Starts:** ${j.start}`,
