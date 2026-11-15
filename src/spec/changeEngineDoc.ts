@@ -39,6 +39,25 @@ function sentencesSection(root: string): string[] {
   ];
 }
 
+/** Placeholders the table can't make plain, each with a case that says it in full (stage 2 drill, gaps S2-9 to S2-14). */
+function sentencesInFull(w: ConformanceWorkspace): string[] {
+  const say = (name: string) => { const c = changeCases(w).find((x) => x.case === name)!; const i = runCase(w, c).issues.find((x) => x.level !== 'note')!; return [`\`${name}\``, `\`${i.kind}\``, code(i.group), cell(i.message)]; };
+  return [
+    'Where a placeholder could be read more than one way, it is fixed words:',
+    '',
+    '- **{metric, range or milestone}** names all three types, always, in those words; **{columns filled in}** are the groups the row fills (Start and Target; Limit; Stages), joined by “, and ”.',
+    '- **{Owner and Owner email}** names the person columns the row gives, in the order Owner, Owner email, Owner ID, and **{name and name}** the people they name in that order.',
+    '- **{its column}** of `plan-order` on Goals is the group’s column `due-week`, whichever of To and Due week the row gave.',
+    '- **[ {unit}]** after a number in a check-in’s refusal is the goal’s unit after a space, `%` too (“below zero %”), unlike a number written with its unit, where `%` is attached.',
+    '- A number’s example in “isn’t a number” is at the goal’s decimal places (“like 29” for a whole-number goal), except Effect’s on a Goals row, which is always the default `29.4`.',
+    '',
+    'Said in full, by the cases that raise them:',
+    '',
+    table(['Case', 'Kind', 'Group', 'Words'], ['conflicting-refs', 'type-unclear', 'plan-order', 'to-before-from', 'effect-not-number', 'impossible-number'].map(say)),
+    '',
+  ];
+}
+
 /** What a check-in row lacks, part by part, and how the parts join (gap 15). */
 function missingSection(root: string): string[] {
   const parts = missingParts(root);
@@ -108,6 +127,7 @@ function fieldsSection(w: ConformanceWorkspace): string[] {
   const added = personChange(null, after, tn, 'x', w.builtFor, 'x')!.diffs;
   // The other differences, as the conformance cases' items carry them.
   const more = otherDiffs(w);
+  const whole = wholeItems(w);
   return [
     '## Field by field',
     '',
@@ -133,7 +153,21 @@ function fieldsSection(w: ConformanceWorkspace): string[] {
     '',
     `Via is the door, one of ${Object.values(VIA_LABEL).map((v) => `\`${v}\``).join(', ')}: every change through a door but the check-in form carries it, last.`,
     '',
+    '**Whole items**, as the conformance cases make them (changes.csv’s `diffs`). A new goal lists the fields it fills, and also these, whose value is the goal’s own though it reads like nothing: Feeds into (`— → Nothing`), Level, Role, Guardrail, Decimals and Plan from week (this week, when the row gives no From). Target due is left out when it is the cycle’s end. Plan from week and Target due are the bare week of the cycle’s own count, `Week 66` for a week in the next goal year ([years and weeks](years-and-weeks.md)). A goal stopped carries Status, then Why, then Via. Baseline is `Baseline, {period}`, then `, provisional` when it is.',
+    '',
+    table(['Case', 'Item', 'Diffs'], whole),
+    '',
   ];
+}
+
+/** One item, in full, from the cases that show how a whole item is written (stage 2 drill, gaps S2-4, S2-5, S2-15, S2-17). */
+function wholeItems(w: ConformanceWorkspace): string[][] {
+  const pick: [string, number][] = [['saves-new-goal', 0], ['saves-stop', 0], ['baseline-provisional', 0], ['to-next-year', 0]];
+  return pick.flatMap(([name, n]) => {
+    const c = changeCases(w).find((x) => x.case === name);
+    const it = c && runCase(w, c).items[n];
+    return it ? [[`\`${name}\``, it.kind, cell(it.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join(' | '))]] : [];
+  });
 }
 
 /** Fields beside the record's own, with an example from a case that carries each. */
@@ -209,6 +243,6 @@ function logSection(root: string): string[] {
 
 /** The change engine page's generated sections, after its rule. */
 export function changeEngineSections(root: string, w: ConformanceWorkspace): string[] {
-  return [...sentencesSection(root), ...missingSection(root), ...fieldsSection(w), ...readColumnsSection(root), ...logSection(root)];
+  return [...sentencesSection(root), ...sentencesInFull(w), ...missingSection(root), ...fieldsSection(w), ...readColumnsSection(root), ...logSection(root)];
 }
 

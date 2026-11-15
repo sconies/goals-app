@@ -7,7 +7,7 @@ A goal’s weeks are counted from its cycle’s start and shown as a goal year�
 
 ## The rule
 
-**What is kept.** Nothing in the data changes: a plan's From (`fromWeek`), its To (`endWeek`) and a stage's due week stay whole numbers counted from the cycle's start, week 0 being the week before week 1. People never see those numbers bare: they see a goal year and its week, always with the dates and the year.
+**What is kept.** Nothing in the data changes: a plan's From (`fromWeek`), its To (`endWeek`) and a stage's due week stay whole numbers counted from the cycle's start, week 0 being the week before week 1. People never see those numbers bare on a screen: they see a goal year and its week, always with the dates and the year. One place still writes them bare: the change engine's item fields, Plan from week and Target due, are `Week {n}` in the cycle's own count (`Week 66` for a week in the next goal year; [the change engine](change-engine.md#field-by-field)).
 
 **A goal year** runs from its week 1 (the week holding the first Thursday of the month the year starts in) to the week before the next one's week 1: 52 or 53 weeks. In a year that starts in January its year and week are the ISO week date. The cycle's own goal year holds weeks 1 to its last; a later cycle week is in the next goal year (in the demo's 2026, week 54 is week 1 of 2027) and week 0 and below in the previous one (week 0 is week 52 of 2025). A cycle shorter than a goal year (under 48 weeks) names every week by its dates alone, the ISO week date: 13 weeks from 30 March 2026 hold 2026 weeks 15 to 27, and its week 14 is 2026 week 28.
 
