@@ -2,6 +2,15 @@
 
 What the internal team needs to take Faro onto the company's platform, and how far Faro has got in making it easy. It is written for the team that will do it. Faro is a model to copy, not a product: it never holds real data, and some things are left to the platform on purpose.
 
+**The short version (the full drill, 15 November).** Faro's code ports almost as it is; the platform has to be rewired and, above all, has to enforce who may change what on the server.
+
+- **What ports unchanged:** `src/domain` (the rules), `src/screens`, `src/app`, `src/ports` with every contract test, `server/mcp.ts`, and every module's own folder. On a stand-in platform (Node, SQLite, its own sign-in) the core changed 11 lines of 4 existing files, and none of nine modules' own code changed.
+- **What to rewire to your platform:** sign-in and single sign-on (`Identity`), the goals store and its database functions, the migrations, the AI tools' server (`server/mcp.ts`'s `Deps`), files, and the import's file handling.
+- **What your platform must provide:** the list of requirements, marked NAMED (the spec says it) or GAP (needed, not yet said), is in [`docs/drill/2026-11-full-drill.md`](drill/2026-11-full-drill.md).
+- **The server must enforce R1, per record kind, against stored rows.** On a row-based store, decisions, retros, watches, asks, reviews and feedback could be forged by any signed-in member until each module added its own guard, and even then a write riding another save (a carried watch, a metric relabelling someone else's goals) could be forged. R1 lists every record kind and side-effect write the server checks: the section "Record kinds the server checks" of `spec/requirements/internal/r1-sign-in-and-access.md` (in R1 since #550). Faro's own browser store does not enforce it, on purpose, because Faro never holds real data.
+- **The reference is the running app and the code:** https://goals-app-puce-five.vercel.app/demo needs no sign-in. Where the kit and the app disagree, the app wins.
+- **Build it core first, then each module on its own.** Each module has its spec section, conformance rows, rebuild stage and feature switch (`docs/architecture/module-map.md`), and each was proved on, off and left out of the build.
+
 **Two ways to do it.** *Copy and adapt:* take the code, swap its outside parts for the company's, build what the platform must add. *Rewrite from the spec:* build fresh from `spec/` and `llms.txt`, proving each stage with the rebuild kit. Either way, the spec says what Faro does, and the conformance data says when a rebuild gets the rules right.
 
 ## What you get
@@ -12,7 +21,7 @@ What the internal team needs to take Faro onto the company's platform, and how f
 | The rules, with worked examples | `spec/core/rules/`, `spec/modules/*/rules.md` | Complete |
 | Expected results for every demo goal in every week | `spec/conformance/` | Status, flags, projection, scorecard, what a check-in must say (with the habit's moment), find, navigation and Home (with the habit's on-time run and its forgiven week). Stage 1's files come from a second, small edge-case workspace too (`spec/conformance/edge/`), for the cases the demo never has. The habit is core and has no switch: its spec says why |
 | The rebuild kit, stage by stage | `spec/rebuild/` | Stage 1 (the rules) has a drill: 100% from the kit alone, 8 Nov. Stages 2 to 5 are outlines, checked by hand |
-| What the platform must add | `spec/requirements/internal/` | R1 sign-in and access, R2 single sign-on, R3 time zones, R4 scale and safety, R6a the organisation, R6b delegates, R6c the planning round, each with acceptance checks |
+| What the platform must add | `spec/requirements/internal/`, and the drill's list in `docs/drill/2026-11-full-drill.md` | R1 sign-in and access (with the record kinds the server checks), R2 single sign-on, R3 time zones, R4 scale and safety, R5 notifications and habits, R6a the organisation, R6b delegates, R6c the planning round, each with acceptance checks |
 | The ports at company scale | `spec/rebuild/ports-at-scale.md` | A sketch: the query and command ports that replace the demo-scale goals store, and how its contract tests carry across. Neither port is built |
 | How it's built | `docs/architecture.md` | A modular monolith: a core plus modules, one app, one database |
 | The feature modules | `src/modules/` | Spreadsheets: download the goals as a workbook or CSV files and load changes back, each shown before it is saved. Metric library: each number goals are measured by defined once (with its parent metric, level, confidence and how it could be gamed, MQ), and which metric measures a goal; its Metrics sheet loads back through the import (add, change, Retire or Bring back, with the same preview and Undo) by a planner of its own (`src/modules/metrics/sheetPlan.ts`, MT6). Reviews, Watching, AI access (let Claude or another AI tool act here through MCP, as one person, with that person's rights; its tokens are under Workspace → AI access), the Wrap-up, the Goal map and Feedback are switches a workspace can turn off, whose screens are still the core's until each moves into its folder. Each has its section in `spec/modules/` and its rebuild stage Fields: a workspace's own fields on goals (a stage, a programme), to find and sort by; no rule reads them. Workspace → Fields, a goal's Fields block and its AI tools (TG1), and a filter per list field on Goals and in saved views, a column per field on Data and every Goals sheet that loads back (a value a list doesn't hold asked once) and find_goals' `fields` (TG2), each built only on the core's extension points (records, a Workspace section, a goal-page place, a family of Goals filters, a module's Goals columns), so it shows a module added on its own. |
@@ -57,7 +66,7 @@ Every outside part sits behind one interface in `src/ports/`, with a contract te
 - [ ] **The organisation (R6a):** teams in a tree from the directory, managers, levels set per workspace, and every list and count scoped to a part of the company.
 - [ ] **Delegates (R6b):** someone who checks in and answers asks for an owner who is away, recorded as acting for them.
 - [ ] **The planning round (R6c):** next cycle's goals drafted, proposed and agreed before they go live.
-- [ ] **Notifications and digests:** not yet written as a requirement (backlog R5).
+- [ ] **Notifications and digests (R5):** `spec/requirements/internal/r5-notifications-and-habits.md`. Faro's core runs no jobs of its own; the platform's scheduler does these.
 
 ### 5. Prove it
 
@@ -82,6 +91,6 @@ Faro was built in about a week by many AI sessions working side by side (`docs/r
 In backlog order (8g and 0c are done: drill 1's gaps are closed, and Faro keeps to its own schema, `faro`, in a shared project rather than a project of its own):
 
 1. **AX:** the architecture readiness review's items (`docs/reviews/2026-11-11-architecture-readiness.md`): every change through the dispatcher (AX2), the query port's first cut (AX5), a stale save run again (AX6), the database as it is in the kit (AX8), browser state behind the ports (AX9).
-2. **11:** the full drill. A fresh team or session rebuilds the whole of Faro, stage by stage, from the kit alone.
+2. **11:** the full drill is done (15 November): Faro was moved onto a stand-in platform, core first and then each of nine modules, and its report is `docs/drill/2026-11-full-drill.md`. R1's section on the record kinds the server checks is in since #550. Still to do: the larger gaps the report lists (a shared row-check function, the browser-to-server API, per-module schema files), which planning places on the backlog.
 
 This page is written by hand. Keep it in step when one of those items ships; `src/docPaths.test.ts` checks that every file it names exists.

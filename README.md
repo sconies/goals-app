@@ -88,6 +88,10 @@ The schema in `supabase/migrations/` enforces these invariants itself:
 
 `0002_demo_access.sql` lets the app's public key read and write the `okr_` tables, and only those, until sign-in arrives. The demo data is invented. Anyone with the page can change it, so don't enter real goals until sign-in arrives.
 
+## Handing Faro to the internal team
+
+Faro is a model for an internal application to copy, and it never holds real company data. The team can build it core first, then each module on its own (`docs/architecture/module-map.md`): every module has its spec section, conformance rows, rebuild stage and feature switch. The full drill moved Faro onto a stand-in platform (Node, SQLite, its own sign-in): the rules, screens and modules ported as they were, and the platform's sign-in, store, migrations, AI tools' server and file handling were rewired (`docs/drill/2026-11-full-drill.md`). The server on the new platform must enforce R1, who may change what, per record kind against stored rows; Faro's browser store does not. The running app, https://goals-app-puce-five.vercel.app/demo (no sign-in), and the code are the reference. Start at `docs/handoff.md`.
+
 ## Not built yet
 
 - Closing the cycle with a retro (journey 10)
