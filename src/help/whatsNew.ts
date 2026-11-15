@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'feedback-own-sent',
+    date: '2026-11-15',
+    title: 'Your own feedback, and the steps it can carry',
+    points: [
+      'Feedback you send from the demo now shows in Feedback for you, marked as kept in this browser. Before, it went to the people building Faro but never came back to you.',
+      'The inbox is still everyone’s, and only an admin changes a status.',
+      'A visit’s last 20 steps stay in your browser’s memory, apart from Recording. Privacy now says so, and a markup shows you those steps before sending, with the box to include them unticked until you choose.',
+    ],
+    articles: ['inbox', 'recording'],
+  },
+  {
     id: 'setup-goals-owner-team',
     date: '2026-11-15',
     title: 'Set-up’s goals count for their owner’s team',

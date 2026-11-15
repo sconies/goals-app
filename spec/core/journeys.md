@@ -172,7 +172,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (340 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (342 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -331,6 +331,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.mk-layers img` | the img in the mk layers | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
 | `.mk-preview img` | the img in the mk preview | [U41](../modules/feedback/journeys/U41.md) |
 | `.mk-status` | the mark-up’s status line | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
+| `.mk-steps li` | the list item in the mk steps | [U41](../modules/feedback/journeys/U41.md) |
+| `.mk-steps summary` | the summary in the mk steps | [U41](../modules/feedback/journeys/U41.md) |
 | `.mk-surface` | the mk surface | [U41](../modules/feedback/journeys/U41.md) |
 | `.need` | a “needs” line | [U16](../modules/watching/journeys/U16.md), [U37](journeys/U37.md) |
 | `.need-group` | the need group | [U16](../modules/watching/journeys/U16.md) |

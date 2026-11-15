@@ -10,6 +10,7 @@
    their own (src/screens/People.tsx, app redesign WR1), and so did the inbox (Feedback). Sections are the settings
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
+import { STEPS_NOTE } from '../markup/model';
 import { nameLength, nameProblem } from '../domain/thresholds';
 import { createContext, Fragment, useContext, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
@@ -537,6 +538,7 @@ function Recording() {
           </span>
         </div>
       ) : null}
+      <p className="hint">{STEPS_NOTE}</p>
       <p className="hint"><Link to="/help/recording">What’s recorded, exactly</Link></p>
     </section>
   );
