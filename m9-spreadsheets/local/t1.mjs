@@ -1,0 +1,11 @@
+import { load } from '../s1.mjs';
+const { S1 } = await load(new URL('../../spec/conformance/workspace.json', import.meta.url).pathname);
+const { makeRules, WORKSPACE_NAME } = await import('../stage3.mjs');
+const { template } = await import('../modules/spreadsheets/export.mjs');
+const I = await import('../modules/spreadsheets/importer.mjs');
+const W = S1.W; const R = makeRules(W, S1); const moment = '2026-11-05T12:00:00.000Z';
+const ctx = { W, S1, R, viewer: 'rhea', moment, week: 45, wsName: WORKSPACE_NAME, todayIso: '2026-11-05', nowIso: () => moment };
+const rt = I.readTables(I.readFile(template(ctx), 't.xlsx'));
+console.log(I.readLine(rt));
+const res = I.run(ctx, rt);
+console.log(res.items.length, res.issues.map(i => i.kind + ' ' + i.message));

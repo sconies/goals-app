@@ -1,0 +1,126 @@
+{
+  "U19": {
+    "verdict": "PART",
+    "steps": [
+      6,
+      6
+    ],
+    "budget": 19,
+    "passes": 10,
+    "fails": [
+      "Table, Board and History layouts (core, stage 3: not built)"
+    ]
+  },
+  "U20": {
+    "verdict": "DONE",
+    "steps": [
+      7,
+      7
+    ],
+    "budget": 15,
+    "passes": 20,
+    "fails": []
+  },
+  "U46": {
+    "verdict": "PART",
+    "steps": [
+      8,
+      8
+    ],
+    "budget": 16,
+    "passes": 22,
+    "fails": [
+      "People: “1 person has no email yet” and saving it (core: People and Workspace, not built)"
+    ]
+  },
+  "U48": {
+    "verdict": "DONE",
+    "steps": [
+      3,
+      3
+    ],
+    "budget": 10,
+    "passes": 24,
+    "fails": []
+  },
+  "U87": {
+    "verdict": "DONE",
+    "steps": [
+      2,
+      2
+    ],
+    "budget": 8,
+    "passes": 20,
+    "fails": []
+  },
+  "U88": {
+    "verdict": "DONE",
+    "steps": [
+      6,
+      6
+    ],
+    "budget": 20,
+    "passes": 20,
+    "fails": []
+  },
+  "U89": {
+    "verdict": "DONE",
+    "steps": [
+      4,
+      4
+    ],
+    "budget": 14,
+    "passes": 13,
+    "fails": []
+  },
+  "U90": {
+    "verdict": "DONE",
+    "steps": [
+      7,
+      7
+    ],
+    "budget": 14,
+    "passes": 21,
+    "fails": []
+  },
+  "U94": {
+    "verdict": "DONE",
+    "steps": [
+      4,
+      4
+    ],
+    "budget": 12,
+    "passes": 9,
+    "fails": []
+  },
+  "U95": {
+    "verdict": "DONE",
+    "steps": [
+      5,
+      5
+    ],
+    "budget": 12,
+    "passes": 13,
+    "fails": []
+  },
+  "U96": {
+    "verdict": "DONE",
+    "steps": [
+      4,
+      4
+    ],
+    "budget": 10,
+    "passes": 11,
+    "fails": []
+  },
+  "F17": {
+    "verdict": "DONE",
+    "steps": [
+      1,
+      0
+    ],
+    "budget": 6,
+    "passes": 0,
+    "fails": []
+  }
+}
