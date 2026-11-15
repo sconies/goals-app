@@ -2,7 +2,8 @@
    and fail on any difference from the files. A rebuild proves itself the same way (spec/conformance/README.md). */
 import fs from 'node:fs';
 import path from 'node:path';
-import { CHANGES_HEADER, changeRowsOf, conformanceFiles, importCases, importRowsOf, IMPORT_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHANGES_HEADER, changeRowsOf, conformanceFiles, EDGE_FILES, importCases, importRowsOf, IMPORT_HEADER, type ConformanceWorkspace } from './conformance';
+import { edgeWorkspace } from './edge';
 import { CHECK_KINDS, MUST_KINDS, NOTE_KINDS } from '../domain/problemLevels';
 import { ISSUE_KINDS } from '../domain/issueKinds';
 
@@ -84,5 +85,56 @@ describe('import.csv covers every issue kind (KT gap 2)', () => {
     for (const k of all) expect(page.match(new RegExp(`^\\| \`${k}\` \\|`, 'gm'))?.length).toBe(1);
     expect(page).toContain('| `near-ref` | ');
     expect(page).toMatch(/\| Goals \| Goal \| `goal name`/);
+  });
+});
+
+describe('the edge-case workspace (item 11: the cases the demo never has)', () => {
+  const edge = path.join(dir, 'edge');
+  const w = JSON.parse(fs.readFileSync(path.join(edge, 'workspace.json'), 'utf8')) as ConformanceWorkspace;
+  const made = conformanceFiles(w);
+  const row = (file: string, start: string) => made[file]!.split('\n').find((r) => r.startsWith(start));
+
+  it('makes only stage 1’s files (and scorecard-words.csv), and is what src/spec/edge.ts gives', () => {
+    expect(Object.keys(made).sort()).toEqual(EDGE_FILES.map((f) => `${f}.csv`).sort());
+    expect(w).toEqual(JSON.parse(JSON.stringify(edgeWorkspace())));
+  });
+
+  for (const file of Object.keys(made)) {
+    it(`edge/${file}: every row is what the rules give for edge/workspace.json`, () => {
+      expect(fs.readFileSync(path.join(edge, file), 'utf8')).toBe(made[file]);
+    });
+  }
+
+  // Each gap the full drill's stage 1 passed while wrong (1.3, 1.9 and 1.12) has a row the wrong guess misses.
+  it('1.3: the week before is the latest earlier week with a check-in, and only the same week makes a correction', () => {
+    expect(row('checkin.csv', 'e6-4,')).toMatch(/,$/); // met in week 2, nothing for week 3: not reached again
+    expect(row('checkin.csv', 'e6-7,')).toMatch(/,reached$/);
+    expect(row('checkin.csv', 'e7-2c,')).toMatch(/,$/); // a second check-in for week 2
+    expect(row('checkin.csv', 'e7-4,')).toMatch(/,reached$/); // week 5 posted first is not a correction
+    expect(row('checkin.csv', 'e7-6,')).toMatch(/,$/); // backfilled
+  });
+
+  it('1.9: 110 and 400 are both refused for a share; 120 is only questioned where the plan passes 100%', () => {
+    expect(row('checkin.csv', 'e4-2,')).toContain(',value-impossible reason-ahead,');
+    expect(row('checkin.csv', 'e4-3,')).toContain(',value-impossible reason-ahead,');
+    expect(row('checkin.csv', 'e5-2,')).not.toContain('value-impossible');
+  });
+
+  it('1.12: in a full tie the status keeps the first record and the calculation takes the last', () => {
+    expect(row('status.csv', '3,E-9,')).toBe('3,E-9,metric,off,on,no,3,2');
+    expect(row('status.csv', '6,E-9,')).toBe('6,E-9,metric,on,off,no,6,2');
+    expect(row('status.csv', '5,E-10,')).toBe('5,E-10,metric,risk,on,yes,4,2');
+  });
+
+  it('1.7: below zero is refused for a time or money unit, not for ms', () => {
+    expect(row('checkin.csv', 'e10-9,')).toContain('value-impossible');
+    expect(row('checkin.csv', 'e11-9,')).toContain('value-impossible');
+    expect(row('checkin.csv', 'e14-2,')).not.toContain('value-impossible');
+  });
+
+  it('1.5 and 1.8: a range between two bounds, and an action in hand until a new flag', () => {
+    expect(made['status.csv']!.split('\n').filter((r) => r.includes(',E-1,range,')).map((r) => r.split(',')[4]).slice(1, 9)).toEqual(['on', 'risk', 'risk', 'risk', 'risk', 'risk', 'off', 'risk']);
+    expect(row('flags.csv', '5,E-12,')).toBe('5,E-12,off trend due,action,no,handled');
+    expect(row('flags.csv', '6,E-12,')).toBe('6,E-12,off missed-path trend due,,yes,needs');
   });
 });
