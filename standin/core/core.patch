@@ -1,0 +1,2093 @@
+diff --git a/package.json b/package.json
+index d492133..c911d62 100644
+--- a/package.json
++++ b/package.json
+@@ -30,7 +30,10 @@
+     "spec": "node scripts/spec.mjs",
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+-    "drill": "node scripts/drill.mjs"
++    "drill": "node scripts/drill.mjs",
++    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "standin": "node platform/dist/server.mjs",
++    "standin:seed": "node platform/dist/server.mjs seed"
+   },
+   "dependencies": {
+     "@supabase/supabase-js": "^2.118.0",
+diff --git a/platform/.gitignore b/platform/.gitignore
+new file mode 100644
+index 0000000..67912dd
+--- /dev/null
++++ b/platform/.gitignore
+@@ -0,0 +1,2 @@
++data/
++dist/
+diff --git a/platform/auth.ts b/platform/auth.ts
+new file mode 100644
+index 0000000..5a622c4
+--- /dev/null
++++ b/platform/auth.ts
+@@ -0,0 +1,120 @@
++/* The stand-in platform's sign-in (drill item 11): email and password (scrypt), a session cookie (HttpOnly,
++   SameSite=Lax), sign-out, and a stub single sign-on: /sso/stub stands for the company's identity provider and issues an
++   HMAC-signed assertion (email, name, groups) that /sso/callback turns into a session. A person the directory marks as
++   left is refused on their next request and every session of theirs ends (R2). Not Faro's code: the platform's. */
++import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
++import type { DatabaseSync } from 'node:sqlite';
++
++export const COOKIE = 'faro_session';
++const SESSION_HOURS = 12;
++/** How long an assertion from the identity provider may take to arrive. */
++const ASSERTION_SECONDS = 120;
++const sha = (s: string) => createHash('sha256').update(s).digest('hex');
++const b64 = (s: string) => Buffer.from(s).toString('base64url');
++
++export interface Session { email: string; via: 'password' | 'sso' }
++export interface Assertion { email: string; name: string; groups: string[]; iat: number }
++
++export function hashPassword(password: string): string {
++  const salt = randomBytes(16).toString('hex');
++  return `scrypt$${salt}$${scryptSync(password, salt, 64).toString('hex')}`;
++}
++export function checkPassword(password: string, stored: string | null | undefined): boolean {
++  const [kind, salt, hash] = (stored ?? '').split('$');
++  if (kind !== 'scrypt' || !salt || !hash) return false;
++  const a = scryptSync(password, salt, 64);
++  const b = Buffer.from(hash, 'hex');
++  return a.length === b.length && timingSafeEqual(a, b);
++}
++
++export class Auth {
++  private readonly key: string;
++  constructor(private readonly db: DatabaseSync, private readonly now: () => Date = () => new Date()) {
++    const k = db.prepare(`select value from platform_settings where key = 'sso_key'`).get() as { value: string } | undefined;
++    this.key = process.env.STANDIN_SSO_KEY || k?.value || randomBytes(32).toString('hex');
++    if (!k) db.prepare(`insert or ignore into platform_settings (key, value) values ('sso_key', ?)`).run(this.key);
++  }
++
++  addUser(email: string, name: string, password: string | null) {
++    this.db.prepare('insert into platform_users (email, name, password_hash, created_at) values (?, ?, ?, ?) on conflict (email) do update set name = excluded.name, password_hash = coalesce(excluded.password_hash, platform_users.password_hash)')
++      .run(email.trim().toLowerCase(), name, password ? hashPassword(password) : null, this.now().toISOString());
++  }
++
++  /** A new session for this email; returns the cookie's token (kept only as its hash). */
++  private start(email: string, via: Session['via']): string {
++    const token = randomBytes(32).toString('base64url');
++    const at = this.now();
++    this.db.prepare('insert into platform_sessions (id, email, via, created_at, expires_at) values (?, ?, ?, ?, ?)')
++      .run(sha(token), email, via, at.toISOString(), new Date(at.getTime() + SESSION_HOURS * 3600_000).toISOString());
++    return token;
++  }
++
++  /** Signs in by password: a token, or why not. A leaver can't sign in. */
++  signIn(email: string, password: string): { token: string } | { error: string } {
++    const e = email.trim().toLowerCase();
++    const u = this.db.prepare('select password_hash from platform_users where email = ?').get(e) as { password_hash: string | null } | undefined;
++    if (!u || !checkPassword(password, u.password_hash)) return { error: 'That email and password don’t match.' };
++    if (this.hasLeft(e)) return { error: 'You’ve left the company, so you can’t sign in.' };
++    return { token: this.start(e, 'password') };
++  }
++
++  signOut(token: string | undefined) { if (token) this.db.prepare('delete from platform_sessions where id = ?').run(sha(token)); }
++
++  /** The session a cookie names, or null. A leaver's request ends every session of theirs. */
++  session(token: string | undefined): Session | null {
++    if (!token) return null;
++    const s = this.db.prepare('select email, via, expires_at from platform_sessions where id = ?').get(sha(token)) as (Session & { expires_at: string }) | undefined;
++    if (!s || s.expires_at <= this.now().toISOString()) return null;
++    if (this.hasLeft(s.email)) { this.endAll(s.email); return null; }
++    return { email: s.email, via: s.via };
++  }
++
++  hasLeft(email: string): boolean { return !!this.db.prepare('select 1 from sso_people where email = ? and left = 1').get(email); }
++  endAll(email: string) { this.db.prepare('delete from platform_sessions where email = ?').run(email); }
++
++  // ---------- The stub identity provider ----------
++
++  directory(): { email: string; name: string; groups: string[]; left: boolean }[] {
++    return (this.db.prepare('select * from sso_people order by name').all() as { email: string; name: string; groups: string; left: number }[])
++      .map((p) => ({ email: p.email, name: p.name, groups: JSON.parse(p.groups) as string[], left: !!p.left }));
++  }
++  addToDirectory(email: string, name: string, groups: string[] = []) {
++    this.db.prepare('insert into sso_people (email, name, groups, left) values (?, ?, ?, 0) on conflict (email) do update set name = excluded.name, groups = excluded.groups').run(email.trim().toLowerCase(), name, JSON.stringify(groups));
++  }
++  /** The directory marks someone as left (or back): their sessions end at once. */
++  markLeft(email: string, left = true) {
++    const e = email.trim().toLowerCase();
++    this.db.prepare('update sso_people set left = ? where email = ?').run(left ? 1 : 0, e);
++    if (left) this.endAll(e);
++  }
++
++  /** The identity provider's signed assertion for someone in its directory (what /sso/stub hands to /sso/callback). */
++  assert(email: string): string | null {
++    const p = this.directory().find((x) => x.email === email.trim().toLowerCase());
++    if (!p || p.left) return null;
++    const body = b64(JSON.stringify({ email: p.email, name: p.name, groups: p.groups, iat: Math.floor(this.now().getTime() / 1000) } satisfies Assertion));
++    return `${body}.${createHmac('sha256', this.key).update(body).digest('base64url')}`;
++  }
++
++  /** /sso/callback: checks the signature and age, refuses a leaver, and starts a session. */
++  ssoCallback(assertion: string): { token: string; who: Assertion } | { error: string } {
++    const [body, sig] = assertion.split('.');
++    const bad = { error: 'That sign-in didn’t come from the company’s sign-in.' };
++    if (!body || !sig) return bad;
++    const want = createHmac('sha256', this.key).update(body).digest();
++    const got = Buffer.from(sig, 'base64url');
++    if (want.length !== got.length || !timingSafeEqual(want, got)) return bad;
++    const who = JSON.parse(Buffer.from(body, 'base64url').toString()) as Assertion;
++    if (Math.abs(this.now().getTime() / 1000 - who.iat) > ASSERTION_SECONDS) return { error: 'That sign-in has expired. Sign in again.' };
++    if (this.hasLeft(who.email)) return { error: 'You’ve left the company, so you can’t sign in.' };
++    this.db.prepare('insert into platform_users (email, name, created_at) values (?, ?, ?) on conflict (email) do update set name = excluded.name').run(who.email, who.name, this.now().toISOString());
++    return { token: this.start(who.email, 'sso'), who };
++  }
++
++  /** The scheduler's sweep: expired sessions end, and any leaver's. */
++  sweep(): number {
++    const a = this.db.prepare('delete from platform_sessions where expires_at <= ?').run(this.now().toISOString()).changes;
++    const b = this.db.prepare('delete from platform_sessions where email in (select email from sso_people where left = 1)').run().changes;
++    return Number(a) + Number(b);
++  }
++}
+diff --git a/platform/drill/drill.json b/platform/drill/drill.json
+new file mode 100644
+index 0000000..6b857c8
+--- /dev/null
++++ b/platform/drill/drill.json
+@@ -0,0 +1 @@
++{ "stage": 2, "shim": "node shim.mjs", "contracts": ["store", "goals", "search", "prefs"] }
+diff --git a/platform/drill/ports.ts b/platform/drill/ports.ts
+new file mode 100644
+index 0000000..299c41c
+--- /dev/null
++++ b/platform/drill/ports.ts
+@@ -0,0 +1,22 @@
++/* The stand-in platform's ports behind the drill harness's shim (spec/conformance/contracts): the goals store is the
++   SQLite one (a fresh database per case, every migration in platform/migrations, and the contract module's table); the
++   goal lists, Search and Prefs are Faro's own, which the platform keeps unchanged. */
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { caller } from '../../src/ports/contracts/cases/run';
++import { storeStart, CONTRACT_MODULE } from '../../src/ports/contracts/store';
++import { prefsStart, searchStart } from '../../src/ports/contracts/search';
++import { goalsStart } from '../../src/ports/contracts/goals';
++import { conformanceBase, conformanceGoals, memoryPrefs, seededSearch } from '../../src/adapters/contractPorts';
++import { MODULE_RECORDS } from '../../src/core/records';
++import { openDatabase } from '../../src/adapters/standin/migrate';
++import { SqliteStore } from '../../src/adapters/standin/sqliteStore';
++
++const MIGRATIONS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../migrations');
++const sqlite = async () => {
++  const db = openDatabase(':memory:', MIGRATIONS);
++  db.exec(`create table okr_contract_marks (id text primary key, workspace_id text not null, goal_id text not null, text text not null, at timestamptext not null, removed_at timestamptext, removed_by text);
++    insert or ignore into module_tables (table_name, module, position) values ('okr_contract_marks', 'contract', 100);`);
++  return new SqliteStore(db, [...MODULE_RECORDS, CONTRACT_MODULE]);
++};
++export const standinCaller = () => caller({ store: storeStart(sqlite), search: searchStart(seededSearch), prefs: prefsStart(memoryPrefs), goals: goalsStart(conformanceBase, conformanceGoals) });
+diff --git a/platform/drill/shim.mjs b/platform/drill/shim.mjs
+new file mode 100644
+index 0000000..1d87491
+--- /dev/null
++++ b/platform/drill/shim.mjs
+@@ -0,0 +1,20 @@
++/* The stand-in platform's ports behind the drill harness's shim: platform/drill/ports.ts. One JSON request per line on stdin, one answer per line on stdout. */
++import path from 'node:path';
++import readline from 'node:readline';
++import { fileURLToPath } from 'node:url';
++import { createServer } from 'vite';
++
++const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
++const server = await createServer({ root, logLevel: 'error', server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [] } });
++try {
++  const { standinCaller: faroCaller } = await server.ssrLoadModule('/platform/drill/ports.ts');
++  const call = faroCaller();
++  for await (const line of readline.createInterface({ input: process.stdin })) {
++    if (!line.trim()) continue;
++    let answer;
++    try { answer = await call(JSON.parse(line)); } catch (e) { answer = { error: `not a request: ${e.message}` }; }
++    process.stdout.write(JSON.stringify(answer) + '\n');
++  }
++} finally {
++  await server.close();
++}
+diff --git a/platform/migrations/0001_core.sql b/platform/migrations/0001_core.sql
+new file mode 100644
+index 0000000..605afc4
+--- /dev/null
++++ b/platform/migrations/0001_core.sql
+@@ -0,0 +1,423 @@
++-- Generated by platform/translate-schema.mjs from spec/core/schema.sql (Faro's database after every migration).
++-- SQLite, for the stand-in platform. Kept: columns, defaults, primary and unique keys, indexes. Left out on purpose:
++-- foreign keys, CHECK constraints, triggers, functions and grants (the server enforces the rules), and the tables that
++-- are not the core's (telemetry, markups, research notes, builders). Declared types say how the store reads a value
++-- back: boolean (0/1), jsontext and textarray (JSON text), timestamptext and datetext (ISO text), real, integer, text.
++
++create table if not exists goal_field_values (
++  id text not null,
++  workspace_id text not null,
++  goal_id text not null,
++  field_id text not null,
++  value text not null default '',
++  set_by text not null,
++  set_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  primary key (id)
++);
++
++create table if not exists goal_fields (
++  id text not null,
++  workspace_id text not null,
++  name text not null,
++  kind text not null,
++  options jsontext not null default '[]',
++  position integer not null default 0,
++  created_by text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  retired_at timestamptext,
++  retired_by text,
++  primary key (id)
++);
++
++create table if not exists module_tables (
++  table_name text not null,
++  module text not null,
++  position integer not null default 0,
++  primary key (table_name)
++);
++
++create table if not exists okr_api_tokens (
++  id text not null,
++  workspace_id text not null,
++  person_id text not null,
++  name text not null,
++  token_hash text not null,
++  created_by text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  last_used_at timestamptext,
++  revoked_at timestamptext,
++  builder_email text,
++  primary key (id),
++  unique (token_hash)
++);
++
++create table if not exists okr_changes (
++  id text not null,
++  workspace_id text not null default 'example',
++  at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  actor_id text not null,
++  goal_id text,
++  entity text not null,
++  entity_id text not null,
++  action text not null,
++  summary text not null,
++  diffs jsontext not null default '[]',
++  import_id text,
++  undo jsontext,
++  primary key (id)
++);
++
++create table if not exists okr_check_ins (
++  id text not null,
++  goal_id text not null,
++  author_id text not null,
++  week integer not null,
++  posted_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  value real,
++  stages jsontext,
++  status text not null,
++  calculated text not null,
++  cause text,
++  why text not null default '',
++  greener_why text not null default '',
++  propose_target real,
++  ptg_what text,
++  ptg_by_week integer,
++  ptg_needs text not null default '',
++  next text not null default '',
++  data_flagged boolean not null default 0,
++  workspace_id text not null default 'example',
++  ptg_state text,
++  backfilled boolean not null default 0,
++  removed_at timestamptext,
++  removed_by text,
++  reading jsontext,
++  primary key (id)
++);
++
++create table if not exists okr_cycles (
++  id text not null,
++  name text not null,
++  start_date datetext not null,
++  weeks integer not null default 13,
++  workspace_id text not null default 'example',
++  review_day integer not null default 3,
++  removed_at timestamptext,
++  removed_by text,
++  check_in_weeks integer not null default 1,
++  rhythm_from datetext,
++  primary key (id)
++);
++
++create table if not exists okr_decisions (
++  id text not null,
++  workspace_id text not null default 'example',
++  goal_id text not null,
++  check_in_id text,
++  week integer not null,
++  kind text not null,
++  by_id text not null,
++  at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  note text not null default '',
++  review_id text,
++  assignee_id text,
++  due_week integer,
++  edited_at timestamptext,
++  removed_at timestamptext,
++  removed_by text,
++  primary key (id)
++);
++
++create table if not exists okr_feedback (
++  id text not null,
++  workspace_id text not null,
++  person_id text not null,
++  path text not null default '',
++  mood text not null,
++  text text not null default '',
++  at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  status text not null default 'new',
++  fixed_in text,
++  wont_fix_reason text,
++  status_by text,
++  status_at timestamptext,
++  primary key (id)
++);
++
++create table if not exists okr_goal_keys (
++  workspace_id text not null,
++  last integer not null default 0,
++  primary key (workspace_id)
++);
++
++create table if not exists okr_goal_metrics (
++  id text not null,
++  workspace_id text not null,
++  goal_id text not null,
++  metric_id text not null,
++  team_id text,
++  linked_by text not null,
++  linked_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  removed_at timestamptext,
++  removed_by text,
++  part text not null default '',
++  primary key (id)
++);
++
++create table if not exists okr_goals (
++  id text not null,
++  cycle_id text not null,
++  team_id text not null,
++  owner_id text not null,
++  parent_id text,
++  title text not null,
++  kind text not null,
++  io text not null,
++  headline boolean not null default 0,
++  guardrail boolean not null default 0,
++  effect real,
++  source text not null default '',
++  definition text not null default '',
++  unit text,
++  decimals integer,
++  plan_start real,
++  plan_target real,
++  plan_shape text,
++  original_plan jsontext,
++  rebaselined_week integer,
++  range_bound text,
++  range_limit real,
++  range_margin real,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  workspace_id text not null default 'example',
++  pending jsontext,
++  level text not null default 'team',
++  plan_from_week integer not null default 0,
++  why_helps text,
++  plan_end_week integer,
++  plan_points jsontext,
++  version integer not null default 0,
++  also_helps jsontext,
++  plan_history jsontext,
++  key text not null,
++  removed_at timestamptext,
++  removed_by text,
++  stopped_at timestamptext,
++  stopped_by text,
++  stop_reason text,
++  proposed_at timestamptext,
++  proposed_by text,
++  range_lower real,
++  proposed_in text,
++  unmeasured_since timestamptext,
++  baseline_value real,
++  baseline_period text,
++  baseline_provisional boolean,
++  guards jsontext,
++  primary key (id)
++);
++
++create table if not exists okr_metrics (
++  id text not null,
++  workspace_id text not null,
++  name text not null,
++  meaning text not null default '',
++  unit text not null,
++  decimals integer not null default 0,
++  direction text not null,
++  source text not null default '',
++  source_owner text not null default '',
++  refresh text,
++  owner_id text not null,
++  caveats text not null default '',
++  created_by text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  updated_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  removed_at timestamptext,
++  removed_by text,
++  retired_at timestamptext,
++  retired_by text,
++  retired_why text not null default '',
++  replaced_by text,
++  marks jsontext not null default '[]',
++  measurement text not null default 'measured',
++  measurement_note text not null default '',
++  level text,
++  parent_id text,
++  confidence text,
++  gaming text,
++  primary key (id)
++);
++
++create table if not exists okr_people (
++  id text not null,
++  name text not null,
++  role text not null default '',
++  initials text not null,
++  team_id text,
++  workspace_id text not null default 'example',
++  profile text not null default 'contributor',
++  is_admin boolean not null default 0,
++  left_at timestamptext,
++  left_by text,
++  removed_at timestamptext,
++  removed_by text,
++  email text,
++  primary key (id)
++);
++
++create table if not exists okr_requests (
++  id text not null,
++  workspace_id text not null,
++  goal_ids textarray not null,
++  asked_by text not null,
++  recipient_id text,
++  ask text not null,
++  status text not null default 'open',
++  check_in_id text,
++  answer text,
++  answered_by text,
++  answered_at timestamptext,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  updated_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  kind text not null default 'decision',
++  due_week integer,
++  review_id text,
++  week integer,
++  primary key (id)
++);
++
++create table if not exists okr_retros (
++  id text not null,
++  workspace_id text not null,
++  goal_id text not null,
++  cycle_id text not null,
++  result text not null,
++  learned text not null,
++  next text not null,
++  by_id text not null,
++  at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  primary key (id),
++  unique (goal_id, cycle_id)
++);
++
++create table if not exists okr_reviews (
++  id text not null,
++  workspace_id text not null,
++  name text not null,
++  every_weeks integer not null default 1,
++  weekday integer not null default 3,
++  scope jsontext not null default '{"goals": [], "trees": [], "levels": []}',
++  people jsontext not null default '[]',
++  created_by text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  version integer not null default 0,
++  ended_at timestamptext,
++  ended_by text,
++  removed_at timestamptext,
++  removed_by text,
++  primary key (id)
++);
++
++create table if not exists okr_stages (
++  id text not null,
++  goal_id text not null,
++  name text not null,
++  due_week integer not null,
++  workspace_id text not null default 'example',
++  primary key (goal_id, id)
++);
++
++create table if not exists okr_teams (
++  id text not null,
++  name text not null,
++  lead_id text,
++  objective text not null default '',
++  workspace_id text not null default 'example',
++  primary key (id)
++);
++
++create table if not exists okr_views (
++  id text not null,
++  workspace_id text not null,
++  person_id text not null,
++  name text not null,
++  params text not null default '',
++  pinned boolean not null default 0,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  updated_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  deleted_at timestamptext,
++  deleted_by text,
++  primary key (id)
++);
++
++create table if not exists okr_watches (
++  id text not null,
++  workspace_id text not null,
++  person_id text not null,
++  kind text not null,
++  ref text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  removed_at timestamptext,
++  removed_by text,
++  primary key (id),
++  unique (workspace_id, person_id, kind, ref)
++);
++
++create table if not exists okr_workspaces (
++  id text not null,
++  name text not null,
++  kind text not null,
++  created_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  recording boolean default 1,
++  modules_off textarray default '[]',
++  primary key (id)
++);
++
++create table if not exists person_prefs (
++  workspace_id text not null,
++  person_id text not null,
++  key text not null,
++  value jsontext not null,
++  updated_at timestamptext not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
++  primary key (workspace_id, person_id, key)
++);
++
++create index if not exists goal_field_values_field on goal_field_values (field_id);
++create index if not exists goal_field_values_ws on goal_field_values (workspace_id);
++create index if not exists goal_fields_ws on goal_fields (workspace_id);
++create index if not exists okr_api_tokens_workspace on okr_api_tokens (workspace_id);
++create index if not exists okr_changes_goal on okr_changes (goal_id);
++create index if not exists okr_changes_goal_history on okr_changes (goal_id, at DESC, id DESC) where goal_id IS NOT NULL;
++create index if not exists okr_changes_import on okr_changes (workspace_id, import_id) where import_id IS NOT NULL;
++create index if not exists okr_changes_ws_at on okr_changes (workspace_id, at);
++create index if not exists okr_changes_ws_history on okr_changes (workspace_id, at DESC, id DESC);
++create index if not exists okr_check_ins_goal_week on okr_check_ins (goal_id, week);
++create index if not exists okr_check_ins_ws on okr_check_ins (workspace_id);
++create index if not exists okr_cycles_ws on okr_cycles (workspace_id);
++create index if not exists okr_decisions_goal on okr_decisions (goal_id);
++create index if not exists okr_decisions_ws on okr_decisions (workspace_id);
++create index if not exists okr_feedback_newest on okr_feedback (at DESC, id DESC);
++create index if not exists okr_feedback_ws on okr_feedback (workspace_id);
++create index if not exists okr_goal_metrics_metric on okr_goal_metrics (metric_id);
++create index if not exists okr_goal_metrics_ws on okr_goal_metrics (workspace_id);
++create index if not exists okr_goals_ws on okr_goals (workspace_id);
++create index if not exists okr_metrics_ws on okr_metrics (workspace_id);
++create index if not exists okr_people_ws on okr_people (workspace_id);
++create index if not exists okr_requests_recipient on okr_requests (workspace_id, recipient_id) where status = 'open';
++create index if not exists okr_requests_workspace on okr_requests (workspace_id);
++create index if not exists okr_retros_ws on okr_retros (workspace_id);
++create index if not exists okr_reviews_ws on okr_reviews (workspace_id);
++create index if not exists okr_stages_ws on okr_stages (workspace_id);
++create index if not exists okr_teams_ws on okr_teams (workspace_id);
++create index if not exists okr_views_workspace on okr_views (workspace_id);
++create index if not exists okr_watches_ws on okr_watches (workspace_id);
++create unique index if not exists goal_fields_ws_name on goal_fields (workspace_id, lower(trim(name))) where retired_at IS NULL;
++create unique index if not exists okr_cycles_ws_start_live on okr_cycles (workspace_id, start_date) where removed_at IS NULL;
++create unique index if not exists okr_goals_cycle_key on okr_goals (workspace_id, cycle_id, key);
++create unique index if not exists okr_metrics_ws_name on okr_metrics (workspace_id, lower(trim(name))) where removed_at IS NULL;
++create unique index if not exists okr_people_ws_email on okr_people (workspace_id, email) where (email IS NOT NULL) AND (removed_at IS NULL);
++
++-- The feature modules' tables on the allowed list a save may write (migrations 0033, 0052): okr_write's module_tables.
++insert or ignore into module_tables (table_name, module, position) values
++  ('okr_metrics', 'metrics', 10), ('okr_goal_metrics', 'metrics', 20), ('goal_fields', 'tags', 30), ('goal_field_values', 'tags', 40);
+diff --git a/platform/migrations/0002_platform.sql b/platform/migrations/0002_platform.sql
+new file mode 100644
+index 0000000..540e5db
+--- /dev/null
++++ b/platform/migrations/0002_platform.sql
+@@ -0,0 +1,34 @@
++-- The stand-in platform's own tables: sign-in, sessions and the stub identity provider's directory. Not Faro's: the
++-- internal platform has its own (R1, R2). Workspace membership and roles stay in Faro's okr_people (email, is_admin).
++
++-- People who sign in with a password (email lower case; password hashed with scrypt: "scrypt$<salt>$<hash>").
++create table if not exists platform_users (
++  email text primary key,
++  name text not null,
++  password_hash text,
++  created_at text not null
++);
++
++-- Sessions: the cookie holds a random token; only its SHA-256 is kept. `via`: password or sso.
++create table if not exists platform_sessions (
++  id text primary key,
++  email text not null,
++  via text not null,
++  created_at text not null,
++  expires_at text not null
++);
++create index if not exists platform_sessions_email on platform_sessions (email);
++
++-- The stub identity provider's directory (/sso/stub): who the company says exists. `left` = 1 is a leaver.
++create table if not exists sso_people (
++  email text primary key,
++  name text not null,
++  groups textarray not null default '[]',
++  left boolean not null default 0
++);
++
++-- Settings the platform keeps (the SSO signing key, made at first start).
++create table if not exists platform_settings (
++  key text primary key,
++  value text not null
++);
+diff --git a/platform/pages.ts b/platform/pages.ts
+new file mode 100644
+index 0000000..d3e6e5f
+--- /dev/null
++++ b/platform/pages.ts
+@@ -0,0 +1,29 @@
++/* The platform's own two pages: its sign-in, and the stub identity provider's list of people. Plain HTML, outside the
++   app (the internal platform brings its own); calm and low density, one primary action each. */
++const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
++const page = (title: string, body: string) => `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
++<title>${esc(title)}</title><style>
++:root{color-scheme:light dark;--bg:#f7f6f3;--fg:#1d1d1b;--muted:#6b6a66;--line:#d9d7d1;--accent:#2f5d50}
++@media (prefers-color-scheme:dark){:root{--bg:#171716;--fg:#ecebe7;--muted:#a3a19b;--line:#3a3936;--accent:#8cc2b0}}
++body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
++main{max-width:26rem;margin:12vh auto;padding:0 16px}h1{font-size:1.4rem;font-weight:600;margin:0 0 1.5rem}
++label{display:block;margin:0 0 1rem;color:var(--muted);font-size:.9rem}input{display:block;width:100%;box-sizing:border-box;margin-top:.3rem;padding:.6rem;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--fg);font:inherit}
++button{font:inherit;padding:.6rem 1rem;border-radius:6px;border:1px solid var(--accent);cursor:pointer}.primary{background:var(--accent);color:var(--bg)}
++.quiet{background:transparent;color:var(--fg);border-color:var(--line);width:100%;text-align:left;margin:0 0 .5rem}
++p{color:var(--muted)}.problem{color:var(--fg);border:1px solid var(--line);padding:.6rem;border-radius:6px}a{color:var(--accent)}
++</style></head><body><main>${body}</main></body></html>`;
++
++export function signInPage(problem?: string, next = '/'): string {
++  return page('Sign in to Faro', `<h1>Sign in to Faro</h1>${problem ? `<p class="problem" role="alert">${esc(problem)}</p>` : ''}
++<form method="post" action="/api/signin"><input type="hidden" name="next" value="${esc(next)}">
++<label>Email<input name="email" type="email" autocomplete="username" required></label>
++<label>Password<input name="password" type="password" autocomplete="current-password" required></label>
++<button class="primary" type="submit">Sign in</button></form>
++<p>Or <a href="/sso/stub?next=${encodeURIComponent(next)}">sign in with the company’s sign-in</a>.</p>`);
++}
++
++export function ssoStubPage(people: { email: string; name: string; groups: string[]; left: boolean }[], next: string, problem?: string): string {
++  const rows = people.map((p) => `<form method="post" action="/sso/stub/assert"><input type="hidden" name="email" value="${esc(p.email)}"><input type="hidden" name="next" value="${esc(next)}">
++<button class="quiet" type="submit"${p.left ? ' disabled' : ''}>${esc(p.name)} <span style="color:var(--muted)">${esc(p.email)}${p.left ? ' (left)' : ''}</span></button></form>`).join('\n');
++  return page('Company sign-in (stand-in)', `<h1>Company sign-in</h1><p>A stand-in for the company’s identity provider. Choose who signs in.</p>${problem ? `<p class="problem" role="alert">${esc(problem)}</p>` : ''}${rows || '<p>Nobody is in the directory yet.</p>'}`);
++}
+diff --git a/platform/prove.mjs b/platform/prove.mjs
+new file mode 100644
+index 0000000..3e9039e
+--- /dev/null
++++ b/platform/prove.mjs
+@@ -0,0 +1,176 @@
++/* The stand-in platform's behaviour proof (drill item 11). Starts the built server on a fresh data folder, seeds it,
++   and checks, against the running server: the sign-in (password and stub SSO), a leaver refused (the directory's and
++   Faro's own "marked as left"), who may change what enforced by the server (R1, called directly, not through the app),
++   files, the MCP endpoint, and a goal made and checked in through the app's screens still in SQLite after a restart.
++   Usage: npm run build:standin && node platform/prove.mjs [port]. Prints one line per check and a tally. */
++import { spawn } from 'node:child_process';
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { DatabaseSync } from 'node:sqlite';
++
++const PORT = Number(process.argv[2] || 47320);
++const B = `http://localhost:${PORT}`;
++const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-standin-'));
++const ENV = { ...process.env, STANDIN_PORT: String(PORT), STANDIN_DATA: DATA, NODE_NO_WARNINGS: '1' };
++const PASSWORD = 'faro-standin';
++const WS = 'ws_platform';
++const results = [];
++const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`); };
++
++function run(args) { return new Promise((res, rej) => { const p = spawn(process.execPath, ['platform/dist/server.mjs', ...args], { env: ENV, stdio: 'inherit' }); p.on('exit', (c) => (c ? rej(new Error('exit ' + c)) : res())); }); }
++async function start() {
++  const p = spawn(process.execPath, ['platform/dist/server.mjs'], { env: ENV, stdio: ['ignore', 'pipe', 'inherit'] });
++  await new Promise((res) => p.stdout.on('data', (d) => { if (/stand-in platform/.test(String(d))) res(); }));
++  return p;
++}
++const stop = (p) => new Promise((res) => { p.on('exit', res); p.kill(); });
++
++/** A tiny client: keeps its own cookie. */
++function client() {
++  let cookie = '';
++  const c = async (method, url, body, headers = {}) => {
++    const r = await fetch(B + url, { method, redirect: 'manual', headers: { ...(cookie ? { cookie } : {}), ...(body !== undefined ? { 'Content-Type': typeof body === 'string' ? 'application/x-www-form-urlencoded' : 'application/json' } : {}), ...headers }, body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body) });
++    const set = r.headers.get('set-cookie'); if (set) { c.setCookie = set; cookie = set.split(';')[0]; }
++    const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* html */ }
++    return { status: r.status, json, text, location: r.headers.get('location') };
++  };
++  c.signIn = (email, password = PASSWORD) => c('POST', '/api/signin', { email, password });
++  return c;
++}
++let n = 0;
++const id = (p) => `${p}_proof${String(++n).padStart(3, '0')}`;
++const change = (actor, entity, entityId, goalId, summary, diffs = []) => ({ id: id('chg'), at: new Date().toISOString(), actorId: actor, goalId, entity, entityId, action: 'edited', summary, diffs });
++
++await run(['seed', PASSWORD]);
++let server = await start();
++try {
++  // ---------- Sign-in ----------
++  const anon = client();
++  let r = await anon('GET', '/');
++  check('opening the app signed out shows the sign-in (R1 rule 9)', r.status === 303 && /^\/signin/.test(r.location ?? ''), `${r.status} → ${r.location}`);
++  r = await anon('GET', '/api/workspaces');
++  check('the API refuses someone signed out', r.status === 401);
++  r = await anon.signIn('rhea.kapoor@example.com', 'wrong');
++  check('a wrong password is refused', r.status === 401, r.json?.error);
++
++  const rhea = client();
++  r = await rhea.signIn('Rhea.Kapoor@Example.com');
++  check('signs in by password (email in any case), with an HttpOnly SameSite=Lax cookie', r.status === 200 && /HttpOnly/.test(rhea.setCookie) && /SameSite=Lax/.test(rhea.setCookie));
++  r = await rhea('GET', '/api/workspaces');
++  check('a member sees their workspace', r.json?.length === 1 && r.json[0].id === WS);
++  r = await rhea('GET', `/api/workspaces/${WS}/whoami`);
++  check('the signed-in email opens their person (R1 rule 2)', r.json?.id === 'rhea', JSON.stringify(r.json));
++  const snap = (await rhea('GET', `/api/workspaces/${WS}`)).json;
++  check('loads the workspace whole', snap?.goals?.length === 126 && snap?.people?.length === 97, `${snap?.goals?.length} goals, ${snap?.people?.length} people`);
++
++  // ---------- Stub SSO ----------
++  const pavel = client();
++  r = await pavel('GET', '/sso/stub');
++  check('/sso/stub lists the directory', r.status === 200 && /pavel\.novak@example\.com/.test(r.text));
++  r = await pavel('POST', '/sso/stub/assert', 'email=pavel.novak%40example.com&next=%2F');
++  const assertion = new URL(B + r.location).searchParams.get('assertion');
++  check('the identity provider issues a signed assertion to /sso/callback', r.status === 303 && /^\/sso\/callback/.test(r.location) && !!assertion);
++  const forged = client();
++  const [body] = assertion.split('.');
++  const other = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, 'base64url')), email: 'amara.nwosu@example.com' })).toString('base64url');
++  r = await forged('GET', `/sso/callback?assertion=${other}.${assertion.split('.')[1]}`);
++  check('a forged assertion is refused', r.status === 401);
++  r = await pavel('GET', `/sso/callback?assertion=${encodeURIComponent(assertion)}`);
++  r = await pavel('GET', '/api/me');
++  check('signs in by stub SSO', r.json?.email === 'pavel.novak@example.com' && r.json?.via === 'sso', JSON.stringify(r.json));
++  const pavel2 = client(); await pavel2.signIn('pavel.novak@example.com');
++
++  // ---------- The directory's leaver ----------
++  await anon('POST', '/sso/stub/left', { email: 'pavel.novak@example.com' });
++  r = await pavel('GET', '/api/workspaces');
++  const r2 = await pavel2('GET', '/api/workspaces');
++  check('a leaver’s next request is refused, and every session of theirs ends (SSO and password)', r.status === 401 && r2.status === 401);
++  r = await anon('POST', '/sso/stub/assert', 'email=pavel.novak%40example.com&next=%2F');
++  const r3 = await client().signIn('pavel.novak@example.com');
++  check('a leaver can’t sign in again, by SSO or password', r.status === 403 && r3.status === 401, r3.json?.error);
++
++  // ---------- Who may change what, on the server (R1 rule 4), called directly ----------
++  const amara = client(); await amara.signIn('amara.nwosu@example.com');
++  const theirs = snap.goals.find((g) => g.ownerId !== 'rhea' && g.kind === 'metric' && !g.removedAt && !g.stoppedAt);
++  const mine = snap.goals.find((g) => g.ownerId === 'rhea' && !g.removedAt && !g.stoppedAt);
++  const owner = snap.people.find((p) => p.id === theirs.ownerId);
++  const refusals = [
++    ['renames the workspace', { workspace: { name: 'Mine now' }, changes: [change('rhea', 'workspace', WS, null, 'Renamed')] }, /Only admins can rename the workspace/],
++    ['changes someone else’s goal', { goals: [{ ...theirs, title: theirs.title + ' (edited)' }], changes: [change('rhea', 'goal', theirs.id, theirs.id, 'Renamed')] }, /\(its owner\) or an admin can change/],
++    ['checks in on someone else’s goal', { checkIns: [{ id: id('ci'), goalId: theirs.id, authorId: 'rhea', week: 46, postedAt: new Date().toISOString(), value: 1, status: 'on', calculated: 'on', why: '', greenerWhy: '', next: '' }], changes: [{ ...change('rhea', 'check-in', 'x', theirs.id, 'Posted'), action: 'posted' }] }, /\(its owner\) can check in/],
++    ['saves as someone else', { goals: [{ ...mine, title: mine.title + '!' }], changes: [change('amara', 'goal', mine.id, mine.id, 'Renamed')] }, /only be made as the person signed in/],
++    ['changes someone’s job title', { people: [{ ...owner, role: 'Chief' }], changes: [change('rhea', 'person', owner.id, null, 'Changed')] }, /Only an admin can change people/],
++    ['adds a person', { people: [{ id: 'mallory', name: 'Mallory', role: '', initials: 'M', teamId: null, admin: true, email: 'mallory@example.com' }], changes: [change('rhea', 'person', 'mallory', null, 'Added')] }, /Only an admin can add people/],
++    ['switches a feature off', { modulesOff: ['reviews'], changes: [change('rhea', 'workspace', WS, null, 'Off')] }, /Only admins can switch features/],
++  ];
++  for (const [what, commit, words] of refusals) {
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, commit);
++    check(`R1: a member who isn’t allowed ${what}: refused by the server with the app’s words`, r.status === 403 && words.test(r.json?.error ?? ''), `${r.status} ${r.json?.error}`);
++  }
++  r = await rhea('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: 'tok_rhea1', personId: 'rhea', name: 'Claude on my laptop', createdBy: 'rhea', createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null }], changes: [] });
++  check('R1: a member who isn’t an admin makes a token: refused', r.status === 403 && /Only admins can make tokens/.test(r.json?.error ?? ''), r.json?.error);
++  r = await rhea('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...mine, title: mine.title + ' (by its owner)' }], changes: [change('rhea', 'goal', mine.id, mine.id, 'Renamed', [{ field: 'Name', from: mine.title, to: mine.title + ' (by its owner)' }])] });
++  check('R1: the goal’s owner changes it: allowed', r.status === 200, r.json?.error);
++  r = await amara('POST', `/api/workspaces/${WS}/commit`, { goals: [{ ...theirs, title: theirs.title + ' (by an admin)' }], changes: [change('amara', 'goal', theirs.id, theirs.id, 'Renamed')] });
++  check('R1: an admin changes someone else’s goal: allowed', r.status === 200, r.json?.error);
++  r = await anon('GET', `/api/workspaces/${WS}`);
++  check('someone signed out reads nothing of a workspace', r.status === 401);
++
++  // ---------- MCP ----------
++  r = await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: 'tok_rheaproof', personId: 'rhea', name: 'Claude in the proof', createdBy: 'amara', createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null }], changes: [] });
++  const secret = r.json?.secret;
++  check('an admin makes a token; the secret comes back once', r.status === 200 && /^gk_[A-Za-z0-9]{40}$/.test(secret ?? ''));
++  const mcp = async (method, params, token = secret) => (await anon('POST', '/mcp', { jsonrpc: '2.0', id: ++n, method, params }, { Authorization: `Bearer ${token}`, Accept: 'application/json, text/event-stream' }));
++  r = await mcp('tools/list', {});
++  const tools = r.json?.result?.tools?.map((t) => t.name) ?? [];
++  check('/mcp lists the core’s tools, with every module left out', tools.includes('find_goals') && tools.includes('post_check_in') && !tools.includes('create_token'), `${tools.length} tools`);
++  r = await mcp('tools/call', { name: 'update_goal', arguments: { goal_id: theirs.id, title: 'Taken over' } });
++  check('MCP: a token acts with its person’s rights (rhea can’t change another’s goal)', r.json?.result?.isError && /its owner/.test(JSON.stringify(r.json)), JSON.stringify(r.json?.result?.content?.[0]?.text ?? r.json).slice(0, 160));
++  r = await mcp('tools/call', { name: 'find_goals', arguments: { text: mine.key } });
++  check('MCP: a core tool answers from SQLite', !r.json?.result?.isError && JSON.stringify(r.json).includes(mine.id), JSON.stringify(r.json?.result?.content?.[0]?.text ?? r.json).slice(0, 120));
++  r = await mcp('tools/list', {}, 'gk_' + 'x'.repeat(40));
++  check('MCP: an unknown token is refused', r.status === 401);
++
++  // A token stops when its person leaves the company (the directory's leaver, R2 rule 3): Pavel left above.
++  r = await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: 'tok_pavelproof', personId: 'pavel', name: 'Pavel’s assistant', createdBy: 'amara', createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null }], changes: [] });
++  r = await mcp('tools/list', {}, r.json?.secret);
++  check('MCP: the token of someone who left the company is refused (R2 rule 3)', r.status === 401, String(r.status));
++  // A token stops when its person is marked as left in Faro (R1 rules 2 and 5).
++  r = await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: 'tok_tariqproof', personId: 'tariq', name: 'Tariq’s assistant', createdBy: 'amara', createdAt: new Date().toISOString(), lastUsedAt: null, revokedAt: null }], changes: [] });
++  const tariqSecret = r.json?.secret;
++  const tariq = client(); await tariq.signIn('tariq.haddad@example.com');
++  const tp = snap.people.find((p) => p.id === 'tariq');
++  r = await amara('POST', `/api/workspaces/${WS}/commit`, { people: [{ ...tp, leftAt: new Date().toISOString(), leftBy: 'amara' }], changes: [{ ...change('amara', 'person', 'tariq', null, 'Marked as left'), action: 'left' }] });
++  check('an admin marks someone as left in Faro', r.status === 200, r.json?.error);
++  const [ws2, who, load, tok] = await Promise.all([tariq('GET', '/api/workspaces'), tariq('GET', `/api/workspaces/${WS}/whoami`), tariq('GET', `/api/workspaces/${WS}`), mcp('tools/list', {}, tariqSecret)]);
++  check('someone marked as left can’t open the workspace, and their token is refused at once', ws2.json?.length === 0 && who.json?.reason === 'left' && load.status === 404 && tok.status === 401, `workspaces ${ws2.json?.length}, whoami ${JSON.stringify(who.json)}, load ${load.status}, token ${tok.status}`);
++
++  // ---------- Files ----------
++  r = await rhea('PUT', '/api/files/exports/proof.txt', 'hello');
++  const got = await rhea('GET', '/api/files/exports/proof.txt');
++  const again = await rhea('PUT', '/api/files/exports/proof.txt', 'other');
++  const del = await rhea('DELETE', '/api/files/exports/proof.txt');
++  check('files: put, get, never replaced, delete', r.status === 200 && got.text === 'hello' && again.status === 409 && del.status === 200);
++
++  // ---------- Through the app, then a restart ----------
++  const title = 'Runbooks with an owner (proof)';
++  const ui = await new Promise((res) => { const p = spawn(process.execPath, ['platform/ui-proof.mjs', B, 'rhea.kapoor@example.com', PASSWORD, title], { stdio: ['ignore', 'pipe', 'inherit'] }); let out = ''; p.stdout.on('data', (d) => (out += d)); p.on('exit', () => res(JSON.parse(out.trim().split('\n').pop() || '{}'))); });
++  check('through the app’s screens: signs in, makes a goal with New goal and posts a check-in on it', !!ui.goalId && !ui.failed, JSON.stringify(ui).slice(0, 200));
++  await stop(server);
++  server = await start();
++  const db = new DatabaseSync(path.join(DATA, 'faro.db'));
++  const g = db.prepare('select id, key, title, owner_id from okr_goals where id = ?').get(ui.goalId ?? '');
++  const ci = db.prepare('select id, week, value, author_id from okr_check_ins where goal_id = ?').all(ui.goalId ?? '');
++  const log = db.prepare('select count(*) n from okr_changes where goal_id = ? and actor_id = ?').get(ui.goalId ?? '', 'rhea');
++  db.close();
++  check('after a restart, the goal and its check-in are in SQLite, logged as the person signed in', g?.title === title && g?.owner_id === 'rhea' && ci.length === 1 && ci[0].author_id === 'rhea' && log.n >= 2, `${JSON.stringify(g)} check-ins ${JSON.stringify(ci)} log ${log?.n}`);
++  const again2 = client(); await again2.signIn('rhea.kapoor@example.com');
++  r = await again2('GET', `/api/workspaces/${WS}`);
++  check('after a restart, the app loads it back', r.json?.goals?.some((x) => x.id === ui.goalId) && r.json?.checkIns?.some((x) => x.goalId === ui.goalId));
++} finally {
++  await stop(server);
++}
++const failed = results.filter((x) => !x.ok);
++console.log(`\n${results.length - failed.length}/${results.length} checks pass${failed.length ? '; failing: ' + failed.map((f) => f.name).join('; ') : ''}`);
++process.exitCode = failed.length ? 1 : 0;
+diff --git a/platform/server.ts b/platform/server.ts
+new file mode 100644
+index 0000000..5ed2935
+--- /dev/null
++++ b/platform/server.ts
+@@ -0,0 +1,263 @@
++/* The stand-in platform's server (drill item 11): one node:http server that serves the built app, a JSON API under
++   /api/, the platform's sign-in (/signin, /sso/stub, /sso/callback) and the MCP server at /mcp. Records are kept in one
++   SQLite file (src/adapters/standin/sqliteStore.ts); every access rule is enforced here: who may read a workspace
++   (its members: a live person with the signed-in email, R1 rules 2 and 3) and who may change what (guard.ts, R1 rule 4).
++   Built by `npm run build:standin` into platform/dist/server.mjs; run with `node platform/dist/server.mjs`.
++   Environment: STANDIN_PORT (47310), STANDIN_DATA (platform/data), STANDIN_APP (platform/dist/app). */
++import fs from 'node:fs';
++import http from 'node:http';
++import path from 'node:path';
++import { serve as serveMcp } from '../server/mcp';
++import { openDatabase } from '../src/adapters/standin/migrate';
++import { Refused, SqliteStore } from '../src/adapters/standin/sqliteStore';
++import { standinDeps } from '../src/adapters/standin/deps';
++import { folderFiles } from '../src/adapters/standin/files';
++import { refusal } from '../src/adapters/standin/guard';
++import { matchSignIn } from '../src/adapters/signIn';
++import { isStale } from '../src/ports/store';
++import { personFromRow, type PersonRow } from '../src/data/rows';
++import type { Commit } from '../src/data/store';
++import type { Person, Snapshot, Workspace } from '../src/domain/types';
++import { buildPlatformOrg } from '../src/data/platformOrg/generate';
++import { Auth, COOKIE, type Session } from './auth';
++import { signInPage, ssoStubPage } from './pages';
++
++const ROOT = process.cwd();
++const PORT = Number(process.env.STANDIN_PORT || 47310);
++const DATA = path.resolve(process.env.STANDIN_DATA || path.join(ROOT, 'platform/data'));
++const APP = path.resolve(process.env.STANDIN_APP || path.join(ROOT, 'platform/dist/app'));
++const MIGRATIONS = path.resolve(process.env.STANDIN_MIGRATIONS || path.join(ROOT, 'platform/migrations'));
++
++const db = openDatabase(path.join(DATA, 'faro.db'), MIGRATIONS);
++const store = new SqliteStore(db);
++const auth = new Auth(db);
++const files = folderFiles(path.join(DATA, 'files'));
++const deps = standinDeps(store, () => new Date(), (email) => auth.hasLeft(email));
++
++// ---------- Small helpers ----------
++
++class HttpError extends Error { constructor(readonly status: number, message: string, readonly extra: Record<string, unknown> = {}) { super(message); } }
++const cookies = (req: http.IncomingMessage) => Object.fromEntries((req.headers.cookie ?? '').split(';').map((c) => c.trim().split('=')).filter((p) => p.length === 2).map(([k, v]) => [k!, decodeURIComponent(v!)]));
++const sessionCookie = (token: string) => `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${12 * 3600}`;
++function send(res: http.ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
++  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers });
++  res.end(body === undefined ? '' : JSON.stringify(body));
++}
++function html(res: http.ServerResponse, status: number, body: string, headers: Record<string, string> = {}) {
++  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
++  res.end(body);
++}
++const redirect = (res: http.ServerResponse, to: string, headers: Record<string, string> = {}) => { res.writeHead(303, { Location: to, ...headers }); res.end(); };
++async function body(req: http.IncomingMessage, limit = 20 * 1024 * 1024): Promise<Buffer> {
++  const chunks: Buffer[] = []; let n = 0;
++  for await (const c of req) { n += (c as Buffer).length; if (n > limit) throw new HttpError(413, 'That is too large to save.'); chunks.push(c as Buffer); }
++  return Buffer.concat(chunks);
++}
++async function input<T>(req: http.IncomingMessage): Promise<T> {
++  const b = (await body(req)).toString('utf8');
++  if ((req.headers['content-type'] ?? '').includes('application/x-www-form-urlencoded')) return Object.fromEntries(new URLSearchParams(b)) as T;
++  return (b ? JSON.parse(b) : {}) as T;
++}
++
++/** The workspace's people with this email (the membership rule reads only these). */
++function peopleWith(ws: string, email: string): Person[] {
++  const rows = db.prepare('select * from okr_people where workspace_id = ? and lower(trim(email)) = ?').all(ws, email.trim().toLowerCase()) as unknown as PersonRow[];
++  return rows.map((r) => personFromRow({ ...r, is_admin: !!r.is_admin }));
++}
++/** Who the signed-in person is in this workspace (R1 rule 2), or why no one. */
++const whoIn = (ws: string, s: Session) => matchSignIn(s.email, peopleWith(ws, s.email));
++/** The member acting, or a refusal: someone who isn't a member reads nothing of a workspace, not even that it exists. */
++function member(ws: string, s: Session): Person {
++  const m = whoIn(ws, s);
++  if (!('id' in m)) throw new HttpError(404, 'There’s no such workspace.');
++  return peopleWith(ws, s.email).find((p) => p.id === m.id)!;
++}
++/** What a member reads (R1 rule 3): everything, but tokens (an admin all, anyone else their own) and feedback (admins). */
++function readable(s: Snapshot, me: Person): Snapshot {
++  if (me.admin) return s;
++  return { ...s, tokens: (s.tokens ?? []).filter((t) => t.personId === me.id), feedback: [] };
++}
++function refuse(e: unknown): never {
++  if (e instanceof HttpError) throw e;
++  if (isStale(e)) throw new HttpError(409, e instanceof Error ? e.message : String(e), { stale: true });
++  if (e instanceof Refused) throw new HttpError(403, e.message);
++  throw new HttpError(400, e instanceof Error ? e.message : String(e));
++}
++
++// ---------- The API ----------
++
++async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL, s: Session | null) {
++  const p = url.pathname;
++  if (p === '/api/signin' && req.method === 'POST') {
++    const f = await input<{ email?: string; password?: string; next?: string }>(req);
++    const r = auth.signIn(f.email ?? '', f.password ?? '');
++    const form = (req.headers['content-type'] ?? '').includes('form');
++    if ('error' in r) return form ? html(res, 401, signInPage(r.error, f.next)) : send(res, 401, { error: r.error });
++    const next = f.next && f.next.startsWith('/') && !f.next.startsWith('//') ? f.next : '/';
++    return form ? redirect(res, next, { 'Set-Cookie': sessionCookie(r.token) }) : send(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(r.token) });
++  }
++  if (p === '/api/signout' && req.method === 'POST') { auth.signOut(cookies(req)[COOKIE]); return send(res, 200, { ok: true }, { 'Set-Cookie': `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); }
++  if (!s) throw new HttpError(401, 'Sign in first.');
++  if (p === '/api/me') return send(res, 200, { email: s.email, via: s.via });
++
++  if (p === '/api/workspaces' && req.method === 'GET') {
++    const mine = (await store.workspaces()).filter((w) => 'id' in whoIn(w.id, s));
++    return send(res, 200, mine);
++  }
++  if (p === '/api/workspaces' && req.method === 'POST') {
++    // Whoever creates a workspace is its first admin (R1 rule 2): an admin with their email, given to the first admin
++    // without one when the set-up didn't ask for it.
++    const { workspace, snapshot } = await input<{ workspace: Workspace; snapshot: Snapshot }>(req);
++    const people = snapshot.people.map((x) => ({ ...x }));
++    let me = people.find((x) => x.admin && x.email?.trim().toLowerCase() === s.email);
++    if (!me) { me = people.find((x) => x.admin && !x.email); if (me) me.email = s.email; }
++    if (!me) throw new HttpError(403, 'Whoever sets up a workspace is its first admin: add yourself, with your email, as an admin.');
++    try { await store.createWorkspace({ ...workspace, kind: 'own' }, { ...snapshot, people }); } catch (e) { refuse(e); }
++    return send(res, 200, { ok: true });
++  }
++
++  const m = p.match(/^\/api\/workspaces\/([^/]+)(\/[a-z]+)?$/);
++  if (m) {
++    const ws = decodeURIComponent(m[1]!);
++    const rest = m[2] ?? '';
++    if (rest === '/whoami') return send(res, 200, whoIn(ws, s));
++    const me = member(ws, s);
++    if (rest === '' && req.method === 'GET') {
++      const from = url.searchParams.get('from');
++      return send(res, 200, readable(await store.load(ws, from ? { from } : undefined), me));
++    }
++    if (rest === '' && req.method === 'DELETE') {
++      if (!me.admin) throw new HttpError(403, 'Only admins can delete the workspace.');
++      await store.deleteWorkspace(ws);
++      return send(res, 200, { ok: true });
++    }
++    if (rest === '/history' && req.method === 'POST') return send(res, 200, await store.history(ws, await input(req)));
++    if (rest === '/commit' && req.method === 'POST') {
++      const c = await input<Commit>(req);
++      const why = refusal(await store.load(ws), c, me);
++      if (why) throw new HttpError(403, why);
++      // Revoking a token: the store checks that it's the token's person or an admin, as the actor the change names.
++      try { await store.commit(ws, c); } catch (e) { refuse(e); }
++      return send(res, 200, { ok: true });
++    }
++    if (rest === '/tokens' && req.method === 'POST') {
++      const c = await input<Commit>(req);
++      if (c.tokens?.some((t) => t.createdBy !== me.id) || c.changes.some((x) => x.actorId !== me.id)) throw new HttpError(403, 'A save can only be made as the person signed in.');
++      try { return send(res, 200, { secret: await store.issueToken(ws, c) }); } catch (e) { refuse(e); }
++    }
++    if (rest === '/prefs' && req.method === 'GET') return send(res, 200, (await store.personPrefs(ws)).filter((x) => x.personId === me.id));
++    if (rest === '/prefs' && req.method === 'POST') {
++      const pref = await input<{ personId: string; key: string; value: unknown }>(req);
++      if (pref.personId !== me.id) throw new HttpError(403, 'A preference is kept only for the person signed in.');
++      try { await store.keepPersonPref(ws, pref); } catch (e) { refuse(e); }
++      return send(res, 200, { ok: true });
++    }
++  }
++
++  // Files: a local folder behind put, get and delete (anything Faro keeps as a file: markup pictures, exports).
++  const f = p.match(/^\/api\/files\/(.+)$/);
++  if (f) {
++    const name = decodeURIComponent(f[1]!);
++    if (req.method === 'GET') { const b = await files.bytes(name); if (!b) throw new HttpError(404, 'There’s no such file.'); res.writeHead(200, { 'Content-Type': 'application/octet-stream' }); return res.end(b); }
++    if (req.method === 'PUT') { try { await files.put(name, new Blob([new Uint8Array(await body(req))]), String(req.headers['content-type'] ?? '')); } catch (e) { throw new HttpError(409, e instanceof Error ? e.message : String(e)); } return send(res, 200, { ok: true }); }
++    if (req.method === 'DELETE') return send(res, (await files.remove(name)) ? 200 : 404, { ok: true });
++  }
++  throw new HttpError(404, 'There’s nothing at that address.');
++}
++
++// ---------- The stub identity provider ----------
++
++async function sso(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
++  if (url.pathname === '/sso/stub' && req.method === 'GET') return html(res, 200, ssoStubPage(auth.directory(), url.searchParams.get('next') ?? '/'));
++  if (url.pathname === '/sso/stub/assert' && req.method === 'POST') {
++    const f = await input<{ email: string; next?: string }>(req);
++    const a = auth.assert(f.email);
++    if (!a) return html(res, 403, ssoStubPage(auth.directory(), f.next ?? '/', 'The company’s sign-in refused: that person has left.'));
++    return redirect(res, `/sso/callback?assertion=${encodeURIComponent(a)}&next=${encodeURIComponent(f.next ?? '/')}`);
++  }
++  // The directory's own change (a leaver, or back again): what HR's system does in the company.
++  if (url.pathname === '/sso/stub/left' && req.method === 'POST') {
++    const f = await input<{ email: string; left?: boolean | string }>(req);
++    auth.markLeft(f.email, f.left !== false && f.left !== 'false');
++    return send(res, 200, { ok: true });
++  }
++  if (url.pathname === '/sso/callback') {
++    const r = auth.ssoCallback(url.searchParams.get('assertion') ?? '');
++    if ('error' in r) return html(res, 401, signInPage(r.error));
++    const next = url.searchParams.get('next') ?? '/';
++    return redirect(res, next.startsWith('/') && !next.startsWith('//') ? next : '/', { 'Set-Cookie': sessionCookie(r.token) });
++  }
++  throw new HttpError(404, 'There’s nothing at that address.');
++}
++
++// ---------- The MCP server ----------
++
++async function mcp(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
++  const b = req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' ? undefined : await body(req);
++  const headers = new Headers();
++  for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v);
++  const r = await serveMcp(new Request(url, { method: req.method, headers, body: b ? new Uint8Array(b) : undefined }), deps);
++  res.writeHead(r.status, Object.fromEntries(r.headers));
++  res.end(Buffer.from(await r.arrayBuffer()));
++}
++
++// ---------- The app ----------
++
++const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain', '.woff2': 'font/woff2', '.md': 'text/markdown' };
++function app(_req: http.IncomingMessage, res: http.ServerResponse, url: URL, s: Session | null) {
++  const file = path.join(APP, path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, ''));
++  if (file.startsWith(APP) && fs.existsSync(file) && fs.statSync(file).isFile()) {
++    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] ?? 'application/octet-stream', 'Cache-Control': url.pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
++    return res.end(fs.readFileSync(file));
++  }
++  // The demo is open (it keeps its example in the browser); anything else opens on the sign-in (R1 rule 9).
++  const demo = url.pathname === '/demo' || url.pathname.startsWith('/demo/');
++  if (!demo && !s) return redirect(res, '/signin?next=' + encodeURIComponent(url.pathname + url.search));
++  if (path.extname(url.pathname) && !demo) return send(res, 404, { error: 'There’s no such file.' });
++  return html(res, 200, fs.readFileSync(path.join(APP, 'index.html'), 'utf8'));
++}
++
++// ---------- The server ----------
++
++const server = http.createServer(async (req, res) => {
++  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
++  try {
++    const s = auth.session(cookies(req)[COOKIE]);
++    if (url.pathname === '/signin') return html(res, 200, signInPage(undefined, url.searchParams.get('next') ?? '/'));
++    if (url.pathname.startsWith('/sso/')) return await sso(req, res, url);
++    if (url.pathname === '/mcp' || url.pathname === '/api/mcp') return await mcp(req, res, url);
++    if (url.pathname.startsWith('/api/')) return await api(req, res, url, s);
++    return app(req, res, url, s);
++  } catch (e) {
++    const err = e instanceof HttpError ? e : new HttpError(500, e instanceof Error ? e.message : String(e));
++    if (err.status === 500) console.error(e);
++    if (!res.headersSent) send(res, err.status, { error: err.message, ...err.extra });
++  }
++});
++
++// ---------- Jobs: what runs on a timer ----------
++
++const jobs = [
++  // Sessions that expired, and every session of someone the directory marks as left.
++  { every: 60_000, run: () => auth.sweep() },
++];
++
++/** Seeds a workspace from the demo's example (as a workspace of its own, kind "own") and signs everyone in it up: a
++    password for each, and the stub directory with each. For trying the platform; never real people. */
++async function seed(password: string) {
++  const today = new Date();
++  const s = buildPlatformOrg(today);
++  const ws: Workspace = { id: 'ws_platform', name: 'Platform Engineering', kind: 'own', createdAt: today.toISOString() };
++  if (!(await store.workspaces()).some((w) => w.id === ws.id)) await store.createWorkspace(ws, { ...s, tokens: [], feedback: [] });
++  for (const p of s.people) if (p.email) { auth.addUser(p.email, p.name, password); auth.addToDirectory(p.email, p.name, p.admin ? ['faro-admins'] : []); }
++  console.log(`Seeded ${ws.name}: ${s.people.length} people, ${s.goals.length} goals; password “${password}” for each.`);
++}
++
++const args = process.argv.slice(2);
++if (args[0] === 'seed') {
++  await seed(args[1] ?? 'faro-standin');
++  db.close();
++} else {
++  server.listen(PORT, () => console.log(`Faro on the stand-in platform: http://localhost:${PORT} (data ${DATA})`));
++  for (const j of jobs) setInterval(() => { try { j.run(); } catch (e) { console.error('job', e); } }, j.every).unref();
++}
+diff --git a/platform/translate-schema.mjs b/platform/translate-schema.mjs
+new file mode 100644
+index 0000000..a2f7338
+--- /dev/null
++++ b/platform/translate-schema.mjs
+@@ -0,0 +1,84 @@
++/* Writes platform/migrations/0001_core.sql: Faro's core tables for SQLite, translated from spec/core/schema.sql (the
++   database after every migration). Mechanical: columns, defaults, primary keys, unique keys and
++   indexes. Foreign keys, CHECK constraints, triggers, functions and grants are left out: on the stand-in platform the
++   server enforces every rule (src/adapters/standin/sqliteStore.ts, guard.ts). Run: node platform/translate-schema.mjs */
++import fs from 'node:fs';
++import path from 'node:path';
++
++const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
++const src = fs.readFileSync(path.join(root, 'spec/core/schema.sql'), 'utf8');
++/** Not the core's: Faro's own telemetry, markups and research (the feedback module and Faro's builders). */
++const SKIP = /^okr_(telemetry_|markup|research_notes|builders)/;
++
++/** Splits on top-level commas, outside quotes and brackets. */
++function split(body) {
++  const out = []; let depth = 0, q = false, cur = '';
++  for (const ch of body) {
++    if (ch === "'") q = !q;
++    if (!q && ch === '(') depth++;
++    if (!q && ch === ')') depth--;
++    if (!q && depth === 0 && ch === ',') { out.push(cur.trim()); cur = ''; continue; }
++    cur += ch;
++  }
++  if (cur.trim()) out.push(cur.trim());
++  return out;
++}
++
++const TYPES = [
++  [/^timestamp with time zone/, 'timestamptext'], [/^text\[\]/, 'textarray'], [/^jsonb/, 'jsontext'], [/^text/, 'text'], [/^uuid/, 'text'],
++  [/^(integer|bigint|smallint)/, 'integer'], [/^(numeric|double precision)/, 'real'], [/^boolean/, 'boolean'], [/^date/, 'datetext'],
++];
++function defaultOf(expr) {
++  const e = expr.trim();
++  if (e === 'now()') return "(strftime('%Y-%m-%dT%H:%M:%fZ','now'))";
++  if (e === 'gen_random_uuid()') return '(lower(hex(randomblob(16))))';
++  if (e === 'false') return '0';
++  if (e === 'true') return '1';
++  if (/^-?\d+(\.\d+)?$/.test(e)) return e;
++  let m = e.match(/^'(.*)'::(text|jsonb)$/); if (m) return `'${m[1]}'`;
++  if (/^'\{\}'::text\[\]$/.test(e)) return "'[]'";
++  throw new Error('No SQLite default for ' + e);
++}
++function column(def) {
++  const m = def.match(/^("?[a-z_0-9]+"?)\s+(.*)$/i);
++  const [, name, rest] = m;
++  const t = TYPES.find(([re]) => re.test(rest));
++  if (!t) throw new Error('No SQLite type for ' + def);
++  const notNull = /\bnot null\b/.test(rest) ? ' not null' : '';
++  const d = rest.match(/\bdefault (.+)$/);
++  return `  ${name} ${t[1]}${notNull}${d ? ' default ' + defaultOf(d[1]) : ''}`;
++}
++
++const tables = [...src.matchAll(/^create table (\w+) \(\n([\s\S]*?)\n\);/gm)];
++let out = `-- Generated by platform/translate-schema.mjs from spec/core/schema.sql (Faro's database after every migration).
++-- SQLite, for the stand-in platform. Kept: columns, defaults, primary and unique keys, indexes. Left out on purpose:
++-- foreign keys, CHECK constraints, triggers, functions and grants (the server enforces the rules), and the tables that
++-- are not the core's (telemetry, markups, research notes, builders). Declared types say how the store reads a value
++-- back: boolean (0/1), jsontext and textarray (JSON text), timestamptext and datetext (ISO text), real, integer, text.
++
++`;
++const kept = [];
++for (const [, name, body] of tables) {
++  if (SKIP.test(name)) continue;
++  kept.push(name);
++  const parts = split(body).map((p) => {
++    const c = p.match(/^constraint \w+ (PRIMARY KEY|UNIQUE) (\(.*\))$/s);
++    if (c) return `  ${c[1].toLowerCase()} ${c[2]}`;
++    if (/^constraint /.test(p)) return null;
++    return column(p);
++  }).filter(Boolean);
++  out += `create table if not exists ${name} (\n${parts.join(',\n')}\n);\n\n`;
++}
++for (const m of src.matchAll(/^CREATE (UNIQUE )?INDEX (\w+) ON faro\.(\w+) USING btree (\(.*?\))( WHERE (.*))?;$/gm)) {
++  const [, uniq, name, tbl, cols, , where] = m;
++  if (!kept.includes(tbl)) continue;
++  const fix = (s) => s.replace(/TRIM\(BOTH FROM (\w+)\)/g, 'trim($1)').replace(/'([^']*)'::text/g, "'$1'");
++  out += `create ${uniq ? 'unique ' : ''}index if not exists ${name} on ${tbl} ${fix(cols)}${where ? ' where ' + fix(where.replace(/^\((.*)\)$/, '$1')) : ''};\n`;
++}
++out += `
++-- The feature modules' tables on the allowed list a save may write (migrations 0033, 0052): okr_write's module_tables.
++insert or ignore into module_tables (table_name, module, position) values
++  ('okr_metrics', 'metrics', 10), ('okr_goal_metrics', 'metrics', 20), ('goal_fields', 'tags', 30), ('goal_field_values', 'tags', 40);
++`;
++fs.writeFileSync(path.join(root, 'platform/migrations/0001_core.sql'), out);
++console.log(`0001_core.sql: ${kept.length} tables`);
+diff --git a/platform/ui-proof.mjs b/platform/ui-proof.mjs
+new file mode 100644
+index 0000000..dcf907a
+--- /dev/null
++++ b/platform/ui-proof.mjs
+@@ -0,0 +1,53 @@
++/* The behaviour proof through the app (drill item 11): signs in by password, makes a goal with New goal and checks in
++   on it, all through the screens on the stand-in server. Prints the new goal's id. Usage:
++   node platform/ui-proof.mjs <base> <email> <password> <goal title> [shots folder] */
++import { chromium } from 'playwright';
++const [B, EMAIL, PASSWORD, TITLE, SHOTS] = process.argv.slice(2);
++const browser = await chromium.launch();
++const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
++const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
++const shot = (n) => SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.png` }) : null;
++const buttons = async () => (await page.locator('button:visible').allInnerTexts()).map((t) => t.trim()).filter(Boolean).join(' | ');
++try {
++  await page.goto(B + '/goals/new');
++  await page.fill('input[name=email]', EMAIL);
++  await page.fill('input[name=password]', PASSWORD);
++  await page.click('button[type=submit]');
++  for (const step of ['what', 'who', 'measure', 'check']) {
++    await page.waitForURL(new RegExp(`/goals/new/${step}`), { timeout: 15000 });
++    await page.waitForTimeout(300);
++    if (step === 'what') await page.getByLabel(/Name it the way/).fill(TITLE);
++    if (step === 'who') { const lv = page.getByRole('group', { name: 'Level' }); if (await lv.count()) await lv.getByRole('button', { name: 'Team' }).click(); }
++    if (step === 'measure') { await page.getByLabel('Unit').fill('%'); await page.getByLabel(/^Baseline$/).fill('20'); await page.getByLabel(/^Target$/).fill('90'); }
++    await shot('goal-' + step);
++    if (step !== 'check') await page.getByRole('button', { name: 'Continue' }).click();
++  }
++  console.error('check step buttons:', await buttons());
++  await page.locator('.focus-foot .btn.primary').click();
++  await page.waitForURL((u) => !/\/goals\/new/.test(u.pathname), { timeout: 15000 });
++  await page.waitForTimeout(1000);
++  await shot('goal-made');
++  console.error('after publish:', page.url());
++  const id = decodeURIComponent(new URL(page.url()).pathname.split('/').filter(Boolean).pop());
++  await page.goto(B + '/check-in/' + id);
++  await page.waitForTimeout(1000);
++  await shot('checkin-1');
++  console.error('check-in buttons:', await buttons());
++  await page.getByLabel('This week’s value').fill('20');
++  await page.waitForTimeout(150);
++  const meant = page.locator('.level-check .level-actions button').first();
++  if (await meant.isVisible().catch(() => false)) await meant.click();
++  const cont = page.getByRole('button', { name: 'Continue' });
++  if (await cont.count()) await cont.click();
++  await page.waitForTimeout(300);
++  await shot('checkin-2');
++  console.error('check-in step 2 buttons:', await buttons());
++  await page.getByRole('button', { name: 'Post check-in' }).click();
++  await page.getByText('Check-in saved').first().waitFor({ timeout: 8000 });
++  await shot('checkin-saved');
++  console.log(JSON.stringify({ goalId: id, errors: errs }));
++} catch (e) {
++  await shot('failed');
++  console.log(JSON.stringify({ failed: String(e).slice(0, 400), url: page.url(), errors: errs, buttons: await buttons() }));
++  process.exitCode = 1;
++} finally { await browser.close(); }
+diff --git a/src/adapters/standin/deps.ts b/src/adapters/standin/deps.ts
+new file mode 100644
+index 0000000..4a734b4
+--- /dev/null
++++ b/src/adapters/standin/deps.ts
+@@ -0,0 +1,30 @@
++/* The AI tools' endpoint's outside world (its Deps, server/mcp.ts) on the stand-in platform: the SQLite goals store
++   for loads and saves, a token found by its hash in one lookup, and refused once its person has left or been removed
++   in Faro (R1 rule 5) or has left the company (`leftCompany`, the directory's word: R2 rule 3). Server-only. */
++import type { Deps } from '../../../server/mcp';
++import type { SqliteStore } from './sqliteStore';
++
++export function standinDeps(store: SqliteStore, now: () => Date = () => new Date(), leftCompany: (email: string) => boolean = () => false): Deps {
++  const one = <T>(sql: string, ...p: string[]) => store.db.prepare(sql).get(...p) as T | undefined;
++  return {
++    async findToken(hash) {
++      const found = store.findToken(hash);
++      if (!found) return null;
++      // A token stops working the moment its person leaves (R1 rule 5): checked on every request, not cached.
++      const p = one<{ left_at: string | null; removed_at: string | null; email: string | null }>('select left_at, removed_at, email from okr_people where id = ? and workspace_id = ?', found.token.personId, found.workspaceId);
++      return p && !p.left_at && !p.removed_at && !(p.email && leftCompany(p.email.trim().toLowerCase())) ? found : null;
++    },
++    workspaceName: async (id) => one<{ name: string }>('select name from okr_workspaces where id = ?', id)?.name ?? 'Workspace',
++    load: (ws) => store.load(ws),
++    history: (ws, ask) => store.history(ws, ask),
++    commit: (ws, c) => store.commit(ws, c),
++    goalKeys: async (ws, ids) => store.goalKeys(ws, ids),
++    async touch(id) { store.touchToken(id); },
++    issueToken: (ws, c) => store.issueToken(ws, c),
++    deleteWorkspace: (ws) => store.deleteWorkspace(ws),
++    recording: async (id) => one<{ recording: number | null }>('select recording from okr_workspaces where id = ?', id)?.recording !== 0,
++    modulesOff: async (id) => JSON.parse(one<{ modules_off: string | null }>('select modules_off from okr_workspaces where id = ?', id)?.modules_off ?? '[]') as string[],
++    async check() { return { ok: true, database: !!one('select 1 as x'), pictures: true, problems: [] }; },
++    now,
++  };
++}
+diff --git a/src/adapters/standin/files.ts b/src/adapters/standin/files.ts
+new file mode 100644
+index 0000000..83af52e
+--- /dev/null
++++ b/src/adapters/standin/files.ts
+@@ -0,0 +1,29 @@
++/* Files on the stand-in platform: a local folder (data/files) behind put, get and delete, served by the server at
++   /api/files/<path>. A file is added once and never replaced (the Files port, src/ports/index.ts). Server-only. */
++import fs from 'node:fs';
++import path from 'node:path';
++import type { Files } from '../../ports';
++
++/** A path inside the folder, or an error: no "..", no absolute paths. */
++export function inside(dir: string, p: string): string {
++  const full = path.resolve(dir, p);
++  if (!full.startsWith(path.resolve(dir) + path.sep) || !/^[A-Za-z0-9_\-./]+$/.test(p)) throw new Error('That isn’t a file path the store keeps.');
++  return full;
++}
++
++export function folderFiles(dir: string, urlBase = '/api/files/'): Files & { remove(p: string): Promise<boolean> } {
++  return {
++    async put(p, data) {
++      const full = inside(dir, p);
++      fs.mkdirSync(path.dirname(full), { recursive: true });
++      // 'wx': refuses a path that already has a file.
++      try { fs.writeFileSync(full, new Uint8Array(await data.arrayBuffer()), { flag: 'wx' }); } catch (e) {
++        if ((e as NodeJS.ErrnoException).code === 'EEXIST') throw new Error(`There’s already a file at ${p}.`);
++        throw e;
++      }
++    },
++    async url(p) { return fs.existsSync(inside(dir, p)) ? urlBase + p : null; },
++    async bytes(p) { const full = inside(dir, p); return fs.existsSync(full) ? new Uint8Array(fs.readFileSync(full)) : null; },
++    async remove(p) { const full = inside(dir, p); if (!fs.existsSync(full)) return false; fs.unlinkSync(full); return true; },
++  };
++}
+diff --git a/src/adapters/standin/guard.ts b/src/adapters/standin/guard.ts
+new file mode 100644
+index 0000000..61387a2
+--- /dev/null
++++ b/src/adapters/standin/guard.ts
+@@ -0,0 +1,80 @@
++/* Who may change what, enforced by the stand-in platform's server on every save (R1 rule 4, drill item 11). The browser
++   still runs Faro's shared actions and sends their result (a Commit); the server compares it with what it holds and
++   refuses a save the access table refuses, with the app's own words. The rules are the domain's (goalRights,
++   ADMIN_CHECK_IN_DOORS, the actions' sentences), asked here, not restated.
++
++   What it can't see: a Commit says what changed, not which action changed it, so the door a check-in came through is
++   the one its change-log entry names (Via), and the rows only some actions may write (a comment's text, an ask's
++   answer, a review's calls) are checked by their author fields where the row has one. The internal app moves the actions
++   to the server (spec/rebuild/ports-at-scale.md) and asks each action's own rule instead. Pure. */
++import { mayChangeGoal, mayPostCheckIn } from '../../domain/goalRights';
++import { VIA_LABEL, type Via } from '../../domain/via';
++import type { Commit } from '../../data/store';
++import type { Goal, Person, Snapshot } from '../../domain/types';
++
++const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
++const byId = <T extends { id: string }>(xs: readonly T[] | undefined) => new Map((xs ?? []).map((x) => [x.id, x]));
++const nameOf = (s: Snapshot, id: string) => s.people.find((p) => p.id === id)?.name;
++
++/** The door a save came through, as its change-log entries say (changeset's Via mark); the check-in form's has none. */
++export function viaOf(c: Commit): Via {
++  const label = c.changes.flatMap((ch) => ch.diffs).find((d) => d.field === 'Via')?.to;
++  return (Object.entries(VIA_LABEL).find(([, l]) => l === label)?.[0] as Via | undefined) ?? 'form';
++}
++
++/** Why the server refuses this save by `actor` on the workspace as stored, in the app's words; null when it may. */
++export function refusal(stored: Snapshot, c: Commit, actor: Person): string | null {
++  const me = { id: actor.id, admin: !!actor.admin };
++  if (actor.leftAt || actor.removedAt) return 'You’re no longer in this workspace.';
++  // Every change is logged as the person signed in (R1 rule 6): nobody acts as someone else.
++  if (c.changes.some((ch) => ch.actorId !== actor.id)) return 'A save can only be made as the person signed in.';
++  const admin = me.admin;
++  if (!admin) {
++    if (c.workspace) return 'Only admins can rename the workspace.';
++    if (c.recording !== undefined) return 'Only admins can turn recording on or off.';
++    if (c.modulesOff !== undefined) return 'Only admins can switch features on or off.';
++    if (c.removeTeams?.length) return 'Only admins can remove a team.';
++    const teams = byId(stored.teams);
++    if ((c.teams ?? []).some((t) => !same(teams.get(t.id), t))) return 'Only an admin can change a team’s objective.';
++    const cycles = byId(stored.cycles);
++    if ((c.cycles ?? []).some((x) => !same(cycles.get(x.id), x))) return 'Only admins can start the next cycle.';
++  }
++  // People: an admin adds and changes them; anyone may mark themselves as left (leaving the workspace), never the only admin.
++  const people = byId(stored.people);
++  for (const p of c.people ?? []) {
++    const was = people.get(p.id);
++    if (!was) { if (!admin) return 'Only an admin can add people.'; continue; }
++    if (same(was, p)) continue;
++    const { leftAt: _a, leftBy: _b, ...rest } = p;
++    const { leftAt: _c, leftBy: _d, ...restWas } = was;
++    const leavingSelf = p.id === actor.id && same(rest, restWas);
++    if (!admin && !leavingSelf) return 'Only an admin can change people.';
++    if (was.admin && (!p.admin || p.leftAt || p.removedAt) && stored.people.filter((x) => x.admin && !x.leftAt && !x.removedAt && x.id !== p.id).length === 0) return 'A workspace always keeps one admin.';
++  }
++  // Goals: a new one, anyone; a change, its owner or an admin (or, while proposed, whoever proposed it).
++  const goals = byId(stored.goals);
++  for (const g of c.goals ?? []) {
++    const was = goals.get(g.id);
++    if (!was || same(was, g)) continue;
++    if (!mayChangeGoal(me, was)) return `Only ${nameOf(stored, was.ownerId) ?? 'its owner'} (its owner) or an admin can change “${was.title}”.`;
++  }
++  // Check-ins: the goal's owner; an admin only through a workbook, set-up or Data's tables (goalRights).
++  const via = viaOf(c);
++  const checkIns = byId(stored.checkIns);
++  const newGoals = byId(c.goals);
++  for (const ci of c.checkIns ?? []) {
++    if (same(checkIns.get(ci.id), ci)) continue;
++    const g: Goal | undefined = goals.get(ci.goalId) ?? newGoals.get(ci.goalId);
++    if (!g) return 'That check-in’s goal isn’t in this workspace.';
++    if (!mayPostCheckIn(me, g, via)) return `Only ${nameOf(stored, g.ownerId) ?? 'its owner'} (its owner) can check in on “${g.title}”.`;
++  }
++  // Views: its owner or an admin changes one; only an admin pins one for everyone.
++  const views = byId(stored.views);
++  for (const v of c.views ?? []) {
++    const was = views.get(v.id);
++    if (same(was, v)) continue;
++    if (!admin && (was ?? v).personId !== actor.id) return 'Only its owner or an admin can change this view.';
++    if (!admin && v.pinned !== !!was?.pinned) return 'Only admins can pin a view for everyone.';
++  }
++  return null;
++}
+diff --git a/src/adapters/standin/httpStore.ts b/src/adapters/standin/httpStore.ts
+new file mode 100644
+index 0000000..7e1cddb
+--- /dev/null
++++ b/src/adapters/standin/httpStore.ts
+@@ -0,0 +1,40 @@
++/* The browser's goals store on the stand-in platform: every call goes to the server's JSON API (/api/workspaces...)
++   with the session cookie, and the server keeps the records (SqliteStore) and enforces who may change what (guard.ts).
++   A refusal comes back with the server's own words; a stale save comes back as StaleError, so the app reruns it as it
++   does on any store (AX6). Who is viewing is the server's answer too (standinIdentity). */
++import type { Snapshot, Workspace } from '../../domain/types';
++import type { Identity, NoEntry } from '../../ports';
++import { StaleError, type Commit, type HistoryAsk, type HistoryPage, type LoadWindow, type PersonPref, type Store } from '../../ports/store';
++
++async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
++  const r = await fetch(url, { method, credentials: 'same-origin', headers: body === undefined ? {} : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
++  const text = await r.text();
++  const data = text ? JSON.parse(text) as { error?: string; stale?: boolean } & T : ({} as T & { error?: string; stale?: boolean });
++  if (r.status === 401) { location.assign('/signin?next=' + encodeURIComponent(location.pathname + location.search)); throw new Error('Signed out.'); }
++  if (!r.ok) throw data.stale ? new StaleError(data.error ?? 'stale') : new Error(data.error ?? `The server said ${r.status}.`);
++  return data;
++}
++const ws = (id: string, rest = '') => `/api/workspaces/${encodeURIComponent(id)}${rest}`;
++
++export class HttpStore implements Store {
++  readonly kind = 'postgres' as const;
++  workspaces() { return call<Workspace[]>('GET', '/api/workspaces'); }
++  load(id: string, window?: LoadWindow) { return call<Snapshot>('GET', ws(id, window ? `?from=${encodeURIComponent(window.from)}` : '')); }
++  history(id: string, ask: HistoryAsk) { return call<HistoryPage>('POST', ws(id, '/history'), ask); }
++  async commit(id: string, c: Commit) { await call('POST', ws(id, '/commit'), c); }
++  async createWorkspace(w: Workspace, data: Snapshot) { await call('POST', '/api/workspaces', { workspace: w, snapshot: data }); }
++  async deleteWorkspace(id: string) { await call('DELETE', ws(id)); }
++  async issueToken(id: string, c: Commit) { return (await call<{ secret: string }>('POST', ws(id, '/tokens'), c)).secret; }
++  personPrefs(id: string) { return call<PersonPref[]>('GET', ws(id, '/prefs')); }
++  async keepPersonPref(id: string, p: PersonPref) { await call('POST', ws(id, '/prefs'), p); }
++}
++
++/** Who is viewing: the server matches the signed-in email to the workspace's people (signIn.ts matchSignIn) and says
++    who, or why no one. No `choose`: who you are is not a choice. Asked each time a workspace opens. */
++export function standinIdentity(): Identity {
++  const ask = (id: string) => call<{ id: string } | NoEntry>('GET', ws(id, '/whoami'));
++  return {
++    async current(id) { const m = await ask(id); return 'id' in m ? m.id : null; },
++    async why(id) { const m = await ask(id); return 'id' in m ? null : m; },
++  };
++}
+diff --git a/src/adapters/standin/migrate.ts b/src/adapters/standin/migrate.ts
+new file mode 100644
+index 0000000..ed4422c
+--- /dev/null
++++ b/src/adapters/standin/migrate.ts
+@@ -0,0 +1,33 @@
++/* The stand-in platform's schema changes: plain numbered .sql files (platform/migrations), applied in order when the
++   server starts, each once, each in its own transaction, and noted in _migrations. Server-only. */
++import fs from 'node:fs';
++import path from 'node:path';
++import { DatabaseSync } from 'node:sqlite';
++
++/** Opens (or makes) the database file and brings its schema up to date. `:memory:` for a test. */
++export function openDatabase(file: string, migrations: string): DatabaseSync {
++  if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
++  const db = new DatabaseSync(file);
++  db.exec('pragma journal_mode = wal; pragma busy_timeout = 5000;');
++  migrate(db, migrations);
++  return db;
++}
++
++/** Applies every numbered .sql file in `dir` not applied yet, in order. Returns the names it applied. */
++export function migrate(db: DatabaseSync, dir: string): string[] {
++  db.exec('create table if not exists _migrations (name text primary key, applied_at text not null)');
++  const done = new Set((db.prepare('select name from _migrations').all() as { name: string }[]).map((r) => r.name));
++  const files = fs.readdirSync(dir).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
++  const applied: string[] = [];
++  for (const f of files) {
++    if (done.has(f)) continue;
++    db.exec('begin');
++    try {
++      db.exec(fs.readFileSync(path.join(dir, f), 'utf8'));
++      db.prepare('insert into _migrations (name, applied_at) values (?, ?)').run(f, new Date().toISOString());
++      db.exec('commit');
++    } catch (e) { db.exec('rollback'); throw new Error(`Migration ${f}: ${e instanceof Error ? e.message : String(e)}`); }
++    applied.push(f);
++  }
++  return applied;
++}
+diff --git a/src/adapters/standin/sqliteStore.ts b/src/adapters/standin/sqliteStore.ts
+new file mode 100644
+index 0000000..cf79a7b
+--- /dev/null
++++ b/src/adapters/standin/sqliteStore.ts
+@@ -0,0 +1,377 @@
++/* The goals store on the stand-in platform's SQLite (node:sqlite, one file): drill item 11. A port of the plain-Postgres
++   adapter (src/adapters/postgres/goalsStore.ts) to a database with no functions, no triggers and no row rules: what the
++   migrations' database functions did (okr_commit and the rest: okr_same_workspace, okr_check_expectations, okr_write,
++   okr_upsert, the goal-key and version triggers, okr_token_create, okr_token_revoke) is done here, in TypeScript, in one
++   SQLite transaction per save. The schema is platform/migrations (translated from spec/core/schema.sql). Rows are read
++   back as JSON rows (booleans, JSON columns parsed), the shape src/data/rows.ts converts for every database store.
++   It passes the same contract as every other store (src/adapters/standin/standin.test.ts). Server-only. */
++import { createHash, randomBytes } from 'node:crypto';
++import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
++import { upgradeAsks } from '../../domain/asks';
++import { withKeys } from '../../domain/goalKey';
++import type { ApiToken, Snapshot, Workspace } from '../../domain/types';
++import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
++import {
++  changeFromRow, changeToRow, checkInFromRow, commitPayload, cycleFromRow, decisionFromRow, feedbackFromRow, goalFromRows, loadModules, personFromRow,
++  requestFromRow, retroFromRow, reviewFromRow, teamFromRow, teamToRow, tokenFromRow, viewFromRow, watchFromRow, workspaceFromRow, workspaceToRow,
++  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalRow, type PersonRow, type RequestRow,
++  type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow,
++} from '../../data/rows';
++import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
++import type { HistoryAsk, HistoryPage, LoadWindow, PersonPref } from '../../ports/store';
++import { historySize, wholeOnly, windowed } from '../../ports/window';
++import { MODULE_RECORDS } from '../../core/records';
++
++type Row = Record<string, unknown>;
++type Payload = ReturnType<typeof commitPayload> & { teams?: Row[]; remove_teams?: string[]; workspace_name?: string; workspace_recording?: boolean; workspace_modules_off?: string[]; modules?: Record<string, Row[]> };
++
++/** A refusal the database functions raised with errcode P0001: said to the person as it is. */
++export class Refused extends Error { constructor(m: string) { super(m); this.name = 'Refused'; } }
++
++/** The payload's lists and their tables, in okr_write's order. */
++const CORE: [key: string, table: string][] = [
++  ['teams', 'okr_teams'], ['people', 'okr_people'], ['cycles', 'okr_cycles'], ['goals', 'okr_goals'], ['check_ins', 'okr_check_ins'],
++  ['reviews', 'okr_reviews'], ['retros', 'okr_retros'], ['decisions', 'okr_decisions'], ['watches', 'okr_watches'], ['views', 'okr_views'], ['requests', 'okr_requests'],
++];
++/** Every table a workspace's rows are in, for deleting one (okr_delete_workspace). */
++const ALL_TABLES = ['okr_requests', 'okr_views', 'okr_api_tokens', 'okr_feedback', 'okr_retros', 'okr_watches', 'okr_decisions', 'okr_check_ins', 'okr_stages',
++  'okr_changes', 'okr_reviews', 'okr_goals', 'okr_cycles', 'okr_people', 'okr_teams', 'person_prefs'];
++
++/** The secret of a new token: "gk_" and 40 letters and digits (okr_token_secret). */
++export function tokenSecret(): string {
++  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
++  return 'gk_' + [...randomBytes(40)].map((b) => abc[b % 62]).join('');
++}
++export const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
++
++export class SqliteStore implements Store {
++  // The Store port names its adapters' kinds; this one reports as the plain-Postgres kind it ports (a kit gap: the
++  // union is closed, so a new platform can't name itself without changing the port).
++  readonly kind = 'postgres' as const;
++  /** Each table's columns and the declared type that says how a value reads back. */
++  private readonly cols = new Map<string, Map<string, string>>();
++
++  constructor(readonly db: DatabaseSync, private readonly records: readonly ModuleRecords[] = MODULE_RECORDS, private readonly now: () => Date = () => new Date()) {}
++
++  private columns(table: string): Map<string, string> {
++    let c = this.cols.get(table);
++    if (!c) {
++      const info = this.db.prepare(`pragma table_info(${JSON.stringify(table)})`).all() as { name: string; type: string }[];
++      c = new Map(info.map((i) => [i.name, i.type.toLowerCase()]));
++      this.cols.set(table, c);
++    }
++    return c;
++  }
++
++  /** A value as SQLite keeps it, by the column's declared type. */
++  private encode(type: string, v: unknown): SQLInputValue {
++    if (v === undefined || v === null) return null;
++    if (type === 'boolean') return v ? 1 : 0;
++    if (type === 'jsontext' || type === 'textarray') return JSON.stringify(v);
++    if (type === 'timestamptext' && typeof v === 'string') { const t = Date.parse(v); return Number.isNaN(t) ? v : new Date(t).toISOString(); }
++    if (typeof v === 'boolean') return v ? 1 : 0;
++    if (typeof v === 'object') return JSON.stringify(v);
++    return v as SQLInputValue;
++  }
++
++  /** A row as src/data/rows.ts reads it. */
++  private decode(table: string, r: Row): Row {
++    const c = this.columns(table);
++    const out: Row = {};
++    for (const [k, v] of Object.entries(r)) {
++      const t = c.get(k);
++      out[k] = v === null ? null : t === 'boolean' ? !!v : t === 'jsontext' || t === 'textarray' ? JSON.parse(v as string) : v;
++    }
++    return out;
++  }
++
++  private select(table: string, where: string, params: SQLInputValue[], order = 'id'): Row[] {
++    return (this.db.prepare(`select * from ${table} where ${where}${order ? ' order by ' + order : ''}`).all(...params) as Row[]).map((r) => this.decode(table, r));
++  }
++  private all<T>(table: string, ws: string): T[] { return this.select(table, 'workspace_id = ?', [ws]) as T[]; }
++  private exists(table: string): boolean { return !!this.db.prepare(`select 1 from sqlite_master where type = 'table' and name = ?`).get(table); }
++
++  /** Runs `fn` in one transaction: all of it is kept, or none. */
++  private tx<T>(fn: () => T): T {
++    this.db.exec('begin immediate');
++    try { const r = fn(); this.db.exec('commit'); return r; } catch (e) { this.db.exec('rollback'); throw e; }
++  }
++
++  /** okr_upsert: rows into a table, by its conflict key; only the columns some row names, never `version`. */
++  private upsert(table: string, rows: Row[] | undefined | null, conflict: string[], mode: 'update' | 'nothing' = 'update') {
++    if (!rows?.length) return;
++    const c = this.columns(table);
++    const names = [...c.keys()].filter((n) => n !== 'version' && rows.some((r) => n in r));
++    const sql = `insert into ${table} (${names.join(', ')}) values (${names.map(() => '?').join(', ')}) on conflict (${conflict.join(', ')}) do `
++      + (mode === 'nothing' ? 'nothing' : `update set ${names.map((n) => `${n} = excluded.${n}`).join(', ')}`);
++    const st = this.db.prepare(sql);
++    for (const r of rows) st.run(...names.map((n) => this.encode(c.get(n)!, r[n])));
++  }
++
++  /** The goals' upsert, with what the triggers did: a key given to a goal without one (okr_goal_key) and never changed,
++      and a version one on for each update (okr_bump_version). */
++  private upsertGoals(ws: string, rows: Row[] | undefined) {
++    if (!rows?.length) return;
++    const keyed: Row[] = [];
++    for (const r of rows) {
++      const old = this.db.prepare('select key, version, cycle_id from okr_goals where id = ?').get(r.id as string) as { key: string | null; version: number } | undefined;
++      keyed.push({ ...r, key: old?.key ?? this.nextKey(ws, r) });
++      if (old) this.db.prepare('update okr_goals set version = ? where id = ?').run((old.version ?? 0) + 1, r.id as string);
++    }
++    this.upsert('okr_goals', keyed, ['id']);
++  }
++
++  /** okr_goal_key: the key a goal asked for ("g12" or "G-12") when it's free in its cycle, else the next free number. */
++  private nextKey(ws: string, r: Row): string {
++    this.db.prepare('insert or ignore into okr_goal_keys (workspace_id, last) values (?, 0)').run(ws);
++    let last = (this.db.prepare('select last from okr_goal_keys where workspace_id = ?').get(ws) as { last: number }).last;
++    if (last === 0) {
++      const keys = this.db.prepare(`select key from okr_goals where workspace_id = ? and key glob 'G-[0-9]*'`).all(ws) as { key: string }[];
++      last = Math.max(0, ...keys.map((k) => Number(k.key.slice(2))).filter((n) => Number.isInteger(n)));
++    }
++    const asked = typeof r.key === 'string' && /^\s*g-?[0-9]{1,9}\s*$/i.test(r.key) ? 'G-' + Number(r.key.replace(/[^0-9]/g, '')) : null;
++    let key: string;
++    if (!asked || asked === 'G-0' || this.db.prepare('select 1 from okr_goals where workspace_id = ? and cycle_id = ? and key = ? and id <> ?').get(ws, r.cycle_id as string, asked, r.id as string)) {
++      last += 1; key = 'G-' + last;
++    } else { key = asked; last = Math.max(last, Number(asked.slice(2))); }
++    this.db.prepare('update okr_goal_keys set last = ? where workspace_id = ?').run(last, ws);
++    return key;
++  }
++
++  /** The modules' rows by table, the old metric keys read as their tables (okr_same_workspace, okr_write). */
++  private mods(p: Payload & { metrics?: Row[]; goal_metrics?: Row[] }): Record<string, Row[]> {
++    if (p.modules !== undefined && p.modules !== null && (typeof p.modules !== 'object' || Array.isArray(p.modules))) throw new Refused('a save\'s modules must be an object of tables');
++    const mods: Record<string, Row[]> = { ...(p.modules ?? {}) };
++    for (const [k, t] of [['metrics', 'okr_metrics'], ['goal_metrics', 'okr_goal_metrics']] as const) {
++      if (Array.isArray(p[k])) {
++        if (t in mods) throw new Refused(`a save names ${t} twice (as modules.${t} and as ${k})`);
++        mods[t] = p[k]!;
++      }
++    }
++    return mods;
++  }
++
++  /** okr_same_workspace: every row says this workspace, and none a save updates is kept under another. */
++  private sameWorkspace(ws: string, p: Payload) {
++    const mods = this.mods(p);
++    const allowed = new Set((this.db.prepare('select table_name from module_tables').all() as { table_name: string }[]).map((r) => r.table_name));
++    for (const t of Object.keys(mods)) if (!allowed.has(t)) throw new Refused(`a save can't write to ${t}: it isn't a table a module declares`);
++    const p2 = p as unknown as Record<string, Row[] | undefined>;
++    for (const k of ['teams', 'people', 'cycles', 'goals', 'check_ins', 'reviews', 'feedback', 'retros', 'decisions', 'watches', 'tokens', 'views', 'requests', 'changes']) {
++      for (const r of p2[k] ?? []) if (r.workspace_id !== ws) throw new Refused(`a ${k} row belongs to another workspace`);
++    }
++    for (const [t, rows] of Object.entries(mods)) for (const r of rows ?? []) if (r.workspace_id !== ws) throw new Refused(`a ${t} row belongs to another workspace`);
++    for (const [k, t] of [...CORE, ...Object.keys(mods).map((m) => [m, m] as [string, string])]) {
++      const ids = ((k === t ? mods[t] : p2[k]) ?? []).filter((r) => 'id' in r).map((r) => String(r.id));
++      if (!ids.length || !this.exists(t)) continue;
++      const clash = this.db.prepare(`select id from ${t} where id in (${ids.map(() => '?').join(', ')}) and workspace_id is not ? limit 1`).get(...ids, ws);
++      if (clash) throw new Refused(`a ${k} row belongs to another workspace`);
++    }
++    for (const s of (p.stages ?? []) as unknown as { goal_id: string; rows: Row[] }[]) {
++      if (this.db.prepare('select 1 from okr_goals where id = ? and workspace_id is not ?').get(s.goal_id, ws)) throw new Refused('a stages row belongs to another workspace');
++      for (const r of s.rows ?? []) if (r.workspace_id !== ws || r.goal_id !== s.goal_id) throw new Refused('a stages row belongs to another workspace');
++    }
++  }
++
++  /** okr_check_expectations: refused as stale when a goal or review has moved on, or a week's check-in has changed. */
++  private expectations(ws: string, e: Payload['expect']) {
++    if (!e) return;
++    for (const [list, table, what] of [[e.goals, 'okr_goals', 'goal'], [e.reviews, 'okr_reviews', 'review']] as const) {
++      for (const x of (list ?? []) as { id: string; version?: number | null }[]) {
++        const cur = this.db.prepare(`select version from ${table} where id = ? and workspace_id = ?`).get(x.id, ws) as { version: number } | undefined;
++        if (cur && (x.version === null || x.version === undefined || cur.version !== Number(x.version))) throw new StaleError(`${what} ${x.id}`);
++      }
++    }
++    for (const x of e.check_ins ?? []) {
++      const cur = this.db.prepare('select id from okr_check_ins where goal_id = ? and week = ?').get(x.goal_id, x.week) as { id: string } | undefined;
++      if ((cur && (x.id ?? null) !== cur.id) || (!cur && x.id != null)) throw new StaleError(`check-in ${x.goal_id} week ${x.week}`);
++    }
++  }
++
++  /** okr_write: every list in the payload, in order, as upserts; stages replaced per goal; the workspace's own settings. */
++  private write(ws: string, p: Payload) {
++    const mods = this.mods(p);
++    this.upsert('okr_teams', p.teams as Row[], ['id']);
++    this.upsert('okr_people', p.people as unknown as Row[], ['id']);
++    this.upsert('okr_cycles', p.cycles as unknown as Row[], ['id']);
++    this.upsertGoals(ws, p.goals as unknown as Row[]);
++    for (const s of (p.stages ?? []) as unknown as { goal_id: string; keep: string[]; rows: Row[] }[]) {
++      const keep = s.keep ?? [];
++      this.db.prepare(`delete from okr_stages where workspace_id = ? and goal_id = ?${keep.length ? ` and id not in (${keep.map(() => '?').join(', ')})` : ''}`).run(ws, s.goal_id, ...keep);
++      this.upsert('okr_stages', s.rows, ['goal_id', 'id']);
++    }
++    this.upsert('okr_check_ins', p.check_ins as unknown as Row[], ['id']);
++    for (const r of (p.reviews ?? []) as unknown as Row[]) {
++      const old = this.db.prepare('select version from okr_reviews where id = ?').get(r.id as string) as { version: number } | undefined;
++      if (old) this.db.prepare('update okr_reviews set version = ? where id = ?').run((old.version ?? 0) + 1, r.id as string);
++    }
++    this.upsert('okr_reviews', p.reviews as unknown as Row[], ['id']);
++    // okr_feedback_add: feedback is only ever added, and never with its triage.
++    this.upsert('okr_feedback', ((p.feedback ?? []) as unknown as Row[]).map(({ status: _s, fixed_in: _f, wont_fix_reason: _w, status_by: _b, status_at: _a, ...r }) => r), ['id'], 'nothing');
++    this.upsert('okr_retros', p.retros as unknown as Row[], ['id']);
++    this.upsert('okr_decisions', p.decisions as unknown as Row[], ['id']);
++    this.upsert('okr_watches', p.watches as unknown as Row[], ['id']);
++    for (const id of p.unwatch ?? []) this.db.prepare('delete from okr_watches where workspace_id = ? and id = ?').run(ws, id);
++    this.upsert('okr_views', p.views as unknown as Row[], ['id']);
++    this.upsert('okr_requests', p.requests as unknown as Row[], ['id']);
++    const order = this.db.prepare('select table_name from module_tables order by position, table_name').all() as { table_name: string }[];
++    for (const { table_name: t } of order) if (t in mods) this.upsert(t, mods[t], ['id']);
++    for (const id of p.remove_teams ?? []) this.db.prepare('delete from okr_teams where workspace_id = ? and id = ?').run(ws, id);
++    if (p.workspace_name?.trim()) this.db.prepare('update okr_workspaces set name = ? where id = ?').run(p.workspace_name.trim(), ws);
++    if (typeof p.workspace_recording === 'boolean') this.db.prepare('update okr_workspaces set recording = ? where id = ?').run(p.workspace_recording ? 1 : 0, ws);
++    if (Array.isArray(p.workspace_modules_off)) this.db.prepare('update okr_workspaces set modules_off = ? where id = ?').run(JSON.stringify(p.workspace_modules_off), ws);
++    this.upsert('okr_changes', p.changes as unknown as Row[], ['id'], 'nothing');
++  }
++
++  async workspaces(): Promise<Workspace[]> {
++    const rows = this.select('okr_workspaces', '1', [], 'created_at') as unknown as WorkspaceRow[];
++    return rows.map(workspaceFromRow).filter((w) => w.kind !== 'example' && w.id !== EXAMPLE.id);
++  }
++
++  async load(ws: string, window?: LoadWindow): Promise<Snapshot> {
++    const cycles = this.all<CycleRow>('okr_cycles', ws);
++    if (!cycles.length) throw new Error('This workspace has no cycle yet.');
++    const stages = this.all<StageRow>('okr_stages', ws);
++    const goals = this.all<GoalRow>('okr_goals', ws);
++    const modules = await loadModules(this.records, async (t) => (this.exists(t) ? this.all<DbRow>(t, ws) : null));
++    const s = upgradeAsks({
++      teams: this.all<TeamRow>('okr_teams', ws).map(teamFromRow),
++      people: this.all<PersonRow>('okr_people', ws).map(personFromRow),
++      cycles: cycles.map(cycleFromRow),
++      goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
++      checkIns: this.all<CheckInRow>('okr_check_ins', ws).map(checkInFromRow),
++      decisions: this.all<DecisionRow>('okr_decisions', ws).map(decisionFromRow),
++      changes: this.all<ChangeRow>('okr_changes', ws).map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),
++      watches: this.all<WatchRow>('okr_watches', ws).map(watchFromRow),
++      reviews: this.all<ReviewRow>('okr_reviews', ws).map(reviewFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
++      retros: this.all<RetroRow>('okr_retros', ws).map(retroFromRow),
++      // okr_feedback_list: the newest 500.
++      feedback: (this.select('okr_feedback', 'workspace_id = ?', [ws], 'at desc limit 500') as unknown as FeedbackRow[]).map(feedbackFromRow),
++      // okr_token_list: never the hash.
++      tokens: this.tokens(ws).map(tokenFromRow),
++      views: this.all<ViewRow>('okr_views', ws).map(viewFromRow),
++      requests: this.all<RequestRow>('okr_requests', ws).map(requestFromRow),
++      ...(modules ? { modules } : {}),
++    });
++    // The window's rules once, as the browser store applies them (ports/window.ts): loaded whole, then trimmed. Fine at
++    // the demo's size; a company-scale store trims in its queries (spec/rebuild/ports-at-scale.md).
++    return window ? windowed(s, window) : s;
++  }
++
++  private tokens(ws: string): TokenRow[] {
++    return this.select('okr_api_tokens', 'workspace_id = ?', [ws], 'created_at, id').map(({ token_hash: _h, builder_email: b, ...r }) => ({ ...r, builder: b != null })) as unknown as TokenRow[];
++  }
++
++  async history(ws: string, ask: HistoryAsk): Promise<HistoryPage> {
++    const size = historySize(ask);
++    const b = ask.before ?? null;
++    const at = b ? new Date(b.at).toISOString() : null;
++    const rows = this.select('okr_changes', `workspace_id = ? and (? is null or at < ? or (at = ? and id < ?)) and (? is null or goal_id = ?)`,
++      [ws, at, at, at, b?.id ?? null, ask.goalId ?? null, ask.goalId ?? null], `at desc, id desc limit ${size + 1}`) as unknown as ChangeRow[];
++    const changes = rows.slice(0, size).map(changeFromRow);
++    const last = changes.at(-1);
++    return { changes, next: rows.length > size && last ? { at: last.at, id: last.id } : null };
++  }
++
++  async commit(ws: string, c: Commit) {
++    if (c.tokens?.length) {
++      const [t, ...more] = c.tokens;
++      const change = c.changes.find((x) => x.entityId === t!.personId && x.diffs.some((d) => /token/i.test(d.field)));
++      const rest = Object.entries(c).some(([k, v]) => !['tokens', 'changes', 'expect'].includes(k) && (Array.isArray(v) ? v.length : v !== undefined));
++      if (!t!.revokedAt || more.length || rest || c.changes.some((x) => x !== change)) throw new Error('Saving the token: revoke one token at a time, on its own; make one with issueToken.');
++      this.revokeToken(ws, t!.id, change?.actorId ?? '', change ? changeToRow(ws, change) as unknown as Row : null);
++      return;
++    }
++    if (Object.entries(c).every(([k, v]) => k === 'expect' || (k === 'modules' ? !hasModuleRows(c.modules) : Array.isArray(v) ? !v.length : v === undefined))) return;
++    const p = commitPayload(ws, c, this.records) as Payload;
++    this.tx(() => {
++      if (!this.db.prepare('select 1 from okr_workspaces where id = ?').get(ws)) throw new Refused(`no workspace ${ws}`);
++      this.sameWorkspace(ws, p);
++      this.expectations(ws, p.expect);
++      this.write(ws, p);
++    });
++  }
++
++  /** okr_token_revoke: the token's person or an admin; true when it was live. */
++  revokeToken(ws: string, id: string, by: string, change: Row | null): boolean {
++    return this.tx(() => {
++      const t = this.db.prepare('select person_id, revoked_at from okr_api_tokens where id = ? and workspace_id = ?').get(id, ws) as { person_id: string; revoked_at: string | null } | undefined;
++      if (!t) throw new Refused('There’s no token with that ID.');
++      if (t.revoked_at) return false;
++      if (t.person_id !== by && !this.db.prepare('select 1 from okr_people where id = ? and workspace_id = ? and is_admin = 1').get(by, ws)) throw new Refused('Only an admin or the token’s person can revoke it.');
++      if (change && change.workspace_id !== ws) throw new Refused('The change belongs to another workspace.');
++      this.db.prepare('update okr_api_tokens set revoked_at = ? where id = ?').run(this.now().toISOString(), id);
++      if (change) this.upsert('okr_changes', [change], ['id'], 'nothing');
++      return true;
++    });
++  }
++
++  /** okr_token_create: an admin makes one for someone here; the secret is made here, kept only as its hash, and returned once. */
++  async issueToken(ws: string, c: Commit): Promise<string> {
++    const t = c.tokens?.[0];
++    if (!t || c.tokens!.length !== 1) throw new Error('Saving the token: one token at a time.');
++    const change = c.changes[0] ? changeToRow(ws, c.changes[0]) as unknown as Row : null;
++    return this.tx(() => {
++      const name = (t.name ?? '').trim();
++      if (!this.db.prepare('select 1 from okr_people where id = ? and workspace_id = ? and is_admin = 1').get(t.createdBy, ws)) throw new Refused('Only admins can make tokens.');
++      if (!this.db.prepare('select 1 from okr_people where id = ? and workspace_id = ?').get(t.personId, ws)) throw new Refused('There’s no one with that ID in this workspace.');
++      if (name.length < 2 || name.length > 120) throw new Refused('Say what the token is for, e.g. “Claude on my laptop”.');
++      if (!/^tok_[a-z0-9]{4,60}$/.test(t.id ?? '')) throw new Refused('A token id is tok_ and letters or digits.');
++      if (change && change.workspace_id !== ws) throw new Refused('The change belongs to another workspace.');
++      const secret = tokenSecret();
++      this.db.prepare('insert into okr_api_tokens (id, workspace_id, person_id, name, token_hash, created_by, created_at) values (?, ?, ?, ?, ?, ?, ?)')
++        .run(t.id, ws, t.personId, name, sha256(secret), t.createdBy, this.now().toISOString());
++      if (change) this.upsert('okr_changes', [change], ['id'], 'nothing');
++      return secret;
++    });
++  }
++
++  /** okr_token_find: the live token with this hash, and its workspace. */
++  findToken(hash: string): { token: ApiToken; workspaceId: string } | null {
++    const r = this.db.prepare('select * from okr_api_tokens where token_hash = ? and revoked_at is null').get(hash) as Row | undefined;
++    if (!r) return null;
++    const { token_hash: _h, builder_email: b, ...rest } = this.decode('okr_api_tokens', r);
++    return { token: tokenFromRow({ ...rest, builder: b != null } as unknown as TokenRow), workspaceId: r.workspace_id as string };
++  }
++  /** okr_token_touch. */
++  touchToken(id: string) { this.db.prepare('update okr_api_tokens set last_used_at = ? where id = ? and revoked_at is null').run(this.now().toISOString(), id); }
++
++  /** The keys the goals hold (a goal's key is settled on save). */
++  goalKeys(ws: string, ids: string[]): Record<string, string> {
++    if (!ids.length) return {};
++    const rows = this.db.prepare(`select id, key from okr_goals where workspace_id = ? and id in (${ids.map(() => '?').join(', ')})`).all(ws, ...ids) as { id: string; key: string }[];
++    return Object.fromEntries(rows.map((r) => [r.id, r.key]));
++  }
++
++  async createWorkspace(w: Workspace, data: Snapshot) {
++    wholeOnly(data);
++    const p = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null } as Payload;
++    this.tx(() => {
++      this.upsert('okr_workspaces', [{ ...workspaceToRow(w), ...(w.modulesOff?.length ? { modules_off: w.modulesOff } : {}) } as unknown as Row], ['id'], 'nothing');
++      if (!this.db.prepare('select 1 from okr_workspaces where id = ?').get(w.id)) throw new Refused('The workspace couldn’t be made.');
++      this.sameWorkspace(w.id, p);
++      this.write(w.id, p);
++    });
++  }
++
++  async deleteWorkspace(ws: string) {
++    if (ws === EXAMPLE.id) throw new Error('The example can’t be deleted.');
++    this.tx(() => {
++      const mods = (this.db.prepare('select table_name from module_tables').all() as { table_name: string }[]).map((r) => r.table_name).filter((t) => this.exists(t));
++      for (const t of [...mods, ...ALL_TABLES]) this.db.prepare(`delete from ${t} where workspace_id = ?`).run(ws);
++      this.db.prepare('delete from okr_goal_keys where workspace_id = ?').run(ws);
++      this.db.prepare('delete from okr_workspaces where id = ?').run(ws);
++    });
++  }
++
++  async personPrefs(ws: string): Promise<PersonPref[]> {
++    return (this.select('person_prefs', 'workspace_id = ?', [ws], 'person_id, key') as { person_id: string; key: string; value: unknown }[]).map((r) => ({ personId: r.person_id, key: r.key, value: r.value }));
++  }
++
++  /** Keeps one, replacing the person's value for that key; only the listed keys, and small (person_prefs' checks). */
++  async keepPersonPref(ws: string, p: PersonPref) {
++    if (p.key !== 'proposals') throw new Refused(`person_prefs: ${p.key} isn’t a preference the server keeps`);
++    if (JSON.stringify(p.value).length > 16384) throw new Refused('person_prefs: the value is too large');
++    this.upsert('person_prefs', [{ workspace_id: ws, person_id: p.personId, key: p.key, value: p.value, updated_at: this.now().toISOString() }], ['workspace_id', 'person_id', 'key']);
++  }
++}
+diff --git a/src/adapters/standin/standin.test.ts b/src/adapters/standin/standin.test.ts
+new file mode 100644
+index 0000000..f1e77fd
+--- /dev/null
++++ b/src/adapters/standin/standin.test.ts
+@@ -0,0 +1,70 @@
++// @vitest-environment node
++/* The stand-in platform's adapters pass the ports' contracts (drill item 11): the goals store on SQLite (every
++   migration in platform/migrations, then the contract module's table as its migration would make it), the AI tools'
++   endpoint's Deps on it, files in a local folder, the system clock, and who is viewing from the platform's sign-in. */
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { CONTRACT_MODULE, contractWorkspace, storeContract } from '../../ports/contracts/store';
++import { depsContract } from '../../ports/contracts/deps';
++import { clockContract, filesContract, identityContract } from '../../ports/contracts/parts';
++import { MODULE_RECORDS } from '../../core/records';
++import { systemClock } from '../local';
++import { signInIdentity } from '../signIn';
++import { openDatabase } from './migrate';
++import { SqliteStore } from './sqliteStore';
++import { standinDeps } from './deps';
++import { folderFiles } from './files';
++import type { Person } from '../../domain/types';
++
++const MIGRATIONS = path.resolve(__dirname, '../../../platform/migrations');
++/** The contract module's table for SQLite: CONTRACT_MODULE_SQL is Postgres's (faro schema, grants, a view). */
++const CONTRACT_MODULE_SQLITE = `create table okr_contract_marks (id text primary key, workspace_id text not null, goal_id text not null, text text not null, at timestamptext not null, removed_at timestamptext, removed_by text);
++  insert or ignore into module_tables (table_name, module, position) values ('okr_contract_marks', 'contract', 100);`;
++const fresh = () => { const db = openDatabase(':memory:', MIGRATIONS); db.exec(CONTRACT_MODULE_SQLITE); return db; };
++
++storeContract('the stand-in platform (SQLite)', async () => new SqliteStore(fresh(), [...MODULE_RECORDS, CONTRACT_MODULE]));
++
++depsContract('the stand-in platform (SQLite)', async () => {
++  const store = new SqliteStore(fresh());
++  return { deps: standinDeps(store), create: (w, d) => store.createWorkspace(w, d) };
++});
++
++filesContract('a local folder (the stand-in platform)', async () => folderFiles(fs.mkdtempSync(path.join(os.tmpdir(), 'faro-files-'))));
++clockContract('the stand-in platform’s clock (the system’s)', () => systemClock);
++
++// Who is viewing: the platform's session says the email (GET /api/me); the person is matched in the workspace's people.
++identityContract('the stand-in platform’s sign-in', () => {
++  let email: string | null = null;
++  const people = new Map<string, Person[]>();
++  const identity = signInIdentity(async () => email, async (ws) => people.get(ws) ?? []);
++  return {
++    identity,
++    signIn: (ws, id) => {
++      email = 'Someone@Example.com';
++      for (const [w, list] of people) people.set(w, list.filter((p) => p.id !== id));
++      people.set(ws, [...(people.get(ws) ?? []).filter((p) => p.email !== 'someone@example.com'), { id, name: id, role: '', initials: '', teamId: null, admin: false, email: 'someone@example.com' } as Person]);
++    },
++  };
++});
++
++describe('the stand-in platform beyond the contracts', () => {
++  it('applies each migration once, and keeps what was saved across a reopen of the file', async () => {
++    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'faro-db-')), 'faro.db');
++    const s1 = new SqliteStore(openDatabase(file, MIGRATIONS));
++    await s1.createWorkspace({ id: 'ws_keep', name: 'Kept', kind: 'own', createdAt: '2026-11-01T00:00:00.000Z' }, contractWorkspace('k1'));
++    s1.db.close();
++    const s2 = new SqliteStore(openDatabase(file, MIGRATIONS));
++    expect((await s2.workspaces()).map((w) => w.id)).toEqual(['ws_keep']);
++    expect((await s2.load('ws_keep')).goals.length).toBe(contractWorkspace('k1').goals.length);
++  });
++
++  it('keeps Prefs on the server: one value per person and key, only the listed keys', async () => {
++    const s = new SqliteStore(fresh());
++    await s.createWorkspace({ id: 'ws_pp', name: 'Prefs', kind: 'own', createdAt: '2026-11-01T00:00:00Z' }, contractWorkspace('pp1'));
++    await s.keepPersonPref('ws_pp', { personId: 'ada', key: 'proposals', value: { opened: ['g1'] } });
++    await s.keepPersonPref('ws_pp', { personId: 'ada', key: 'proposals', value: { opened: ['g1', 'g2'] } });
++    expect(await s.personPrefs('ws_pp')).toEqual([{ personId: 'ada', key: 'proposals', value: { opened: ['g1', 'g2'] } }]);
++    await expect(s.keepPersonPref('ws_pp', { personId: 'ada', key: 'recents', value: [] })).rejects.toThrow();
++  });
++});
+diff --git a/src/main.tsx b/src/main.tsx
+index 6fd007b..c76c60f 100644
+--- a/src/main.tsx
++++ b/src/main.tsx
+@@ -1,5 +1,6 @@
+ import { StrictMode } from 'react';
+ import { fixedClock, viewerPicker } from './adapters/local';
++import { HttpStore, standinIdentity } from './adapters/standin/httpStore';
+ import type { Clock, Identity } from './ports';
+ import { createRoot } from 'react-dom/client';
+ import { App } from './App';
+@@ -62,6 +63,8 @@ function clock(): Clock | undefined {
+     The Supabase client loads only when it is used, so the demo stays small. */
+ async function store(today?: () => Date): Promise<Store> {
+   if (mode === 'demo') { pickExampleFromUrl(location.search); return inspectable(new BrowserStore(today)); }
++  // The stand-in platform (drill item 11): the server keeps the records and says who is signed in.
++  if (import.meta.env.VITE_STANDIN) return new HttpStore();
+   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
+   if (url && key && new URLSearchParams(location.search).get('store') !== 'browser') {
+     const { SupabaseStore } = await import('./adapters/supabase/goalsStore');
+@@ -87,7 +90,7 @@ function inspectable(s: BrowserStore): BrowserStore {
+ const today = clock();
+ /** Who is using the app (src/ports Identity), beside the store: Faro's "Who are you?" picker. A company's sign-in
+     replaces it here, as an Identity with no `choose` (src/adapters/signIn.ts is the shape to copy). */
+-const identity: Identity = viewerPicker(mode);
++const identity: Identity = import.meta.env.VITE_STANDIN && mode === 'live' ? standinIdentity() : viewerPicker(mode);
+ const root = createRoot(document.getElementById('root')!);
+ void store(today).then(
+   (s) => root.render(
+diff --git a/src/vite-env.d.ts b/src/vite-env.d.ts
+index c60ff04..9d8a593 100644
+--- a/src/vite-env.d.ts
++++ b/src/vite-env.d.ts
+@@ -1,6 +1,8 @@
+ /// <reference types="vite/client" />
+ interface ImportMetaEnv {
+   readonly VITE_SUPABASE_URL?: string;
++  /** Set when the app is built for the stand-in platform (platform/server.ts): the server keeps records and says who is signed in. */
++  readonly VITE_STANDIN?: string;
+   readonly VITE_SUPABASE_KEY?: string;
+   /** "0": the example with no set check-in rhythm (FARO_DEMO_RHYTHM, FT1). */
+   readonly VITE_DEMO_RHYTHM?: string;
+diff --git a/tsconfig.json b/tsconfig.json
+index 27de943..16398b7 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -15,5 +15,5 @@
+     "skipLibCheck": true,
+     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"]
+   },
+-  "include": ["src", "evals", "server", "vite.config.ts", "vite.mcp.config.ts", "vite.modules.ts", "vite.helpIndex.ts"]
++  "include": ["src", "evals", "server", "vite.config.ts", "vite.mcp.config.ts", "vite.modules.ts", "vite.helpIndex.ts", "platform", "vite.platform.config.ts"]
+ }
+diff --git a/vite.platform.config.ts b/vite.platform.config.ts
+new file mode 100644
+index 0000000..3cd4327
+--- /dev/null
++++ b/vite.platform.config.ts
+@@ -0,0 +1,18 @@
++/* Builds the stand-in platform's server (platform/server.ts) into one file, platform/dist/server.mjs, run with plain
++   Node 22 (drill item 11). The modules come through the module registry as in the app; FARO_WITHOUT leaves them out. */
++import { defineConfig } from 'vite';
++import { faroModules } from './vite.modules.ts';
++
++export default defineConfig({
++  plugins: [faroModules()],
++  ssr: { noExternal: true, target: 'node' },
++  build: {
++    ssr: 'platform/server.ts',
++    outDir: 'platform/dist',
++    emptyOutDir: false,
++    minify: false,
++    target: 'node22',
++    copyPublicDir: false,
++    rolldownOptions: { external: [/^node:/], output: { entryFileNames: 'server.mjs', format: 'es', codeSplitting: false } },
++  },
++});

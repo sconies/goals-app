@@ -1,0 +1,122 @@
+
+> goals-app@0.1.0 build:standin
+> FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn
+
+Faro modules left out of this build: ai-access, feedback, goal-map, metrics, reviews, spreadsheets, tags, watching, wrap-up
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 662 modules transformed.
+rendering chunks...
+computing gzip size...
+platform/dist/app/index.html                               4.98 kB │ gzip:   1.90 kB
+platform/dist/app/assets/proposed-CkcixxWT.css             1.73 kB │ gzip:   0.63 kB
+platform/dist/app/assets/GoalMap-DLioOiRN.css             15.41 kB │ gzip:   2.56 kB
+platform/dist/app/assets/index-BTFM6aup.css              271.38 kB │ gzip:  50.61 kB
+platform/dist/app/assets/engineReady-BWX_Uw02.js           0.10 kB │ gzip:   0.10 kB
+platform/dist/app/assets/research-BGPXyPfz.js              0.16 kB │ gzip:   0.15 kB
+platform/dist/app/assets/feeder-D0MYirSp.js                0.24 kB │ gzip:   0.19 kB
+platform/dist/app/assets/PersonPick-wAro6Mr1.js            0.27 kB │ gzip:   0.22 kB
+platform/dist/app/assets/useWidth-BzKfIPPh.js              0.39 kB │ gzip:   0.27 kB
+platform/dist/app/assets/rollup-DFiksmhX.js                0.41 kB │ gzip:   0.30 kB
+platform/dist/app/assets/SwitchedOff-HZzLkVDk.js           0.48 kB │ gzip:   0.30 kB
+platform/dist/app/assets/schema-B2EocZxQ.js                0.51 kB │ gzip:   0.33 kB
+platform/dist/app/assets/guardWords-Cx-lhIdm.js            0.58 kB │ gzip:   0.38 kB
+platform/dist/app/assets/moved-o8LGKs1O.js                 0.72 kB │ gzip:   0.43 kB
+platform/dist/app/assets/rolldown-runtime-XKyaHtl9.js      0.72 kB │ gzip:   0.42 kB
+platform/dist/app/assets/ProposedFeeders-DTZSvEdV.js       0.96 kB │ gzip:   0.47 kB
+platform/dist/app/assets/history-BSu18IJb.js               0.97 kB │ gzip:   0.55 kB
+platform/dist/app/assets/registry-BZae_oyE.js              1.01 kB │ gzip:   0.56 kB
+platform/dist/app/assets/HomeProposals-BZzMHCxt.js         1.12 kB │ gzip:   0.53 kB
+platform/dist/app/assets/NotFound-XRuoM2J6.js              1.12 kB │ gzip:   0.60 kB
+platform/dist/app/assets/BaselineFields-B3IuJokp.js        1.14 kB │ gzip:   0.55 kB
+platform/dist/app/assets/readingWords-1srsoFtu.js          1.40 kB │ gzip:   0.76 kB
+platform/dist/app/assets/StatusLegend-aihu7YLZ.js          1.48 kB │ gzip:   0.68 kB
+platform/dist/app/assets/preload-helper-BLdHbfdN.js        1.51 kB │ gzip:   0.79 kB
+platform/dist/app/assets/sparks-CRtsHSoX.js                1.54 kB │ gzip:   0.82 kB
+platform/dist/app/assets/askHandover-CyLqnIud.js           1.58 kB │ gzip:   0.74 kB
+platform/dist/app/assets/StoppedList-CBOZ4rL0.js           1.58 kB │ gzip:   0.79 kB
+platform/dist/app/assets/arrival-BqJj5U_v.js               1.71 kB │ gzip:   0.94 kB
+platform/dist/app/assets/app-B-EOu308.js                   1.72 kB │ gzip:   0.86 kB
+platform/dist/app/assets/AdminControls-ZbcLHwmt.js         1.75 kB │ gzip:   0.81 kB
+platform/dist/app/assets/Icon-D3TTl-ZI.js                  1.78 kB │ gzip:   0.91 kB
+platform/dist/app/assets/SetupFilePreview-Oa3Kd2CG.js      1.93 kB │ gzip:   0.88 kB
+platform/dist/app/assets/Brand-7lKuN9qV.js                 2.11 kB │ gzip:   1.09 kB
+platform/dist/app/assets/MenuButton-BTXx0TOb.js            2.15 kB │ gzip:   0.94 kB
+platform/dist/app/assets/files-BctU_8j-.js                 2.24 kB │ gzip:   1.25 kB
+platform/dist/app/assets/rangeChart-DS9TE-mo.js            2.51 kB │ gzip:   1.30 kB
+platform/dist/app/assets/WorkspacePanel-5Tv68e0N.js        2.54 kB │ gzip:   1.04 kB
+platform/dist/app/assets/ProposeInReview-DBhUKZjd.js       2.59 kB │ gzip:   1.27 kB
+platform/dist/app/assets/changed-B06HGvYH.js               2.68 kB │ gzip:   1.29 kB
+platform/dist/app/assets/Levels-fxjVbIsL.js                2.74 kB │ gzip:   0.99 kB
+platform/dist/app/assets/zip-BRVpiufa.js                   2.76 kB │ gzip:   1.20 kB
+platform/dist/app/assets/ListBar-V1LFcZ4G.js               2.84 kB │ gzip:   1.15 kB
+platform/dist/app/assets/proposedActions-CHmuunjC.js       3.02 kB │ gzip:   1.41 kB
+platform/dist/app/assets/ProposedList-Du6whTfD.js          3.28 kB │ gzip:   1.30 kB
+platform/dist/app/assets/browser-6rCAN5wR.js               3.30 kB │ gzip:   1.43 kB
+platform/dist/app/assets/PlanTable-Cl7uOuTA.js             3.38 kB │ gzip:   1.41 kB
+platform/dist/app/assets/weekChoices-DcY0mRRq.js           3.50 kB │ gzip:   1.65 kB
+platform/dist/app/assets/habit-Dc0APBA2.js                 3.62 kB │ gzip:   1.67 kB
+platform/dist/app/assets/workspaceAttention-cdn6iqZ7.js    3.74 kB │ gzip:   1.68 kB
+platform/dist/app/assets/react-dom-DaIlw41S.js             3.90 kB │ gzip:   1.42 kB
+platform/dist/app/assets/IssueGroup-0B9fO6Za.js            4.32 kB │ gzip:   1.67 kB
+platform/dist/app/assets/recarry-Ty-hPNkp.js               4.39 kB │ gzip:   1.80 kB
+platform/dist/app/assets/export-gw2TSQzC.js                5.06 kB │ gzip:   2.35 kB
+platform/dist/app/assets/rhythm-C8WE0ZEC.js                5.29 kB │ gzip:   2.27 kB
+platform/dist/app/assets/MotionLab-DnXrc1N3.js             5.41 kB │ gzip:   2.04 kB
+platform/dist/app/assets/Welcome-CGsl7m3T.js               5.58 kB │ gzip:   2.02 kB
+platform/dist/app/assets/GoalFields-xIdA4bl6.js            5.68 kB │ gzip:   2.42 kB
+platform/dist/app/assets/map-daHpQMdI.js                   5.81 kB │ gzip:   2.24 kB
+platform/dist/app/assets/WeekPick-XNTHvOoS.js              5.88 kB │ gzip:   2.34 kB
+platform/dist/app/assets/AiAssistants-mwtvQODg.js          6.20 kB │ gzip:   2.26 kB
+platform/dist/app/assets/StartNext-Cs6TfxiF.js             6.29 kB │ gzip:   2.67 kB
+platform/dist/app/assets/parity-ByfCA89Q.js                6.32 kB │ gzip:   2.26 kB
+platform/dist/app/assets/goalShare-CVqCvwIc.js             6.34 kB │ gzip:   2.79 kB
+platform/dist/app/assets/scorecard-C70GZvLU.js             6.53 kB │ gzip:   2.53 kB
+platform/dist/app/assets/Coach-1Xszz1Iz.js                 6.56 kB │ gzip:   2.65 kB
+platform/dist/app/assets/GoalFilterSheet-B5z4RkEb.js       7.93 kB │ gzip:   2.40 kB
+platform/dist/app/assets/bits-DhuCKi-u.js                  8.13 kB │ gzip:   2.85 kB
+platform/dist/app/assets/Settings-Brq9YoUY.js              8.23 kB │ gzip:   2.87 kB
+platform/dist/app/assets/summaryFacts-tWW4zYpw.js          8.43 kB │ gzip:   2.93 kB
+platform/dist/app/assets/readBack-J3Mdlok5.js              8.51 kB │ gzip:   3.61 kB
+platform/dist/app/assets/ProposedGoal-2tTMbKU8.js          8.93 kB │ gzip:   3.14 kB
+platform/dist/app/assets/Start-CfcTq6k0.js                 9.06 kB │ gzip:   3.23 kB
+platform/dist/app/assets/RemoveSheets-Cj4TlFjt.js          9.19 kB │ gzip:   3.07 kB
+platform/dist/app/assets/GoalFilters-BEsFZDrW.js           9.26 kB │ gzip:   3.88 kB
+platform/dist/app/assets/ChangeItem-BygwcLFr.js            9.73 kB │ gzip:   3.36 kB
+platform/dist/app/assets/Research-_h_9pkrT.js             10.01 kB │ gzip:   3.61 kB
+platform/dist/app/assets/Print-BT-eKP3Y.js                10.38 kB │ gzip:   3.65 kB
+platform/dist/app/assets/QuickCheckIn-CJ62sa0m.js         12.78 kB │ gzip:   4.71 kB
+platform/dist/app/assets/charts-B38MXEwq.js               12.87 kB │ gzip:   5.36 kB
+platform/dist/app/assets/HomeSets-BvgoidPV.js             13.71 kB │ gzip:   4.51 kB
+platform/dist/app/assets/browser-AF5_WNe4.js              15.24 kB │ gzip:   7.24 kB
+platform/dist/app/assets/GoalEdit-CRP2IEKD.js             15.62 kB │ gzip:   5.34 kB
+platform/dist/app/assets/Activity-TPFke9h_.js             15.88 kB │ gzip:   5.50 kB
+platform/dist/app/assets/backend-DV9acOZK.js              16.23 kB │ gzip:   6.03 kB
+platform/dist/app/assets/goalPage-BTmWWTAt.js             16.98 kB │ gzip:   6.34 kB
+platform/dist/app/assets/Markup-DeE5_cla.js               18.83 kB │ gzip:   7.34 kB
+platform/dist/app/assets/goalEntry-Hp7PXO-W.js            23.14 kB │ gzip:   8.73 kB
+platform/dist/app/assets/vocabulary-BaO0qKb9.js           24.40 kB │ gzip:   7.68 kB
+platform/dist/app/assets/dist-C3Badlp8.js                 25.79 kB │ gzip:   9.89 kB
+platform/dist/app/assets/GoalWizard-DY0lnG5I.js           27.59 kB │ gzip:   9.36 kB
+platform/dist/app/assets/trend-W3VMRTsn.js                27.93 kB │ gzip:  10.41 kB
+platform/dist/app/assets/People-DbO9g3QZ.js               28.63 kB │ gzip:   8.22 kB
+platform/dist/app/assets/removal-CE9bDa0d.js              31.00 kB │ gzip:   9.66 kB
+platform/dist/app/assets/DataTables-D6ifCiTy.js           35.29 kB │ gzip:  11.98 kB
+platform/dist/app/assets/Workspace-C2kukVH9.js            38.35 kB │ gzip:  11.03 kB
+platform/dist/app/assets/browser-B_KPeoMg.js              44.53 kB │ gzip:  12.63 kB
+platform/dist/app/assets/jsx-runtime-DxFFtWL6.js          47.15 kB │ gzip:  16.78 kB
+platform/dist/app/assets/Onboarding-Dvi2Ah_3.js           47.64 kB │ gzip:  15.37 kB
+platform/dist/app/assets/CheckInFlow-BCbb07SK.js          48.30 kB │ gzip:  14.44 kB
+platform/dist/app/assets/GoalsScreen-BzYq9buj.js          54.71 kB │ gzip:  16.98 kB
+platform/dist/app/assets/browser-BGdJOn2Q.js              59.66 kB │ gzip:  14.35 kB
+platform/dist/app/assets/GoalScreen-CDGPpHvI.js           71.69 kB │ gzip:  21.32 kB
+platform/dist/app/assets/generate-BXNpzjp7.js             90.76 kB │ gzip:  29.61 kB
+platform/dist/app/assets/changeset-BC8UwU75.js            91.22 kB │ gzip:  30.93 kB
+platform/dist/app/assets/state-CG7GK7dF.js                94.60 kB │ gzip:  33.69 kB
+platform/dist/app/assets/actions-C4keRY9l.js             156.22 kB │ gzip:  50.89 kB
+platform/dist/app/assets/GoalMap-BNMwff-H.js             193.89 kB │ gzip:  62.98 kB
+platform/dist/app/assets/client-BTGpni9F.js              214.59 kB │ gzip:  55.23 kB
+platform/dist/app/assets/Help-BOZXF_TL.js                231.61 kB │ gzip:  76.99 kB
+platform/dist/app/assets/index-DEsxN6Yj.js               351.46 kB │ gzip: 109.77 kB
+
+✓ built in 1.54s

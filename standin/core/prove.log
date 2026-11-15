@@ -1,0 +1,63 @@
+(node:27559) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Seeded Platform Engineering: 97 people, 126 goals; password “faro-standin” for each.
+PASS  opening the app signed out shows the sign-in (R1 rule 9) — 303 → /signin?next=%2F
+PASS  the API refuses someone signed out
+PASS  a wrong password is refused — That email and password don’t match.
+PASS  signs in by password (email in any case), with an HttpOnly SameSite=Lax cookie
+PASS  a member sees their workspace
+PASS  the signed-in email opens their person (R1 rule 2) — {"id":"rhea"}
+PASS  loads the workspace whole — 126 goals, 97 people
+PASS  /sso/stub lists the directory
+PASS  the identity provider issues a signed assertion to /sso/callback
+PASS  a forged assertion is refused
+PASS  signs in by stub SSO — {"email":"pavel.novak@example.com","via":"sso"}
+PASS  a leaver’s next request is refused, and every session of theirs ends (SSO and password)
+PASS  a leaver can’t sign in again, by SSO or password — You’ve left the company, so you can’t sign in.
+PASS  R1: a member who isn’t allowed renames the workspace: refused by the server with the app’s words — 403 Only admins can rename the workspace.
+PASS  R1: a member who isn’t allowed changes someone else’s goal: refused by the server with the app’s words — 403 Only Tariq Haddad (its owner) or an admin can change “Time from pull request opened to first review”.
+PASS  R1: a member who isn’t allowed checks in on someone else’s goal: refused by the server with the app’s words — 403 Only Tariq Haddad (its owner) can check in on “Time from pull request opened to first review”.
+PASS  R1: a member who isn’t allowed saves as someone else: refused by the server with the app’s words — 403 A save can only be made as the person signed in.
+PASS  R1: a member who isn’t allowed changes someone’s job title: refused by the server with the app’s words — 403 Only an admin can change people.
+PASS  R1: a member who isn’t allowed adds a person: refused by the server with the app’s words — 403 Only an admin can add people.
+PASS  R1: a member who isn’t allowed switches a feature off: refused by the server with the app’s words — 403 Only admins can switch features on or off.
+PASS  R1: a member who isn’t an admin makes a token: refused — Only admins can make tokens.
+PASS  R1: the goal’s owner changes it: allowed
+PASS  R1: an admin changes someone else’s goal: allowed
+PASS  someone signed out reads nothing of a workspace
+PASS  an admin makes a token; the secret comes back once
+PASS  /mcp lists the core’s tools, with every module left out — 53 tools
+PASS  MCP: a token acts with its person’s rights (rhea can’t change another’s goal) — "Not saved. Must fix:\n- Time from pull request opened to first review (by an admin): Only Tariq Haddad (its owner) or an admin can change “Time from pull reque
+PASS  MCP: a core tool answers from SQLite — "{\"week\":46,\"weeks\":53,\"total\":1,\"offset\":0,\"goals\":[{\"key\":\"G-1\",\"id\":\"ns-lead\",\"title\":\"Lead time
+PASS  MCP: an unknown token is refused
+PASS  MCP: the token of someone who left the company is refused (R2 rule 3) — 401
+PASS  an admin marks someone as left in Faro
+PASS  someone marked as left can’t open the workspace, and their token is refused at once — workspaces 0, whoami {"reason":"left","email":"tariq.haddad@example.com"}, load 404, token 401
+PASS  files: put, get, never replaced, delete
+check step buttons: Platform Engineering
+2026 · week 46 · Q4
+Switch
+: switch workspace, or set one up | Find
+Ctrl K | RK
+Rhea Kapoor
+CI/CD | Close and keep the draft | Change | Change | Change | Change | Back | Publish goal
+after publish: http://localhost:47320/goals/goal_0peeg3b4d7zy?published=1
+check-in buttons: Platform Engineering
+2026 · week 46 · Q4
+Switch
+: switch workspace, or set one up | Find
+Ctrl K | RK
+Rhea Kapoor
+CI/CD | Close and keep the draft | No new number this week | Continue
+check-in step 2 buttons: Platform Engineering
+2026 · week 46 · Q4
+Switch
+: switch workspace, or set one up | Find
+Ctrl K | RK
+Rhea Kapoor
+CI/CD | Discard draft | Close and keep the draft | Show chart | Change | Add a next step | Post check-in
+PASS  through the app’s screens: signs in, makes a goal with New goal and posts a check-in on it — {"goalId":"goal_0peeg3b4d7zy","errors":[]}
+PASS  after a restart, the goal and its check-in are in SQLite, logged as the person signed in — {"id":"goal_0peeg3b4d7zy","key":"G-127","title":"Runbooks with an owner (proof)","owner_id":"rhea"} check-ins [{"id":"ci_fkik0sfsda5j","week":46,"value":20,"author_id":"rhea"}] log 2
+PASS  after a restart, the app loads it back
+
+36/36 checks pass

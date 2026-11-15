@@ -1,0 +1,16 @@
+
+> goals-app@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.5 /tmp/claude-0/-home-user-goals-app/3cc439c9-0574-561d-9193-1337dc611f8d/scratchpad/standin/core/faro
+
+(node:28231) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  202 passed (202)
+      Tests  2216 passed (2216)
+   Start at  12:03:44
+   Duration  172.23s (tests 83%, import 12%, environment 3%, setup 1%, transform 1%)
+
+exit 0

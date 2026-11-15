@@ -1,0 +1,96 @@
+▸ Without ai-access, feedback, goal-map, metrics, reviews, spreadsheets, tags, watching, wrap-up: leaving out U3 U16
+
+▸ Building the app
+  example for 2026-11-05T12:00:00.000Z saved: dist/example-2026-11-05.json (4799 KB)
+
+▸ Spec scenarios, and journeys U1 U2 U5 U33 with checks P6 and P5
+     ✓ [TOKENS-SERVER-ONLY] an admin’s token is made in the database, which keeps only its hash, lists tokens without it, and the MCP server still finds it 892ms
+     ✓ [MCP-PARITY] what needs me: check-ins due, asks waiting on me (decisions or help, questions, updates, actions), reviews I’m in 1192ms
+     ✓ [MCP-PARITY] what needs me: check-ins due are the goals still to post, as Home counts them (a goal that is done is not one) 663ms
+     ✓ [MCP-PARITY] asks: only the person asked (or an admin) answers; the owner withdraws; another owner links 559ms
+     ✓ [MCP-PARITY] asks for an update: one ask until the owner answers it, withdrawn only by whoever asked 1217ms
+     ✓ [MCP-PARITY] questions and actions are asks too: asked of the owner or agreed in a review, closed by answering or marking done, never by a comment 391ms
+     ✓ [MCP-PARITY] people: admins add and change people; there is always an admin 960ms
+     ✓ [MCP-PARITY] views, tokens, feedback and the activity log, with the same rights as in the app 632ms
+     ✓ [MCP-PARITY] deleting the workspace: admins only, confirmed by its exact name 761ms
+     ✓ [HIERARCHY] headline with inputs from three teams, effects set (2026-11-05) 863ms
+     ✓ [STALE] the two quiet goals (Developer Portal’s and Infrastructure’s) are stale and the rest are not (2026-11-05) 518ms
+     ✓ [HIERARCHY] headline with inputs from three teams, effects set (2026-12-07) 321ms
+     ✓ [HIERARCHY] headline with inputs from three teams, effects set (2027-03-14) 403ms
+     ✓ [STALE] the two quiet goals (Developer Portal’s and Infrastructure’s) are stale and the rest are not (2027-03-14) 413ms
+     ✓ [CALENDAR-WEEKS] the demo is set in the real calendar year, so its week is today’s ISO week 1626ms
+     ✓ [ONE-FORMAT] every sheet and column is defined once, and the workbook, the zipped CSVs, the set-up template and the Data tables are made from it 330ms
+     ✓ [ONE-FORMAT] worked-out columns say the vocabulary’s words and are never read: changing them changes nothing 1223ms
+     ✓ [ONE-FORMAT] set-up reads a whole exported workbook: people (not its Asks), keys, decimals, due weeks, definitions, why it helps, plans and past check-ins 3158ms
+     ✓ [ROUND-TRIP] the example exported as a workbook and as zipped CSVs loads straight back as no change at all 3435ms
+     ✓ [ROUND-TRIP] an edited copy applies exactly its edits: a value, a cause, an owner by email, a line break in Why, a cell starting with “-” 2231ms
+     ✓ [ROUND-TRIP] a Data table saved with columns hidden loads back as no change; a value edited where Cause is hidden keeps its cause 368ms
+     ✓ [IMPORT-ACTIONS] Stop (with a reason), Delete and Left preview and apply with the app’s own rules, and Undo puts every one back 776ms
+     ✓ [ONE-VOCABULARY] no word the vocabulary defines is written anywhere else, src/mcp included, apart from genuine non-status uses 440ms
+     ✓ [ONE-VOCABULARY] Help’s status article, the export’s definitions and the AI’s tools read their words from the vocabulary 1618ms
+     ✓ [ONE-TREND] the flag, the story, the summary bar and the chart say Getting worse of the same goals (2026-10-30) 500ms
+     ✓ [ONE-TREND] the flag, the story, the summary bar and the chart say Getting worse of the same goals (2026-11-05) 490ms
+     ✓ [ONE-ATTENTION-RULE] Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (2026-01-15) 912ms
+     ✓ [ONE-ATTENTION-RULE] Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (2026-06-18) 548ms
+     ✓ [ONE-ATTENTION-RULE] Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (2026-10-30) 1037ms
+     ✓ [ONE-ATTENTION-RULE] Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (2026-11-05) 612ms
+     ✓ [ONE-ATTENTION-RULE] Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (2026-12-24) 646ms
+     ✓ [READABLE-IDS] keys are stored with the goal and come back from the database, and a new workspace numbers its goals from G-1 360ms
+     ✓ [HOME-OWNER] a session past its date and not held shows before the next review, with how long past (re-review, 8 Nov, backlog T) 830ms
+     ✓ [REMOVE-ANYTHING] every kind of record can be removed, archived or ended, by the people the rules allow, and each removal is logged 1150ms
+     ✓ [REMOVE-ANYTHING] removed and archived records leave every list, count, picker, attention list, review and Home in one place (the scoped snapshot) 734ms
+     ✓ [UNDO-REMOVE] a removal is undone straight away exactly, and an admin restores anything removed in the last 30 days from one list 419ms
+     ✓ [PERSON-LEFT] marking someone as left hands over their goals and open asks first; history keeps their name as "Name (left)"; someone with no history is deleted outright 727ms
+     ✓ [GOAL-STOP] a goal with check-ins is stopped with a reason (what fed it moves up, open asks are withdrawn) and stays in its page, history and exports; one with none is deleted 567ms
+     ✓ [IMPORT-UNDO] every change an import or bulk edit makes carries its import id; undoing it puts every row back, skipping and listing rows changed since 952ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: a name of two characters: the form, a Goals row and the AI tools refuse it in the same words 754ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: no start: the form, a Goals row and the AI tools refuse it in the same words 458ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: a target the same as the start: the form, a Goals row and the AI tools refuse it in the same words 511ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: a start finer than the places chosen: the form, a Goals row and the AI tools refuse it in the same words 456ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: a range with no limit: the form, a Goals row and the AI tools refuse it in the same words 549ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: a negative warning margin: the form, a Goals row and the AI tools refuse it in the same words 450ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: anyone may add a goal for anyone, at any level, at every door; only its owner or an admin may change it 569ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: over 100%: the form, a Goals row and the AI tools ask the same questions in the same words, and save once answered 815ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: over 100% together with a hundredfold: the form, a Goals row and the AI tools ask the same questions in the same words, and save once answered 434ms
+     ✓ [GOAL-ENTRY-REQUIRED] N19: a warning as wide as the limit: the form, a Goals row and the AI tools ask the same questions in the same words, and save once answered 355ms
+     ✓ [TELEMETRY-SIGNALS] an action is one trace: the action, its save timed as a CLIENT span, its flow step and the page showing the result, all valid OpenTelemetry 2060ms
+     ✓ [TELEMETRY-SIGNALS] the MCP server records a SERVER span per tool call in the caller’s trace, with its save as a CLIENT span inside 476ms
+     ✓ [TELEMETRY-SIGNALS] the app carries on exactly as before when telemetry can’t be stored: no database, missing tables, or a dead network 1892ms
+     ✓ [TELEMETRY-PRIVACY] a comment, a team name and a number someone typed never reach a request, from the app or the MCP server 1756ms
+     ✓ [TELEMETRY-RETENTION] raw rows go after 90 days, rolled up first into daily totals kept for good, nightly on pg_cron 5537ms
+     ✓ [TELEMETRY-SWITCH] only an admin turns recording off; it is logged, and then nothing is sent for the workspace 1590ms
+     ✓ [TELEMETRY-SWITCH] an admin’s assistant can turn it off with set_recording: that call and every later one store nothing 1218ms
+     ✓ [HELP-GUIDE] an AI assistant reads the guide: an article by id, a search, or the list, and every screen maps to a tool 1172ms
+     ✓ [WHATS-NEW] an AI assistant reads what’s new, all of it or since a date 775ms
+     ✓ [CONSISTENT-WORDS] a goal with no number says “No value yet”, the same in lists, cards, headlines and exports, and never twice 1150ms
+     ✓ [WORKSPACE-ADMIN] only an admin renames the workspace; the new name is trimmed and logged with the old one 2999ms
+     ✓ [WORKSPACE-ADMIN] an admin adds a team and renames it; names are unique, whatever their case 1269ms
+     ✓ [WORKSPACE-ADMIN] a team with people or goals isn’t removed until they’re moved; moved, they go in the same save, logged on each goal 1653ms
+     ✓ [WORKSPACE-ADMIN] goals in an earlier cycle count: a team that only has old goals still has to be moved 805ms
+     ✓ [WORKSPACE-ADMIN] the browser store keeps a renamed workspace’s name, and an example’s new name until it’s reset 795ms
+     ✓ [WORKSPACE-ADMIN] an assistant renames the workspace and adds, renames and removes a team, under the same rules, logged as the person 1352ms
+     ✓ [DEMO-STORAGE] a comment survives a reload, at the example’s full size, in a browser with 5 million characters of room 1312ms
+     ✓ [DEMO-STORAGE] a full browser keeps the change for the visit and says it will be lost on reload 460ms
+     ✓ [DEMO-STORAGE] a private window that blocks storage is said at once, and the demo still works 369ms
+     ✓ [DEMO-STORAGE] starting over clears the saves and the note 400ms
+     ✓ [REVIEW-LIST-STATE] every goal reviewed on Thursday 5 November is held that day 494ms
+     ✓ [MODULES] keep the layers: the rules layer imports only itself, and the core imports no module 3247ms
+     ✓ [SPREADSHEETS-ON-DATA] [FIELD-TABLE] makes the template: Start here, then Goals, Plan, Check-ins and People with only the columns a person fills in, required headers in bold, and example rows 894ms
+     ✓ [SHAPE-MATCHES-WORD] every attention row in the example draws its goal’s status as the shape and the word, never a flag’s 356ms
+ Test Files  24 passed (24)
+      Tests  288 passed | 12 skipped (300)
+             at least ~2.41s faster with isolate: false — reuses workers across files instead of one per file
+PASS U1 10/10 Weekly check-in, all due goals in one pass  [phone 15 steps 30230ms · desktop 15 steps 24431ms]
+PASS U2 10/10 What needs me? Home shows what’s due, off track, stale or slipping  [phone 1 steps 1744ms · desktop 1 steps 1773ms]
+PASS U5 10/10 Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there  [phone 12 steps 6302ms · desktop 12 steps 6268ms]
+PASS P5 No console or page errors
+PASS U33 10/10 A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table  [phone 7 steps 12905ms · desktop 7 steps 11123ms]
+PASS P6 Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients, glass or state capsules, and every status shape beside its own word
+PASS P5 No console or page errors
+
+▸ Smoke without ai-access, feedback, goal-map, metrics, reviews, spreadsheets, tags, watching, wrap-up passed in 75s
+# Smoke without ai-access, feedback, goal-map, metrics, reviews, spreadsheets, tags, watching, wrap-up run
+
+Spec scenarios 288/300 (12 skipped: they need a module this build leaves out). Journeys U1 10 · U2 10 · U5 10 · U33 10. Checks P6 pass · P5 pass.
+
+exit 0

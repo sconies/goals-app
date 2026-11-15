@@ -1,0 +1,18 @@
+Phone pages run at full speed (PHONE_CPU=1).
+FAIL U11 0/10 Real app: from empty to a filled-in workspace in four steps with its goals typed, the browser’s Back and a Change on Check return where they should, then a teammate joins  [phone 0 steps 5125ms · desktop 0 steps 5221ms]
+     phone: expected to see “Run the company on outcomes, and manage by exception” [it showed: “Sign in to Faro Email Password Sign in Or sign in with the company’s sign-in.”]
+     desktop: expected to see “Run the company on outcomes, and manage by exception” [it showed: “Sign in to Faro Email Password Sign in Or sign in with the company’s sign-in.”]
+     missed: entry, one-action, progress, budget, errors, finish, attention, parity, a11y, logged
+FAIL U97 0/10 The first screen and the way in: Welcome at its own address with one main action; set-up at its own; the invitation opens the workspace it names, says who set it up and asks which one you are; a link to nothing opens nothing; Welcome back remembers  [phone 0 steps 5109ms · desktop 0 steps 5114ms]
+     phone: the root with nothing on this device did not lead to /welcome: http://localhost:47310/signin?next=%2F%3Fstore%3Dbrowser%26today%3D2026-11-05
+     desktop: the root with nothing on this device did not lead to /welcome: http://localhost:47310/signin?next=%2F%3Fstore%3Dbrowser%26today%3D2026-11-05
+     missed: entry, one-action, progress, budget, errors, finish, attention, parity, a11y, logged
+FAIL U147 0/10 The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week  [phone 0 steps 30067ms · desktop 0 steps 30100ms]
+     phone: locator.waitFor: Timeout 30000ms exceeded.
+     desktop: locator.waitFor: Timeout 30000ms exceeded.
+     missed: entry, one-action, progress, budget, errors, finish, attention, parity, a11y, logged
+PASS U152 8.6/10 Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027  [phone 2 steps 5734ms · desktop 2 steps 5397ms]
+     phone attention: of 0 carried goals measured by a metric, 0 came without their link and 0 with another metric
+     desktop attention: of 0 carried goals measured by a metric, 0 came without their link and 0 with another metric
+     missed: attention
+PASS P5 No console or page errors

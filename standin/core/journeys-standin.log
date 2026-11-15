@@ -1,0 +1,7 @@
+Phone pages run at full speed (PHONE_CPU=1).
+PASS U1 10/10 Weekly check-in, all due goals in one pass  [phone 15 steps 21273ms · desktop 15 steps 20480ms]
+PASS U2 10/10 What needs me? Home shows what’s due, off track, stale or slipping  [phone 1 steps 1759ms · desktop 1 steps 1671ms]
+PASS U5 10/10 Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there  [phone 12 steps 6675ms · desktop 12 steps 6655ms]
+PASS U33 10/10 A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table  [phone 7 steps 10928ms · desktop 7 steps 10215ms]
+PASS P6 Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients, glass or state capsules, and every status shape beside its own word
+PASS P5 No console or page errors

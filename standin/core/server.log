@@ -1,0 +1,3 @@
+(node:23897) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Faro on the stand-in platform: http://localhost:47310 (data /tmp/claude-0/-home-user-goals-app/3cc439c9-0574-561d-9193-1337dc611f8d/scratchpad/standin/core/faro/platform/data)
