@@ -84,6 +84,7 @@ Moved out of the build so the tracks reach item 11 sooner. Not built in Faro; th
 - **PF1–PF2, a leader's week** (R4 part 4, `docs/design/round-4/portfolio/spec.md`): the design stands; nothing is built.
 - **Review lows.** Every low the build reviewer logs stays in its log (the 11 Nov build-reviews log, on branch `build-reviews`), and the low-only batches tracks carried ("the lows" in each handover) are no longer worked. Highs and mediums are still fixed as they come; a low is fixed only when it rides with a change to the same lines anyway.
 - **Import and spreadsheet leftovers** (planning, 15 Nov): deferred. MI's Goals-sheet metric columns (Measured by, Measured for, Part; MT6 3.2); the template's Metrics sheet; the Check for two or more new rows with no Owner email; a Part of naming a metric on a later row; editable Data field cells (choices for each list field in `DataTables` `EDITABLE` and `FIXED_CHOICES`, plus a journey); a field-value changed-since check in Undo (module rows match `entityId` only today).
+- **Rebuild follow-ups from the drill** (item 11, 15 Nov): deferred. A shared row-check function every save goes through, so each record kind's guard lives in one place; a defined browser–server API shape; a schema file per module; files (imports, uploads) scoped to their workspace and reader; a unit test in `npm test` for each module's server guard (several are covered only by the drill's prove scripts).
 
 ## Ideas, not yet placed
 
