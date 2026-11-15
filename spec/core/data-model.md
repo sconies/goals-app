@@ -261,7 +261,7 @@ type Status = 'on' | 'risk' | 'off' | 'done'
 ### DisplayStatus
 
 ```ts
-type DisplayStatus = Status | 'stale' | 'planned' | 'none'
+type DisplayStatus = Status | 'stale' | 'planned' | 'none' | 'unmeasured'
 ```
 
 ### CauseBehind
@@ -395,6 +395,7 @@ What an import or bulk edit replaced, so "Undo this import" can put every row ba
 | `teams` | `{ id: Id; before: Team \| null }[]` | no |  |
 | `watches` | `Id[]` | no | Starting a year (domain/carry carryExtras): the watches, and the modules' rows (a metric link), it added for the carried goals. |
 | `modules` | `{ module: string; key: string; ids: Id[] }[]` | no |  |
+| `moduleRows` | `{ module: string; key: string; rows: { id: Id; before: unknown }[] }[]` | no | A module's own sheet (MI): each of its rows the import added or changed, as it was before (null: added). |
 
 ### Comment
 
@@ -453,8 +454,8 @@ A goal review on a cadence: which goals it walks, and who takes part. Anyone can
 |---|---|---|---|
 | `id` | `Id` | yes |  |
 | `name` | `string` | yes |  |
-| `everyWeeks` | `number` | yes | Held every this many weeks of the cycle, on this weekday (0 = Monday). |
-| `weekday` | `number` | yes |  |
+| `everyWeeks` | `number` | yes | Held every this many weeks of the cycle (1 to 13), on `weekday`. |
+| `weekday` | `number` | yes | The day of the week it is held: 0 = Monday, 1 = Tuesday, … 6 = Sunday (as `reviewDay`). |
 | `scope` | `{ goals: Id[]; trees: Id[]; levels: Level[] }` | yes |  |
 | `people` | `Id[]` | yes |  |
 | `createdBy` | `Id` | yes |  |

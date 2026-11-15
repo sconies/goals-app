@@ -1566,6 +1566,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `unit` | `string` | no |  |
 | `decimals` | `number` | no | Places after the decimal point it's shown with. |
 | `ownerId` | `string` | no | The person who answers for the definition: whoever added it, unless they hand it on. |
+| `level` | `MetricLevel` | no | Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). |
+| `parentId` | `string` | no | The metric it is a component, driver, control or breakdown of (absent: none). |
 | `source` | `string` | no | Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). |
 | `direction` | `MetricDirection` | no |  |
 | `meaning` | `string` | no | What it means and how it's calculated, in words: what's counted, over what, and what's left out. |
@@ -1574,6 +1576,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
 | `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
 | `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
+| `confidence` | `MetricConfidence` | no | How far its number can be trusted (absent: not said). |
+| `gaming` | `string` | no | How the number could be gamed, in words (absent: not said). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
 | `answers` | `Partial<Record<CheckField, string>>` | no |  |
@@ -1976,7 +1980,7 @@ export interface ChangeSet {
   needsConfirm: boolean;
   /** Ready to save: null while a Must fix or an unanswered Check remains, or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed". */ records?: { one: string; many: string; added: number; changed: number }[] };
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
@@ -2284,7 +2288,7 @@ export interface Item {
 In `src/domain/changeset.ts`.
 
 ```ts
-export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left';
+export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left' | 'new record' | 'record';
 ```
 
 ### KeptRow
@@ -2331,6 +2335,14 @@ export interface Metric {
   measurement?: MetricMeasurement;
   /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
   measurementNote?: string;
+  /** Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). */
+  level?: import('./rulesStructure').MetricLevel;
+  /** The metric it is a component, driver, control or breakdown of (absent: none). */
+  parentId?: Id;
+  /** How far its number can be trusted (absent: not said). */
+  confidence?: import('./rulesStructure').MetricConfidence;
+  /** How the number could be gamed, in words (absent: not said). */
+  gaming?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;
@@ -2473,7 +2485,7 @@ export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; an
 In `src/domain/problemLevels.ts`.
 
 ```ts
-export type Sheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
+export type Sheet = CoreSheet | (string & {});
 ```
 
 ### TableLayout
@@ -2498,7 +2510,7 @@ export interface TableLayout {
 In `src/domain/sheets.ts`.
 
 ```ts
-export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[] }
+export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[]; /** A module's own loaded sheets (Metrics), by the sheet's name. */ modules?: Record<string, Rec[]> }
 ```
 
 ### TableSort

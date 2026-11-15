@@ -102,7 +102,9 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     pending: g.pending ?? null,
     also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
     guards: g.guards?.length ? g.guards : null,
-    ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn, unmeasured_since: g.unmeasuredSince }),
+    ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn }),
+    // MS: written on every row, null when the goal isn't held, so Undo of a hold and a mixed batch clear it (MS review, medium 2).
+    unmeasured_since: g.unmeasuredSince ?? null,
   };
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
   return { goal, stages };

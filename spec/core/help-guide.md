@@ -11,7 +11,7 @@ Every article on Faro’s Help page, in full and in its order: what each screen 
 
 `home`. Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch.
 
-Routes: `/`. Screens: `Home`. Requirements: `HOME-OWNER`, `HOME-MANAGER`, `PROFILES`, `SHAPE-MATCHES-WORD`, `DAY-ONE`.
+Routes: `/`. Screens: `Home`. Requirements: `HOME-OWNER`, `HOME-MANAGER`, `HOME-LEADER`, `PROFILES`, `SHAPE-MATCHES-WORD`, `DAY-ONE`.
 
 #### What it’s for
 
@@ -47,6 +47,16 @@ Home is where you start each day. It answers one question first: what is asked o
 - In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.
 - When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row.
 
+#### How the week’s check-ins stand
+
+- If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.
+- It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.
+- Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners.
+
+#### The workspace’s line
+
+- If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list.
+
 #### Changed since
 
 - Beside the rest on a computer (after your goals and your team on a phone), “Changed since Friday 6 Nov” says what moved since you last opened Home: “1 got worse”, “2 recovered”, “1 went quiet”, “1 done”. Each count opens exactly those goals in Goals.
@@ -80,6 +90,7 @@ Requirements: `PROJECTION-RANGE`, `STATUS-BANDS`, `STATUS-DIRECTION`, `RANGE`, `
 - Off track: Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.
 - No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.
 - No check-in yet: The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update.
+- Not measured yet: The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.
 - Not started: Week 0: the goal is set up and its first check-in is due in week 1.
 - Done: The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.
 
@@ -317,7 +328,7 @@ The last screen says whether your check-ins were in before the deadline (“All 
 
 One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.
 
-When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does.
+When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”, judged as things stood that week: a later check-in or a change of plan never takes the mark away. A correction never does.
 
 #### Who can
 
@@ -455,8 +466,8 @@ Routes: `/goals?q=*`, `/goals?status=*`. Screens: `GoalFilters`, `GoalFilterShee
 - Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.
 - Search for a goal’s key to find it, however it’s typed: G-48, g48 or just 48. A key finds only its own goal; a bare number also finds goals with that number in their words.
 - Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.
-- Filters cover status, level, team, owner and type; needs attention (the same goals Home and Watching list, with those being handled listed below them), narrowed if you like to why: off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse, greener than calculated; due date; no update for some weeks (counted the way no recent update is); last quarter met or not met; result; a goal’s tree; and also-helps links.
-- Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.
+- Filters cover status, level, team, owner and type; needs attention (the same goals Home and Watching list, with those being handled listed below them), narrowed if you like to why: off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse, greener than calculated; due date; no update for some weeks (counted the way no recent update is); last quarter met or not met; result; a goal’s tree; and also-helps links. When the workspace has its own fields (Fields), each list field has a row too, such as “Stage: Discover · Build · Run · Not set”: tick any of them, and Not set finds goals with no value. A free-text field isn’t a filter.
+- Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”, or “Stage is Build” for a field), each with Remove. A search is never listed as a filter.
 - Owner not you is the goals someone else owns: Home’s “need attention that aren’t yours” opens Goals with it, so your own goals are left out.
 - Changed since: what Home’s “Changed since” counts open. The filter line says “Changed since Fri 6 Nov: got worse” (or recovered, went quiet, done, any change); a goal counts when its status on that day and now differ in that way. Remove takes it off.
 - Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.
@@ -561,7 +572,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 #### The summary bar
 
 - First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.
-- A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.
+- A goal whose number isn’t measured yet (the metric that measures it has a gap) has the status “Not measured yet”, a ring with a dot at its centre, everywhere it is shown: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.
 - Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.
 - Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).
 - Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.
@@ -776,7 +787,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 - A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.
 - The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.
 - Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.
-- Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.
+- Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm. A baseline can be marked provisional only before the goal’s first check-in.
 - Plan by week shows the numbers week by week; type over any week.
 - After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.
 - Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.
@@ -918,6 +929,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
 - Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.
+- When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other. Its cells can’t be edited here: change a goal’s values on its page, or in a Goals sheet loaded back.
 - IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.
 
 #### Changing data
@@ -947,6 +959,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.
 - To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.
 - Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.
+- A workspace’s own fields (Fields) are columns on Goals, headed with each field’s name: a cell changes the goal’s value, an empty one clears it, and a value a list doesn’t hold is asked about once (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”); only an admin can add it. With Fields switched off, those columns are named as columns nothing reads.
 - The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.
 - Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).
 - Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.
@@ -1324,8 +1337,52 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-MEASUREMENT`.
 
 #### Goals measured by a gap
 
-- A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
+- A goal measured by a metric with a gap is held to no number. Its status is “Not measured yet”, a ring with a dot at its centre, wherever it is shown: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
 - Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.
+
+### Where a metric sits, and how far to trust it
+
+`metric-structure`, from the metrics module. Say what a metric is part of, how much its number can be trusted, and how it could be gamed, so the library keeps a register’s thinking.
+
+Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
+
+#### Where it sits
+
+- In a metric’s form, under Where it sits, choose Part of: the metric it sits under, found by typing its name. A metric can’t be its own parent, and one already under it is listed but can’t be chosen.
+- Then say how it relates, if you know: Component (part of its parent’s number: they add up to it), Driver (moves it), Control (watched so improving the parent breaks nothing else) or Breakdown (the parent split one way, by team, region or service).
+- The metric’s page says where it sits (“A driver of Lead time for changes.”), and its parent’s page lists it under Where it sits, with its level. Goals still feed goals: this is the library’s map, not a second goal tree.
+
+#### Confidence and gaming
+
+- Confidence in the number: High (measured directly and checked), Medium (known gaps or a manual step) or Low (estimated, sampled or new). Its page says it among the facts.
+- How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.
+- All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure.
+
+### Metrics in a spreadsheet
+
+`metric-sheet`, from the metrics module. Export the Metrics sheet, change or add rows, and load it back through the same preview, questions and Undo as any import.
+
+Requirements: `METRIC-SHEET`.
+
+#### Out and back in
+
+- Export everything from Data: the workbook’s Metrics sheet lists every metric, retired ones too with the day they were retired, and the goals each measures.
+- Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.
+- A row finds its metric by ID, or else by its name, any case. A column you leave out, or an empty cell, keeps what the metric says.
+- Action retires a metric (say why in Reason) or brings one back.
+- Part of, How it relates, Confidence and How it could be gamed say where a metric sits and how far to trust it. Part of names another metric, by name or ID, in the library or on an earlier row.
+
+#### What it asks
+
+- The same as the metric’s form, in the same words: a name used twice, a direction or refresh it can’t read, an owner who isn’t in the workspace.
+- A Part of that would put a metric under itself, or a How it relates with no Part of, is refused in the words of the metric’s form.
+- A name one letter from a metric already here asks whether the row is that metric or a new one.
+- Changing what a metric goals use means, or where its number comes from, asks “Is it still the same number?”; if the number changes, say why in Reason. A file can’t change the unit of a metric goals use: change it on the metric’s page.
+- Nothing is saved until every question is answered. The toast after saving has Undo, and the import stays under Past imports, where Undo puts every row back.
+
+#### When metrics are switched off
+
+- With the Metric library off, the import says once that the Metrics sheet was not read, and reads the rest of the file.
 
 ### Teams
 
@@ -1373,21 +1430,42 @@ Everyone reads Cycles and opens the wrap-up. Only admins delete a cycle or start
 
 ### Workspace: Access
 
-`workspace-access`. For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace.
+`workspace-access`. For admins: who the admins are, where they are made, and taken back.
 
-Routes: `/workspace/access`. Requirements: `ADMIN`, `MCP-TOKENS`.
+Routes: `/workspace/access`. Requirements: `ADMIN`.
 
 #### How to use it
 
 - Admins lists everyone who is one, A to Z. Add an admin is the page’s main action: find someone by name, job title or team, then Make them an admin. The message that says so has Undo.
 - Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin, which has no Undo: only another admin can make you one again. There is always at least one admin: the only one has no button, and their row says The only admin.
-- The same two are on a person’s page in People, under For admins, with Make an MCP token for that person.
-- MCP tokens: Make a token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.
-- In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so in place of the list.
+- The same two are on a person’s page in People, under For admins, with Make an MCP token for that person while AI access is on.
+- The MCP tokens have their own section, AI access, after this one. See AI access.
 
 #### Who can
 
-Admins. Everyone finds their own MCP tokens in Settings.
+Admins.
+
+### AI access
+
+`ai`, from the ai-access module. The MCP tokens that let Claude or another AI tool act as someone here, and the switch that turns them all off.
+
+Routes: `/workspace/ai`. Requirements: `MCP-TOKENS`, `AI-ACCESS-OPTIONAL`.
+
+#### What it’s for
+
+Letting an AI tool read and act in this workspace as one person, with that person’s rights. Faro has no AI built in: this is the door other AI tools use.
+
+#### How to use it
+
+- Workspace, AI access lists every MCP token, newest first: what it’s for, whom it acts as, when it was made and last used, and Revoke. Make a token is the section’s one action; the token is shown once.
+- Every change an AI tool makes is logged as its person’s, marked “via MCP” in Activity.
+- AI access can be switched off for the whole workspace, on Workspace, Features. Before it goes off, Faro names the tokens that stop working at once and counts what AI tools already changed (that stays). The tokens are kept, not revoked: switch AI access back on and they work again, after Faro names them. To end one for good, revoke it first; See the tokens, in the same message, lists them with Revoke.
+- While it is off, an AI tool that calls Faro is told “AI access is switched off in” the workspace, and that an admin can switch it on. It still sees the list of tools. No token can be made, and Workspace, Settings and People show no tokens.
+- An AI tool can switch AI access off (as its admin), but never back on: that is the last thing its token does.
+
+#### Who can
+
+Admins make tokens, revoke any, and switch AI access. Anyone revokes their own in Settings.
 
 ### Settings
 
@@ -1424,7 +1502,7 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 `features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.
 
-Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `FEATURE-GROUPS`, `RHYTHM-OPTIONAL`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `AI-ACCESS-OPTIONAL`, `FEATURE-GROUPS`, `RHYTHM-OPTIONAL`.
 
 #### How to use it
 
@@ -1432,9 +1510,10 @@ Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REV
 - How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.
 - Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.
 - Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.
-- While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.
+- While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, how many MCP tokens are in use, or when the wrap-up opens and, while it is open, how many goals are wrapped up.
 - Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.
 - Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.
+- Switching AI access off names the MCP tokens that stop working at once (they are kept, not revoked), counts what AI tools already changed (it stays, marked “via MCP”), and says an AI tool can’t switch it back on. Switching it back on names the tokens that will work again. With no token, either way it acts at once. While it is off, every AI tool calling Faro here is told AI access is switched off, no token can be made, and Workspace, Settings and People show no tokens. See AI access.
 - Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.
 - Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.
 - Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help (and the Help link at the foot of its pages) and its MCP tools; What’s new still lists its releases. Anything that needs it goes off with it, and Features says so.
@@ -1456,7 +1535,7 @@ Admins switch features and choose the check-in rhythm. Everyone sees what is on,
 
 `fields`, from the tags module. A workspace’s own fields on goals, such as a stage or a programme: up to 6, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.
 
-Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-OFF`.
+Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-FILTER`, `TAGS-SHEET`, `TAGS-OFF`.
 
 #### What it’s for
 
@@ -1466,6 +1545,7 @@ Teams track things Faro has no column for: a lifecycle stage (Discover, Build, R
 
 - Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.
 - An admin adds one with Add a field: a name of up to 40 characters, and for a list its values, one per line (1 to 20, each up to 40 characters, none twice). Free text holds up to 80 characters on each goal. A workspace has at most 6 fields.
+- A field can’t be called like a column the Goals sheet already has, such as Owner, Team or Status: the sheet would have two columns of that name.
 - Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.
 - A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.
 - With no field yet, the page says “No fields yet” and offers Add a field to admins.
@@ -1476,13 +1556,28 @@ Teams track things Faro has no column for: a lifecycle stage (Discover, Build, R
 - The goal’s owner or an admin presses Change beside a line and picks a value from the list, or types the text and presses Save. Not set clears it. No reason is asked: a field isn’t the plan.
 - History says each change on the goal: “Stage: Discover → Build”. Adding, retiring and bringing back a field is in Activity.
 
+#### Finding goals by a field
+
+- Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.
+- The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.
+- A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort or filter by. To change values there, change them on each goal’s page, or in an exported Goals sheet loaded back.
+
+#### In a spreadsheet
+
+- Every export’s Goals sheet has a column for each field, headed with its name: the goal’s value, or empty for none.
+- Change a cell and load the file back on Import: the goal takes the value, under the same rules as its page, and History says it. An empty cell clears the value. A file exported and loaded straight back changes nothing.
+- A value a list doesn’t hold is asked once, however many rows say it: “Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?” Only an admin can add it to the list; anyone else leaves those cells empty, or fixes the file.
+- A column headed with a name no field has is named as a column nothing reads.
+- Undo this import, under Past imports, puts back the values the file changed and takes out a value it added to a list.
+
 #### With an AI assistant
 
 - list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.
+- find_goals finds goals by their fields: fields: { "Stage": "Build" }, several values of one field as “Build, Run”, and “Not set” for none.
 
 #### Who can
 
-Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again.
+Admins add and change the fields, and add a value to a list from a spreadsheet. A goal’s owner or an admin sets its values. Everyone sees them and filters by them. An admin can switch Fields off in Workspace, Features: the block, the section, the filters and the columns go (a file’s field columns are then columns nothing reads), and every field and value is kept for when it’s switched on again.
 
 ### What the app records
 
@@ -1543,13 +1638,13 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 
 #### How to connect
 
-- An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.
+- An admin makes a personal MCP token for you under Workspace, AI access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.
 - Add the server to your AI tool with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header "Authorization: Bearer gk_…".
 - See and revoke your MCP tokens in Settings. The full list of tools is in docs/mcp.md.
 
 #### Who can
 
-Only admins make MCP tokens. An admin or the token’s own person can revoke one. Any MCP token, a builder token made before included, also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up).
+Only admins make MCP tokens. An admin or the token’s own person can revoke one. Any MCP token, a builder token made before included, also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up; while AI access is switched off it says so instead).
 
 ### Send feedback, and marking up a screen
 

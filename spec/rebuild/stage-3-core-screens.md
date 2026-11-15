@@ -14,8 +14,9 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 
 - [The screens](../core/screens.md): each core route, its purpose, named parts and one main action, and its fields, states and buttons; then the views and overlays with no route of their own.
 - [The design rules](../core/design-rules.md): the look. [The Help guide](../core/help-guide.md): what each screen is for and who can, in full.
-- [The journeys](../core/journeys.md): what people do end to end, the most steps each may take, and the ease test.
+- [The journeys](../core/journeys.md): what people do end to end, the most steps each may take, and the ease test; then each journey’s own page (`core/journeys/<id>.md`, linked from its Id): where it starts and as whom, every step (what to press or type, by the words on the screen) and every check (what must then be visible or saved). A step is one press or one field typed into; the budget counts those.
 - [The requirements](../core/requirements.md): each one, with the screens and Help article that cover it.
+- [Goals’ filters and sort](../core/goals-query.md): what each filter and sort in a Goals link means, its values and its words.
 - [The vocabulary](../core/vocabulary.md): where each word may appear. A status is always a shape and a word.
 
 ## What to build
@@ -63,7 +64,7 @@ Stage 3’s drill scores the parts of the screens that are rules of the viewer, 
 ## Exit criteria
 
 1. `node spec/rebuild/drill.mjs rebuild` prints **PASS** with `"stage": 3`: every row and column of `navigation.csv`, `readback.csv`, `find.csv` and `home.csv` match.
-2. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.
+2. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths: its page’s steps, in order, from where it starts, with every check on it true.
 3. Each core requirement in [the requirements](../core/requirements.md) holds.
 4. No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).
 
@@ -71,6 +72,6 @@ Stage 3’s drill scores the parts of the screens that are rules of the viewer, 
 
 Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:
 
-- The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. The drill scores the screens’ words that are rules, not the screens: there is no portable journey runner yet.
+- The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. Each journey’s steps and checks are in the kit in words, read from that code ([the journeys](../core/journeys.md#how-to-read-a-journeys-steps)), so a rebuild knows what each one does; but nothing runs them against a rebuild: there is no portable journey runner yet, so they are done by hand. Where a step names a part only by Faro’s CSS class, the words beside it say what it is.
 - The look is in [the design rules](../core/design-rules.md) and the Help guide in full in [the Help guide](../core/help-guide.md); each screen’s fields, states and buttons are read from Faro’s markup ([the screens](../core/screens.md)), with words worked out when it shows written “…” and the conditions a button shows under as Faro’s code writes them. Each screen has two pictures (390 and 1440 wide) of Faro as it is; they are taken by hand with `npm run spec:shots`, so a change to a screen can leave its picture a step behind until the next run.
 - Faro’s mark (the F’s stem, beam and bar, and “aro”) is drawn from paths in `src/ui/brandPaths.ts`, which are not in the kit: the home-screen icon and the launch splash (requirement `LAUNCH`) are described in words, so a rebuild draws its own mark to them.

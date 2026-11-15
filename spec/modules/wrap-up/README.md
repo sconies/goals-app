@@ -29,10 +29,12 @@ Module id `wrap-up`, in [src/modules/wrap-up/](../../../src/modules/wrap-up/modu
 
 ## Journeys and checks
 
+Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).
+
 | Id | What | Where |
 |---|---|---|
-| U10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | `evals/journeys.cjs` |
-| U166 | Amara switches the Wrap-up off: before it opens it acts at once, then /retro says it is off and Cycles offers no wrap-up | `evals/journeys.cjs` |
+| [U10](journeys/U10.md) | Close the cycle: owners wrap up their goals, an admin starts the next cycle | `evals/journeys.cjs` |
+| [U166](journeys/U166.md) | Amara switches the Wrap-up off: before it opens it acts at once, then /retro says it is off and Cycles offers no wrap-up | `evals/journeys.cjs` |
 | N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
 ## Help
@@ -41,5 +43,5 @@ Module id `wrap-up`, in [src/modules/wrap-up/](../../../src/modules/wrap-up/modu
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 11](../../rebuild/stage-11-module-wrap-up.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 12](../../rebuild/stage-12-module-wrap-up.md) (an outline, with no drill yet).
 Its rules: [The Wrap-up’s switch: what goes, what stays, and the read-back](rules.md#the-wrap-ups-switch-what-goes-what-stays-and-the-read-back), in plain words with worked examples (run against the code by the spec’s own test). **Not self-explanatory:** it has no conformance rows of its own yet.

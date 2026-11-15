@@ -65,13 +65,13 @@ export function near(v: string, candidates: readonly string[]): NearAnswer {
 export const MUST_KINDS = [
   'required-empty', 'not-a-number', 'formula', 'precision', 'impossible-number', 'unknown-word', 'unknown-ref', 'ambiguous-ref',
   'conflicting-refs', 'bad-key', 'duplicate', 'type-unclear', 'plan-order', 'stage-format', 'week-wrong', 'checkin-incomplete',
-  'cant-change', 'not-allowed', 'removal-refused', 'loop',
+  'cant-change', 'not-allowed', 'removal-refused', 'loop', 'too-long',
 ] as const;
 /** What is possible but unlikely: asked, once per group. */
 export const CHECK_KINDS = [
   'near-ref', 'near-word', 'near-header', 'two-columns', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
-  'feeds-lower', 'for-someone-else',
+  'feeds-lower', 'for-someone-else', 'same-number', 'aim-changes', 'module-value',
 ] as const;
 /** How a row was read: fine, and said on the change. */
 export const NOTE_KINDS = ['by-name', 'default', 'date-as-week', 'folded', 'same-name', 'left-alone', 'replaces', 'as-recorded', 'example'] as const;
@@ -89,8 +89,13 @@ export const LEVEL_WORD: Record<IssueLevel, string> = { must: 'Must fix', check:
 /** The level as the older three-way severity, for screens not yet rebuilt on levels (IM3 replaces them). */
 export const SEVERITY: Record<IssueLevel, 'error' | 'warning' | 'note'> = { must: 'error', check: 'warning', note: 'note' };
 
-export type Sheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
-export const SHEET_ORDER: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
+/** The core's sheets; a module's own loaded sheet (Metrics) is named by its spec, so a sheet is any name. */
+export type CoreSheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
+// eslint-disable-next-line @typescript-eslint/ban-types
+export type Sheet = CoreSheet | (string & {});
+export const SHEET_ORDER: CoreSheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
+/** A sheet's place in the file's order: the core's first, then a module's. */
+export const sheetOrder = (s: Sheet) => { const i = (SHEET_ORDER as readonly string[]).indexOf(s); return i < 0 ? SHEET_ORDER.length : i; };
 
 /**
  * One way to settle a group in the preview. `choice` is the code an answer carries (`use`, `leave`, `right`…); `label` the
@@ -228,7 +233,7 @@ export interface IssueGroup {
 }
 
 const n = (k: number, one: string, many = one + 's') => `${k} ${k === 1 ? one : many}`;
-const THING: Record<string, string> = { Team: 'team', 'Takes over': 'person', Owner: 'person', 'Owner email': 'person', 'Feeds into': 'goal', Goal: 'goal', Stages: 'stage' };
+const THING: Record<string, string> = { Team: 'team', 'Takes over': 'person', Owner: 'person', 'Owner email': 'person', 'Feeds into': 'goal', Goal: 'goal', Stages: 'stage', 'Part of': 'metric' };
 
 /** A group's title: section 4's "Title of the group" for a Must fix, its question for a Check. */
 export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: Issue): string {
@@ -246,7 +251,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'ambiguous-ref': return `${n(count, 'row')} say “${v}”, and more than one ${THING[col] ?? 'record'} is called that`;
     case 'conflicting-refs': return `${n(count, 'row')} name${count === 1 ? 's' : ''} two different ${THING[col] === 'goal' ? 'goals' : 'people'}`;
     case 'bad-key': return /look like/.test(first.message) ? `${n(count, 'key')} ${count === 1 ? 'doesn’t' : 'don’t'} look like G-12` : `${n(count, col === 'ID' || col === 'Goal ID' ? 'ID' : 'key')} ${count === 1 ? 'isn’t' : 'aren’t'} here`;
-    case 'duplicate': return sheet === 'People' ? `${n(count, 'person', 'people')} appear on more than one row` : sheet === 'Check-ins' ? `${n(count, 'check-in')} appear on more than one row` : `${n(count, 'goal')} appear on more than one row`;
+    case 'duplicate': return sheet === 'People' ? `${n(count, 'person', 'people')} appear on more than one row` : sheet === 'Check-ins' ? `${n(count, 'check-in')} appear on more than one row` : sheet === 'Goals' ? `${n(count, 'goal')} appear on more than one row` : `${n(count, 'row')} repeat${count === 1 ? 's' : ''} another row`;
     case 'type-unclear': return `${n(count, 'new goal')} ${count === 1 ? 'doesn’t' : 'don’t'} say what type ${count === 1 ? 'it is' : 'they are'}`;
     case 'plan-order': return `${n(count, 'plan')} ${count === 1 ? 'ends' : 'end'} before ${count === 1 ? 'it starts' : 'they start'}, or ${count === 1 ? 'has' : 'have'} weeks outside ${count === 1 ? 'it' : 'them'}`;
     case 'stage-format': return `${n(count, 'row')} ${count === 1 ? 'has' : 'have'} stages that can’t be read`;
@@ -255,7 +260,9 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'cant-change': return `${n(count, 'row')} change${count === 1 ? 's' : ''} something that can’t change`;
     case 'not-allowed': return sheet === 'People' ? `${n(count, 'row')} change${count === 1 ? 's' : ''} people. Only an admin can add or change people` : `${n(count, 'row')} change${count === 1 ? 's' : ''} ${count === 1 ? 'a goal' : 'goals'} you don’t own`;
     case 'removal-refused': return `${n(count, 'row')} can’t be ${sheet === 'People' ? 'marked as left' : 'stopped or deleted'} as ${count === 1 ? 'it stands' : 'they stand'}`;
-    case 'loop': return `${n(count, 'goal')} would feed ${count === 1 ? 'itself' : 'themselves'}`;
+    case 'too-long': return `${n(count, 'cell')} ${count === 1 ? 'is' : 'are'} longer than ${col || 'its column'} holds`;
+    case 'module-value': return first.message;
+    case 'loop': return sheet === 'Metrics' ? `${n(count, 'metric')} would sit under ${count === 1 ? 'itself' : 'themselves'}` : `${n(count, 'goal')} would feed ${count === 1 ? 'itself' : 'themselves'}`;
     case 'near-ref': return `${n(count, 'row')} name${count === 1 ? 's' : ''} a ${THING[col] ?? 'record'} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
     case 'near-word': return `${col} says “${v}” on ${n(count, 'row')}. Read it as ${first.suggest}?`;
     case 'near-header': return first.message;

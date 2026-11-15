@@ -9,7 +9,7 @@ import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../../domain
 import type { Change, CheckIn, Cycle, Goal, Snapshot, Workspace } from '../../../domain/types';
 import type { DbRow, ModuleRecords, RecordDef } from '../../../domain/records';
 import { applyCommit, withExpectations, type Commit } from '../../../data/store';
-import { newestFirst } from '../../window';
+import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, newestFirst } from '../../window';
 import type { Case, Contract, Step, Then } from './format';
 
 const NOW = new Date('2026-10-30T12:00:00Z');
@@ -355,8 +355,8 @@ export function makeStoreContract(): Contract {
       given: 'Start a fresh store holding these workspaces. Answers null.',
       workspaces: 'The workspaces kept: `[{ id, name, kind, createdAt }]`.',
       createWorkspace: '(workspace, snapshot) Keep a new workspace and all its records. Answers null.',
-      load: '(workspaceId, window?) The workspace’s records. With `window` (`{ from }`): only the check-ins of cycles whose last day is on or after `from`’s day, and only the change-log entries from `from` on plus the anchors of any age (comments, asks, a cycle’s entries, an import’s summary or undoing, or any entry carrying `undo`), and `history: { from, checkInCycles }` (every cycle with a check-in, sorted); without one, everything, and no `history`.',
-      commit: '(workspaceId, commit) Save it whole or not at all: a saved goal or review is one version on; refuse it as stale when a goal or review it `expect`s has moved on. Never changes another workspace’s records. Answers null.',
+      load: `(workspaceId, window?) The workspace’s records. With \`window\` (\`{ from }\`): only the check-ins of cycles whose last day is on or after \`from\`’s day, and only the change-log entries from \`from\` on plus the anchors of any age (an entry whose \`entity\` is ${ANCHOR_ENTITIES.map((e) => `\`${e}\``).join(', ')}: comments, asks, a cycle’s entries, a person’s arrival, a metric’s changes; one whose \`action\` is ${ANCHOR_ACTIONS.map((e) => `\`${e}\``).join(' or ')}; or any entry carrying \`undo\`), and \`history: { from, checkInCycles }\` (every cycle with a check-in, sorted); without one, everything, and no \`history\`.`,
+      commit: '(workspaceId, commit) Save it whole or not at all: a saved goal or review is one version on (a new one starts at version 0); refuse it as stale when a goal or review it `expect`s has moved on. Never changes another workspace’s records. Answers null.',
       issueToken: '(workspaceId, commit) Keep the commit’s new AI assistant token and answer its secret (at least 20 characters, no spaces), which is never kept or given back.',
       deleteWorkspace: '(workspaceId) Remove the workspace and everything in it. Answers null.',
       history: '(workspaceId, { before?, goalId?, size? }) Change-log entries a page at a time, newest first (by `at`, then `id`, both descending): `{ changes, next }`, those strictly older than `before` (`{ at, id }`), only one goal’s when `goalId` is given, 50 unless `size` says otherwise and never more than 100; `next` is the last entry’s `{ at, id }` when there are more, else null.',

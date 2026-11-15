@@ -30,18 +30,20 @@ Module id `watching`, in [src/modules/watching/](../../../src/modules/watching/m
 
 ## Journeys and checks
 
+Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).
+
 | Id | What | Where |
 |---|---|---|
-| U7 | An owner changes a target with a reason; a watcher sees it | `evals/journeys.cjs` |
-| U8 | Watching: see what has gone quiet and chase it | `evals/journeys.cjs` |
-| U9 | Follow goals you don’t own: watch a tree or a level | `evals/journeys.cjs` |
-| U16 | Home by responsibility: every ask waiting on you in one place, and one navigation | `evals/journeys.cjs` |
-| U31 | After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope | `evals/journeys.cjs` |
-| U73 | Goals opens on yours: Rhea lands on Mine with her tabs and counts, the line counts what is shown, Group is its own choice, Needs attention is a switch on any tab, and old links open what they meant | `evals/journeys.cjs` |
-| U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | `evals/journeys.cjs` |
-| U90 | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
-| U103 | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
-| U164 | Amara switches Watching off: Features is in its groups, the read-back counts the watches kept, then Goals has no Watching tab, Home no “Goals you watch”, a goal no Watch button, /watching says it is off, and switching it back on brings every watch back | `evals/journeys.cjs` |
+| [U7](journeys/U7.md) | An owner changes a target with a reason; a watcher sees it | `evals/journeys.cjs` |
+| [U8](journeys/U8.md) | Watching: see what has gone quiet and chase it | `evals/journeys.cjs` |
+| [U9](journeys/U9.md) | Follow goals you don’t own: watch a tree or a level | `evals/journeys.cjs` |
+| [U16](journeys/U16.md) | Home by responsibility: every ask waiting on you in one place, and one navigation | `evals/journeys.cjs` |
+| [U31](journeys/U31.md) | After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope | `evals/journeys.cjs` |
+| [U73](journeys/U73.md) | Goals opens on yours: Rhea lands on Mine with her tabs and counts, the line counts what is shown, Group is its own choice, Needs attention is a switch on any tab, and old links open what they meant | `evals/journeys.cjs` |
+| [U80](journeys/U80.md) | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | `evals/journeys.cjs` |
+| [U90](journeys/U90.md) | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
+| [U103](journeys/U103.md) | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
+| [U164](journeys/U164.md) | Amara switches Watching off: Features is in its groups, the read-back counts the watches kept, then Goals has no Watching tab, Home no “Goals you watch”, a goal no Watch button, /watching says it is off, and switching it back on brings every watch back | `evals/journeys.cjs` |
 | F1 | Fit and finish, home-watching | `evals/finish/1-home-watching.cjs` |
 | N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
@@ -51,5 +53,5 @@ Module id `watching`, in [src/modules/watching/](../../../src/modules/watching/m
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 10](../../rebuild/stage-10-module-watching.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 11](../../rebuild/stage-11-module-watching.md) (an outline, with no drill yet).
 Its rules: [Watching’s switch: what goes, and the read-back](rules.md#watchings-switch-what-goes-and-the-read-back), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [watching.csv](../../conformance/watching.csv) ([what each column is](../../conformance/README.md#the-files)).

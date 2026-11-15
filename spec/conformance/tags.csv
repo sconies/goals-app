@@ -15,3 +15,12 @@ field,list-empty,Stage,,,A list needs at least one value.
 field,list-twice,Stage,Build|build,,“build” is in the list twice.
 field,list-21,Stage,V0|V1|V2|V3|V4|V5|V6|V7|V8|V9|V10|V11|V12|V13|V14|V15|V16|V17|V18|V19|V20,,A list holds at most 20 values.
 field,text-with-values,Programme,,,"A free-text field has no values: choose A list of values, or leave the values out."
+filter,one,Stage,Build,g1|g3,
+filter,two,Stage,"Build,Discover",g1|g2|g3,
+filter,case,Stage,build,g1|g3,
+filter,not-set,Stage,Not set,g4,
+filter,unknown,Stage,Operate,g1|g2|g3|g4,
+filter,nothing,Stage,,g1|g2|g3|g4,
+sheet,unknown-admin,Stage,Operate,add|empty,"Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?"
+sheet,unknown-one-row,Stage,Operate,add|empty,"Stage says “Operate” on 1 row. Add “Operate” to Stage, or leave these cells empty?"
+sheet,unknown-not-admin,Stage,Operate,empty,"Stage says “Operate” on 4 rows, which isn’t one of its values, and only an admin can add one. Leave these cells empty, or fix the file?"

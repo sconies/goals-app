@@ -86,7 +86,7 @@ describe('The guide covers the whole app', () => {
   it('finds articles by what they cover', () => {
     expect(searchGuide('dark mode')[0]?.id).toBe('settings');
     expect(searchGuide('plan change reason').map((a) => a.id)).toContain('edit-goal');
-    expect(searchGuide('token')[0]?.id).toBe('ai-assistants');
+    expect(searchGuide('token')[0]?.id).toBe('ai');
     expect(searchGuide('  ')).toEqual([]);
     expect(searchGuide('xylophone')).toEqual([]);
   });

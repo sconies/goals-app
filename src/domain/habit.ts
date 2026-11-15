@@ -7,6 +7,7 @@
 import { fmt } from './format';
 import { checkInStanding, dueIn, type HabitRows, type Standing } from './standing';
 import { dueWords, reviewDate, type DueWords } from './progress';
+import { goalAsOf } from './plan';
 import type { CheckIn, Cycle, Goal } from './types';
 
 export { checkInStanding, dueIn, type HabitRows, type Standing };
@@ -27,21 +28,31 @@ function meets(goal: Goal, v: number): boolean {
   return goal.plan.target > goal.plan.start ? v >= goal.plan.target : v <= goal.plan.target;
 }
 
+/** Whether `c` was posted before `after`: earlier in time, or at the same moment for an earlier week. */
+function postedBefore(c: CheckIn, after: CheckIn): boolean {
+  return c.postedAt < after.postedAt || (c.postedAt === after.postedAt && c.week < after.week);
+}
+
 /**
- * Rule 3: what a check-in makes, from the goal's earlier check-ins (any order) and this one. `reached` wins over `back`.
+ * Rule 3: what a check-in makes. The moment is fixed as of the check-in's own week (Lane, 14 Nov): the rule takes the
+ * goal's whole history (any order; the check-in itself and other goals' rows may be in it) and the goal as it stands,
+ * and judges the check-in only against the check-ins posted before it and the plan in force in its week. A later post,
+ * a backfill posted afterwards or a re-plan never changes what it made. `reached` wins over `back`.
  * Neither fires on a backfilled week; callers leave out corrections and imports, which never reach the receipt and are
  * marked on History's row as corrected (`fresh: false`).
  */
-export function moment(earlier: readonly CheckIn[], after: CheckIn, goal: Goal, fresh = true): Moment | null {
+export function moment(checkIns: readonly CheckIn[], after: CheckIn, goal: Goal, fresh = true): Moment | null {
   if (!fresh || after.backfilled || after.removedAt) return null;
+  const earlier = checkIns.filter((c) => c.id !== after.id && c.goalId === after.goalId && !c.removedAt && postedBefore(c, after));
   // Never on a second check-in in the same week: the rule's, not only the screen's (#410 review).
-  if (earlier.some((c) => c.id !== after.id && c.goalId === after.goalId && c.week === after.week && !c.removedAt)) return null;
+  if (earlier.some((c) => c.week === after.week)) return null;
+  const g = goalAsOf(goal, after.week);
   // The week before's word on the goal: each earlier week's last check-in, newest first.
   const byWeek = new Map<number, CheckIn>();
-  for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
+  for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week) byWeek.set(c.week, c);
   const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
   const before = prior[0];
-  if (after.value != null && meets(goal, after.value) && !(before?.value != null && meets(goal, before.value))) return { kind: 'reached', behind: 0 };
+  if (after.value != null && meets(g, after.value) && !(before?.value != null && meets(g, before.value))) return { kind: 'reached', behind: 0 };
   if (after.status !== 'on' || !before || (before.status !== 'risk' && before.status !== 'off')) return null;
   // Weeks behind, not check-ins: from the first week of the unbroken behind stretch to this one (#410 review).
   let from = after.week;
@@ -51,7 +62,9 @@ export function moment(earlier: readonly CheckIn[], after: CheckIn, goal: Goal, 
 }
 
 /** The receipt's panel for a moment (spec 2.2): its heading and line. */
-export function momentText(m: Moment, goal: Goal, c: CheckIn, weeks: number): { heading: string; line: string } {
+export function momentText(m: Moment, current: Goal, c: CheckIn, weeks: number): { heading: string; line: string } {
+  // The target and start of the plan in force in the check-in's week, as the moment was judged.
+  const goal = goalAsOf(current, c.week);
   const v = c.value == null || goal.kind === 'milestone' ? '' : fmt(c.value, goal);
   if (m.kind === 'reached' && goal.kind === 'metric') {
     return { heading: `${goal.title} reached its target`, line: `${v}, against a target of ${fmt(goal.plan.target, goal)}, in week ${c.week} of ${weeks}. It started the year at ${fmt(goal.plan.start, goal)}.` };
@@ -150,4 +163,35 @@ export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRo
     its due date, as no review is held before the deadline. */
 export function beforeReviewHeading(onDueDay: boolean, cycle: Cycle, week: number): string {
   return onDueDay ? 'Before this review' : `Week ${week}, due by ${dueWords(false, cycle, week).date}`;
+}
+
+/* ---------- HB3: a leader's Home, the second cell (spec 2.4) ---------- */
+
+/** A percentage is shown only from this many goals due (spec 2.4). */
+export const PERCENT_FROM = 20;
+
+/**
+ * Home's habit cell, beside HM7's, for the same viewer and set: rule 2's measure for this week. Label "Before the review,
+ * without being asked" (RS1: "On time, …" unless a review is held on the due day for these goals); value "{u} of {n}
+ * goals · {p}%", the percentage only from 20 goals; before the due day "So far: {u} of {n} goals"; under it last week's
+ * percentage, when it had one. Null when nothing is due, or rule 4 hides it (fewer than three owners).
+ */
+export function habitCell(now: HabitCounts, before: HabitCounts | null, past: boolean, week: number, review: boolean): { label: string; value: string; sub: string | null } | null {
+  if (!now.due) return null;
+  const pct = (h: HabitCounts) => Math.round((h.unasked / h.due) * 100);
+  const of = `${now.unasked} of ${now.due} ${now.due === 1 ? 'goal' : 'goals'}`;
+  return {
+    label: `${review ? 'Before the review' : 'On time'}, without being asked`,
+    value: past ? `${of}${now.due >= PERCENT_FROM ? ` · ${pct(now)}%` : ''}` : `So far: ${of}`,
+    sub: before && before.due >= PERCENT_FROM && week > 1 ? `Week ${week - 1}: ${pct(before)}%` : null,
+  };
+}
+
+/** The cell's "By week" (spec 2.4): the first review covering most of the set's goals due this week, or the Goals view of
+    the set when none covers any. */
+export function byWeekTo(set: string, due: readonly string[], reviews: readonly { id: string; goals: readonly string[] }[]): string {
+  const ids = new Set(due);
+  let best: { id: string; n: number } | null = null;
+  for (const r of reviews) { const n = r.goals.filter((g) => ids.has(g)).length; if (n && (!best || n > best.n)) best = { id: r.id, n }; }
+  return best ? `/reviews/${best.id}` : `/goals?scope=${set}`;
 }

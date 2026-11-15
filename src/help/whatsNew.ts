@@ -27,9 +27,105 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'fields-import-undo',
+    date: '2026-11-15',
+    title: 'Undo puts a spreadsheet’s field values back',
+    points: [
+      'Undo this import now puts back the field values a Goals sheet changed, and takes out a value it added to a list. An import that changed only field values can be undone too.',
+      'A field can’t be called like one of the Goals sheet’s own columns, such as Owner or Status, so a workbook always loads back as it went out.',
+    ],
+    articles: ['fields', 'import'],
+  },
+  {
+    id: 'metrics-sheet-in',
+    date: '2026-11-14',
+    title: 'Import metrics from a spreadsheet',
+    points: [
+      'The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.',
+      'Leave ID empty to add a metric; give its ID, or its name, to change one. Action retires one, with a Reason, or brings one back.',
+      'The same questions as the metric’s form are asked once, and one Undo puts every row back. AI tools can send the same rows to bulk_change.',
+      'It carries where each metric sits and how far to trust it: Part of, How it relates, Confidence and How it could be gamed, out and back in.',
+    ],
+    articles: ['metric-sheet'],
+  },
+  {
+    id: 'goal-fields-filters',
+    date: '2026-11-14',
+    title: 'Find goals by your own fields, and keep them in spreadsheets',
+    points: [
+      'Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. The filter line says “Stage is Build”, and a saved view keeps it.',
+      'Data’s Goals table and every exported Goals sheet have a column for each field. Change a cell and load the file back to change the goal’s value.',
+      'A value a list doesn’t hold is asked about once, however many rows say it. Only an admin can add it to the list.',
+      'An AI assistant can find goals by their fields too.',
+    ],
+    articles: ['fields', 'goals-filters', 'import'],
+  },
+  {
+    id: 'moment-fixed-as-of-its-week',
+    date: '2026-11-14',
+    title: 'A target reached stays reached in History',
+    points: [
+      'A goal’s History marks a week “Reached its target” or “Back on track” as things stood that week, against the check-ins before it and the plan then.',
+      'A later check-in, a second check-in that week or a change of plan no longer takes the mark away.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'not-measured-yet-status',
+    date: '2026-11-14',
+    title: 'Not measured yet is a status of its own',
+    points: [
+      'A goal whose number nobody measures yet now says “Not measured yet” wherever its status is shown: the Goals list, its page, its metric’s page and the library’s counts, the workbook and the AI tools.',
+      'It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.',
+      'It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it.',
+    ],
+    articles: ['status', 'metrics'],
+  },
+  {
+    id: 'ai-access-switch',
+    date: '2026-11-14',
+    title: 'AI access can be switched off',
+    points: [
+      'AI access can be switched off for a workspace, on Workspace, Features. Every MCP token stops working at once and is kept; switching it back on names them first.',
+      'The MCP tokens have their own Workspace section, AI access, after Access.',
+      'While it is off, an AI tool calling Faro is told so, no token can be made, and a token can still be revoked.',
+    ],
+    articles: ['ai', 'features'],
+  },
+  {
+    id: 'home-habit-cell',
+    date: '2026-11-14',
+    title: 'A leader’s Home says how many goals were in without being asked',
+    points: [
+      'Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.',
+      'By week opens the review that covers them, with its row of weeks.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-leader',
+    date: '2026-11-14',
+    title: 'A leader’s Home: how the week’s check-ins stand',
+    points: [
+      'When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.',
+      'Admins see it over every goal, and a line with how many things there are to sort out in the workspace.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'metric-structure',
+    date: '2026-11-14',
+    title: 'Metrics keep where they sit, and how far to trust them',
+    points: [
+      'A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.',
+      'Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means.',
+    ],
+    articles: ['metric-structure'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
-    title: 'Guardrails on a goal',
+    title: 'Guardrails: the numbers a goal mustn’t make worse',
     points: [
       'A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.',
       'When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much.',

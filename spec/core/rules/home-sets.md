@@ -85,6 +85,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 4: the sets [HOME-MANAGER] › One team (HM3 review, SM1h): My team waits as a tab, being All, yet its scope still makes Your team; Home folds it into “The team’s goals”
 - Home rule 4: the sets [HOME-MANAGER] › a one-team workspace: My team waits on Goals (the same list as All), yet Home still shows the team’s goals that aren’t yours (review of #468)
 - Home rule 4: the sets [HOME-MANAGER] › asTeams: more than twelve goals in two or more teams
+- Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER] › counts over a set drawn as teams, your teams’ first; an admin with neither, every goal; anyone else, nothing
+- Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER] › the goals due this week: in, of, and late; none due, no cell
+- Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER] › the workspace’s line: “{n} things to sort out”, the first and how many more; nothing when there is nothing
 
 ### [src/domain/query.test.ts](../../../src/domain/query.test.ts)
 
@@ -101,6 +104,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - queryParts (find rule 3, on Goals) › says each filter as its label and values, never the search or the switch
 - queryParts (find rule 3, on Goals) › says the reasons for needing attention when they narrow it
 - a module’s filter, declared as a column (architecture 4.2) › reads its parameter once added, compares the column, words it and removes it
+- a module’s filter, declared as a column (architecture 4.2) › reads a family’s parameters by their start (Fields’ f.<field id>), and a column’s test picks several values
 - owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER] › leaves out the asker’s own goals, round-trips through a link, and says “Owner not you”
 - moved and since: what changed (Home rule 5, HM4) › reads and writes moved=<kind>&since=<date> after attention; since alone is nothing
 - moved and since: what changed (Home rule 5, HM4) › says “Changed since Fri 6 Nov: got worse”, and Remove takes both away; a kind it doesn’t know has no words and is no filter

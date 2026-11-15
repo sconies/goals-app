@@ -133,7 +133,7 @@ describe('deleting a check-in and undoing an import ask the same rule', () => {
     expect(undoImport(as('mateo', after, later), imp).restored).toBe(1);
   });
 
-  it('an admin’s workbook row that replaces someone else’s check-in for this week is a correction, with a reason (Lane, 14 Nov)', () => {
+  it('an admin’s workbook row that replaces this week’s check-in on a goal someone else owns is a correction, with a reason (Lane, 14 Nov)', () => {
     const latest = checkInsFor(goal, snapshot.checkIns).at(-1)!;
     expect(latest.week).toBe(week);
     const row: Rec = { __row: '2', id: latest.id, 'goal id': goal.id, week: String(latest.week), value: String(latest.value), why: 'Corrected from the source data, as loaded' };

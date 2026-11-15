@@ -37,6 +37,8 @@ export interface ConformanceWorkspace {
   about: string;
   /** The moment the workspace was built for. Every record is as it stood then. */
   builtFor: string;
+  /** The edge-case workspace (src/spec/edge.ts, spec/conformance/edge): only stage 1's files are made from it. */
+  edge?: boolean;
   cycle: Cycle;
   people: Pick<Person, 'id' | 'name' | 'teamId' | 'admin'>[];
   teams: Team[];
@@ -196,8 +198,8 @@ export function checkInRows(w: ConformanceWorkspace): string[][] {
     const breaches = guardBreaches(g, w.goals, w.cycle, w.checkIns, c.week);
     const e = evaluate(g, w.cycle, c.week, bare, w.checkIns, breaches);
     const called = evaluate(g, w.cycle, c.week, { ...bare, status: c.status }, w.checkIns, breaches);
-    // The habit's moment (rule 3): what this check-in made, against the goal's check-ins posted before it.
-    const m = moment(w.checkIns.filter((x) => x.goalId === c.goalId && x.id !== c.id && x.postedAt < c.postedAt), c, g);
+    // The habit's moment (rule 3): what this check-in made; the rule itself reads only what was posted before it.
+    const m = moment(w.checkIns, c, goal);
     rows.push([c.id, String(c.week), keyOf(goal), e.calc, e.reason ?? '', yes(e.asksTarget), yes(e.needsPath), e.codes.join(' '), c.status, yes(called.greener), called.codes.join(' '), m ? `${m.kind}${m.kind === 'back' ? ` ${m.behind}` : ''}` : '']);
   }
   return rows.sort((a, b) => Number(a[1]) - Number(b[1]) || a[2]!.localeCompare(b[2]!, 'en', { numeric: true }) || a[0]!.localeCompare(b[0]!));
@@ -482,7 +484,7 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
   const ownersThisWeek = s.checkIns.find((c) => c.week === week && c.authorId !== 'amara')!;
   return [
     ...importCases(w),
-    // An admin's row replacing someone else's check-in for this week corrects it, with a reason, and the check-in stays
+    // An admin's row replacing this week's check-in on a goal someone else owns corrects it, with a reason, and the check-in stays
     // its author's (Lane, 14 Nov): the item's author is who checked in, not the admin.
     { case: 'corrects-keeps-author', actor: 'amara', sheet: 'checkIns', rows: [{ ID: ownersThisWeek.id, 'Goal ID': ownersThisWeek.goalId, Week: String(week), 'Next step': 'Corrected from the source data' }], given: { reason: 'The tracker had last week’s number in it' } },
     // This week's check-in is the owner's to load (backlog AD: an admin's workbook brings in past weeks).
@@ -561,8 +563,16 @@ export function readBackRowsOf(w: ConformanceWorkspace): string[][] {
 const field = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((r) => r.map(field).join(',')).join('\n') + '\n';
 
-/** The CSV files, by name. */
+/** Stage 1's files and scorecard-words.csv: all that is made from the edge-case workspace (src/spec/edge.ts). */
+export const EDGE_FILES = ['status', 'flags', 'projection', 'scorecard', 'scorecard-words', 'checkin'] as const;
+export function edgeFiles(w: ConformanceWorkspace): Record<string, string> {
+  const t = conformanceTables(w);
+  return Object.fromEntries(EDGE_FILES.map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])]));
+}
+
+/** The CSV files, by name: from the edge-case workspace, only stage 1's (edgeFiles). */
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
+  if (w.edge) return edgeFiles(w);
   const t = conformanceTables(w);
   return {
     ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),

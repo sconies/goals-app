@@ -699,6 +699,12 @@
       "use": "copy"
     },
     {
+      "id": "HOME-LEADER",
+      "area": "Home",
+      "text": "Someone whose goals span three or more teams sees them as teams, worst first, with counts that open exactly those goals, and how the week's check-ins stand over them (an admin with no such set, over every goal), opening the goals with no check-in yet; the oldest thing waiting on them can be the lead. An admin also sees the workspace's line: how many things there are to sort out, opening Workspace. Teams and goals are ranked, never people.",
+      "use": "copy"
+    },
+    {
       "id": "HOME-OWNER",
       "area": "Home",
       "text": "Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.",
@@ -873,9 +879,21 @@
       "use": "copy"
     },
     {
+      "id": "METRIC-SHEET",
+      "area": "Metrics",
+      "text": "Metrics go out in the workbook and come back through the same preview, rules and undo as any import, and loading an export back changes nothing (MI, round 2's MT6). A row adds a metric (empty ID), or changes one found by ID or by name, any case; Action retires one (with a Reason) or brings one back; an absent column or an empty cell keeps what the metric says. Each refusal and question is the library's own, in the same words as the form: a name used twice, a direction or refresh it can't read, an owner who isn't here, a unit a file can't change on a metric goals use, a change of meaning on one (\"Is it still the same number?\"; the number changing needs a Reason), a name one letter from another. It carries the metric's structure (MQ) as Part of (another metric, by name or ID, in the library or on an earlier row), How it relates (Component, Driver, Control or Breakdown), Confidence (High, Medium or Low) and How it could be gamed, and refuses in the library's words a Part of that would put a metric under itself (a loop) and a How it relates with no Part of. The preview counts new and changed metrics, and one Undo puts every row back. bulk_change takes a metrics list with the same columns. With the Metric library off, the sheet is said once (\"Metric library is off in {workspace}, so the Metrics sheet was not read.\") and nothing of it is read.",
+      "use": "copy"
+    },
+    {
       "id": "METRIC-MEASUREMENT",
       "area": "Metrics",
       "text": "A gap in measurement is visible and owned, not faked (MS). Each metric says whether it is measured today, Measured, Partly or Gap, always as a shape (a filled, half-filled or broken square) and its word, with an optional line on what is missing (at most 300 characters). A metric with a gap or measured only in part is listed under To sort out on its page and in the library (\"Not measured yet: {n} goals held to no number\", \"Only partly measured\") with Say how it's measured. A goal measured by a metric with a gap is held to no number: it says Not measured yet (a broken ring and the words) instead of a status, nothing on it is due, late or quiet, and it projects nothing; linking it to a measured metric, unlinking it, or its metric being measured holds it to its plan again, in the same save, with one Undo and a line in its History. save_metric takes measurement and measurement_note, and get_metric and the export say so.",
+      "use": "copy"
+    },
+    {
+      "id": "METRIC-STRUCTURE",
+      "area": "Metrics",
+      "text": "A metric keeps the register's structure (MQ): an optional parent metric and how it relates to it (component, driver, control or breakdown; a level needs a parent, and no metric is its own parent or under itself), a confidence in its number (high, medium or low) and how it could be gamed, in words beside its definition. Its page says where it sits and lists the metrics under it. save_metric takes parent, level, confidence and gaming, and get_metric says them.",
       "use": "copy"
     },
     {
@@ -1224,15 +1242,33 @@
       "use": "copy"
     },
     {
+      "id": "AI-ACCESS-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches AI access off for a workspace. Off, the MCP server refuses every token of the workspace with one sentence that says so (it still lists its tools, and a refused request doesn’t count as a token’s use), no token can be made, and Workspace, Settings and People show no tokens; a token can still be revoked. Switching it off first names the tokens that stop working, and switching it back on names those that work again. Tokens are kept, not revoked.",
+      "use": "copy"
+    },
+    {
       "id": "TAGS-FIELDS",
       "area": "Goals",
       "text": "A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules.",
       "use": "copy"
     },
     {
+      "id": "TAGS-FILTER",
+      "area": "Goals",
+      "text": "Goals filters by a workspace's own list fields: the Filters sheet has a row per live list field with its values and “Not set” to tick (any of them), the filter line says “Stage is Build” with Remove, the address carries it (/goals?f.<field id>=Build) so a link and a saved view keep it, and an AI assistant's find_goals takes the same filter by name (fields: { Stage: \"Build\" }). Free text is not a filter. Data's Goals table has a column per live field.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-SHEET",
+      "area": "Import",
+      "text": "Every export's Goals sheet has a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, and an export loaded straight back changes nothing. A value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”): only an admin may add it, anyone else leaves those cells empty or fixes the file. A column headed with a name no field has is a column nothing reads.",
+      "use": "copy"
+    },
+    {
       "id": "TAGS-OFF",
       "area": "Architecture",
-      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again.",
+      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), Goals has no field filters and Data no field columns, exports have no field columns and the import names a file's as columns nothing reads, and the fields tools and find_goals' fields filter refuse. Every field and value is kept, and switching it on shows them again.",
       "use": "copy"
     },
     {

@@ -517,11 +517,16 @@ export function setModule(x: ActionContext, ws: { id: string; modulesOff?: strin
   const needing = (root: string): string[] => modules.filter((k) => k.needs.includes(root)).flatMap((k) => [k.name, ...needing(k.id)]);
   const also = [...new Set(needing(id))];
   const name = m!.name;
+  // What each module switched needs of the core's records, in the same save (ModuleRecords.switched).
+  const ids = new Set([id, ...modules.filter((k) => also.includes(k.name)).map((k) => k.id)]);
+  const parts = (x.records ?? []).filter((r) => ids.has(r.module)).flatMap((r) => { const p = r.switched?.(x, on); return p ? [p] : []; });
+  const goals = parts.flatMap((p) => p.goals ?? []);
   return {
     modulesOff: off,
+    ...(goals.length ? { goals } : {}),
     changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited',
       summary: `${on ? 'Switched on' : 'Switched off'} ${name}${also.length ? `, and with it ${also.join(', ')}` : ''}`,
-      diffs: [{ field: name, from: on ? 'Off' : 'On', to: on ? 'On' : 'Off' }] }],
+      diffs: [{ field: name, from: on ? 'Off' : 'On', to: on ? 'On' : 'Off' }] }, ...parts.flatMap((p) => p.changes)],
   };
 }
 

@@ -61,7 +61,7 @@ import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../ap
 import { copyGoalLink, shareGoalImage } from './goalShare';
 import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
-import { isUnmeasured, UNMEASURED_MEANING } from '../domain/unmeasured';
+import { isUnmeasured } from '../domain/unmeasured';
 
 const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
 /* The goals proposed to feed this one, under What feeds it (GE10): loaded only when there are some. */
@@ -369,7 +369,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
         {/* A fact a module adds, such as what measures it (the goal.facts place). */}
         <Place name="goal.facts" goal={goal} />
         <div className="bar-2">
-          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : isUnmeasured(goal) ? <LifeMark k="unmeasured" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
+          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
           <span className="bar-dot" aria-hidden="true">·</span>
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
@@ -378,7 +378,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           {figures.baseline && <span className="bar-baseline">{figures.baseline}</span>}
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
-        {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part="Not measured yet">{UNMEASURED_MEANING}</p>}
+        {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part={STATUS.unmeasured.label}>{STATUS.unmeasured.meaning}</p>}
         {/* A guard past its limit (GR), beside the status: which one, its number and how far past. */}
         {!goal.stoppedAt && breaches.map((b) => <p key={b.guard.id} className="small bar-guard" data-part="Guardrail">{breachWords(b)}</p>)}
         {askedLine && <div className="bar-note">{askedLine}</div>}
@@ -1005,7 +1005,8 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   const why = fix?.diffs.find((d) => d.field === 'Why corrected')?.to;
   // The moment it made (habit rule 3), in small capitals beside its status: never on a correction or an import.
   const imported = app.snapshot.changes.some((x) => x.entity === 'check-in' && x.entityId === c.id && x.importId);
-  const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fix && !imported);
+  // Fixed as of its own week: the rule picks the check-ins posted before it and that week's plan.
+  const m = moment(app.checkInsOf(goal), c, goal, !fix && !imported);
   // Where its number came from (NR 2.4): from the source, or typed over it and why; "Typed by" only beside a sourced one.
   const said = goal.kind === 'milestone' ? null : readingHistoryLine(c, goal, app.person(c.authorId)?.name ?? 'someone who has left', app.today, { nearSourced: app.checkInsOf(goal).some((x) => !!x.reading) });
   return (

@@ -11,7 +11,7 @@
    cleared (value ''), which is what a value with removedAt means to every reader here (fields.ts valueOf). Undo of such
    a change puts the value back (asBefore clears removedAt). Every column is always written: a batch's keys are the
    union of its rows' keys, and a key left out is written null (okr_upsert). */
-import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
+import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
 import type { GoalFieldValue, SavedField } from './types';
 
 /* The keys fields.ts files them under (FIELDS_KEY, VALUES_KEY), written here so the first download, which carries every
@@ -64,5 +64,14 @@ const value: RecordDef<GoalFieldValue> = {
   goalOf: (v) => v.goalId,
 };
 
-const records: Omit<ModuleRecords, 'module'> = { records: [field, value] };
+/* TG2: Goals' filters (`?f.<field id>=Build,Run`) and the Goals sheet's columns (extras.ts) load only when the workspace
+   has a live field, so a workspace with none downloads nothing for them. */
+const records: Omit<ModuleRecords, 'module'> = {
+  records: [field, value],
+  goalExtras: {
+    prefix: 'f.',
+    has: (s) => moduleRows<{ retiredAt?: string | null }>(s, 'tags', FIELDS).some((f) => !f.retiredAt),
+    load: () => import('./extras').then((m) => m.default),
+  },
+};
 export default records;

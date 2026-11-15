@@ -31,8 +31,9 @@ export const MEASUREMENT_NOTE_MAX = 300;
 
 /** A metric's measurement status: measured unless it says otherwise. */
 export const measurementOf = (m: Pick<Metric, 'measurement'>): MetricMeasurement => m.measurement ?? 'measured';
-/** Whether a metric's goals are held to no number: it has a gap. */
-export const holdsToNoNumber = (m: Pick<Metric, 'measurement' | 'removedAt'> | null | undefined): boolean => !!m && !m.removedAt && measurementOf(m) === 'gap';
+/** Whether a metric's goals are held to no number: it has a gap, and is in use (a retired one is measured by nobody
+    ever, so it holds nothing; MS review, medium 4). */
+export const holdsToNoNumber = (m: Pick<Metric, 'measurement' | 'removedAt' | 'retiredAt'> | null | undefined): boolean => !!m && !m.removedAt && !m.retiredAt && measurementOf(m) === 'gap';
 
 /** What's wrong with a metric's measurement status, in words someone can act on. */
 export function measurementProblems(m: Pick<Metric, 'measurement' | 'measurementNote'>): string[] {
@@ -50,14 +51,15 @@ export const measurementWords = (m: Pick<Metric, 'measurement' | 'measurementNot
 };
 
 /**
- * The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link, the goal
- * neither removed nor stopped), whose hold differs from what the metric says. Each with its History line. Empty when
- * nothing changes, so a save that leaves the gap as it was writes no goal.
+ * The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link), whose hold
+ * differs from what the metric says. Each with its History line. Empty when nothing changes, so a save that leaves the
+ * gap as it was writes no goal. Stopped and removed goals are kept in step too (#503 review): restarting or restoring
+ * one re-works nothing, so it must come back held exactly as its metric says now.
  */
 export function heldBy(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, m: Metric, goals: readonly Goal[], links: readonly MetricLink[]): { goals: Goal[]; changes: Change[] } {
   const ids = new Set(links.filter((l) => l.metricId === m.id && !l.removedAt).map((l) => l.goalId));
   const held = holdsToNoNumber(m);
-  const moved = goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt && !!g.unmeasuredSince !== held && g.kind !== 'milestone');
+  const moved = goals.filter((g) => ids.has(g.id) && !!g.unmeasuredSince !== held && g.kind !== 'milestone');
   return {
     goals: moved.map((g) => heldToNoNumber(g, held, x.now)),
     changes: moved.map((g) => heldChange(x, g, m, held)),
@@ -75,6 +77,25 @@ export function heldByLink(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, go
 }
 
 function heldChange(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, g: Goal, m: Metric | null, held: boolean): Change {
-  const summary = held ? `Held to no number until “${m!.name}” is measured` : m && !m.removedAt && measurementOf(m) !== 'gap' ? `Held to its plan again, as “${m.name}” is measured` : 'Held to its plan again';
+  const summary = held ? `Held to no number until “${m!.name}” is measured` : m && !m.removedAt && !m.retiredAt && measurementOf(m) !== 'gap' ? `Held to its plan again, as “${m.name}” is measured` : 'Held to its plan again';
   return { id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal', entityId: g.id, action: 'edited', summary, diffs: [{ field: 'Measured', from: held ? 'Yes' : 'Not yet', to: held ? 'Not yet' : 'Yes' }] };
+}
+
+/** What the library leaves on the goals' own field when it is switched off or on (ModuleRecords.switched). Off, nothing
+    measures a goal, so every goal held to no number is held to its plan again; on, each gap holds its goals once more.
+    Null when no goal moves. */
+export function heldOnSwitch(x: Pick<ActionContext, 'actor' | 'now' | 'newId' | 'snapshot' | 'full'>, on: boolean, metrics: readonly Metric[], links: readonly MetricLink[]): { goals: Goal[]; changes: Change[] } | null {
+  const goals = (x.full ?? x.snapshot).goals;
+  if (!on) {
+    // Stopped and removed goals too, so one restarted or restored later is held as its metric says then (#503 review).
+    const held = goals.filter((g) => !!g.unmeasuredSince);
+    if (!held.length) return null;
+    return {
+      goals: held.map((g) => heldToNoNumber(g, false, x.now)),
+      changes: held.map((g) => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal', entityId: g.id, action: 'edited', summary: 'Held to its plan again, as the metric library is switched off', diffs: [{ field: 'Measured', from: 'Not yet', to: 'Yes' }] }) as Change),
+    };
+  }
+  const parts = metrics.filter((m) => holdsToNoNumber(m)).map((m) => heldBy(x, m, goals, links));
+  const out = { goals: parts.flatMap((p) => p.goals), changes: parts.flatMap((p) => p.changes) };
+  return out.goals.length ? out : null;
 }

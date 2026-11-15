@@ -46,6 +46,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - switching the Wrap-up off: what the read-back counts › counts the wrap-ups on goals not removed, those saying stop, and while it is open the goals still to wrap up
 - switching the Wrap-up off: what the read-back counts › asks first only with a wrap-up written or while it is open
 - switching the Wrap-up off: what the read-back counts › says what leaves and what stays, and that the year still ends
+- switching AI access off or on: what the read-back names (SW2) › names live tokens of people still here, newest first, and counts changes made through MCP
+- switching AI access off or on: what the read-back names (SW2) › names the first five and how many more; with no token it acts at once
 
 #### [src/mcp/switchedTools.test.ts](../../../src/mcp/switchedTools.test.ts)
 

@@ -15,11 +15,13 @@ import { createContext, Fragment, useContext, useRef, useState, type ReactNode }
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
+import { NotFound } from './NotFound';
 import { byFeatureGroup, FEATURE_GROUPS, sectionsFor } from '../core/module';
 import { Avatar, Sheet } from '../ui/bits';
-import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, yearLine } from '../domain/workspaceAttention';
+import { toSortOut } from '../app/toSortOut';
 import { canRestore, canUndoStart, cycleStanding, startOf } from '../domain/removal';
-import { AccessTokens } from '../ui/AiAssistants';
+import { AccessTokens, TokenListSheet } from '../ui/AiAssistants';
 import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
@@ -31,8 +33,8 @@ import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 import { STATUS, WORKSPACE_MEANS } from '../domain/vocabulary';
-import { reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
-import { watchingAsks, watchingOffLines, watchingOffReadBack, wrapUpAsks, wrapUpOffLines, wrapUpOffReadBack } from '../domain/switchOff';
+import { aiAccessOn, reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
+import { aiAccessAsks, aiAccessInUse, aiAccessOffLines, aiAccessOnLines, aiAccessReadBack, watchingAsks, watchingOffLines, watchingOffReadBack, wrapUpAsks, wrapUpOffLines, wrapUpOffReadBack } from '../domain/switchOff';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
 import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
@@ -47,7 +49,7 @@ const NARROW = 720;
 const CORE: WorkspaceSection[] = [
   { id: 'overview', label: CORE_SECTION_LABELS.overview, summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
   { id: 'cycles', label: CORE_SECTION_LABELS.cycles, summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
-  { id: 'access', label: CORE_SECTION_LABELS.access, summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
+  { id: 'access', label: CORE_SECTION_LABELS.access, summary: 'Who the admins are.', admins: true, element: <AccessSection /> },
   { id: 'features', label: CORE_SECTION_LABELS.features, summary: 'How this workspace works, and the optional parts of Faro.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
   { id: 'privacy', label: CORE_SECTION_LABELS.privacy, summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
@@ -55,7 +57,7 @@ const CORE: WorkspaceSection[] = [
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
-const ANCHORS: Record<string, string> = { cycles: 'cycles', ai: 'access', tokens: 'access', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
+const ANCHORS: Record<string, string> = { cycles: 'cycles', ai: 'ai', tokens: 'ai', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
 
 /** The sections someone sees, in order (rule 7, src/core/module.ts sectionsFor). */
 export function useSections(): WorkspaceSection[] {
@@ -93,7 +95,8 @@ export function WorkspaceHome({ section }: { section?: string }) {
   const id = section ?? 'overview';
   const here = all.find((s) => s.id === id);
   const shown = sections.find((s) => s.id === id);
-  const body = !here ? null : shown ? here.element : <AdminsOnly label={here.label} />;
+  // A section of a feature switched off here (AI access's, SW2), or none at all: Page not found, saying which is off.
+  const body = !here ? <NotFound /> : shown ? here.element : <AdminsOnly label={here.label} />;
   const ctx: Ctx = { narrow, sections, all };
   const ws = workspaceName(app.ws, app.mode);
   // A phone opens a section on its own page, named by it, with Workspace to go back to; /workspace is About.
@@ -227,7 +230,7 @@ function AboutSection() {
   const ws = workspaceName(app.ws, app.mode);
   // What an admin has to sort out (rule 3), then each module section's own, then what a module with no section raises
   // (AR2: toSortOut).
-  const needs = [...workspaceNeeds(app.snapshot, app.cycle, admin, { reviews: reviewsOn(on) }), ...sections.flatMap((s) => s.needs?.(app.snapshot, app.viewer) ?? []), ...screens.flatMap((m) => m.toSortOut?.(app.snapshot, app.viewer) ?? [])];
+  const needs = toSortOut(app.snapshot, app.cycle, app.viewer, reviewsOn(on), sections, screens);
   const shownNeeds = all ? needs : needs.slice(0, NEEDS_SHOWN);
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const admins = adminsLine(app.snapshot.people);
@@ -360,21 +363,22 @@ function CyclesSection() {
   );
 }
 
-/** Access (admins, WR3): the admins, where they are made and taken back, then every MCP token. */
+/** Access (admins, WR3): the admins, where they are made and taken back. The MCP tokens are AI access's own section (SW2). */
 function AccessSection() {
   const app = useApp();
+  const { on } = useModules();
   const [adding, setAdding] = useState(false);
   const setAdmin = useSetAdmin();
   const admins = app.snapshot.people.filter((p) => p.admin).sort((a, b) => a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base' }));
   return (
     <>
-      <SectionHead id="access">Who the admins are, and the MCP tokens that let an AI tool act as someone here.</SectionHead>
+      <SectionHead id="access">Who the admins are.</SectionHead>
       <section className="stack admins-block" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-admins">
         <div className="row between">
           <h3 className="block-title" id="ws-admins">Admins · {admins.length}</h3>
           <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add an admin</button>
         </div>
-        <p className="hint">Admins add people, change teams and settings, and make MCP tokens. There is always at least one.</p>
+        <p className="hint">Admins add people, change teams and settings{aiAccessOn(on) ? ', and make MCP tokens' : ''}. There is always at least one.</p>
         <ul className="admin-list" aria-label="Admins">
           {admins.map((p) => (
             <li key={p.id} className="admin-row">
@@ -385,8 +389,18 @@ function AccessSection() {
           ))}
         </ul>
       </section>
-      <AccessTokens />
       {adding && <AddAdminSheet setAdmin={setAdmin} onClose={() => setAdding(false)} />}
+    </>
+  );
+}
+
+/** AI access (SW2, admins, while AI access is on): every MCP token, and Make a token. The ai-access module adds it, after
+    Access; SW7 moves it into the module's folder. */
+export function AiAccessSection() {
+  return (
+    <>
+      <SectionHead id="ai">The MCP tokens that let an AI tool act as someone here.</SectionHead>
+      <AccessTokens />
     </>
   );
 }
@@ -540,13 +554,14 @@ function Features() {
   const app = useApp();
   const { installed, on, off } = useModules();
   const [busy, setBusy] = useState<string | null>(null);
-  const [asking, setAsking] = useState<string | null>(null);
+  const [asking, setAsking] = useState<{ id: string; to: boolean } | null>(null);
+  const [seeing, setSeeing] = useState(false);
   const [rhythm, setRhythm] = useState(false);
   // The rhythm's Undo runs after the sheet has closed and the cycle has changed: it acts on the app as it is then.
   const latest = useRef(app);
   latest.current = app;
   const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
-  const is = { reviews: (id: string) => reviewsOn(new Set([id])), watching: (id: string) => watchingOn(new Set([id])), wrapUp: (id: string) => wrapUpOn(new Set([id])) };
+  const is = { reviews: (id: string) => reviewsOn(new Set([id])), watching: (id: string) => watchingOn(new Set([id])), wrapUp: (id: string) => wrapUpOn(new Set([id])), ai: (id: string) => aiAccessOn(new Set([id])) };
   const flip = async (id: string, next: boolean) => {
     if (busy) return;
     setBusy(id);
@@ -563,10 +578,13 @@ function Features() {
   const s = app.snapshot;
   const live = s.reviews.filter((r) => !r.removedAt && !r.endedAt).length;
   const watch = watchingOffReadBack({ people: s.people, watches: s.watches ?? [], goals: s.goals });
+  // The demo has no working token (they work only in the real app), so it names none, as every token list there says.
+  const ai = aiAccessReadBack({ people: s.people, tokens: app.mode === 'demo' ? [] : s.tokens ?? [], changes: s.changes });
   const wrap = wrapUpOffReadBack({ retros: s.retros ?? [], goals: s.goals, open: wrapUpOpenOn(app.cycle, app.today), next: nextCycleShape(app.cycle).name });
   // The third line (spec 4.1): from the core beside each switch's answer, until each module says its own.
   const third = (id: string): string | null => {
     if (is.reviews(id) && live > 0) return `${live} ${live === 1 ? 'review is' : 'reviews are'} set up.`;
+    if (is.ai(id)) return aiAccessInUse(ai);
     if (is.watching(id) && watch.people > 0) return watch.people === 1 ? '1 person watches goals here.' : `${watch.people} people watch goals here.`;
     if (is.wrapUp(id)) {
       const d = cycleDates(app.cycle);
@@ -576,7 +594,8 @@ function Features() {
     return null;
   };
   // Switching off asks first for a feature that owns something to keep (spec 4.2); otherwise it acts at once.
-  const asks = (id: string) => is.reviews(id) || (is.watching(id) && watchingAsks(watch)) || (is.wrapUp(id) && wrapUpAsks(wrap));
+  // AI access asks both ways while tokens are kept: off names what stops, on names what works again (SW2).
+  const asks = (id: string, to: boolean) => (to ? is.ai(id) && aiAccessAsks(ai) : is.reviews(id) || (is.watching(id) && watchingAsks(watch)) || (is.wrapUp(id) && wrapUpAsks(wrap)) || (is.ai(id) && aiAccessAsks(ai)));
   const row = (m: (typeof installed)[number]) => {
     const why = off.get(m.id);
     const switched = (app.ws.modulesOff ?? []).includes(m.id);
@@ -592,14 +611,16 @@ function Features() {
         {/* The state in a word beside the switch, never only its position (WR4, P6). */}
         <span className="switch-word" aria-hidden="true">{on.has(m.id) ? 'On' : 'Off'}</span>
         <input type="checkbox" className="switch" checked={!switched} disabled={!!busy} aria-label={m.name}
-          onChange={(e) => { if (!e.target.checked && asks(m.id)) setAsking(m.id); else void flip(m.id, e.target.checked); }} />
+          onChange={(e) => { if (asks(m.id, e.target.checked)) setAsking({ id: m.id, to: e.target.checked }); else void flip(m.id, e.target.checked); }} />
       </label>
     );
   };
   const ws = workspaceName(app.ws, app.mode).name;
   const people = s.people.filter((p) => !p.removedAt).length;
   const close = () => setAsking(null);
-  const go = () => { const id = asking!; setAsking(null); void flip(id, false); };
+  const go = () => { const { id, to } = asking!; setAsking(null); setSeeing(false); void flip(id, to); };
+  const goingOff = asking && !asking.to ? asking.id : null;
+  const seeTokens = <button type="button" className="btn ghost" onClick={() => setSeeing(true)}>{ai.tokens.length === 1 ? 'See the token' : `See the ${ai.tokens.length} tokens`}</button>;
   return (
     <section className="block features-block" aria-label="Features">
       <div className="stack features-group" aria-labelledby="features-how">
@@ -625,9 +646,13 @@ function Features() {
       })}
       <p className="hint">Switching one off hides it and keeps what it saved. Recording how the app is used is under <Link to="/workspace/privacy">Privacy</Link>. <Link to="/help/features">About features</Link></p>
       {rhythm && <RhythmSheet latest={latest} onClose={() => setRhythm(false)} />}
-      {asking && is.reviews(asking) && <ReviewsOffSheet onClose={close} onSwitch={go} />}
-      {asking && is.watching(asking) && <ReadBackSheet title={`Switch off Watching in ${ws}?`} people={people} lines={watchingOffLines(watch, reviewsOn(on))} primary="Switch off Watching" onClose={close} onSwitch={go} />}
-      {asking && is.wrapUp(asking) && <ReadBackSheet title={`Switch off the Wrap-up in ${ws}?`} people={people} lines={wrapUpOffLines(wrap)} primary="Switch off the Wrap-up" onClose={close} onSwitch={go} />}
+      {goingOff && is.reviews(goingOff) && <ReviewsOffSheet onClose={close} onSwitch={go} />}
+      {goingOff && is.watching(goingOff) && <ReadBackSheet title={`Switch off Watching in ${ws}?`} people={people} lines={watchingOffLines(watch, reviewsOn(on))} primary="Switch off Watching" onClose={close} onSwitch={go} />}
+      {goingOff && is.wrapUp(goingOff) && <ReadBackSheet title={`Switch off the Wrap-up in ${ws}?`} people={people} lines={wrapUpOffLines(wrap)} primary="Switch off the Wrap-up" onClose={close} onSwitch={go} />}
+      {asking && is.ai(asking.id) && !seeing && (asking.to
+        ? <ReadBackSheet title={`Switch AI access back on in ${ws}?`} people={people} lines={aiAccessOnLines(ai)} primary="Switch on AI access" aside={seeTokens} onClose={close} onSwitch={go} />
+        : <ReadBackSheet title={`Switch off AI access in ${ws}?`} people={people} lines={aiAccessOffLines(ai)} primary="Switch off AI access" aside={seeTokens} onClose={close} onSwitch={go} />)}
+      {asking && is.ai(asking.id) && seeing && <TokenListSheet onClose={() => setSeeing(false)} />}
     </section>
   );
 }
@@ -690,7 +715,7 @@ function RhythmSheet({ latest, onClose }: { latest: { current: ReturnType<typeof
 
 /** A read-back before switching a feature off (spec 4.2): for everyone here, what leaves and what stays, then Cancel and
     the primary. Escape and Cancel change nothing. */
-function ReadBackSheet({ title, people, lines, primary, onClose, onSwitch }: { title: string; people: number; lines: { strong: string; rest: string }[]; primary: string; onClose: () => void; onSwitch: () => void }) {
+function ReadBackSheet({ title, people, lines, primary, aside, onClose, onSwitch }: { title: string; people: number; lines: { strong: string; rest: string }[]; primary: string; aside?: ReactNode; onClose: () => void; onSwitch: () => void }) {
   return (
     <Sheet open onClose={onClose} title={title}>
       <div className="stack readback" style={{ gap: 'var(--s3)' }}>
@@ -698,6 +723,7 @@ function ReadBackSheet({ title, people, lines, primary, onClose, onSwitch }: { t
         <ul className="readback-lines">
           {lines.map((l) => <li key={l.strong + l.rest}>{l.strong && <strong>{l.strong}</strong>}{l.rest}</li>)}
         </ul>
+        {aside}
         <div className="foot-row">
           <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn primary big-btn" onClick={onSwitch}>{primary}</button>

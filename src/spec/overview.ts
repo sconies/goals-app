@@ -53,6 +53,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['goals-page', 'The Goals page: whose goals, how they are grouped, and the switch'],
   ['home', 'Home: what is asked of you today'],
   ['home-sets', 'Home: your goals, your team and what you watch'],
+  ['home-leader', 'Home: a leader’s week, and the workspace’s line'],
   ['home-changed', 'Home: what changed since you last looked'],
   ['habit', 'The habit: the run, the receipt, a moment and the measure'],
 ];
@@ -102,7 +103,8 @@ export function systemOverview(): string {
     '- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action, and its fields, states and buttons (with who sees each); the views and overlays with no route of their own',
     '- [The design rules](spec/core/design-rules.md): the look, what is banned and what we do instead',
     '- [The Help guide](spec/core/help-guide.md): every Help article in full',
-    '- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them',
+    '- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them; each journey’s steps and checks, in words, at `spec/core/journeys/<id>.md` (a module’s at `spec/modules/<module>/journeys/<id>.md`)',
+    '- [Goals’ filters and sort](spec/core/goals-query.md): every filter and sort a Goals link can say, its values and words',
     '- [The requirements](spec/core/requirements.md): each one, linked to its code and tests',
     '- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back',
     '- [The actions](spec/core/actions.md): every change a person can make, as the command port runs it: input, result, who may and refusals',

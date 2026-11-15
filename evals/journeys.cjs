@@ -147,6 +147,10 @@ async function pickWeek(scope, label, typed) {
   await field.fill(typed);
   await field.press('Enter');
 }
+/** Awaits a wait, and says which one it was if it times out (14 Nov: U109's three keyboard waits all read "Timeout 30000ms"). */
+async function waitNamed(what, wait) {
+  try { return await wait; } catch (e) { throw new Error(`${what}: ${String(e.message || e).split('\n')[0]}`); }
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -157,7 +161,9 @@ async function see(p, text, msg, timeout = 5000) {
     for (let i = 0; i < n; i++) if (await all.nth(i).isVisible().catch(() => false)) return;
     await page.waitForTimeout(100);
   }
-  fail(msg || `expected to see “${text}”`);
+  // What was there instead, so a miss under load says what the screen showed (14 Nov, U159's intermittent miss).
+  const shown = String(await (typeof p.page === 'function' ? p.innerText({ timeout: 1000 }) : page.locator('body').innerText({ timeout: 1000 })).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 240);
+  fail(`${msg || `expected to see “${text}”`}${shown ? ` [it showed: “${shown}”]` : ''}`);
 }
 
 /** Everything a journey needs: counted interactions, checkpoints and criteria. */
@@ -291,6 +297,11 @@ async function newPage(device, viewer) {
   if (process.env.EVAL_CLOCK) await ctx.clock.setSystemTime(new Date(process.env.EVAL_CLOCK));
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
   const p = await ctx.newPage();
+  // The page's last thirty console lines, of every kind, for the log a failed journey leaves beside its screenshot.
+  p.tail = [];
+  const note = (line) => { p.tail.push(line); if (p.tail.length > 30) p.tail.shift(); };
+  p.on('pageerror', (e) => note(`pageerror ${e.message}`));
+  p.on('console', (m) => note(`${m.type()} ${m.text()}`.slice(0, 400)));
   p.on('pageerror', (e) => consoleErrors.push(`${device} ${p.url()} · ${e.message}`));
   p.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|net::ERR_|Failed to load resource/.test(m.text())) consoleErrors.push(`${device} ${p.url()} · ${m.text()}`); });
   return p;
@@ -1842,7 +1853,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER', 'HOME-LEADER', 'HABIT-MEASURE'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”; on Wed 11 Nov one cell says how many of them are checked in for week 46, and opens the rest', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1905,6 +1916,27 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   const since = (await table.locator('thead th').last().innerText()).trim();
   if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
   await h.checkpoint('changed');
+  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
+  // the goals with no check-in for the week yet, and Goals counts exactly those.
+  await p.goto(day('2026-11-11'));
+  const cell = p.locator('.dash-standing');
+  await cell.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals?/) || [];
+  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
+  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
+  // Beside it (HB3), the same goals' measure: before the due day, “So far: {u} of {n} goals”; no name. (A cell's
+  // under-line, “Due by …” and By week, is left out on a phone.)
+  const habitSaid = (await p.locator('.dash-habit').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  h.set('attention', /without being asked So far: \d+ of \d+ goals/.test(habitSaid) && !s0.people.some((x) => habitSaid.includes(x.name)), `the habit cell reads “${habitSaid}”`);
+  if (a) {
+    // A check on where the cell leads, not a step of the leader's task, so not counted against its budget.
+    await cell.click();
+    await p.waitForURL(/scope=watching&checkedin=no/);
+    await p.locator('.goals-line').first().waitFor();
+    const gl = await p.locator('.goals-line').first().innerText();
+    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
+  }
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();
@@ -2343,7 +2375,7 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
     localStorage.setItem('goals-live-workspace', 'ws_live');
     localStorage.setItem('goals-live-me:ws_live', 'amara');
   });
-  await p.goto(live('/workspace/access'));
+  await p.goto(live('/workspace/ai'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
   await p.getByRole('heading', { name: /^MCP tokens/ }).scrollIntoViewIfNeeded();
   h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
@@ -4075,23 +4107,27 @@ journey('U59', ['WORKSPACE-ABOUT', 'WORKSPACE-SECTIONS'], 'Workspace opens on Ab
   await p.context().close();
 }, ['logged']);
 
+/** A workspace of its own in the browser's storage (U61's, shared with U176 and the design check): Rosa Lind (its admin) and Omar
+    Haddad, then more people from the demo's, one team with no lead, four goals and a weekly review. */
+const seedFieldWorkspace = (p, n) => p.evaluate(async (count) => {
+  const full = await window.__goalsStore.load('platform-org');
+  const base = full.people.slice(0, count).map((x, i) => ({ ...x, admin: i === 0, teamId: 'field', leftAt: null }));
+  const people = [{ ...base[0], id: 'rosa', name: 'Rosa Lind', initials: 'RL', email: 'rosa@example.com' }, { ...base[1], id: 'omar', name: 'Omar Haddad', initials: 'OH', email: 'omar@example.com' }, ...base.slice(2)];
+  const goals = full.goals.filter((g) => !g.removedAt && !g.stoppedAt && g.cycleId === full.cycles[0].id).slice(0, 4).map((g) => ({ ...g, ownerId: 'rosa', teamId: 'field', parentId: null }));
+  const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
+  const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
+  localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
+  localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], modules: {}, goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
+  localStorage.setItem('goals-app-workspace', 'ws_field');
+  localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
+}, n);
+
 journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
   await p.locator('.side:visible, .tabbar:visible').first().waitFor();
   // A workspace just set up: Rosa (its admin) and Omar, one team with no lead, four goals and a weekly review.
-  const seed = (n) => p.evaluate(async (count) => {
-    const full = await window.__goalsStore.load('platform-org');
-    const base = full.people.slice(0, count).map((x, i) => ({ ...x, admin: i === 0, teamId: 'field', leftAt: null }));
-    const people = [{ ...base[0], id: 'rosa', name: 'Rosa Lind', initials: 'RL', email: 'rosa@example.com' }, { ...base[1], id: 'omar', name: 'Omar Haddad', initials: 'OH', email: 'omar@example.com' }, ...base.slice(2)];
-    const goals = full.goals.filter((g) => !g.removedAt && !g.stoppedAt && g.cycleId === full.cycles[0].id).slice(0, 4).map((g) => ({ ...g, ownerId: 'rosa', teamId: 'field', parentId: null }));
-    const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
-    const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
-    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
-    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], modules: {}, goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
-    localStorage.setItem('goals-app-workspace', 'ws_field');
-    localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
-  }, n);
+  const seed = (n) => seedFieldWorkspace(p, n);
   await seed(2);
   await p.goto(url('/workspace'));
   await p.locator('.ws-facts').waitFor();
@@ -4882,7 +4918,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
-  await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
+  await see(p, 'Read Goals, Plan, Check-ins, People and Metrics', 'the preview does not say which sheets it read');
   await h.checkpoint('import preview');
   await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
@@ -6976,11 +7012,11 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await from.focus();
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').getByRole('textbox').waitFor();
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input'));
+  await waitNamed('focus reaches the week box after Enter', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input')));
   await p.keyboard.press('ArrowDown');
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]'));
+  await waitNamed('ArrowDown moves focus into the week list', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]')));
   for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
-  await p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40'));
+  await waitNamed('five ArrowUps reach week 40', p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40')));
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
@@ -7217,7 +7253,7 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await t.context().close();
 }, []);
 
-journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
+journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with its own status shape, on its page and in the Goals list filtered to that status, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/metric_flaky-rate/edit'));
   const group = p.getByRole('group', { name: 'Is it measured today' });
@@ -7236,7 +7272,16 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.goto(url('/goals/lead-flaky'));
   const bar = p.locator('.goal-bar');
   await see(bar, 'Not measured yet', 'the goal does not say it is held to no number');
-  h.set('errors', (await bar.locator('.life-shape').count()) >= 1, 'the goal’s Not measured yet has no shape');
+  // Its own status, shape and word (Lane, 14 Nov), on its page and in the Goals list, never No check-in yet.
+  h.set('errors', (await bar.locator('.status-shape[data-status="unmeasured"]').count()) >= 1, 'the goal’s Not measured yet has no status shape of its own');
+  await p.goto(url('/goals?scope=all&status=unmeasured'));
+  const listShape = p.locator('main .status-shape[data-status="unmeasured"]').first();
+  await listShape.waitFor();
+  await see(p.locator('main'), 'Not measured yet', 'the Goals list does not say the goal is Not measured yet');
+  // The Board has a lane for it, as for every status (#510 review), with the held goal's card in it.
+  const title = ((await h.snapshot()).goals ?? []).find((x) => x.id === 'lead-flaky').title;
+  await p.goto(url('/goals?scope=all&view=board&status=unmeasured'));
+  await see(p.getByRole('region', { name: /^Not measured yet, 1$/ }), title, 'the Board has no Not measured yet lane with the held goal’s card');
   const held = await h.snapshot();
   const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
   // Said to be measured again: the goal is held to its plan once more.
@@ -7248,6 +7293,43 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
   const m = ((after.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
   h.set('logged', !!g?.unmeasuredSince && !g2?.unmeasuredSince && (m?.measurement ?? 'measured') === 'measured', !g?.unmeasuredSince ? 'the gap did not hold the goal to no number' : 'Measured again did not let go of the goal');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
+journey('U172', ['METRIC-STRUCTURE'], 'A register’s structure kept in the library (MQ): as Rhea, Flaky test rate is made a control on Lead time for changes, with Medium confidence and how it could be gamed; its page says “A control on Lead time for changes.” with the gaming line beside its meaning, Lead time for changes lists it under Where it sits, and Lead time can’t be put under Flaky test rate (“It’s already under this one”)', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  const parent = p.getByRole('button', { name: /^Part of\b/ });
+  await parent.waitFor();
+  h.set('entry', true);
+  await pickIn(p, /^Part of\b/, 'Lead time for', /Lead time for changes/);
+  await h.click(p.getByRole('group', { name: 'How it relates' }).getByRole('button', { name: 'Control' }));
+  await h.click(p.getByRole('group', { name: 'Confidence in the number' }).getByRole('button', { name: 'Medium' }));
+  await h.fill(p.getByLabel('How it could be gamed'), 'Retrying failed tests until they pass hides the flakes.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  h.set('progress', true);
+  await see(p.locator('.metric-structure'), 'A control on', 'the metric does not say where it sits');
+  await see(p, 'Retrying failed tests until they pass hides the flakes.', 'how it could be gamed is not beside its meaning');
+  await see(p.locator('.metric-facts'), 'Medium', 'the confidence is not among its facts');
+  await h.checkpoint('placed');
+  const s1 = await h.snapshot();
+  const m = ((s1.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
+  h.set('logged', m?.parentId === 'metric_lead-time' && m?.level === 'control' && m?.confidence === 'medium' && /hides the flakes/.test(m?.gaming ?? ''), 'the structure was not saved on the metric');
+  // Its parent lists it, with its level.
+  await h.click(p.locator('.metric-structure').getByRole('link', { name: 'Lead time for changes' }));
+  await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  const kids = p.locator('.metric-children');
+  await see(kids, 'Flaky test rate', 'the parent does not list the metric under it');
+  h.set('attention', /Control/.test(await kids.innerText()), 'the child is listed without its level');
+  // No loops: Lead time can’t go under a metric already under it.
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await h.click(p.getByRole('button', { name: /^Part of\b/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'Flaky test');
+  const under = p.locator('.pick.open').getByRole('option', { name: /Flaky test rate/ }).first();
+  await under.waitFor();
+  h.set('errors', (await under.getAttribute('aria-disabled')) === 'true' && /already under this one/.test(await under.innerText()), 'a metric under this one could be chosen as its parent, or did not say why not');
   h.set('finish', true);
   await p.context().close();
 }, []);
@@ -7351,6 +7433,190 @@ journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as A
   h.set('finish', true);
   await p.context().close();
 }, []);
+
+/** Fields' journeys (TG2): Stage (Discover, Build, Run) saved straight into the demo, with Flaky test rate in Build and
+    Base image build time in Discover, as an admin would have set them; the page reloaded to read it. */
+async function seedStage(p) {
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  await p.evaluate(async () => {
+    const at = new Date().toISOString();
+    const field = { id: 'fld_stage', name: 'Stage', kind: 'list', options: ['Discover', 'Build', 'Run'], position: 0, createdBy: 'amara', createdAt: at, retiredAt: null, retiredBy: null };
+    const v = (goalId, value) => ({ id: `${goalId}:fld_stage`, goalId, fieldId: 'fld_stage', value, setBy: 'amara', setAt: at });
+    await window.__goalsStore.commit('platform-org', { modules: { tags: { fields: [field], fieldValues: [v('lead-flaky', 'Build'), v('ci-docker', 'Discover')] } }, changes: [] });
+  });
+  await p.reload();
+}
+
+journey('U177', ['TAGS-FILTER', 'SAVED-VIEWS'], 'Goals filtered by a workspace’s own field (TG2): as Amara, with Stage on two goals, the Filters sheet has a Stage row (Discover · Build · Run · Not set); ticking Build lists Flaky test rate and not Base image build time, the filter line says “Stage is Build” with Remove, and the address carries it; saved as a view “Building”, plain Goals and then the view bring the same goals back, and Data’s Goals table has a Stage column', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await seedStage(p);
+  await p.goto(url('/goals?scope=all'));
+  await h.inView(p.getByRole('button', { name: /^Filter(s| and sort)/ }), 'entry', 'Filters');
+  await h.click(p.getByRole('button', { name: /^Filter(s| and sort)/ }));
+  const sheet = p.getByRole('dialog', { name: 'Filter goals' });
+  const row = sheet.getByRole('group', { name: 'Stage' });
+  await row.waitFor();
+  const words = (await row.innerText()).replace(/\s+/g, ' ').trim();
+  h.set('parity', /Stage.*Discover.*Build.*Run.*Not set/.test(words), `the Stage row says “${words}”`);
+  await h.click(row.getByLabel('Build'));
+  await h.checkpoint('filters');
+  await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
+  const remove = p.getByRole('button', { name: 'Remove the filter Stage is Build' });
+  await remove.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('attention', await remove.isVisible(), 'the filter line does not say “Stage is Build” with Remove');
+  await see(p, 'Flaky test rate in the main pipelines', 'the goal in Build is not listed');
+  // Fields' filters load once the workspace has a field (not with the first download): the list narrows when they have.
+  const listed = async () => { await p.locator('main').getByText('Base image build time').first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}); return (await p.locator('main').innerText()).includes('Base image build time'); };
+  h.set('progress', !(await listed()) && /[?&]f\.fld_stage=Build/.test(p.url()), `the goal in Discover is listed, or the address (${p.url()}) does not carry the filter`);
+  await h.checkpoint('filtered');
+  // Saved as a view: the parameter goes with it, and the view brings the goals back.
+  await viewsAction(h, p, 'Save this view…');
+  const save = p.getByRole('dialog', { name: 'Save this view' });
+  await h.fill(save.getByLabel('Name'), 'Building');
+  await h.click(save.getByRole('button', { name: 'Save view' }));
+  await save.waitFor({ state: 'hidden' });
+  const s = await h.snapshot();
+  h.set('logged', (s.views ?? []).some((v) => v.name === 'Building' && v.params.includes('f.fld_stage=Build') && !v.deletedAt), 'the view was not saved with the Stage filter');
+  await p.goto(url('/goals?scope=all'));
+  await see(p, 'Base image build time', 'plain Goals does not list every goal');
+  await openSaved(h, p, /Building/);
+  await see(p, 'Flaky test rate in the main pipelines', 'opening the view does not list the goal in Build');
+  const back = p.getByRole('button', { name: 'Remove the filter Stage is Build' });
+  await back.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('finish', !(await listed()) && await back.isVisible(), 'the view did not bring the Stage filter back');
+  // Data's Goals table: a column per live field.
+  await p.goto(url('/data?t=goals'));
+  await p.locator('main table').first().waitFor();
+  h.set('errors', (await p.locator('main table thead').first().innerText()).includes('Stage'), 'Data’s Goals table has no Stage column');
+  await p.context().close();
+});
+
+journey('U178', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await seedStage(p);
+  await p.goto(url('/data/import'));
+  await h.inView(p.getByRole('button', { name: 'Download the workbook' }), 'entry', 'Download the workbook');
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the workbook' }))]);
+  const file = path.join(require('os').tmpdir(), `u176-${Date.now()}.xlsx`);
+  await download.saveAs(file);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
+  await see(p, 'Nothing would change', 'the workbook loaded straight back changes something', 15000);
+  h.set('parity', !(await p.locator('main').innerText()).includes('the column Stage'), 'the file line says Stage is a column nothing reads');
+  await h.checkpoint('round trip');
+  const s0 = await h.snapshot();
+  const g = (id) => s0.goals.find((x) => x.id === id);
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('stages.csv', `Key,Goal,Stage\n${g('lead-flaky').key},${g('lead-flaky').title},Operate\n${g('ci-docker').key},${g('ci-docker').title},operate\n`));
+  const ask = 'Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?';
+  await see(p, ask, 'a value Stage doesn’t hold is not asked about');
+  // One question for both rows: one answer to give (the group's sentence may also be its example).
+  h.set('attention', (await p.getByRole('radio', { name: 'Add “Operate” to Stage' }).count()) === 1, 'the value is asked about more than once');
+  await h.checkpoint('asked');
+  await h.click(p.getByRole('radio', { name: 'Add “Operate” to Stage' }));
+  await h.click(p.getByRole('button', { name: /^Save 2 changes/ }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const vals = s.modules?.tags?.fieldValues ?? [];
+  const f = (s.modules?.tags?.fields ?? []).find((x) => x.id === 'fld_stage');
+  h.set('finish', !!f && f.options.includes('Operate') && ['lead-flaky', 'ci-docker'].every((id) => vals.some((v) => v.goalId === id && v.value === 'Operate')), 'Operate was not added, or the goals are not in it');
+  h.set('logged', s.changes.some((c) => c.entity === 'field' && c.goalId === 'lead-flaky' && c.summary === 'Stage: Build → Operate' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Spreadsheet')), 'History does not say “Stage: Build → Operate” via the spreadsheet');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+});
+journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only, Settings has no “Your MCP tokens” and the inbox’s Connect Claude says it is switched off, with a link to Features; switched back on, the section is back after Access', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access is not its own Workspace section');
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: 'AI access', exact: true });
+  await box.scrollIntoViewIfNeeded();
+  await h.inView(box, 'entry', 'AI access’s switch');
+  const beyond = await p.locator('.features-group').filter({ has: p.getByRole('heading', { name: 'Beyond this workspace' }) }).innerText();
+  h.set('attention', /AI access/.test(beyond), 'AI access is not under Beyond this workspace');
+  await h.checkpoint('features');
+  // The demo has no token (they work only in the real app), so switching off acts at once: nothing to name.
+  await h.click(box);
+  await see(p, 'AI access is off in');
+  if (await p.getByRole('dialog', { name: /^Switch off AI access in / }).count()) fail('with no token, switching AI access off still asked first');
+  h.set('one-action', true);
+  // Its section is gone: not in the menu, and its address says it is off.
+  await p.goto(url('/workspace/access'));
+  await see(p, 'Who the admins are.');
+  if (/MCP tokens/.test(await p.locator('.page.workspace').innerText())) fail('Access still lists MCP tokens with AI access off');
+  if (device === 'desktop' && await p.getByRole('navigation', { name: 'Workspace sections' }).getByRole('link', { name: 'AI access' }).count()) fail('Workspace’s menu still has AI access');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'Page not found');
+  await see(p, 'AI access is switched off in', '/workspace/ai does not say AI access is switched off');
+  // Settings: no “Your MCP tokens”.
+  await p.goto(url('/settings'));
+  await p.locator('.page').first().waitFor();
+  await see(p, 'Settings');
+  if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  // The inbox's Connect Claude says it is off, and gives no set-up for a server that refuses every call (review of #504).
+  await p.goto(url('/feedback'));
+  const inbox = p.locator('#inbox');
+  await h.click(inbox.getByRole('button', { name: 'Connect Claude' }).first());
+  const connect = inbox.locator('.connect');
+  await see(connect, 'AI access is switched off in', 'with AI access off, Connect Claude does not say so');
+  if (await connect.getByText(/claude mcp add|Make a token/).count()) fail('with AI access off, Connect Claude still gives the set-up');
+  if (!(await connect.getByRole('link', { name: 'Workspace, Features' }).count())) fail('Connect Claude does not link an admin to Workspace, Features');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off AI access'), 'switching AI access off was not logged');
+  // Back on: the section is back.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'AI access is on in');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access back on, its section is not back');
+  await p.goto(url('/settings'));
+  await see(p, 'Your MCP tokens', 'AI access back on, Settings has no “Your MCP tokens”');
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
+journey('U176', ['HOME-LEADER'], 'The admin’s workspace line on Home, drawn: in a workspace with 12 people and one admin, Rosa’s Home has a block headed with the workspace’s name, “{n} things to sort out” with the first one’s sentence and “See them”; See them opens About, whose To sort out list has the same {n}; a member sees none of it, and a two-person workspace just set up has none either', 5, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  // Day one: Rosa and Omar, nothing to sort out, so no line.
+  await seedFieldWorkspace(p, 2);
+  await p.goto(url('/'));
+  await p.locator('.page').first().waitFor();
+  await p.getByRole('heading', { level: 1 }).first().waitFor();
+  const day1 = await p.locator('.home-sort-out').count();
+  // A year on: 12 people and still one admin (and a team with no lead): something to sort out.
+  await seedFieldWorkspace(p, 12);
+  await p.goto(url('/'));
+  const row = p.locator('.home-sort-out');
+  await row.waitFor({ timeout: 8000 });
+  const block = p.locator('[data-part="The workspace’s line"]');
+  const title = (await block.getByRole('heading').first().innerText()).trim();
+  const said = (await row.innerText()).replace(/\s+/g, ' ').trim();
+  const n = Number((said.match(/^(\d+) things? to sort out/) || [])[1]);
+  h.set('attention', day1 === 0 && title === 'Field Operations' && n >= 2 && /You’re the only admin/.test(said) && /, and \d+ more\./.test(said) && /See them$/.test(said), `day one had ${day1} lines; the block is headed “${title}”, the line says “${said}”`);
+  await h.checkpoint('home');
+  await h.click(row.getByRole('link', { name: 'See them' }));
+  await p.waitForURL(/\/workspace$/);
+  const list = p.getByRole('list', { name: 'To sort out' });
+  await list.waitFor();
+  const rows = await list.locator('.ws-sort-row').count();
+  h.set('progress', rows === n, `Home said ${n} things to sort out; About lists ${rows}`);
+  await h.checkpoint('about');
+  // A member sees none of it.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:ws_field', 'omar'));
+  await p.goto(url('/'));
+  await p.locator('.page').first().waitFor();
+  await p.getByRole('heading', { level: 1 }).first().waitFor();
+  h.set('errors', await p.locator('.home-sort-out, [data-part="The workspace’s line"]').count() === 0, 'a member’s Home shows the workspace’s line');
+  h.set('finish', true);
+  await p.context().close();
+}, ['entry', 'one-action', 'a11y', 'logged']);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -7528,6 +7794,18 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
 
 /** A CSV as Playwright sets it on a file input. */
 const csvFile = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
+/* The import's check runs in a worker, at the machine's own speed: the phone's slowed CPU (evals/phoneCpu.cjs) never
+   reaches it. On a fast machine 6,000 rows were checked before the Reading panel was due (it waits 400 ms, spec 2.2), so
+   U98 saw no Reading panel, and earlier no Stop, now and then on main's full suite. A slow machine is the case the
+   panel is for, so the page is given one: the worker's script is served with its last answer ("done", or an error)
+   held until `ms` after the check was asked for. Progress and the rows still arrive as they are made; only the end waits. */
+async function holdCheck(p, ms) {
+  const shim = `(()=>{let t0=performance.now();self.addEventListener('message',()=>{t0=performance.now();});const post=self.postMessage.bind(self);self.postMessage=(m,...r)=>{const left=${ms}-(performance.now()-t0);if(m&&(m.type==='done'||m.type==='error')&&left>0)setTimeout(()=>post(m,...r),left);else post(m,...r);};})();\n`;
+  await p.route(/\/assets\/worker-[^/]*\.js$/, async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, body: shim + (await res.text()), headers: { ...res.headers(), 'content-type': 'text/javascript' } });
+  });
+}
 
 journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: as Amara, a file with 14 rows for team “CI/DC”, 3 new goals with no owner and a stage in week 2 gives Must fix “3 rows, 1 kind of problem”, two questions and no Save; “Use CI/CD” closes its question to one line; the 3 rows to fix download with Problem first; the corrected file says “Your 1 answer still applies.”; answering the stage question enables Save; the changes list says “the owner’s team; the row gave none”', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
@@ -7637,6 +7915,8 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
 journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; a file of 30,000 stopped while it is checked says nothing was saved, and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
   const rows = (k, word) => 'Goal,Owner,Team,Unit,Start,Target\n' + Array.from({ length: k }, (_, i) => `${word} queue ${i + 1},Rhea Kapoor,CI/CD,min,10,5\n`).join('');
   const p = h.use(await newPage(device, 'amara'));
+  // Every check here takes at least 3 s, as on a slow machine, so the Reading panel (due at 0.4 s) and its Stop are there.
+  await holdCheck(p, 3000);
   await p.goto(url('/data/import'));
   const big = csvFile('u97.csv', rows(6000, 'Sized'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
@@ -7653,9 +7933,8 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('finish', names.length === 2 && /^u97-part-1-of-2/.test(names[0] ?? '') && /^u97-part-2-of-2/.test(names[1] ?? ''), `the parts are named ${names.join(', ')}`);
   await h.checkpoint('too many');
   await h.click(p.getByRole('button', { name: 'Choose another file' }));
-  // Stop is on the Reading panel only while the check runs. 6,000 rows are checked about a second after the panel shows,
-  // so Stop could be gone before the click (U98 failed this way on main, both devices: a 30 s click timeout). A file of
-  // 30,000 rows, the most Import takes, keeps it checking for seconds, and longer on a slower machine, not shorter.
+  // Stop is on the Reading panel only while the check runs: held (holdCheck), the check of the most rows Import takes
+  // can't end before the click, however fast the machine.
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-most.csv', rows(30000, 'Sized')));
   await see(p, 'Reading u97-most.csv', 'a file of the most rows Import takes shows no Reading panel', 10000);
   await h.click(p.getByRole('button', { name: 'Stop' }));
@@ -7674,6 +7953,50 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
   await p.context().close();
 }, ['parity', 'entry']);
+journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const file = (name, rows) => csvFile(name, 'ID,Metric,Unit,Direction,Caveats,Action,Reason\n' + rows.join('\n') + '\n');
+  await p.goto(url('/data/import'));
+  const live = (await h.snapshot()).modules.metrics.metrics.filter((m) => !m.removedAt && !m.retiredAt);
+  const [before, other] = live;
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file('metrics.csv', [
+    `,Retried test share ${device},%,Lower is better,,,`,
+    `${before.id},${before.name},${before.unit},${before.direction === 'lower' ? 'Lower is better' : 'Higher is better'},Read with the release calendar.,,`,
+    `,Queue depth ${device},jobs,Lower is better,,,`,
+    `,Queue depth ${device},jobs,Lower is better,,,`,
+    `${other.id},,,,,Retire,`,
+  ]));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, `Rows 4 and 5 are both called “Queue depth ${device}”. A metric’s name is used once.`, 'a name used twice is not a Must fix');
+  await see(p, 'Say why it is retired, in the Reason column. Its goals will show this.', 'retiring without a reason is not a Must fix');
+  h.set('errors', true);
+  // The way in is Import's own (U95): the Metrics sheet comes in through the same door as every other sheet.
+  h.set('entry', true);
+  await h.checkpoint('must fix');
+  await see(p, '2 new metrics, 1 metric changed.', 'the preview does not count the metrics');
+  await h.click(p.getByRole('button', { name: 'Leave these 2 rows out and save the rest' }));
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Leave them out' }));
+  h.set('one-action', (await p.locator('main .btn.primary').count()) === 1, 'the preview has more than one primary action');
+  await h.click(p.getByRole('button', { name: 'Save 3 changes' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  await see(p, '2 new metrics, 1 metric changed', 'the saved import does not count the metrics');
+  const s = await h.snapshot();
+  const ms = s.modules.metrics.metrics;
+  h.set('finish', ms.some((m) => m.name === `Retried test share ${device}` && m.ownerId === 'amara') && ms.find((m) => m.id === before.id).caveats === 'Read with the release calendar.' && !ms.find((m) => m.id === other.id).retiredAt, 'the metrics were not saved as the file said');
+  await p.goto(url('/metrics'));
+  await see(p, `Retried test share ${device}`, 'the new metric is not in the library');
+  h.set('progress', true);
+  // The Metric library off: the file is read, its Metrics sheet said once and not read.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.getByRole('checkbox', { name: /^Metric/ }));
+  await see(p, 'Metric library is off in', 'the Metric library does not switch off');
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file('metrics-off.csv', [`,Cache warm share ${device},%,Higher is better,,,`]));
+  await see(p, 'Metric library is off in', 'the import does not say the Metrics sheet was not read');
+  await see(p, 'so the Metrics sheet was not read.', 'the import does not say the Metrics sheet was not read');
+  h.set('attention', !(await h.snapshot()).modules.metrics.metrics.some((m) => m.name === `Cache warm share ${device}`), 'a Metrics sheet was read with the Metric library off');
+  await p.context().close();
+}, ['parity', 'logged']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
@@ -7906,10 +8229,14 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+    for (const [who, route, seeded] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new'],
+      // A workspace of its own with something to sort out, so the admin's workspace line on Home is drawn (the demo has nothing to sort out on any day; U176).
+      ['rosa', '/', 12]]) {
       await r.goto(url(route));
-      await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
+      if (seeded) await seedFieldWorkspace(r, seeded);
+      else await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
+      if (seeded && !(await r.locator('.home-sort-out').waitFor({ timeout: 8000 }).then(() => true, () => false))) problems.push(`${who} ${route}: the workspace’s line is not drawn`);
       // The example is built when the page opens (about 300 ms); measure once it has settled, not mid fade-in.
       await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});
       // Let entrance motion finish (the goal page's story runs up to 4s): a tile caught mid-fade isn't its real contrast.
@@ -7932,6 +8259,7 @@ async function platformChecks() {
     }
     // A status in a found row (Find, and every picker's rows, which share them) shows its shape at a real size, not 0 by 0.
     await r.goto(url('/'));
+    await r.evaluate(() => { localStorage.removeItem('goals-app-workspace'); localStorage.removeItem('goals-app-v2:workspaces'); });
     await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
     await r.reload();
     await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});
@@ -8149,7 +8477,11 @@ async function platformChecks() {
         await j.fn(h, device);
       } catch (e) {
         error = String(e.message || e).split('\n')[0];
-        if (h.page) await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+        if (h.page) {
+          await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+          // The whole error (Playwright's call log is under its first line) and the page's last console lines.
+          fs.writeFileSync(path.join(OUT, `${j.id}-${device}.log`), [`${j.id} ${device}: ${String(e.message || e)}`, `at ${h.page.url()}`, '', 'Last console lines:', ...(h.page.tail ?? [])].join('\n') + '\n');
+        }
       }
       per[device] = { ok: !error, error, crit: h.crit, notes: h.notes, count: h.count, ms: Date.now() - started };
     }

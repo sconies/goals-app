@@ -16,7 +16,7 @@ import { planAsOf, planAt, planEnd, weekDate } from './plan';
 import { weekCode } from './weeks';
 import { answerOf, saidIn, type Said } from './review';
 import type { GoalSummary } from './summary';
-import type { ModuleSheet } from './records';
+import type { ModuleGoalColumns, ModuleSheet } from './records';
 import type { Ask, Cause, CheckIn, Cycle, Goal, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
 import { ASK_KIND, FLAG, LABEL, LEFT, leftName, lower, QUARTER, STOPPED } from './vocabulary';
 
@@ -32,6 +32,8 @@ export interface ExportInput {
   goals?: Goal[];
   /** The sheets feature modules add (domain/records), after the core's: those of the modules in this build. */
   sheets?: readonly ModuleSheet[];
+  /** The modules' columns on Goals (domain/records ModuleGoalColumns), after the core's: those of the modules on here. */
+  goalColumns?: readonly ModuleGoalColumns[];
   /** False when Reviews is switched off here (RS, spec 5): the workbook leaves out the Notes sheet and Asks' Review column. */
   reviews?: boolean;
 }
@@ -159,8 +161,9 @@ const m = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: st
 const e = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'edit', means, write, ...(loaded ? { loaded } : {}) });
 const w = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'worked', means, write });
 const sh = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'shown', means, write });
-/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, and one only shown. */
-export const moduleColumn = { match: m, shown: sh };
+/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, one a person fills in
+    (a loaded sheet's), one Faro works out, and one only shown. */
+export const moduleColumn = { match: m, edit: e, worked: w, shown: sh, action: <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'action', means, write }) };
 /** A cell: empty for nothing. */
 export const cellOr = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 const blank = () => null;

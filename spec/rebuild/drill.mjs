@@ -13,8 +13,16 @@
      The harness runs <command> in the rebuild folder, with two arguments added: the path of a copy of workspace.json
      (in a folder of its own) and the path of a folder to write into (<rebuild folder>/drill-out, emptied first). The command writes the
      stage's files there (stage 1: status.csv, flags.csv, projection.csv, scorecard.csv and checkin.csv), with the columns
-     spec/conformance/README.md lists, and exits 0.
-   A folder with no drill.json but the five CSVs in it is scored as it is, without running anything.
+     spec/conformance/README.md lists, and exits 0. Beside the copy of workspace.json is change-cases.json: stage 2's
+     cases, input only (who loads which rows into which sheet, the answers, what each starts from).
+   The edge-case workspace (spec/conformance/edge, its README section says it in full): whenever any of stage 1's files
+   is scored, the harness runs <command> a second time, on a copy of edge/workspace.json, writing into
+   <rebuild folder>/drill-out/edge, and scores the same files from it against spec/conformance/edge (as edge/status.csv
+   and so on). A small workspace of the cases the demo never has: ranges at and past both bounds, numbers refused for a
+   share, the habit's moment across gaps and corrections, ties in posting time. Only stage 1's files (and
+   scorecard-words.csv, when asked) are made from it.
+   A folder with no drill.json but the five CSVs in it is scored as it is, without running anything (and its edge/
+   folder, when it has one, against the edge rows).
    The port contracts (spec/conformance/contracts, its README says it in full): drill.json's "shim" is a command that
    answers one JSON request per line ({ port, op, args }) with one answer per line ({ ok } or { error }); the harness
    runs every contract there through it (or those listed under "contracts", or named by --contracts), case by case.
@@ -43,6 +51,8 @@ import { fileURLToPath } from 'node:url';
 
 const FILES = ['status', 'flags', 'projection', 'scorecard', 'checkin'];
 /** Files beyond stage 1's, scored only when asked for ("also" in drill.json, or --files). */
+/** The files made from the edge-case workspace too (spec/conformance/edge), when they are scored. */
+const EDGE = [...FILES, 'scorecard-words'];
 const ALSO = ['scorecard-words', 'find', 'goals', 'navigation', 'import', 'changes', 'metrics', 'readback', 'home', 'zone'];
 /** What each stage's drill scores by default: stage 1 the core rules, stage 2 the change engine (what it raises and what
     it would save), stage 3 the screens' words (the menu and page names, New goal's read-back, Find, Home's lead). */
@@ -133,9 +143,11 @@ export function scoreFile(name, want, got) {
   return res;
 }
 
-/** Scores the rebuild's files against the expected ones: { files, cells, matchedCells, pass }. */
-export function scoreAll(expected, actual, only = FILES) {
+/** Scores the rebuild's files against the expected ones: { files, cells, matchedCells, pass }. `edge`, when given, is
+    the edge-case workspace's { expected, actual }: the same files from it are scored too, named edge/<file>.csv. */
+export function scoreAll(expected, actual, only = FILES, edge = null) {
   const files = only.map((n) => scoreFile(n, expected[n], actual[n]));
+  if (edge) for (const n of only.filter((f) => EDGE.includes(f))) files.push({ ...scoreFile(n, edge.expected[n], edge.actual[n]), file: `edge/${n}.csv` });
   const cells = files.reduce((s, f) => s + f.rows * f.columns.length, 0);
   const matchedCells = files.reduce((s, f) => s + f.columns.reduce((t, c) => t + c.matched, 0), 0);
   const pass = files.every((f) => f.matchedRows === f.rows && f.extra === 0 && f.problems.every((p) => p.startsWith('columns not in')));
@@ -356,6 +368,9 @@ async function main(argv) {
     // A copy on its own, so the expected CSV files are not beside the input the rebuild is given.
     const workspace = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'faro-drill-')), 'workspace.json');
     fs.copyFileSync(path.join(expectedDir, 'workspace.json'), workspace);
+    // Stage 2's cases, input only (the rows, who loads them, the answers, what they start from), beside it: a rebuild
+    // reads its cases from here, never from the expected files.
+    if (fs.existsSync(path.join(expectedDir, 'change-cases.json'))) fs.copyFileSync(path.join(expectedDir, 'change-cases.json'), path.join(path.dirname(workspace), 'change-cases.json'));
     const cmd = `${m.run} ${quote(workspace)} ${quote(outDir)}`;
     say(`Running in ${target}:\n  ${cmd}`);
     const t0 = Date.now();
@@ -365,6 +380,21 @@ async function main(argv) {
     if (r.error || r.status !== 0) {
       console.error(r.error?.code === 'ETIMEDOUT' ? `It took longer than ${opt.timeout} s and was stopped.` : `It exited with ${r.status ?? r.signal}${r.error ? `: ${r.error.message}` : ''}. Scoring whatever it wrote.`);
     } else say(`Finished in ${ran.seconds.toFixed(1)} s.`);
+    // The edge-case workspace, when a file made from it is scored: the same command again, on its own copy.
+    if (fs.existsSync(path.join(expectedDir, 'edge', 'workspace.json')) && opt.files.some((f) => EDGE.includes(f))) {
+      const edgeOut = path.join(outDir, 'edge');
+      fs.mkdirSync(edgeOut, { recursive: true });
+      const ew = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'faro-drill-')), 'workspace.json');
+      fs.copyFileSync(path.join(expectedDir, 'edge', 'workspace.json'), ew);
+      const ecmd = `${m.run} ${quote(ew)} ${quote(edgeOut)}`;
+      say(`And on the edge-case workspace:\n  ${ecmd}`);
+      const t1 = Date.now();
+      const e = spawnSync(ecmd, { cwd: target, shell: true, stdio: opt.json ? ['ignore', 'ignore', 'inherit'] : 'inherit', timeout: opt.timeout * 1000 });
+      fs.rmSync(path.dirname(ew), { recursive: true, force: true });
+      ran.edge = { command: ecmd, seconds: (Date.now() - t1) / 1000, exit: e.status, error: e.error?.message ?? null };
+      if (e.error || e.status !== 0) console.error(e.error?.code === 'ETIMEDOUT' ? `On the edge-case workspace it took longer than ${opt.timeout} s and was stopped.` : `On the edge-case workspace it exited with ${e.status ?? e.signal}${e.error ? `: ${e.error.message}` : ''}. Scoring whatever it wrote.`);
+      else say(`Finished in ${ran.edge.seconds.toFixed(1)} s.`);
+    }
   } else if (!m) say(`No drill.json in ${target}: scoring the CSV files already there.`);
 
   // The port contracts: through drill.json's "shim", every contract in spec/conformance/contracts (or those it lists
@@ -388,7 +418,11 @@ async function main(argv) {
   let score = null, skipped = [];
   if (scoreCsv) {
     if (!opt.files) opt.files = FILES;
-    score = scoreAll(readCsvs(expectedDir), readCsvs(outDir), opt.files);
+    // The edge-case rows: when this run wrote them, or a folder scored as it is has an edge/ folder of its own.
+    const edgeExpected = path.join(expectedDir, 'edge');
+    const edgeActual = path.join(outDir, 'edge');
+    const edge = fs.existsSync(path.join(edgeExpected, 'workspace.json')) && (ran ? !!ran.edge : fs.existsSync(edgeActual)) ? { expected: readCsvs(edgeExpected), actual: readCsvs(edgeActual) } : null;
+    score = scoreAll(readCsvs(expectedDir), readCsvs(outDir), opt.files, edge);
     skipped = FILES.filter((f) => !opt.files.includes(f) && opt.files.some((g) => FILES.includes(g)));
   }
   const contractsPass = !contracts || contracts.every((c) => c.cases.every((x) => x.pass));
@@ -397,7 +431,7 @@ async function main(argv) {
     if (score) say('\n' + report(score, { diffs: opt.diffs, skipped }));
     if (contracts) say('\n' + contractReport(contracts, opt.diffs));
   }
-  return (!score || score.pass) && contractsPass && (!ran || ran.exit === 0) ? 0 : 1;
+  return (!score || score.pass) && contractsPass && (!ran || (ran.exit === 0 && (!ran.edge || ran.edge.exit === 0))) ? 0 : 1;
 }
 
 /** The contracts' results in words: each contract's count, then each failing case with what went wrong. */

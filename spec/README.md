@@ -17,7 +17,8 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | [core/screens.md](core/screens.md) | Each core screen, and each view and overlay with no route of its own: its route, purpose, named parts, main action, the AI tools that do the same, and its fields, states and buttons (with who sees each) |
 | [core/design-rules.md](core/design-rules.md) | The look: what is banned, what we do instead, and how each kind of page uses the room it has |
 | [core/help-guide.md](core/help-guide.md) | Every Help article in full: what each screen is for, how to use it and who can |
-| [core/journeys.md](core/journeys.md) | The core journeys and checks, the requirements each covers, and where each is driven |
+| [core/journeys.md](core/journeys.md) | The core journeys and checks, the requirements each covers, and where each is driven; each journey’s steps and checks in words under `core/journeys/` |
+| [core/goals-query.md](core/goals-query.md) | Goals’ filters and sort: every parameter a Goals link, saved view, export or `find_goals` can say, its values and words, and the order |
 | [core/requirements.md](core/requirements.md) | Every core requirement, linked to its code, its Help article, its tests and its journeys |
 | [core/export-format.md](core/export-format.md) | The spreadsheet format: every sheet and column of the export, the set-up template and the import, how each is read back, its words, the JSON and the brief |
 | [core/actions.md](core/actions.md) | Every action a person can take, as the command port runs it: its input, its result, who may and the words it refuses with |
@@ -44,6 +45,7 @@ Anything a rebuild could not take from the spec alone is marked **Not self-expla
 
 | Module | What it does |
 |---|---|
+| [AI access](modules/ai-access/README.md) | Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights. |
 | [Feedback](modules/feedback/README.md) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. |
 | [Goal map](modules/goal-map/README.md) | See every goal and what feeds it on one canvas, with the path the risk runs along. |
 | [Metric library](modules/metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. |

@@ -36,22 +36,24 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 
 ## Journeys and checks
 
+Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).
+
 | Id | What | Where |
 |---|---|---|
-| U3 | Weekly review: walk the goals worst first, decide what happens next and record what was said | `evals/journeys.cjs` |
-| U13 | Anyone sets up a review: name, cadence, goals, people | `evals/journeys.cjs` |
-| U30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | `evals/journeys.cjs` |
-| U36 | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | `evals/journeys.cjs` |
-| U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so | `evals/journeys.cjs` |
-| U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, Home shows the one team’s goals as one section, the weekly review exists, and Start over removes it all | `evals/journeys.cjs` |
-| U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone | `evals/journeys.cjs` |
-| U67 | The menu in groups: an owner has Check-in and someone who owns nothing doesn’t; four groups with one item lit; collapsed, an icon names itself on focus; a phone has four tabs and More in the same groups | `evals/journeys.cjs` |
-| U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to | `evals/journeys.cjs` |
-| U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | `evals/journeys.cjs` |
-| U103 | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
-| U104 | Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet | `evals/journeys.cjs` |
-| U154 | Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday” | `evals/journeys.cjs` |
-| U155 | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
+| [U3](journeys/U3.md) | Weekly review: walk the goals worst first, decide what happens next and record what was said | `evals/journeys.cjs` |
+| [U13](journeys/U13.md) | Anyone sets up a review: name, cadence, goals, people | `evals/journeys.cjs` |
+| [U30](journeys/U30.md) | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | `evals/journeys.cjs` |
+| [U36](journeys/U36.md) | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | `evals/journeys.cjs` |
+| [U47](journeys/U47.md) | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so | `evals/journeys.cjs` |
+| [U49](journeys/U49.md) | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, Home shows the one team’s goals as one section, the weekly review exists, and Start over removes it all | `evals/journeys.cjs` |
+| [U63](journeys/U63.md) | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone | `evals/journeys.cjs` |
+| [U67](journeys/U67.md) | The menu in groups: an owner has Check-in and someone who owns nothing doesn’t; four groups with one item lit; collapsed, an icon names itself on focus; a phone has four tabs and More in the same groups | `evals/journeys.cjs` |
+| [U79](journeys/U79.md) | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to | `evals/journeys.cjs` |
+| [U80](journeys/U80.md) | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | `evals/journeys.cjs` |
+| [U103](journeys/U103.md) | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
+| [U104](journeys/U104.md) | Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet | `evals/journeys.cjs` |
+| [U154](journeys/U154.md) | Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday” | `evals/journeys.cjs` |
+| [U155](journeys/U155.md) | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
 | N1 | Review notes, reviews | `evals/notes/1-reviews.cjs` |
 | N21 | A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays | `evals/notes/21-switched-off.cjs` |
 
@@ -61,5 +63,5 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 7](../../rebuild/stage-7-module-reviews.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 8](../../rebuild/stage-8-module-reviews.md) (an outline, with no drill yet).
 Its rules: [Reviews’ switch: the clock and the read-back](rules.md#reviews-switch-the-clock-and-the-read-back), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [reviews.csv](../../conformance/reviews.csv) ([what each column is](../../conformance/README.md#the-files)).

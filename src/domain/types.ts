@@ -199,7 +199,7 @@ export interface MilestoneGoal extends GoalBase {
 export type Goal = MetricGoal | RangeGoal | MilestoneGoal;
 
 export type Status = 'on' | 'risk' | 'off' | 'done';
-export type DisplayStatus = Status | 'stale' | 'planned' | 'none';
+export type DisplayStatus = Status | 'stale' | 'planned' | 'none' | 'unmeasured';
 
 // 'other' when none of the named causes fits (research, 2 Nov): the words then carry it.
 export type CauseBehind = 'aggressive' | 'slower' | 'blocked' | 'external' | 'data' | 'other';
@@ -309,6 +309,8 @@ export interface ImportUndo {
       carried goals. */
   watches?: Id[];
   modules?: { module: string; key: string; ids: Id[] }[];
+  /** A module's own sheet (MI): each of its rows the import added or changed, as it was before (null: added). */
+  moduleRows?: { module: string; key: string; rows: { id: Id; before: unknown }[] }[];
 }
 
 /**
@@ -368,8 +370,9 @@ export interface Watch {
 export interface Review {
   id: Id;
   name: string;
-  /** Held every this many weeks of the cycle, on this weekday (0 = Monday). */
+  /** Held every this many weeks of the cycle (1 to 13), on `weekday`. */
   everyWeeks: number;
+  /** The day of the week it is held: 0 = Monday, 1 = Tuesday, … 6 = Sunday (as `reviewDay`). */
   weekday: number;
   scope: { goals: Id[]; trees: Id[]; levels: Level[] };
   people: Id[];

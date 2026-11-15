@@ -1,0 +1,891 @@
+week,goal,cell,value,label,sub
+0,E-1,limit,No value yet,Vs the limit,must stay between 99.50% and 99.95%
+0,E-1,since,No check-in yet,Vs last week,nothing to compare
+0,E-1,room,No value yet,Room to the limit,warning within 0.10 pts
+0,E-1,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+0,E-2,limit,No value yet,Vs the limit,must stay at most 12.0%
+0,E-2,since,No check-in yet,Vs last week,nothing to compare
+0,E-2,room,No value yet,Room to the limit,warning within 2.0 pts
+0,E-2,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+0,E-3,limit,No value yet,Vs the limit,must stay at least 80%
+0,E-3,since,No check-in yet,Vs last week,nothing to compare
+0,E-3,room,No value yet,Room to the limit,warning within 5 pts
+0,E-3,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+0,E-4,plan,No value yet,Vs plan,plan 30%
+0,E-4,since,No check-in yet,Vs last week,nothing to compare
+0,E-4,target,No value yet,To target,target 75%
+0,E-4,hit,Too early to say,Will it hit 75%?,needs three weeks of numbers
+0,E-5,plan,No value yet,Vs plan,plan 50%
+0,E-5,since,No check-in yet,Vs last week,nothing to compare
+0,E-5,target,No value yet,To target,target 150%
+0,E-5,hit,Too early to say,Will it hit 150%?,needs three weeks of numbers
+0,E-6,plan,No value yet,Vs plan,plan 10%
+0,E-6,since,No check-in yet,Vs last week,nothing to compare
+0,E-6,target,No value yet,To target,target 50%
+0,E-6,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+0,E-7,plan,No value yet,Vs plan,plan 10%
+0,E-7,since,No check-in yet,Vs last week,nothing to compare
+0,E-7,target,No value yet,To target,target 50%
+0,E-7,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+0,E-8,plan,No value yet,Vs plan,plan 2 deploys
+0,E-8,since,No check-in yet,Vs last week,nothing to compare
+0,E-8,target,No value yet,To target,target 12 deploys
+0,E-8,hit,Too early to say,Will it hit 12?,needs three weeks of numbers
+0,E-9,plan,No value yet,Vs plan,plan 20%
+0,E-9,since,No check-in yet,Vs last week,nothing to compare
+0,E-9,target,No value yet,To target,target 80%
+0,E-9,hit,Too early to say,Will it hit 80%?,needs three weeks of numbers
+0,E-10,plan,No value yet,Vs plan,plan 30 h/week
+0,E-10,since,No check-in yet,Vs last week,nothing to compare
+0,E-10,target,No value yet,To target,target 6 h/week
+0,E-10,hit,Too early to say,Will it hit 6?,needs three weeks of numbers
+0,E-12,plan,No value yet,Vs plan,plan 40%
+0,E-12,since,No check-in yet,Vs last week,nothing to compare
+0,E-12,target,No value yet,To target,target 90%
+0,E-12,hit,Too early to say,Will it hit 90%?,needs three weeks of numbers
+0,E-13,plan,No value yet,Vs plan,plan 0 jobs
+0,E-13,since,No check-in yet,Vs last week,nothing to compare
+0,E-13,target,No value yet,To target,target 20 jobs
+0,E-14,plan,No value yet,Vs plan,plan 500 ms
+0,E-14,since,No check-in yet,Vs last week,nothing to compare
+0,E-14,target,No value yet,To target,target 200 ms
+0,E-14,hit,Too early to say,Will it hit 200?,needs three weeks of numbers
+0,E-15,plan,No value yet,Vs plan,plan 5.0 pts
+0,E-15,since,No check-in yet,Vs last week,nothing to compare
+0,E-15,target,No value yet,To target,target 3.0 pts
+0,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+0,E-16,plan,No value yet,Vs plan,plan 10%
+0,E-16,since,No check-in yet,Vs last week,nothing to compare
+0,E-16,target,No value yet,To target,target 50%
+0,E-16,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+0,E-17,plan,No value yet,Vs plan,plan 20%
+0,E-17,since,No check-in yet,Vs last week,nothing to compare
+0,E-17,target,No value yet,To target,target 50%
+0,E-17,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+0,E-18,plan,No value yet,Vs plan,plan 10 deploys
+0,E-18,since,No check-in yet,Vs last week,nothing to compare
+0,E-18,target,No value yet,To target,target 30 deploys
+0,E-18,hit,Too early to say,Will it hit 30?,needs three weeks of numbers
+1,E-1,limit,Inside it,Vs the limit,must stay between 99.50% and 99.95%
+1,E-1,since,First check-in,Vs last week,nothing to compare yet
+1,E-1,room,0.20 pts of room,Room to the limit,warning within 0.10 pts
+1,E-1,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+1,E-2,limit,Inside it,Vs the limit,must stay at most 12.0%
+1,E-2,since,First check-in,Vs last week,nothing to compare yet
+1,E-2,room,3.0 pts of room,Room to the limit,warning within 2.0 pts
+1,E-2,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+1,E-3,limit,Inside it,Vs the limit,must stay at least 80%
+1,E-3,since,First check-in,Vs last week,nothing to compare yet
+1,E-3,room,10 pts of room,Room to the limit,warning within 5 pts
+1,E-3,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+1,E-4,plan,On plan,Vs plan,plan 33%
+1,E-4,since,First check-in,Vs last week,nothing to compare yet
+1,E-4,target,42 pts to go,To target,target 75%
+1,E-4,hit,Too early to say,Will it hit 75%?,needs three weeks of numbers
+1,E-5,plan,2 pts ahead of plan,Vs plan,plan 58%
+1,E-5,since,First check-in,Vs last week,nothing to compare yet
+1,E-5,target,90 pts to go,To target,target 150%
+1,E-5,hit,Too early to say,Will it hit 150%?,needs three weeks of numbers
+1,E-6,plan,7 pts ahead of plan,Vs plan,plan 13%
+1,E-6,since,First check-in,Vs last week,nothing to compare yet
+1,E-6,target,30 pts to go,To target,target 50%
+1,E-6,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+1,E-7,plan,17 pts ahead of plan,Vs plan,plan 13%
+1,E-7,since,First check-in,Vs last week,nothing to compare yet
+1,E-7,target,20 pts to go,To target,target 50%
+1,E-7,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+1,E-8,plan,On plan,Vs plan,plan 3 deploys
+1,E-8,since,First check-in,Vs last week,nothing to compare yet
+1,E-8,target,9 deploys to go,To target,target 12 deploys
+1,E-8,hit,Too early to say,Will it hit 12?,needs three weeks of numbers
+1,E-9,plan,On plan,Vs plan,plan 25%
+1,E-9,since,First check-in,Vs last week,nothing to compare yet
+1,E-9,target,55 pts to go,To target,target 80%
+1,E-9,hit,Too early to say,Will it hit 80%?,needs three weeks of numbers
+1,E-10,plan,1 h/week behind plan,Vs plan,plan 28 h/week
+1,E-10,since,First check-in,Vs last week,nothing to compare yet
+1,E-10,target,23 h/week over,To target,target 6 h/week
+1,E-10,hit,Too early to say,Will it hit 6?,needs three weeks of numbers
+1,E-12,plan,On plan,Vs plan,plan 44%
+1,E-12,since,First check-in,Vs last week,nothing to compare yet
+1,E-12,target,46 pts to go,To target,target 90%
+1,E-12,hit,Too early to say,Will it hit 90%?,needs three weeks of numbers
+1,E-13,plan,No value yet,Vs plan,plan 2 jobs
+1,E-13,since,No check-in yet,Vs last week,nothing to compare
+1,E-13,target,No value yet,To target,target 20 jobs
+1,E-14,plan,3 ms behind plan,Vs plan,plan 477 ms
+1,E-14,since,First check-in,Vs last week,nothing to compare yet
+1,E-14,target,280 ms over,To target,target 200 ms
+1,E-14,hit,Too early to say,Will it hit 200?,needs three weeks of numbers
+1,E-15,plan,No value yet,Vs plan,plan 4.8 pts
+1,E-15,since,No check-in yet,Vs last week,nothing to compare
+1,E-15,target,No value yet,To target,target 3.0 pts
+1,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+1,E-16,plan,1 pt ahead of plan,Vs plan,plan 13%
+1,E-16,since,First check-in,Vs last week,nothing to compare yet
+1,E-16,target,36 pts to go,To target,target 50%
+1,E-16,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+1,E-17,plan,6 pts ahead of plan,Vs plan,plan 20%
+1,E-17,since,First check-in,Vs last week,nothing to compare yet
+1,E-17,target,24 pts to go,To target,target 50%
+1,E-17,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+1,E-18,plan,No value yet,Vs plan,plan 12 deploys
+1,E-18,since,No check-in yet,Vs last week,nothing to compare
+1,E-18,target,No value yet,To target,target 30 deploys
+1,E-18,hit,Too early to say,Will it hit 30?,needs three weeks of numbers
+2,E-1,limit,"Inside, near it",Vs the limit,must stay between 99.50% and 99.95%
+2,E-1,since,0.20 pts worse,Vs last week,was 99.70% in week 1
+2,E-1,room,0.05 pts of room,Room to the limit,warning within 0.10 pts
+2,E-1,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+2,E-2,limit,Inside it,Vs the limit,must stay at most 12.0%
+2,E-2,since,1.0 pt worse,Vs last week,was 9.0% in week 1
+2,E-2,room,2.0 pts of room,Room to the limit,warning within 2.0 pts
+2,E-2,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+2,E-3,limit,Inside it,Vs the limit,must stay at least 80%
+2,E-3,since,5 pts worse,Vs last week,was 90% in week 1
+2,E-3,room,5 pts of room,Room to the limit,warning within 5 pts
+2,E-3,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+2,E-4,plan,73 pts ahead of plan,Vs plan,plan 37%
+2,E-4,since,77 pts better,Vs last week,was 33% in week 1
+2,E-4,target,Target reached,To target,target 75%
+2,E-4,hit,Too early to say,Will it hit 75%?,needs three weeks of numbers
+2,E-5,plan,55 pts ahead of plan,Vs plan,plan 65%
+2,E-5,since,60 pts better,Vs last week,was 60% in week 1
+2,E-5,target,30 pts to go,To target,target 150%
+2,E-5,hit,Too early to say,Will it hit 150%?,needs three weeks of numbers
+2,E-6,plan,34 pts ahead of plan,Vs plan,plan 16%
+2,E-6,since,30 pts better,Vs last week,was 20% in week 1
+2,E-6,target,Target reached,To target,target 50%
+2,E-6,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+2,E-7,plan,19 pts ahead of plan,Vs plan,plan 16%
+2,E-7,since,5 pts better,Vs last week,was 30% in week 1
+2,E-7,target,15 pts to go,To target,target 50%
+2,E-7,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+2,E-8,plan,1 deploy behind plan,Vs plan,plan 4 deploys
+2,E-8,since,No change,Vs last week,was 3 deploys in week 1
+2,E-8,target,9 deploys to go,To target,target 12 deploys
+2,E-8,hit,Too early to say,Will it hit 12?,needs three weeks of numbers
+2,E-9,plan,On plan,Vs plan,plan 25% in week 1
+2,E-9,since,First check-in,Vs last week,nothing to compare yet
+2,E-9,target,55 pts to go,To target,target 80%
+2,E-9,hit,Too early to say,Will it hit 80%?,needs three weeks of numbers
+2,E-10,plan,1 h/week behind plan,Vs plan,plan 28 h/week in week 1
+2,E-10,since,First check-in,Vs last week,nothing to compare yet
+2,E-10,target,23 h/week over,To target,target 6 h/week
+2,E-10,hit,Too early to say,Will it hit 6?,needs three weeks of numbers
+2,E-12,plan,On plan,Vs plan,plan 44% in week 1
+2,E-12,since,First check-in,Vs last week,nothing to compare yet
+2,E-12,target,46 pts to go,To target,target 90%
+2,E-12,hit,Too early to say,Will it hit 90%?,needs three weeks of numbers
+2,E-13,plan,1 job behind plan,Vs plan,plan 3 jobs
+2,E-13,since,First check-in,Vs last week,nothing to compare yet
+2,E-13,target,18 jobs to go,To target,target 20 jobs
+2,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms
+2,E-14,since,482 ms better,Vs last week,was 480 ms in week 1
+2,E-14,target,Target reached,To target,target 200 ms
+2,E-14,hit,Too early to say,Will it hit 200?,needs three weeks of numbers
+2,E-15,plan,No value yet,Vs plan,plan 4.7 pts
+2,E-15,since,No check-in yet,Vs last week,nothing to compare
+2,E-15,target,No value yet,To target,target 3.0 pts
+2,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+2,E-16,plan,2 pts ahead of plan,Vs plan,plan 16%
+2,E-16,since,4 pts better,Vs last week,was 14% in week 1
+2,E-16,target,32 pts to go,To target,target 50%
+2,E-16,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+2,E-17,plan,6 pts ahead of plan,Vs plan,plan 20% in week 1
+2,E-17,since,First check-in,Vs last week,nothing to compare yet
+2,E-17,target,24 pts to go,To target,target 50%
+2,E-17,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+2,E-18,plan,No value yet,Vs plan,plan 13 deploys
+2,E-18,since,No check-in yet,Last change,nothing to compare
+2,E-18,target,No value yet,To target,target 30 deploys
+2,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on
+3,E-1,limit,"Inside, near it",Vs the limit,must stay between 99.50% and 99.95%
+3,E-1,since,0.35 pts down,Vs last week,was 99.90% in week 2
+3,E-1,room,0.05 pts of room,Room to the limit,warning within 0.10 pts
+3,E-1,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+3,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+3,E-2,since,0.5 pts worse,Vs last week,was 10.0% in week 2
+3,E-2,room,1.5 pts of room,Room to the limit,warning within 2.0 pts
+3,E-2,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+3,E-3,limit,"Inside, near it",Vs the limit,must stay at least 80%
+3,E-3,since,1 pt worse,Vs last week,was 85% in week 2
+3,E-3,room,4 pts of room,Room to the limit,warning within 5 pts
+3,E-3,hit,Too early to say,Will it stay within?,needs three weeks of numbers
+3,E-4,plan,360 pts ahead of plan,Vs plan,plan 40%
+3,E-4,since,290 pts better,Vs last week,was 110% in week 2
+3,E-4,target,Target reached,To target,target 75%
+3,E-4,hit,Too early to say,Will it hit 75%?,needs three weeks of numbers
+3,E-5,plan,78 pts behind plan,Vs plan,plan 73%
+3,E-5,since,125 pts worse,Vs last week,was 120% in week 2
+3,E-5,target,155 pts to go,To target,target 150%
+3,E-5,hit,Too early to say,Will it hit 150%?,needs three weeks of numbers
+3,E-6,plan,34 pts ahead of plan,Vs plan,plan 16% in week 2
+3,E-6,since,30 pts better,Vs last week,was 20% in week 1
+3,E-6,target,Target reached,To target,target 50%
+3,E-6,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+3,E-7,plan,11 pts ahead of plan,Vs plan,plan 19%
+3,E-7,since,20 pts worse,Vs last week,was 50% in week 2
+3,E-7,target,20 pts to go,To target,target 50%
+3,E-7,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+3,E-8,plan,1 deploy behind plan,Vs plan,plan 4 deploys
+3,E-8,since,No change,Vs last week,was 3 deploys in week 2
+3,E-8,target,9 deploys to go,To target,target 12 deploys
+3,E-8,hit,Too early to say,Will it hit 12?,needs three weeks of numbers
+3,E-9,plan,16 pts ahead of plan,Vs plan,plan 34%
+3,E-9,since,25 pts better,Vs last week,was 25% in week 1
+3,E-9,target,30 pts to go,To target,target 80%
+3,E-9,hit,Too early to say,Will it hit 80%?,needs three weeks of numbers
+3,E-10,plan,1 h/week behind plan,Vs plan,plan 28 h/week in week 1
+3,E-10,since,First check-in,Last change,nothing to compare yet
+3,E-10,target,23 h/week over,To target,target 6 h/week
+3,E-10,hit,Can’t say,Will it hit 6?,no recent update to go on
+3,E-11,plan,No value yet,Vs plan,plan 4.00 USD
+3,E-11,since,No check-in yet,Vs last week,nothing to compare
+3,E-11,target,No value yet,To target,target 1.00 USD
+3,E-11,hit,Too early to say,Will it hit 1.00?,needs three weeks of numbers
+3,E-12,plan,7 pts behind plan,Vs plan,plan 52%
+3,E-12,since,1 pt better,Vs last week,was 44% in week 1
+3,E-12,target,45 pts to go,To target,target 90%
+3,E-12,hit,Too early to say,Will it hit 90%?,needs three weeks of numbers
+3,E-13,plan,1 job behind plan,Vs plan,plan 3 jobs in week 2
+3,E-13,since,First check-in,Vs last week,nothing to compare yet
+3,E-13,target,18 jobs to go,To target,target 20 jobs
+3,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+3,E-14,since,482 ms better,Vs last week,was 480 ms in week 1
+3,E-14,target,Target reached,To target,target 200 ms
+3,E-14,hit,Too early to say,Will it hit 200?,needs three weeks of numbers
+3,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts
+3,E-15,since,First check-in,Vs last week,nothing to compare yet
+3,E-15,target,1.6 pts over,To target,target 3.0 pts
+3,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+3,E-16,plan,2 pts ahead of plan,Vs plan,plan 16% in week 2
+3,E-16,since,4 pts better,Vs last week,was 14% in week 1
+3,E-16,target,32 pts to go,To target,target 50%
+3,E-16,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+3,E-17,plan,2 pts behind plan,Vs plan,plan 20%
+3,E-17,since,8 pts worse,Vs last week,was 26% in week 1
+3,E-17,target,32 pts to go,To target,target 50%
+3,E-17,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+3,E-18,plan,No value yet,Vs plan,plan 15 deploys
+3,E-18,since,No check-in yet,Last change,nothing to compare
+3,E-18,target,No value yet,To target,target 30 deploys
+3,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on
+4,E-1,limit,"Inside, near it",Vs the limit,must stay between 99.50% and 99.95%
+4,E-1,since,0.40 pts worse,Vs last week,was 99.55% in week 3
+4,E-1,room,None: at the limit,Room to the limit,warning within 0.10 pts
+4,E-1,hit,Possible,Will it stay within?,likely 99.84% by cycle end
+4,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+4,E-2,since,1.5 pts worse,Vs last week,was 10.5% in week 3
+4,E-2,room,None: at the limit,Room to the limit,warning within 2.0 pts
+4,E-2,hit,Very unlikely,Will it stay within?,likely 20.2% by cycle end
+4,E-3,limit,"Inside, near it",Vs the limit,must stay at least 80%
+4,E-3,since,2 pts worse,Vs last week,was 84% in week 3
+4,E-3,room,2 pts of room,Room to the limit,warning within 5 pts
+4,E-3,hit,Very unlikely,Will it stay within?,likely 60% by cycle end
+4,E-4,plan,On plan,Vs plan,plan 44%
+4,E-4,since,356 pts worse,Vs last week,was 400% in week 3
+4,E-4,target,31 pts to go,To target,target 75%
+4,E-4,hit,Likely,Will it hit 75%?,likely 100% by cycle end
+4,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+4,E-5,since,125 pts worse,Vs last week,was 120% in week 2
+4,E-5,target,155 pts to go,To target,target 150%
+4,E-5,hit,Too early to say,Will it hit 150%?,needs three weeks of numbers
+4,E-6,plan,30 pts ahead of plan,Vs plan,plan 22%
+4,E-6,since,2 pts better,Vs last week,was 50% in week 2
+4,E-6,target,Target reached,To target,target 50%
+4,E-6,hit,Likely,Will it hit 50%?,likely 100% by cycle end
+4,E-7,plan,11 pts ahead of plan,Vs plan,plan 19% in week 3
+4,E-7,since,20 pts worse,Vs last week,was 50% in week 2
+4,E-7,target,20 pts to go,To target,target 50%
+4,E-7,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+4,E-8,plan,1 deploy behind plan,Vs plan,plan 4 deploys in week 3
+4,E-8,since,No change,Vs last week,was 3 deploys in week 2
+4,E-8,target,9 deploys to go,To target,target 12 deploys
+4,E-8,hit,Too early to say,Will it hit 12?,needs three weeks of numbers
+4,E-9,plan,16 pts ahead of plan,Vs plan,plan 34% in week 3
+4,E-9,since,25 pts better,Vs last week,was 25% in week 1
+4,E-9,target,30 pts to go,To target,target 80%
+4,E-9,hit,Too early to say,Will it hit 80%?,needs three weeks of numbers
+4,E-10,plan,1 h/week behind plan,Vs plan,plan 28 h/week in week 1
+4,E-10,since,First check-in,Last change,nothing to compare yet
+4,E-10,target,23 h/week over,To target,target 6 h/week
+4,E-10,hit,Can’t say,Will it hit 6?,no recent update to go on
+4,E-11,plan,No value yet,Vs plan,plan 4.00 USD
+4,E-11,since,No check-in yet,Vs last week,nothing to compare
+4,E-11,target,No value yet,To target,target 1.00 USD
+4,E-11,hit,Too early to say,Will it hit 1.00?,needs three weeks of numbers
+4,E-12,plan,7 pts behind plan,Vs plan,plan 52% in week 3
+4,E-12,since,1 pt better,Vs last week,was 44% in week 1
+4,E-12,target,45 pts to go,To target,target 90%
+4,E-12,hit,Too early to say,Will it hit 90%?,needs three weeks of numbers
+4,E-13,plan,1 job behind plan,Vs plan,plan 3 jobs in week 2
+4,E-13,since,First check-in,Last change,nothing to compare yet
+4,E-13,target,18 jobs to go,To target,target 20 jobs
+4,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+4,E-14,since,482 ms better,Last change,was 480 ms in week 1
+4,E-14,target,Target reached,To target,target 200 ms
+4,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+4,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+4,E-15,since,First check-in,Vs last week,nothing to compare yet
+4,E-15,target,1.6 pts over,To target,target 3.0 pts
+4,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+4,E-16,plan,2 pts ahead of plan,Vs plan,plan 22%
+4,E-16,since,6 pts better,Vs last week,was 18% in week 2
+4,E-16,target,26 pts to go,To target,target 50%
+4,E-16,hit,Likely,Will it hit 50%?,likely 54% by cycle end
+4,E-17,plan,2 pts behind plan,Vs plan,plan 20% in week 3
+4,E-17,since,8 pts worse,Vs last week,was 26% in week 1
+4,E-17,target,32 pts to go,To target,target 50%
+4,E-17,hit,Too early to say,Will it hit 50%?,needs three weeks of numbers
+4,E-18,plan,On plan,Vs plan,plan 16 deploys
+4,E-18,since,First check-in,Vs last week,nothing to compare yet
+4,E-18,target,14 deploys to go,To target,target 30 deploys
+4,E-18,hit,Too early to say,Will it hit 30?,needs three weeks of numbers
+5,E-1,limit,"Inside, near it",Vs the limit,must stay between 99.50% and 99.95%
+5,E-1,since,0.45 pts down,Vs last week,was 99.95% in week 4
+5,E-1,room,None: at the limit,Room to the limit,warning within 0.10 pts
+5,E-1,hit,Possible,Will it stay within?,likely 99.65% by cycle end
+5,E-2,limit,Outside it,Vs the limit,must stay at most 12.0%
+5,E-2,since,0.1 pts worse,Vs last week,was 12.0% in week 4
+5,E-2,room,0.1 pts over,Room to the limit,warning within 2.0 pts
+5,E-2,hit,Very unlikely,Back within by the end?,likely 18.8% by cycle end
+5,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+5,E-3,since,3 pts worse,Vs last week,was 82% in week 4
+5,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+5,E-3,hit,Very unlikely,Back within by the end?,likely 59% by cycle end
+5,E-4,plan,On plan,Vs plan,plan 44% in week 4
+5,E-4,since,356 pts worse,Vs last week,was 400% in week 3
+5,E-4,target,31 pts to go,To target,target 75%
+5,E-4,hit,Likely,Will it hit 75%?,likely 100% by cycle end
+5,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+5,E-5,since,125 pts worse,Last change,was 120% in week 2
+5,E-5,target,155 pts to go,To target,target 150%
+5,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+5,E-6,plan,20 pts ahead of plan,Vs plan,plan 25%
+5,E-6,since,7 pts worse,Vs last week,was 52% in week 4
+5,E-6,target,5 pts to go,To target,target 50%
+5,E-6,hit,Likely,Will it hit 50%?,likely 72% by cycle end
+5,E-7,plan,15 pts ahead of plan,Vs plan,plan 25%
+5,E-7,since,12 pts worse,Vs last week,was 52% in week 4
+5,E-7,target,10 pts to go,To target,target 50%
+5,E-7,hit,Possible,Will it hit 50%?,likely 49% by cycle end
+5,E-8,plan,2 deploys behind plan,Vs plan,plan 6 deploys
+5,E-8,since,1 deploy better,Vs last week,was 3 deploys in week 3
+5,E-8,target,8 deploys to go,To target,target 12 deploys
+5,E-8,hit,Very unlikely,Will it hit 12?,likely 6 deploys by cycle end
+5,E-9,plan,16 pts ahead of plan,Vs plan,plan 34% in week 3
+5,E-9,since,25 pts better,Last change,was 25% in week 1
+5,E-9,target,30 pts to go,To target,target 80%
+5,E-9,hit,Can’t say,Will it hit 80%?,no recent update to go on
+5,E-10,plan,1 h/week ahead of plan,Vs plan,plan 21 h/week
+5,E-10,since,7 h/week better,Vs last week,was 27 h/week in week 4
+5,E-10,target,14 h/week over,To target,target 6 h/week
+5,E-10,hit,Possible,Will it hit 6?,likely 13 h/week by cycle end
+5,E-11,plan,No value yet,Vs plan,plan 4.00 USD
+5,E-11,since,No check-in yet,Vs last week,nothing to compare
+5,E-11,target,No value yet,To target,target 1.00 USD
+5,E-11,hit,Too early to say,Will it hit 1.00?,needs three weeks of numbers
+5,E-12,plan,14 pts behind plan,Vs plan,plan 55% in week 4
+5,E-12,since,4 pts worse,Vs last week,was 45% in week 3
+5,E-12,target,49 pts to go,To target,target 90%
+5,E-12,hit,Very unlikely,Will it hit 90%?,likely 41% by cycle end
+5,E-13,plan,5 jobs behind plan,Vs plan,plan 8 jobs
+5,E-13,since,1 job better,Vs last week,was 2 jobs in week 2
+5,E-13,target,17 jobs to go,To target,target 20 jobs
+5,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+5,E-14,since,482 ms better,Last change,was 480 ms in week 1
+5,E-14,target,Target reached,To target,target 200 ms
+5,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+5,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+5,E-15,since,First check-in,Vs last week,nothing to compare yet
+5,E-15,target,1.6 pts over,To target,target 3.0 pts
+5,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+5,E-16,plan,No value yet,Vs plan,plan 25%
+5,E-16,since,No number this time,Vs last week,no number to compare
+5,E-16,target,No value yet,To target,target 50%
+5,E-16,hit,Likely,Will it hit 50%?,likely 54% by cycle end
+5,E-17,plan,2 pts behind plan,Vs plan,plan 20% in week 3
+5,E-17,since,8 pts worse,Last change,was 26% in week 1
+5,E-17,target,32 pts to go,To target,target 50%
+5,E-17,hit,Can’t say,Will it hit 50%?,no recent update to go on
+5,E-18,plan,On plan,Vs plan,plan 18 deploys
+5,E-18,since,2 deploys better,Vs last week,was 16 deploys in week 4
+5,E-18,target,12 deploys to go,To target,target 30 deploys
+5,E-18,hit,Too early to say,Will it hit 30?,needs three weeks of numbers
+6,E-1,limit,Outside it,Vs the limit,must stay between 99.50% and 99.95%
+6,E-1,since,0.46 pts worse,Vs last week,was 99.50% in week 5
+6,E-1,room,0.01 pts over,Room to the limit,warning within 0.10 pts
+6,E-1,hit,Possible,Back within by the end?,likely 99.77% by cycle end
+6,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+6,E-2,since,1.1 pts better,Vs last week,was 12.1% in week 5
+6,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+6,E-2,hit,Unlikely,Will it stay within?,likely 15.0% by cycle end
+6,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+6,E-3,since,3 pts worse,Vs last week,was 82% in week 4
+6,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+6,E-3,hit,Very unlikely,Back within by the end?,likely 59% by cycle end
+6,E-4,plan,On plan,Vs plan,plan 44% in week 4
+6,E-4,since,356 pts worse,Last change,was 400% in week 3
+6,E-4,target,31 pts to go,To target,target 75%
+6,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+6,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+6,E-5,since,125 pts worse,Last change,was 120% in week 2
+6,E-5,target,155 pts to go,To target,target 150%
+6,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+6,E-6,plan,20 pts ahead of plan,Vs plan,plan 25% in week 5
+6,E-6,since,7 pts worse,Vs last week,was 52% in week 4
+6,E-6,target,5 pts to go,To target,target 50%
+6,E-6,hit,Likely,Will it hit 50%?,likely 72% by cycle end
+6,E-7,plan,15 pts ahead of plan,Vs plan,plan 25% in week 5
+6,E-7,since,12 pts worse,Vs last week,was 52% in week 4
+6,E-7,target,10 pts to go,To target,target 50%
+6,E-7,hit,Possible,Will it hit 50%?,likely 49% by cycle end
+6,E-8,plan,On plan,Vs plan,plan 7 deploys
+6,E-8,since,3 deploys better,Vs last week,was 4 deploys in week 5
+6,E-8,target,5 deploys to go,To target,target 12 deploys
+6,E-8,hit,Possible,Will it hit 12?,likely 10 deploys by cycle end
+6,E-9,plan,18 pts behind plan,Vs plan,plan 48%
+6,E-9,since,20 pts worse,Vs last week,was 50% in week 3
+6,E-9,target,50 pts to go,To target,target 80%
+6,E-9,hit,Unlikely,Will it hit 80%?,likely 31% by cycle end
+6,E-10,plan,1 h/week ahead of plan,Vs plan,plan 21 h/week in week 5
+6,E-10,since,7 h/week better,Vs last week,was 27 h/week in week 4
+6,E-10,target,14 h/week over,To target,target 6 h/week
+6,E-10,hit,Possible,Will it hit 6?,likely 13 h/week by cycle end
+6,E-11,plan,0.17 USD behind plan,Vs plan,plan 3.63 USD
+6,E-11,since,First check-in,Vs last week,nothing to compare yet
+6,E-11,target,2.80 USD over,To target,target 1.00 USD
+6,E-11,hit,Too early to say,Will it hit 1.00?,needs three weeks of numbers
+6,E-12,plan,14 pts behind plan,Vs plan,plan 55% in week 4
+6,E-12,since,4 pts worse,Vs last week,was 45% in week 3
+6,E-12,target,49 pts to go,To target,target 90%
+6,E-12,hit,Very unlikely,Will it hit 90%?,likely 41% by cycle end
+6,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+6,E-14,since,482 ms better,Last change,was 480 ms in week 1
+6,E-14,target,Target reached,To target,target 200 ms
+6,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+6,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+6,E-15,since,First check-in,Vs last week,nothing to compare yet
+6,E-15,target,1.6 pts over,To target,target 3.0 pts
+6,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+6,E-16,plan,No value yet,Vs plan,plan 25%
+6,E-16,since,No number this time,Vs last week,no number to compare
+6,E-16,target,No value yet,To target,target 50%
+6,E-16,hit,Likely,Will it hit 50%?,likely 54% by cycle end
+6,E-17,plan,On plan,Vs plan,plan 30%
+6,E-17,since,12 pts better,Vs last week,was 18% in week 3
+6,E-17,target,20 pts to go,To target,target 50%
+6,E-17,hit,Unlikely,Will it hit 50%?,likely 27% by cycle end
+6,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys
+6,E-18,since,2 deploys better,Vs last week,was 18 deploys in week 5
+6,E-18,target,10 deploys to go,To target,target 30 deploys
+6,E-18,hit,Too early to say,Will it hit 30?,needs three weeks of numbers
+7,E-1,limit,Outside it,Vs the limit,must stay between 99.50% and 99.95%
+7,E-1,since,0.56 pts worse,Vs last week,was 99.96% in week 6
+7,E-1,room,0.10 pts under,Room to the limit,warning within 0.10 pts
+7,E-1,hit,Possible,Back within by the end?,likely 99.63% by cycle end
+7,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+7,E-2,since,1.1 pts better,Vs last week,was 12.1% in week 5
+7,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+7,E-2,hit,Unlikely,Will it stay within?,likely 15.0% by cycle end
+7,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+7,E-3,since,3 pts worse,Last change,was 82% in week 4
+7,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+7,E-3,hit,Can’t say,Back within by the end?,no recent update to go on
+7,E-4,plan,On plan,Vs plan,plan 44% in week 4
+7,E-4,since,356 pts worse,Last change,was 400% in week 3
+7,E-4,target,31 pts to go,To target,target 75%
+7,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+7,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+7,E-5,since,125 pts worse,Last change,was 120% in week 2
+7,E-5,target,155 pts to go,To target,target 150%
+7,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+7,E-6,plan,18 pts ahead of plan,Vs plan,plan 32%
+7,E-6,since,5 pts better,Vs last week,was 45% in week 5
+7,E-6,target,Target reached,To target,target 50%
+7,E-6,hit,Likely,Will it hit 50%?,likely 64% by cycle end
+7,E-7,plan,15 pts ahead of plan,Vs plan,plan 25% in week 5
+7,E-7,since,12 pts worse,Last change,was 52% in week 4
+7,E-7,target,10 pts to go,To target,target 50%
+7,E-7,hit,Can’t say,Will it hit 50%?,no recent update to go on
+7,E-8,plan,1 deploy ahead of plan,Vs plan,plan 7 deploys
+7,E-8,since,1 deploy better,Vs last week,was 7 deploys in week 6
+7,E-8,target,4 deploys to go,To target,target 12 deploys
+7,E-8,hit,Possible,Will it hit 12?,likely 12 deploys by cycle end
+7,E-9,plan,18 pts behind plan,Vs plan,plan 48% in week 6
+7,E-9,since,20 pts worse,Vs last week,was 50% in week 3
+7,E-9,target,50 pts to go,To target,target 80%
+7,E-9,hit,Unlikely,Will it hit 80%?,likely 31% by cycle end
+7,E-10,plan,1 h/week ahead of plan,Vs plan,plan 21 h/week in week 5
+7,E-10,since,7 h/week better,Last change,was 27 h/week in week 4
+7,E-10,target,14 h/week over,To target,target 6 h/week
+7,E-10,hit,Can’t say,Will it hit 6?,no recent update to go on
+7,E-11,plan,0.17 USD behind plan,Vs plan,plan 3.63 USD in week 6
+7,E-11,since,First check-in,Vs last week,nothing to compare yet
+7,E-11,target,2.80 USD over,To target,target 1.00 USD
+7,E-11,hit,Too early to say,Will it hit 1.00?,needs three weeks of numbers
+7,E-12,plan,17 pts behind plan,Vs plan,plan 67%
+7,E-12,since,9 pts better,Vs last week,was 41% in week 4
+7,E-12,target,40 pts to go,To target,target 90%
+7,E-12,hit,Very unlikely,Will it hit 90%?,likely 50% by cycle end
+7,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+7,E-14,since,482 ms better,Last change,was 480 ms in week 1
+7,E-14,target,Target reached,To target,target 200 ms
+7,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+7,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+7,E-15,since,First check-in,Vs last week,nothing to compare yet
+7,E-15,target,1.6 pts over,To target,target 3.0 pts
+7,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+7,E-16,plan,No value yet,Vs plan,plan 25%
+7,E-16,since,No number this time,Last change,no number to compare
+7,E-16,target,No value yet,To target,target 50%
+7,E-16,hit,Can’t say,Will it hit 50%?,no recent update to go on
+7,E-17,plan,On plan,Vs plan,plan 30% in week 6
+7,E-17,since,12 pts better,Vs last week,was 18% in week 3
+7,E-17,target,20 pts to go,To target,target 50%
+7,E-17,hit,Unlikely,Will it hit 50%?,likely 27% by cycle end
+7,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys in week 6
+7,E-18,since,2 deploys better,Vs last week,was 18 deploys in week 5
+7,E-18,target,10 deploys to go,To target,target 30 deploys
+7,E-18,hit,Too early to say,Will it hit 30?,needs three weeks of numbers
+8,E-1,limit,Inside it,Vs the limit,must stay between 99.50% and 99.95%
+8,E-1,since,0.30 pts better,Vs last week,was 99.40% in week 7
+8,E-1,room,0.20 pts of room,Room to the limit,warning within 0.10 pts
+8,E-1,hit,Likely,Will it stay within?,likely 99.66% by cycle end
+8,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+8,E-2,since,1.1 pts better,Last change,was 12.1% in week 5
+8,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+8,E-2,hit,Can’t say,Will it stay within?,no recent update to go on
+8,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+8,E-3,since,3 pts worse,Last change,was 82% in week 4
+8,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+8,E-3,hit,Can’t say,Back within by the end?,no recent update to go on
+8,E-4,plan,On plan,Vs plan,plan 44% in week 4
+8,E-4,since,356 pts worse,Last change,was 400% in week 3
+8,E-4,target,31 pts to go,To target,target 75%
+8,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+8,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+8,E-5,since,125 pts worse,Last change,was 120% in week 2
+8,E-5,target,155 pts to go,To target,target 150%
+8,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+8,E-6,plan,18 pts ahead of plan,Vs plan,plan 32% in week 7
+8,E-6,since,5 pts better,Vs last week,was 45% in week 5
+8,E-6,target,Target reached,To target,target 50%
+8,E-6,hit,Likely,Will it hit 50%?,likely 64% by cycle end
+8,E-7,plan,16 pts ahead of plan,Vs plan,plan 35%
+8,E-7,since,20 pts better,Vs last week,was 31% in week 7
+8,E-7,target,Target reached,To target,target 50%
+8,E-7,hit,Possible,Will it hit 50%?,likely 43% by cycle end
+8,E-8,plan,1 deploy behind plan,Vs plan,plan 8 deploys
+8,E-8,since,1 deploy worse,Vs last week,was 8 deploys in week 7
+8,E-8,target,5 deploys to go,To target,target 12 deploys
+8,E-8,hit,Possible,Will it hit 12?,likely 11 deploys by cycle end
+8,E-9,plan,18 pts behind plan,Vs plan,plan 48% in week 6
+8,E-9,since,20 pts worse,Last change,was 50% in week 3
+8,E-9,target,50 pts to go,To target,target 80%
+8,E-9,hit,Can’t say,Will it hit 80%?,no recent update to go on
+8,E-10,plan,1 h/week ahead of plan,Vs plan,plan 21 h/week in week 5
+8,E-10,since,7 h/week better,Last change,was 27 h/week in week 4
+8,E-10,target,14 h/week over,To target,target 6 h/week
+8,E-10,hit,Can’t say,Will it hit 6?,no recent update to go on
+8,E-11,plan,1.02 USD behind plan,Vs plan,plan 2.88 USD
+8,E-11,since,0.10 USD worse,Vs last week,was 3.80 USD in week 6
+8,E-11,target,2.90 USD over,To target,target 1.00 USD
+8,E-11,hit,Too early to say,Will it hit 1.00?,needs three weeks of numbers
+8,E-12,plan,17 pts behind plan,Vs plan,plan 67% in week 7
+8,E-12,since,9 pts better,Vs last week,was 41% in week 4
+8,E-12,target,40 pts to go,To target,target 90%
+8,E-12,hit,Very unlikely,Will it hit 90%?,likely 50% by cycle end
+8,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+8,E-14,since,482 ms better,Last change,was 480 ms in week 1
+8,E-14,target,Target reached,To target,target 200 ms
+8,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+8,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+8,E-15,since,First check-in,Vs last week,nothing to compare yet
+8,E-15,target,1.6 pts over,To target,target 3.0 pts
+8,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+8,E-16,plan,No value yet,Vs plan,plan 25%
+8,E-16,since,No number this time,Last change,no number to compare
+8,E-16,target,No value yet,To target,target 50%
+8,E-16,hit,Can’t say,Will it hit 50%?,no recent update to go on
+8,E-17,plan,On plan,Vs plan,plan 30% in week 6
+8,E-17,since,12 pts better,Last change,was 18% in week 3
+8,E-17,target,20 pts to go,To target,target 50%
+8,E-17,hit,Can’t say,Will it hit 50%?,no recent update to go on
+8,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys in week 6
+8,E-18,since,2 deploys better,Last change,was 18 deploys in week 5
+8,E-18,target,10 deploys to go,To target,target 30 deploys
+8,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on
+9,E-1,limit,Inside it,Vs the limit,must stay between 99.50% and 99.95%
+9,E-1,since,0.30 pts better,Vs last week,was 99.40% in week 7
+9,E-1,room,0.20 pts of room,Room to the limit,warning within 0.10 pts
+9,E-1,hit,Likely,Will it stay within?,likely 99.66% by cycle end
+9,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+9,E-2,since,1.1 pts better,Last change,was 12.1% in week 5
+9,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+9,E-2,hit,Can’t say,Will it stay within?,no recent update to go on
+9,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+9,E-3,since,3 pts worse,Last change,was 82% in week 4
+9,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+9,E-3,hit,Can’t say,Back within by the end?,no recent update to go on
+9,E-4,plan,On plan,Vs plan,plan 44% in week 4
+9,E-4,since,356 pts worse,Last change,was 400% in week 3
+9,E-4,target,31 pts to go,To target,target 75%
+9,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+9,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+9,E-5,since,125 pts worse,Last change,was 120% in week 2
+9,E-5,target,155 pts to go,To target,target 150%
+9,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+9,E-6,plan,18 pts ahead of plan,Vs plan,plan 32% in week 7
+9,E-6,since,5 pts better,Last change,was 45% in week 5
+9,E-6,target,Target reached,To target,target 50%
+9,E-6,hit,Can’t say,Will it hit 50%?,no recent update to go on
+9,E-7,plan,5 pts behind plan,Vs plan,plan 38%
+9,E-7,since,18 pts worse,Vs last week,was 51% in week 8
+9,E-7,target,17 pts to go,To target,target 50%
+9,E-7,hit,Possible,Will it hit 50%?,likely 42% by cycle end
+9,E-8,plan,On plan,Vs plan,plan 9 deploys
+9,E-8,since,2 deploys better,Vs last week,was 7 deploys in week 8
+9,E-8,target,3 deploys to go,To target,target 12 deploys
+9,E-8,hit,Possible,Will it hit 12?,likely 12 deploys by cycle end
+9,E-9,plan,18 pts behind plan,Vs plan,plan 48% in week 6
+9,E-9,since,20 pts worse,Last change,was 50% in week 3
+9,E-9,target,50 pts to go,To target,target 80%
+9,E-9,hit,Can’t say,Will it hit 80%?,no recent update to go on
+9,E-10,plan,14 h/week ahead of plan,Vs plan,plan 13 h/week
+9,E-10,since,21 h/week better,Vs last week,was 20 h/week in week 5
+9,E-10,target,Target reached,To target,target 6 h/week
+9,E-10,hit,Likely,Will it hit 6?,likely 0 h/week by cycle end
+9,E-11,plan,3.00 USD ahead of plan,Vs plan,plan 2.50 USD
+9,E-11,since,4.40 USD better,Vs last week,was 3.90 USD in week 8
+9,E-11,target,Target reached,To target,target 1.00 USD
+9,E-11,hit,Possible,Will it hit 1.00?,likely -1.19 USD by cycle end
+9,E-12,plan,17 pts behind plan,Vs plan,plan 67% in week 7
+9,E-12,since,9 pts better,Last change,was 41% in week 4
+9,E-12,target,40 pts to go,To target,target 90%
+9,E-12,hit,Can’t say,Will it hit 90%?,no recent update to go on
+9,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+9,E-14,since,482 ms better,Last change,was 480 ms in week 1
+9,E-14,target,Target reached,To target,target 200 ms
+9,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+9,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+9,E-15,since,First check-in,Vs last week,nothing to compare yet
+9,E-15,target,1.6 pts over,To target,target 3.0 pts
+9,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+9,E-16,plan,No value yet,Vs plan,plan 25%
+9,E-16,since,No number this time,Last change,no number to compare
+9,E-16,target,No value yet,To target,target 50%
+9,E-16,hit,Can’t say,Will it hit 50%?,no recent update to go on
+9,E-17,plan,On plan,Vs plan,plan 30% in week 6
+9,E-17,since,12 pts better,Last change,was 18% in week 3
+9,E-17,target,20 pts to go,To target,target 50%
+9,E-17,hit,Can’t say,Will it hit 50%?,no recent update to go on
+9,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys in week 6
+9,E-18,since,2 deploys better,Last change,was 18 deploys in week 5
+9,E-18,target,10 deploys to go,To target,target 30 deploys
+9,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on
+10,E-1,limit,Inside it,Vs the limit,must stay between 99.50% and 99.95%
+10,E-1,since,0.30 pts better,Last change,was 99.40% in week 7
+10,E-1,room,0.20 pts of room,Room to the limit,warning within 0.10 pts
+10,E-1,hit,Can’t say,Will it stay within?,no recent update to go on
+10,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+10,E-2,since,1.1 pts better,Last change,was 12.1% in week 5
+10,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+10,E-2,hit,Can’t say,Will it stay within?,no recent update to go on
+10,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+10,E-3,since,3 pts worse,Last change,was 82% in week 4
+10,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+10,E-3,hit,Can’t say,Back within by the end?,no recent update to go on
+10,E-4,plan,On plan,Vs plan,plan 44% in week 4
+10,E-4,since,356 pts worse,Last change,was 400% in week 3
+10,E-4,target,31 pts to go,To target,target 75%
+10,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+10,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+10,E-5,since,125 pts worse,Last change,was 120% in week 2
+10,E-5,target,155 pts to go,To target,target 150%
+10,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+10,E-6,plan,18 pts ahead of plan,Vs plan,plan 32% in week 7
+10,E-6,since,5 pts better,Last change,was 45% in week 5
+10,E-6,target,Target reached,To target,target 50%
+10,E-6,hit,Can’t say,Will it hit 50%?,no recent update to go on
+10,E-7,plan,5 pts behind plan,Vs plan,plan 38% in week 9
+10,E-7,since,18 pts worse,Vs last week,was 51% in week 8
+10,E-7,target,17 pts to go,To target,target 50%
+10,E-7,hit,Possible,Will it hit 50%?,likely 42% by cycle end
+10,E-8,plan,On plan,Vs plan,plan 9 deploys in week 9
+10,E-8,since,2 deploys better,Vs last week,was 7 deploys in week 8
+10,E-8,target,3 deploys to go,To target,target 12 deploys
+10,E-8,hit,Possible,Will it hit 12?,likely 12 deploys by cycle end
+10,E-9,plan,18 pts behind plan,Vs plan,plan 48% in week 6
+10,E-9,since,20 pts worse,Last change,was 50% in week 3
+10,E-9,target,50 pts to go,To target,target 80%
+10,E-9,hit,Can’t say,Will it hit 80%?,no recent update to go on
+10,E-10,plan,14 h/week ahead of plan,Vs plan,plan 13 h/week in week 9
+10,E-10,since,21 h/week better,Vs last week,was 20 h/week in week 5
+10,E-10,target,Target reached,To target,target 6 h/week
+10,E-10,hit,Likely,Will it hit 6?,likely 0 h/week by cycle end
+10,E-11,plan,3.00 USD ahead of plan,Vs plan,plan 2.50 USD in week 9
+10,E-11,since,4.40 USD better,Vs last week,was 3.90 USD in week 8
+10,E-11,target,Target reached,To target,target 1.00 USD
+10,E-11,hit,Possible,Will it hit 1.00?,likely -1.19 USD by cycle end
+10,E-12,plan,17 pts behind plan,Vs plan,plan 67% in week 7
+10,E-12,since,9 pts better,Last change,was 41% in week 4
+10,E-12,target,40 pts to go,To target,target 90%
+10,E-12,hit,Can’t say,Will it hit 90%?,no recent update to go on
+10,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+10,E-14,since,482 ms better,Last change,was 480 ms in week 1
+10,E-14,target,Target reached,To target,target 200 ms
+10,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+10,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+10,E-15,since,First check-in,Vs last week,nothing to compare yet
+10,E-15,target,1.6 pts over,To target,target 3.0 pts
+10,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+10,E-16,plan,No value yet,Vs plan,plan 25%
+10,E-16,since,No number this time,Last change,no number to compare
+10,E-16,target,No value yet,To target,target 50%
+10,E-16,hit,Can’t say,Will it hit 50%?,no recent update to go on
+10,E-17,plan,On plan,Vs plan,plan 30% in week 6
+10,E-17,since,12 pts better,Last change,was 18% in week 3
+10,E-17,target,20 pts to go,To target,target 50%
+10,E-17,hit,Can’t say,Will it hit 50%?,no recent update to go on
+10,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys in week 6
+10,E-18,since,2 deploys better,Last change,was 18 deploys in week 5
+10,E-18,target,10 deploys to go,To target,target 30 deploys
+10,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on
+11,E-1,limit,Inside it,Vs the limit,must stay between 99.50% and 99.95%
+11,E-1,since,0.30 pts better,Last change,was 99.40% in week 7
+11,E-1,room,0.20 pts of room,Room to the limit,warning within 0.10 pts
+11,E-1,hit,Can’t say,Will it stay within?,no recent update to go on
+11,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+11,E-2,since,1.1 pts better,Last change,was 12.1% in week 5
+11,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+11,E-2,hit,Can’t say,Will it stay within?,no recent update to go on
+11,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+11,E-3,since,3 pts worse,Last change,was 82% in week 4
+11,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+11,E-3,hit,Can’t say,Back within by the end?,no recent update to go on
+11,E-4,plan,On plan,Vs plan,plan 44% in week 4
+11,E-4,since,356 pts worse,Last change,was 400% in week 3
+11,E-4,target,31 pts to go,To target,target 75%
+11,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+11,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+11,E-5,since,125 pts worse,Last change,was 120% in week 2
+11,E-5,target,155 pts to go,To target,target 150%
+11,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+11,E-6,plan,18 pts ahead of plan,Vs plan,plan 32% in week 7
+11,E-6,since,5 pts better,Last change,was 45% in week 5
+11,E-6,target,Target reached,To target,target 50%
+11,E-6,hit,Can’t say,Will it hit 50%?,no recent update to go on
+11,E-7,plan,5 pts behind plan,Vs plan,plan 38% in week 9
+11,E-7,since,18 pts worse,Last change,was 51% in week 8
+11,E-7,target,17 pts to go,To target,target 50%
+11,E-7,hit,Can’t say,Will it hit 50%?,no recent update to go on
+11,E-8,plan,On plan,Vs plan,plan 9 deploys in week 9
+11,E-8,since,2 deploys better,Last change,was 7 deploys in week 8
+11,E-8,target,3 deploys to go,To target,target 12 deploys
+11,E-8,hit,Can’t say,Will it hit 12?,no recent update to go on
+11,E-9,plan,18 pts behind plan,Vs plan,plan 48% in week 6
+11,E-9,since,20 pts worse,Last change,was 50% in week 3
+11,E-9,target,50 pts to go,To target,target 80%
+11,E-9,hit,Can’t say,Will it hit 80%?,no recent update to go on
+11,E-10,plan,14 h/week ahead of plan,Vs plan,plan 13 h/week in week 9
+11,E-10,since,21 h/week better,Last change,was 20 h/week in week 5
+11,E-10,target,Target reached,To target,target 6 h/week
+11,E-10,hit,Can’t say,Will it hit 6?,no recent update to go on
+11,E-11,plan,3.00 USD ahead of plan,Vs plan,plan 2.50 USD in week 9
+11,E-11,since,4.40 USD better,Last change,was 3.90 USD in week 8
+11,E-11,target,Target reached,To target,target 1.00 USD
+11,E-11,hit,Can’t say,Will it hit 1.00?,no recent update to go on
+11,E-12,plan,17 pts behind plan,Vs plan,plan 67% in week 7
+11,E-12,since,9 pts better,Last change,was 41% in week 4
+11,E-12,target,40 pts to go,To target,target 90%
+11,E-12,hit,Can’t say,Will it hit 90%?,no recent update to go on
+11,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+11,E-14,since,482 ms better,Last change,was 480 ms in week 1
+11,E-14,target,Target reached,To target,target 200 ms
+11,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+11,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+11,E-15,since,First check-in,Vs last week,nothing to compare yet
+11,E-15,target,1.6 pts over,To target,target 3.0 pts
+11,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+11,E-16,plan,No value yet,Vs plan,plan 25%
+11,E-16,since,No number this time,Last change,no number to compare
+11,E-16,target,No value yet,To target,target 50%
+11,E-16,hit,Can’t say,Will it hit 50%?,no recent update to go on
+11,E-17,plan,On plan,Vs plan,plan 30% in week 6
+11,E-17,since,12 pts better,Last change,was 18% in week 3
+11,E-17,target,20 pts to go,To target,target 50%
+11,E-17,hit,Can’t say,Will it hit 50%?,no recent update to go on
+11,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys in week 6
+11,E-18,since,2 deploys better,Last change,was 18 deploys in week 5
+11,E-18,target,10 deploys to go,To target,target 30 deploys
+11,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on
+12,E-1,limit,Inside it,Vs the limit,must stay between 99.50% and 99.95%
+12,E-1,since,0.30 pts better,Last change,was 99.40% in week 7
+12,E-1,room,0.20 pts of room,Room to the limit,warning within 0.10 pts
+12,E-1,hit,Can’t say,Will it stay within?,no recent update to go on
+12,E-2,limit,"Inside, near it",Vs the limit,must stay at most 12.0%
+12,E-2,since,1.1 pts better,Last change,was 12.1% in week 5
+12,E-2,room,1.0 pt of room,Room to the limit,warning within 2.0 pts
+12,E-2,hit,Can’t say,Will it stay within?,no recent update to go on
+12,E-3,limit,Outside it,Vs the limit,must stay at least 80%
+12,E-3,since,3 pts worse,Last change,was 82% in week 4
+12,E-3,room,1 pt under,Room to the limit,warning within 5 pts
+12,E-3,hit,Can’t say,Back within by the end?,no recent update to go on
+12,E-4,plan,On plan,Vs plan,plan 44% in week 4
+12,E-4,since,356 pts worse,Last change,was 400% in week 3
+12,E-4,target,31 pts to go,To target,target 75%
+12,E-4,hit,Can’t say,Will it hit 75%?,no recent update to go on
+12,E-5,plan,78 pts behind plan,Vs plan,plan 73% in week 3
+12,E-5,since,125 pts worse,Last change,was 120% in week 2
+12,E-5,target,155 pts to go,To target,target 150%
+12,E-5,hit,Can’t say,Will it hit 150%?,no recent update to go on
+12,E-6,plan,18 pts ahead of plan,Vs plan,plan 32% in week 7
+12,E-6,since,5 pts better,Last change,was 45% in week 5
+12,E-6,target,Target reached,To target,target 50%
+12,E-6,hit,Can’t say,Will it hit 50%?,no recent update to go on
+12,E-7,plan,5 pts behind plan,Vs plan,plan 38% in week 9
+12,E-7,since,18 pts worse,Last change,was 51% in week 8
+12,E-7,target,17 pts to go,To target,target 50%
+12,E-7,hit,Can’t say,Will it hit 50%?,no recent update to go on
+12,E-8,plan,On plan,Vs plan,plan 9 deploys in week 9
+12,E-8,since,2 deploys better,Last change,was 7 deploys in week 8
+12,E-8,target,3 deploys to go,To target,target 12 deploys
+12,E-8,hit,Can’t say,Will it hit 12?,no recent update to go on
+12,E-9,plan,18 pts behind plan,Vs plan,plan 48% in week 6
+12,E-9,since,20 pts worse,Last change,was 50% in week 3
+12,E-9,target,50 pts to go,To target,target 80%
+12,E-9,hit,Can’t say,Will it hit 80%?,no recent update to go on
+12,E-10,plan,14 h/week ahead of plan,Vs plan,plan 13 h/week in week 9
+12,E-10,since,21 h/week better,Last change,was 20 h/week in week 5
+12,E-10,target,Target reached,To target,target 6 h/week
+12,E-10,hit,Can’t say,Will it hit 6?,no recent update to go on
+12,E-11,plan,3.00 USD ahead of plan,Vs plan,plan 2.50 USD in week 9
+12,E-11,since,4.40 USD better,Last change,was 3.90 USD in week 8
+12,E-11,target,Target reached,To target,target 1.00 USD
+12,E-11,hit,Can’t say,Will it hit 1.00?,no recent update to go on
+12,E-12,plan,17 pts behind plan,Vs plan,plan 67% in week 7
+12,E-12,since,9 pts better,Last change,was 41% in week 4
+12,E-12,target,40 pts to go,To target,target 90%
+12,E-12,hit,Can’t say,Will it hit 90%?,no recent update to go on
+12,E-14,plan,456 ms ahead of plan,Vs plan,plan 454 ms in week 2
+12,E-14,since,482 ms better,Last change,was 480 ms in week 1
+12,E-14,target,Target reached,To target,target 200 ms
+12,E-14,hit,Can’t say,Will it hit 200?,no recent update to go on
+12,E-15,plan,0.1 pts behind plan,Vs plan,plan 4.5 pts in week 3
+12,E-15,since,First check-in,Vs last week,nothing to compare yet
+12,E-15,target,1.6 pts over,To target,target 3.0 pts
+12,E-15,hit,Too early to say,Will it hit 3.0?,needs three weeks of numbers
+12,E-16,plan,No value yet,Vs plan,plan 25%
+12,E-16,since,No number this time,Last change,no number to compare
+12,E-16,target,No value yet,To target,target 50%
+12,E-16,hit,Can’t say,Will it hit 50%?,no recent update to go on
+12,E-17,plan,On plan,Vs plan,plan 30% in week 6
+12,E-17,since,12 pts better,Last change,was 18% in week 3
+12,E-17,target,20 pts to go,To target,target 50%
+12,E-17,hit,Can’t say,Will it hit 50%?,no recent update to go on
+12,E-18,plan,1 deploy ahead of plan,Vs plan,plan 19 deploys in week 6
+12,E-18,since,2 deploys better,Last change,was 18 deploys in week 5
+12,E-18,target,10 deploys to go,To target,target 30 deploys
+12,E-18,hit,Can’t say,Will it hit 30?,no recent update to go on

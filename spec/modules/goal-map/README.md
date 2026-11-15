@@ -29,16 +29,18 @@ Module id `goal-map`, in [src/modules/goal-map/](../../../src/modules/goal-map/m
 
 ## Journeys and checks
 
+Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).
+
 | Id | What | Where |
 |---|---|---|
-| U26 | Find what will sink the north star on the goal map, and read its story | `evals/journeys.cjs` |
-| U30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | `evals/journeys.cjs` |
-| U34 | What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes | `evals/journeys.cjs` |
-| U39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at | `evals/journeys.cjs` |
-| U90 | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
-| U134 | Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; with the filter the Board is one column, Proposed, and the Map draws it dashed with the word; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it | `evals/journeys.cjs` |
-| U135 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet | `evals/journeys.cjs` |
-| U165 | Feedback and the Goal map off: no Feedback in the menu, Ctrl+Shift+M opens nothing, /feedback says it is off; Goals offers four layouts and a link to the Map opens the List and says so; both back on, the Map opens | `evals/journeys.cjs` |
+| [U26](journeys/U26.md) | Find what will sink the north star on the goal map, and read its story | `evals/journeys.cjs` |
+| [U30](journeys/U30.md) | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | `evals/journeys.cjs` |
+| [U34](journeys/U34.md) | What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes | `evals/journeys.cjs` |
+| [U39](journeys/U39.md) | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at | `evals/journeys.cjs` |
+| [U90](journeys/U90.md) | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
+| [U134](journeys/U134.md) | Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; with the filter the Board is one column, Proposed, and the Map draws it dashed with the word; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it | `evals/journeys.cjs` |
+| [U135](journeys/U135.md) | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet | `evals/journeys.cjs` |
+| [U165](journeys/U165.md) | Feedback and the Goal map off: no Feedback in the menu, Ctrl+Shift+M opens nothing, /feedback says it is off; Goals offers four layouts and a link to the Map opens the List and says so; both back on, the Map opens | `evals/journeys.cjs` |
 | F6 | Fit and finish, map-reviews | `evals/finish/6-map-reviews.cjs` |
 | N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
@@ -48,5 +50,5 @@ Module id `goal-map`, in [src/modules/goal-map/](../../../src/modules/goal-map/m
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 5](../../rebuild/stage-5-module-goal-map.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 6](../../rebuild/stage-6-module-goal-map.md) (an outline, with no drill yet).
 **Not self-explanatory:** it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.

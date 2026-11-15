@@ -161,7 +161,8 @@ export interface CopyCtx {
 /**
  * A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
  * was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
- * and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
+ * and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans, and no baseline (last year's
+ * was its old start). One that **keeps** its
  * plan keeps its dates, counted from the new year's start. The copy was proposed in no review of the new year, so it
  * keeps no `proposedIn` (build review of #376). Stages not done are spread evenly over the new year
  * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
@@ -178,7 +179,11 @@ export function carryCopy(g: Goal, ctx: CopyCtx): Goal {
   if (g.kind === 'metric') {
     const f = finalNumber(g, ctx.checkIns, ctx.old);
     const plan = { start: f.value ?? g.plan.start, target: g.plan.target, shape: g.plan.shape, fromWeek: 0 };
-    return { ...base, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null, planHistory: undefined } as Goal;
+    // It starts from its final number, so last year's baseline is no longer where it starts (BL review, medium 7). With
+    // no final number the start is the old one, and so is the baseline.
+    const { baseline: _old, ...rest } = base as Goal & { baseline?: unknown };
+    const kept = f.value == null && g.baseline ? { baseline: g.baseline } : {};
+    return { ...rest, ...kept, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null, planHistory: undefined } as Goal;
   }
   if (g.kind === 'milestone') {
     const last = checkInsFor(g, ctx.checkIns).filter((c) => c.stages).pop();

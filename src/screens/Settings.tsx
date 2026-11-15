@@ -8,11 +8,15 @@ import { ACCENTS, LANDINGS, SIDEBARS, THEMES, impactWords, openMotionLab, paceWo
 import { Avatar } from '../ui/bits';
 import { ProfileSheet } from '../ui/ProfileSheet';
 import { MyTokens } from '../ui/AiAssistants';
+import { useModules } from '../core/app';
+import { aiAccessOn } from '../app/reads';
 import { LeaveWorkspaceSheet } from '../ui/RemoveSheets';
 import { adminsLine, workspaceName } from '../domain/workspaceAttention';
 
 export function Settings() {
   const app = useApp();
+  // Your MCP tokens only while AI access is on (SW2, spec 5).
+  const { on } = useModules();
   const look = useAppearance();
   const [who, setWho] = useState(false);
   const team = app.team(app.viewer.teamId ?? '');
@@ -75,7 +79,7 @@ export function Settings() {
       </section>
 
 
-      <MyTokens />
+      {aiAccessOn(on) && <MyTokens />}
 
       <WhatIsRecorded />
       <ProfileSheet open={who} onClose={() => setWho(false)} />

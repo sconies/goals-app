@@ -32,7 +32,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`list_people`](#list_people) | People and teams | reads | — |
 | [`get_activity`](#get_activity) | The activity log | reads | — |
 | [`list_views`](#list_views) | Saved views | reads | — |
-| [`list_tokens`](#list_tokens) | AI assistant tokens | reads | — |
 | [`get_help`](#get_help) | Help: what the app does | reads | — |
 | [`describe_system`](#describe_system) | What Faro is: an overview for an AI | reads | — |
 | [`whats_new`](#whats_new) | What’s new in the app | reads | — |
@@ -51,8 +50,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`save_table_view`](#save_table_view) | Save a data table’s layout | changes | [saveTableView](actions.md#savetableview) |
 | [`delete_view`](#delete_view) | Delete a saved view | changes; removes something | [deleteView](actions.md#deleteview) |
 | [`pin_view`](#pin_view) | Pin a view for everyone | changes | [pinView](actions.md#pinview) |
-| [`create_token`](#create_token) | Make an MCP token | changes | [createToken](actions.md#createtoken) |
-| [`revoke_token`](#revoke_token) | Revoke a token | changes; removes something | [revokeToken](actions.md#revoketoken) |
 | [`rename_workspace`](#rename_workspace) | Rename the workspace | changes | [renameWorkspace](actions.md#renameworkspace) |
 | [`set_recording`](#set_recording) | Turn recording on or off | changes | [setRecording](actions.md#setrecording) |
 | [`set_feature`](#set_feature) | Switch a feature on or off | changes | [setModule](actions.md#setmodule) |
@@ -72,6 +69,9 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`delete_cycle`](#delete_cycle) | Delete a cycle | changes; removes something | [deleteCycle](actions.md#deletecycle) |
 | [`undo_start_cycle`](#undo_start_cycle) | Undo starting the next cycle | changes; removes something | [undoStart](actions.md#undostart) |
 | [`undo_import`](#undo_import) | Undo an import or bulk edit | changes; removes something | [undoImport](actions.md#undoimport) |
+| [`list_tokens`](#list_tokens) (ai-access) | AI assistant tokens | reads | — |
+| [`create_token`](#create_token) (ai-access) | Make an MCP token | changes | [createToken](actions.md#createtoken) |
+| [`revoke_token`](#revoke_token) (ai-access) | Revoke a token | changes; removes something | [revokeToken](actions.md#revoketoken) |
 | [`list_markups`](#list_markups) (feedback) | List markups | reads | — |
 | [`get_markup`](#get_markup) (feedback) | Open a markup | reads | — |
 | [`review_inbox`](#review_inbox) (feedback) | Review the inbox | reads | — |
@@ -145,16 +145,17 @@ No arguments.
 |---|---|---|---|
 | `text` | string | no | Words on the goal’s row (its name, key, owner, team, level, status, reason or definition), each the start of a word; or its key (G-12). |
 | `owner` | string | no | Part of the owner’s name. |
-| `status` | string | no | Only goals with this status: the words or the code, any of Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned). |
+| `status` | string | no | Only goals with this status: the words or the code, any of Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned), Not measured yet (unmeasured). |
 | `needs_attention` | boolean | no | Only the goals on the Needs attention list: those that need attention first, then those being handled (beingHandled says how), as the Goals screen lists them. A goal needs attention when it is off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse or greener than calculated, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out. |
 | `level` | one of `north-star`, `svp`, `team` | no | Only goals at this level. |
 | `mine` | boolean | no | Only goals you own (the same as scope "mine"). |
 | `scope` | one of `mine`, `team`, `watching`, `all` | no | Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why. |
-| `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), moved (what changed: worse, better, quiet, done or any, as Home’s “Changed since” counts it) with since (the day to count from, yyyy-mm-dd; this week’s Monday when left out), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
+| `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned), Not measured yet (unmeasured)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), moved (what changed: worse, better, quiet, done or any, as Home’s “Changed since” counts it) with since (the day to count from, yyyy-mm-dd; this week’s Monday when left out), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
 | `view` | string | no | The name of a saved view: one of yours, or one pinned for everyone. |
 | `state` | one of `active`, `proposed`, `stopped` | no | active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter). |
 | `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
 | `offset` | integer | no | How many matching goals to skip, for the next page (as “more” says). |
+| `fields` | object | no | Goals with these values of the workspace’s own list fields (list_fields), by name: {"Stage": "Build, Run"}; "Not set" for none. Free text can’t filter. |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -173,7 +174,7 @@ No arguments.
     },
     "status": {
       "type": "string",
-      "description": "Only goals with this status: the words or the code, any of Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)."
+      "description": "Only goals with this status: the words or the code, any of Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned), Not measured yet (unmeasured)."
     },
     "needs_attention": {
       "type": "boolean",
@@ -204,7 +205,7 @@ No arguments.
     },
     "query": {
       "type": "string",
-      "description": "A Goals link’s query string, e.g. \"scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap\". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), moved (what changed: worse, better, quiet, done or any, as Home’s “Changed since” counts it) with since (the day to count from, yyyy-mm-dd; this week’s Monday when left out), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."
+      "description": "A Goals link’s query string, e.g. \"scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap\". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned), Not measured yet (unmeasured)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), moved (what changed: worse, better, quiet, done or any, as Home’s “Changed since” counts it) with since (the day to count from, yyyy-mm-dd; this week’s Monday when left out), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."
     },
     "view": {
       "type": "string",
@@ -229,6 +230,23 @@ No arguments.
       "type": "integer",
       "minimum": 0,
       "description": "How many matching goals to skip, for the next page (as “more” says)."
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "description": "Goals with these values of the workspace’s own list fields (list_fields), by name: {\"Stage\": \"Build, Run\"}; \"Not set\" for none. Free text can’t filter."
     }
   }
 }
@@ -1607,6 +1625,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `plan` | list of object | no | Rows for the Plan sheet: Key (or ID), Start and "Week N" columns. |
 | `check_ins` | list of object | no | Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in. |
 | `people` | list of object | no | Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left. |
+| `metrics` | list of object | no | Rows for the Metrics sheet, with the same columns as the export. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back. |
 | `reason` | string | no | Why plans are changing, for any plan change that needs one. |
 | `confirm` | boolean | no | True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan). |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
@@ -1646,6 +1665,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
         "type": "object"
       },
       "description": "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Rows for the Metrics sheet, with the same columns as the export. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back."
     },
     "reason": {
       "type": "string",
@@ -1698,6 +1724,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “… should be a list of rows.”
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
@@ -1705,7 +1732,6 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
-- “… should be a list of rows.”
 
 **Does the same as:** [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
@@ -2019,38 +2045,6 @@ No arguments.
 ## list_views
 
 **Saved views.** Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and saved layouts of Data’s tables, with their columns in order and widths (use them with export_table).
-
-**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
-
-**Input:**
-
-No arguments.
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": false
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** no action: it reads, or does something only an assistant needs.
-
-## list_tokens
-
-**AI assistant tokens.** Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.
 
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
@@ -3058,100 +3052,6 @@ No arguments.
 
 **Does the same as:** [pinView](actions.md#pinview), so it refuses with their words too.
 
-## create_token
-
-**Make an MCP token.** Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `person` | string | yes | Who it acts as (name or ID). |
-| `name` | string | yes | What it’s for, e.g. "Claude on Maya’s laptop". |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "person",
-    "name"
-  ],
-  "properties": {
-    "person": {
-      "type": "string",
-      "description": "Who it acts as (name or ID)."
-    },
-    "name": {
-      "type": "string",
-      "description": "What it’s for, e.g. \"Claude on Maya’s laptop\"."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{
-    token: string;
-}
-```
-
-**Refuses with:**
-
-- “There’s no one called … in this workspace. Use list_people.”
-
-**Does the same as:** [createToken](actions.md#createtoken), so it refuses with their words too.
-
-## revoke_token
-
-**Revoke a token.** Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.
-
-**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint true, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `token_id` | string | yes | The token’s ID, from list_tokens. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "token_id"
-  ],
-  "properties": {
-    "token_id": {
-      "type": "string",
-      "description": "The token’s ID, from list_tokens."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** [revokeToken](actions.md#revoketoken), so it refuses with their words too.
-
 ## rename_workspace
 
 **Rename the workspace.** Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.
@@ -3242,7 +3142,7 @@ No arguments.
 
 ## set_feature
 
-**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); tags (Fields: Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
+**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: ai-access (AI access: Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights.); feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); tags (Fields: Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -3250,7 +3150,7 @@ No arguments.
 
 | Argument | Type | Needed | What it is |
 |---|---|---|---|
-| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `tags`, `watching`, `wrap-up` | yes | The feature’s id. |
+| `feature` | one of `ai-access`, `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `tags`, `watching`, `wrap-up` | yes | The feature’s id. |
 | `on` | boolean | yes | true to switch it on, false to switch it off. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -3268,6 +3168,7 @@ No arguments.
       "type": "string",
       "description": "The feature’s id.",
       "enum": [
+        "ai-access",
         "feedback",
         "goal-map",
         "metrics",
@@ -4108,6 +4009,138 @@ No arguments.
 
 **Does the same as:** [undoImport](actions.md#undoimport), so it refuses with their words too.
 
+## list_tokens
+
+**AI assistant tokens.** Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.
+
+From the [ai-access](../modules/ai-access/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+No arguments.
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## create_token
+
+**Make an MCP token.** Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.
+
+From the [ai-access](../modules/ai-access/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `person` | string | yes | Who it acts as (name or ID). |
+| `name` | string | yes | What it’s for, e.g. "Claude on Maya’s laptop". |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "person",
+    "name"
+  ],
+  "properties": {
+    "person": {
+      "type": "string",
+      "description": "Who it acts as (name or ID)."
+    },
+    "name": {
+      "type": "string",
+      "description": "What it’s for, e.g. \"Claude on Maya’s laptop\"."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    token: string;
+}
+```
+
+**Refuses with:**
+
+- “There’s no one called … in this workspace. Use list_people.”
+
+**Does the same as:** [createToken](actions.md#createtoken), so it refuses with their words too.
+
+## revoke_token
+
+**Revoke a token.** Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.
+
+From the [ai-access](../modules/ai-access/README.md) module: switched off with it.
+
+**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `token_id` | string | yes | The token’s ID, from list_tokens. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "token_id"
+  ],
+  "properties": {
+    "token_id": {
+      "type": "string",
+      "description": "The token’s ID, from list_tokens."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** [revokeToken](actions.md#revoketoken), so it refuses with their words too.
+
 ## list_markups
 
 **List markups.** Markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.
@@ -4827,6 +4860,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `measurement` | one of `measured`, `partly`, `gap` | no | Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric. |
 | `measurement_note` | string | no | What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured. |
+| `parent` | string | no | The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none. |
+| `level` | one of `component`, `driver`, `control`, `breakdown`, `` | no | How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said. |
+| `confidence` | one of `high`, `medium`, `low`, `` | no | How far its number can be trusted: “high”, “medium” or “low”. Empty for not said. |
+| `gaming` | string | no | How the number could be gamed, in words (up to 500 characters). Empty for not said. |
 | `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
 | `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
 | `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
@@ -4914,6 +4951,35 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "measurement_note": {
       "type": "string",
       "description": "What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."
+    },
+    "parent": {
+      "type": "string",
+      "description": "The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none."
+    },
+    "level": {
+      "type": "string",
+      "description": "How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.",
+      "enum": [
+        "component",
+        "driver",
+        "control",
+        "breakdown",
+        ""
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "description": "How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        ""
+      ]
+    },
+    "gaming": {
+      "type": "string",
+      "description": "How the number could be gamed, in words (up to 500 characters). Empty for not said."
     },
     "confirm": {
       "type": "boolean",

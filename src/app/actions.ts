@@ -17,7 +17,8 @@ import type { Answers, CheckInPost, PostMode, Via } from '../domain/changeset';
  */
 type Engine = typeof import('../domain/changeset');
 let engine: Engine | null = null;
-export async function loadEngine(): Promise<Engine> { return (engine ??= await import('../domain/changeset')); }
+// A module's own Goals columns (Fields') are read by its rules, which load with the engine.
+export async function loadEngine(): Promise<Engine> { if (!engine) await loadGoalExtras(); return (engine ??= await import('../domain/changeset')); }
 /** Sets the engine from a screen that imports it statically (src/app/engineReady.ts), so the screen's previews can run
     during its first render. */
 export function setEngine(e: Engine) { engine ??= e; }
@@ -56,7 +57,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import type { CheckInReading, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
-import { recordsOn } from '../core/records';
+import { goalSheetsOn, loadGoalExtras, MODULE_RECORDS, recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { moduleOffWords, reviewsOffWords, reviewsOn, reviewWriteRows, SWITCHED_ACTIONS, switchedOffWords, watchingOffWords, watchingOn } from './reads';
 import { writesReviews } from '../domain/reviewWrites';
@@ -91,7 +92,7 @@ export type SaveGoalWith = SaveGoalInput & { also?: { action: string; input: Rec
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
   planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number }; posts?: CheckInPost[] }) =>
-    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}) }),
+    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, goalSheets: goalSheetsOn(x.workspace), file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}) }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
   postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string; reading?: CheckInReading | null }) => {
     const goalId = goalOf(x, i.goalId).id;
@@ -167,7 +168,8 @@ export const ACTIONS = {
   arrive: (x: RunContext, _i: Record<string, never>) => A.arrive(x, x.workspace),
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
-  setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
+  // Every module's records, on or off: the one switched says what the core's records need (ModuleRecords.switched).
+  setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule({ ...x, records: MODULE_RECORDS }, x.workspace, x.modules, i.moduleId, i.on),
   setRhythm: (x: RunContext, i: { weeks: number; dueDay?: number; from?: string | null }) => rhythm().setRhythm(x, x.cycle, i),
   /* A removal's Undo, straight after it (its message): every record it changed back as it was. Unlike the others, the
      input carries records: the removal as saved and the workspace just before it, which the Undo holds. */
