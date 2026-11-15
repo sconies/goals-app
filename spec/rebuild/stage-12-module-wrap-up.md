@@ -12,12 +12,15 @@ At the end of the year, each owner says how their goals landed and what they lea
 - The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.
 - The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform).
+- Cycles, Start {next year} with its read-back, the `retros` records and a goal’s result (Met, Met late, Not met: [a year’s end](../core/rules/year-end.md)) are the core’s (stage 3, “The core screens the module stages stand on”); Goals’ title row, each Cycles row, Home’s lead and Features’ third line and read-back are places the core has from stage 3 (`goals.header`, `cycles.cycle`, `home.lead`, `features.line`, `features.readBack`). The Wrap-up adds its pages, its save and its part in those places.
 
 ## What to build
 
 The Wrap-up, as a feature a workspace can switch off: in the last two weeks of the year (and four weeks after) each owner says how each goal landed, one thing learned, and whether it carries on or stops, from Home's wrap-up lead, a goal's “Wrap up this goal” and the page Wrap up. Results, carrying on and starting the next year are the core's and never switch off. Off, nobody is asked how a goal landed: no wrap-up lead on Home, no “See the wrap-up”, no “Wrap up this goal”, /retro says it is switched off, and get_wrap_up and wrap_up_goal refuse; wrap-ups already written stay in History, and an admin still starts the next year from Cycles.
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/wrap-up/README.md#what-it-adds-to-the-core).
+
+The core also draws for it while it is on, as Faro’s core code that asks whether it is on: `goals.header`, `home.lead`, `workspace.about`, `cycles.cycle`, `cycles.start`, `features.line`, `features.readBack` ([what each is](module-platform.md#what-a-module-needs-that-faros-core-still-draws)). A core that never names a module has each as a place or a hook from stage 3; this stage fills them.
 
 ## Exit criteria
 
@@ -32,3 +35,5 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 - The Wrap-up is a switch, not yet a folder of its own (SW8 moves it, with the cycle-end area): its screens (src/screens/Retro.tsx, Home's wrap-up lead and card in src/screens/Home.tsx, “Wrap up this goal” in src/screens/GoalScreen.tsx), its rule and action (src/domain/cycle.ts, saveRetro in src/domain/actions.ts) and its table (okr_retros, migration 0007) are still the core's. Saving a wrap-up refuses while it is off in src/app/actions.ts; the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts wrapUpOn is the one place that asks whether it is on.
 - Starting the next year still reads every wrap-up's carry on or stop, on or off (spec 2.4's `stops` is SW8's).
+- Its words, from the code: the save refuses “Only the goal’s owner or an admin can wrap it up.”, “{2026}’s wrap-up opens on {Mon 21 Dec 2026}.” before it opens, “{2026}’s wrap-up closed on {Sun 31 Jan 2027}.” after, and “Say what was learned, in a sentence (10 characters or more).”; while the Wrap-up is off it says “Wrap-up is off in {workspace}.” (the short sentence, the module platform). How it landed is offered first from the goal’s status at the end (`suggestedResult`): on track or done → “Hit it”, at risk → “Partly”, anything else → “Missed”; the owner confirms or changes it, and the three buttons are those words. Its History entry (`entity: retro`) has the diffs Result, Learned and Next cycle (“Carry on” or “Stop”).
+- No conformance rows score the Wrap-up: the opening, the suggested result and the save’s refusals are checked by its journeys and these words only.

@@ -26,6 +26,12 @@ A workspace defines up to **6 live fields**, for what Faro has no column for: a 
 
 **No rule reads a field.** No status, flag, needs-attention, check-in or carry rule looks at one: a field is for finding and sorting. That is why it is a module, and why switching it off loses nothing.
 
+**A field's checks, in this order** (`fieldProblem`; the first that fails is said): no name, “Give the field a name.”; a name over 40, “Keep the name to 40 characters.”; a name the Goals sheet reads as its own column, “The Goals sheet already has a column called “{Owner}”. Call the field something else.”; a live field's name, “There’s already a field called “{Stage}”.”; a seventh live field, “A workspace has at most 6 fields. Retire one first.” (asked before its values are looked at); free text with values, “A free-text field has no values: choose A list of values, or leave the values out.”; a list with none, “A list needs at least one value.”; an empty value among others, “Remove the empty value, or type one.”; over 20, “A list holds at most 20 values.”; a value over 40, “Keep each value to 40 characters: “{its first 20 characters}…” is longer.”; the second of two values the same whatever the case, “{value}” is in the list twice.”; a value called Not set, “Not set” is what a goal with no value says. Call the value something else.” A goal's free text over 80 is “Keep {field} to 80 characters.” Anyone but an admin changing fields: “Only an admin can change the workspace’s fields.”; retiring one already retired, “{Stage} is already retired.”; moving one retired or gone, “That field is retired or no longer exists. Reload to see the latest.”
+
+**Taking a value out of a list** that goals hold changes the list only: the goals keep the value they hold, shown as stored, until someone sets another.
+
+**History's words** (each a change of `entity: field`): “{Stage} added”, “{Stage} renamed {Phase}” (a rename and new values in one save say the rename), “{Stage}’s values changed”, “{Stage} moved up” or “moved down”, “{Stage} retired”, “{Stage} brought back”, all on the workspace (no goal); and on the goal, “{Stage}: {Discover} → {Build}” (“Not set” either side for none). A save that changes nothing is not logged.
+
 ### Limits the records hold
 
 Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.

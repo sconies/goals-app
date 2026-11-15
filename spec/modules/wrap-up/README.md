@@ -15,6 +15,7 @@ Module id `wrap-up`, in [src/modules/wrap-up/](../../../src/modules/wrap-up/modu
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `goals.header`, `home.lead`, `workspace.about`, `cycles.cycle`, `cycles.start`, `features.line`, `features.readBack` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |
@@ -35,7 +36,7 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 |---|---|---|
 | [U10](journeys/U10.md) | Close the cycle: owners wrap up their goals, an admin starts the next cycle | `evals/journeys.cjs` |
 | [U166](journeys/U166.md) | Amara switches the Wrap-up off: before it opens it acts at once, then /retro says it is off and Cycles offers no wrap-up | `evals/journeys.cjs` |
-| N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
+| [N22](journeys/N22.md) | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
 ## Help
 

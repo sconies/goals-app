@@ -92,6 +92,16 @@ From Faro’s own repository the same harness is `npm run drill -- <rebuild fold
 4. Keep `rebuild/GAPS.md` as you go: each thing you had to guess, what you guessed, whether the score proved it right, and which spec page should have said it. A gap the conformance data settled still counts: the words should have said it.
 5. Finish with the harness’s last output and `GAPS.md`.
 
+### From stage 3 on: running the journeys
+
+Stage 3 and every module stage prove their screens by the journeys ([how to read one](../core/journeys.md#how-to-read-a-journeys-steps)), and there is no portable runner yet, so a rebuild writes its own. Whatever it is written in:
+
+1. **It fails unless it ran.** It exits non-zero when the app didn’t start (or stopped), when a journey asked for doesn’t exist, and when no journey ran at all; it prints how many ran and passed, and never “passed” with none. Wait for the app to answer, with a time limit, rather than for its first line of output.
+2. **It runs every check on the journey’s page**, its `finish` check included, and counts the steps against the budget on both widths. A check it can’t run yet makes the journey PART, never DONE.
+3. **It runs the core’s journeys three ways**: with every module on, with modules switched off (`modulesOff`), and with modules left out of the build. A core journey’s lines under “If the {module} module is on” run only while that module is on and built; everything else must pass all three ways. A module stage runs its own journeys on, and the core’s again on, off and without it.
+4. **It seeds through the app, not the browser.** Faro’s journeys set some data up in the page’s own script (`window.__goalsStore`), or answer a database that isn’t there (`fakeSupabase`); a rebuild gives its server a door only a test run opens (started with a flag, never in production) that loads a workspace, commits records as the app’s own save does, starts with modules off, and resets. What each Faro set-up puts there is said on the journey’s page and under [set-ups a rebuild does its own way](../core/journeys.md#set-ups-a-rebuild-does-its-own-way).
+5. **It records each run**: journey, width, steps taken, every check passed or not, so DONE, PART and NOT BUILT can be checked by someone else.
+
 ## Keeping it true
 
 - These pages are made by `npm run spec` (`src/spec/rebuild.ts`); never edit them by hand.

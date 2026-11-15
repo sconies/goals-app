@@ -15,6 +15,7 @@ Module id `goal-map`, in [src/modules/goal-map/](../../../src/modules/goal-map/m
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `goals.layouts` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |
@@ -41,8 +42,8 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | [U134](journeys/U134.md) | Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; with the filter the Board is one column, Proposed, and the Map draws it dashed with the word; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it | `evals/journeys.cjs` |
 | [U135](journeys/U135.md) | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet | `evals/journeys.cjs` |
 | [U165](journeys/U165.md) | Feedback and the Goal map off: no Feedback in the menu, Ctrl+Shift+M opens nothing, /feedback says it is off; Goals offers four layouts and a link to the Map opens the List and says so; both back on, the Map opens | `evals/journeys.cjs` |
-| F6 | Fit and finish, map-reviews | `evals/finish/6-map-reviews.cjs` |
-| N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
+| [F6](journeys/F6.md) | Fit and finish, map-reviews | `evals/finish/6-map-reviews.cjs` |
+| [N22](journeys/N22.md) | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
 ## Help
 

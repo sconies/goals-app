@@ -15,6 +15,7 @@ Module id `tags`, in [src/modules/tags/](../../../src/modules/tags/module.json).
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | `goal.sections` |
+| Drawn for it by the core while it is on | `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | `/workspace/fields` |
 | Database tables | `goal_fields` (0052_goal_fields.sql): A workspace's own fields on goals: name, kind (list or text), a list's values, position; never deleted (retired_at when retired). 0054 holds that free text has no values.; `goal_field_values` (0052_goal_fields.sql): A goal's value for one field: one row per goal and field (id {goal_id}:{field_id}); empty when cleared. |
 | Its own records | field (`goal_fields`, filed under `modules.tags.fields`); field value (`goal_field_values`, filed under `modules.tags.fieldValues`) |
@@ -38,7 +39,7 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | [U174](journeys/U174.md) | A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words | `evals/journeys.cjs` |
 | [U177](journeys/U177.md) | Goals filtered by a workspace’s own field (TG2): as Amara, with Stage on two goals, the Filters sheet has a Stage row (Discover · Build · Run · Not set); ticking Build lists Flaky test rate and not Base image build time, the filter line says “Stage is Build” with Remove, and the address carries it; saved as a view “Building”, plain Goals and then the view bring the same goals back, and Data’s Goals table has a Stage column | `evals/journeys.cjs` |
 | [U178](journeys/U178.md) | A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it | `evals/journeys.cjs` |
-| N34 | Fields switched off: no Fields block on a goal, no Workspace → Fields, no Stage filter on Goals or column on Data, its address says it is off, and it all comes back on | `evals/notes/34-fields-off.cjs` |
+| [N34](journeys/N34.md) | Fields switched off: no Fields block on a goal, no Workspace → Fields, no Stage filter on Goals or column on Data, its address says it is off, and it all comes back on | `evals/notes/34-fields-off.cjs` |
 
 ## Help
 

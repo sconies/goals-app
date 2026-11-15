@@ -25,7 +25,7 @@ import { scaleFiles } from './scaleKit';
 import { readsPage } from './readsPage';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { ZONE_HEADER } from './zones';
-import { changeCases, screenCases, CHECK_IN_MOMENT, EDGE_FILES, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
+import { asOf, changeCases, screenCases, CHECK_IN_MOMENT, EDGE_FILES, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import type { Snapshot } from '../domain/types';
 import { currentWeek } from '../domain/plan';
@@ -39,7 +39,11 @@ import { ALWAYS_ON } from './alwaysOn';
 import { EDGE_GOALS, EDGE_NOTES, edgeWorkspace } from './edge';
 import { goalsQueryPage } from './goalsQuery';
 import { HOW_TO_READ, journeyDocs, journeyPage, partsAndDays, type JourneyDoc } from './journeySteps';
-import { modulePlatformPage } from './modulePlatform';
+import { checkDoc, checkPage } from './checkPages';
+
+/** The F and N checks that have a page of their own (src/spec/checkPages.ts), set as the spec is built. */
+let CHECK_PAGES = new Set<string>();
+import { CORE_HOOKS, CORE_SPOTS, modulePlatformPage } from './modulePlatform';
 
 /** The files of the no-rhythm conformance set (FT1, spec 8). */
 export const NO_RHYTHM_FILES = ['status', 'flags', 'scorecard', 'projection'] as const;
@@ -311,7 +315,7 @@ function journeys(r: Repo, mods: ModuleFacts[], docs: Map<string, JourneyDoc>): 
     out.push(table(kind === 'journey' ? ['Id', 'Journey', 'Who', 'Requirements', 'Budget', 'Where'] : ['Id', 'Check', 'Requirements', 'Where'], list.map((c) => {
       const j = ranked.get(c.id);
       return kind === 'journey'
-        ? [docs.has(c.id) ? `[${c.id}](journeys/${c.id}.md)` : c.id, cell(c.title), cell(j?.who ?? ''), c.reqs.map((x) => `\`${x}\``).join(' '), c.budget != null ? String(c.budget) : '', `\`${c.file}\``]
+        ? [docs.has(c.id) || CHECK_PAGES.has(c.id) ? `[${c.id}](journeys/${c.id}.md)` : c.id, cell(c.title), cell(j?.who ?? ''), c.reqs.map((x) => `\`${x}\``).join(' '), c.budget != null ? String(c.budget) : '', `\`${c.file}\``]
         : [c.id, cell(c.title), c.reqs.map((x) => `\`${x}\``).join(' '), `\`${c.file}\``];
     })), '');
   }
@@ -391,6 +395,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
       row('Old addresses', m.redirects.map(([a, b]) => `\`${a}\` → \`${b}\``).join(', ')),
       row('Navigation', m.navigation.join(', ')),
       row('Places on core screens', m.places.map((x) => `\`${x}\``).join(', ')),
+      row('Drawn for it by the core while it is on', [...CORE_SPOTS, ...CORE_HOOKS].filter((x) => x.modules.includes(m.id)).map((x) => `\`${x.name}\``).join(', ') + (CORE_SPOTS.some((x) => x.modules.includes(m.id)) || CORE_HOOKS.some((x) => x.modules.includes(m.id)) ? ' ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook)' : '')),
       row('Workspace sections', (m.sections ?? []).map((x) => `\`/workspace/${x}\``).join(', ')),
       row('Database tables', m.tables.map((t) => `\`${t.name}\` (${t.migration}): ${t.purpose}`).join('; ')),
       row('Its own records', (m.records ?? []).map((x) => `${x.name} (\`${x.table}\`, filed under \`modules.${m.id}.${x.key}\`${x.removable ? '; removable and restorable' : ''})`).join('; ')),
@@ -406,7 +411,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '## Journeys and checks',
     '',
     ...(m.journeys.some((id) => docs.has(id)) ? ['Each journey’s Id opens its steps and checks, read from its code ([how to read them](../../core/journeys.md#how-to-read-a-journeys-steps)).', ''] : []),
-    table(['Id', 'What', 'Where'], m.journeys.map((id) => { const c = all.find((x) => x.id === id); return [docs.has(id) ? `[${id}](journeys/${id}.md)` : id, cell(c?.title ?? '(not found)'), c ? `\`${c.file}\`` : '']; })),
+    table(['Id', 'What', 'Where'], m.journeys.map((id) => { const c = all.find((x) => x.id === id); return [docs.has(id) || CHECK_PAGES.has(id) ? `[${id}](journeys/${id}.md)` : id, cell(c?.title ?? '(not found)'), c ? `\`${c.file}\`` : '']; })),
     '',
     '## Help',
     '',
@@ -546,7 +551,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     `The rows above are made with every feature module on, as Faro is installed (Reviews holds sessions, Feedback has its menu row, Watching and the Wrap-up lead Home). The core must work without any module, so stage 3 has a second set: \`core-only/workspace.json\` is the same workspace with \`modulesOff\` naming every module (${CORE_ONLY_FILES.map((f) => `\`${f}.csv\``).join(', ')} made from it, with the same \`screen-cases.json\`). A core rebuilt without any module scores against it with \`--expected spec/conformance/core-only\`; a rebuild that reads \`modulesOff\` passes both. Each rule takes whether a module is on as an input (the menu without Reviews or Feedback, Home with no review lead, the read-back joining no review); the screens still show a switched-off module’s address as Page not found ([the module platform](../rebuild/module-platform.md)). navigation.csv’s rows don’t score that: its \`page\` is the name the naming rule gives an address (\`pageName\`), which doesn’t read whether a module is on, so here too the rows at a module’s addresses (Watching’s \`/watching\`, Reviews’ \`/reviews/weekly\` and \`?review=weekly\`, the Wrap-up’s \`/retro\`, the example module’s \`/example\`, for each viewer) give the name its page has with the module on.`,
     '',
-    '**module-files.json** lists each feature module’s own file above (reviews.csv, tags.csv, watching.csv…) with its key columns; the harness reads it, so a module’s file is scored when `drill.json` names it under `"also"` or `--files` does.',
+    '**module-files.json** lists each feature module’s own file above (reviews.csv, tags.csv, watching.csv…) with its key columns; the harness reads it, so a module’s file is scored when `drill.json` names it under `"also"` or `--files` does. **module-cases.json** holds, by file, the inputs of the cases a module file’s rows don’t carry themselves (metrics.csv’s searches and Metrics sheet rows, tags.csv’s fields, values, filters and questions); the harness copies it beside `workspace.json`, as it does `change-cases.json`. Read the cases from there, never from the expected files.',
     '',
     '## The edge-case workspace (edge/)',
     '',
@@ -628,6 +633,15 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   // The change engine's page also has its every sentence, its fields and its log's words, read from the code (stage 2).
   for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText, rule.id === 'change-engine' ? changeEngineSections(root, w) : []);
   const owned = new Set(mods.flatMap((m) => m.journeys));
+  // The F and N checks in words (drill 11: F6, F7, F8, F17, N5 had no steps): a page each, beside the journeys.
+  const checkList = checks(r).filter((x) => !docs.has(x.id) && /^evals\/(finish|notes)\//.test(x.file));
+  CHECK_PAGES = new Set(checkList.map((x) => x.id));
+  for (const x of checkList) {
+    const m = mods.find((y) => y.journeys.includes(x.id));
+    const doc = checkDoc(r, x.id, x.file, x.title);
+    if (m) out[`spec/modules/${m.id}/journeys/${x.id}.md`] = checkPage(doc, '../../../', `the ${m.name} module ([its section](../README.md#journeys-and-checks))`);
+    else out[`spec/core/journeys/${x.id}.md`] = checkPage(doc, '../../', 'the core ([the journeys](../journeys.md))');
+  }
   for (const j of docs.values()) if (!owned.has(j.id)) out[`spec/core/journeys/${j.id}.md`] = journeyPage(j, '../../', 'the core ([the journeys](../journeys.md)); it runs with every module on, and the core journeys run again with each module left out');
   for (const m of mods) {
     const own = RULE_LIST.filter((x) => x.module === m.id);
@@ -654,6 +668,8 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/conformance/screen-cases.json'] = JSON.stringify(screenCases(w), null, 2) + '\n';
   // Each feature module's conformance file and its key columns, so the harness scores it when asked (drill 11, m8).
   out['spec/conformance/module-files.json'] = JSON.stringify(Object.fromEntries(MODULE_FILES.map((f) => [f.file, f.keys])), null, 2) + '\n';
+  // Each module file's inputs, where its rows don't say them (drill 11, M-1 and T-1): copied beside workspace.json too.
+  out['spec/conformance/module-cases.json'] = JSON.stringify(Object.fromEntries(MODULE_FILES.filter((f) => f.cases).map((f) => [f.file, f.cases!(w, { asOf })])), null, 2) + '\n';
   // The same workspace with no set check-in rhythm (FT1): its cycle has checkInWeeks 0. Its own folder, so the files
   // above stay byte for byte; the drill scores it with --expected spec/conformance/no-rhythm.
   const w0: typeof w = { ...w, cycle: { ...w.cycle, checkInWeeks: 0 } };

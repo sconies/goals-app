@@ -12,12 +12,15 @@ Send feedback about Faro, or mark up a screen. It goes to the people who build F
 - The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform).
 - The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on.
+- What’s new (a list of releases, each with a stable id: [stage 3](stage-3-core-screens.md)) is the core’s; Feedback names an entry when something is marked fixed. The inbox’s store is its own, outside the workspace: markups and feedback, each with `status` (new, in-hand, fixed, wont-fix), `status_by`, `status_at`, `issue_url`, `fixed_in` and `wont_fix_reason`, and every triage change kept ([set-ups a rebuild does its own way](../core/journeys.md#set-ups-a-rebuild-does-its-own-way), `fakeSupabase`).
 
 ## What to build
 
 Feedback, as a feature a workspace can switch off. Anyone can send feedback about Faro (a mood and a few words) or mark up the screen they are on (a still picture with marks and a line, from Send feedback or Ctrl+Shift+M), and everything sent goes to the builders' inbox, the page Feedback, which the people who build Faro work through from New to In hand to Closed, and which an AI tool can review. Off, Feedback leaves the menu, Send feedback and Mark up this screen go, Ctrl+Shift+M does nothing, /feedback says it is switched off and who can switch it on, and the inbox's tools and send_feedback refuse. What was sent stays in the builders' inbox.
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/feedback/README.md#what-it-adds-to-the-core).
+
+The core also draws for it while it is on, as Faro’s core code that asks whether it is on: `menu.count` ([what each is](module-platform.md#what-a-module-needs-that-faros-core-still-draws)). A core that never names a module has each as a place or a hook from stage 3; this stage fills them.
 
 ## Exit criteria
 
@@ -29,5 +32,7 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 ## Gaps in the kit
 
+- The sheet’s three moods are “It helps” (good), “It’s OK” (meh) and “It gets in the way” (bad).
 - Feedback is a switch, not yet a folder of its own (SW4 moves it): its screens (src/screens/Feedback.tsx, the sheet and the markup in src/ui/Shell.tsx and src/markup), its tools' code (src/mcp/markupTools.ts, src/mcp/feedbackTools.ts), its ports (src/markup/ops.ts, src/markup/feedback.ts), its action (sendFeedback in src/domain/actions.ts) and its menu row (src/domain/navigation.ts menuGroups, which takes whether Feedback is on) are still the core's, as are its tables (okr_markups, okr_feedback). The send action refuses while it is off in src/app/actions.ts. This folder holds its route and old addresses, its Help articles and its AI tools; src/app/reads.ts feedbackOn is the one place that asks whether it is on.
 - Switching Feedback off acts at once: the read-back the design describes (how many things sent from here stay in the builders' inbox) needs the builders' store counted per workspace, which SW4 adds.
+- Only an admin triages (marks in hand, fixed or won’t fix, pastes an issue’s address): `MARKUP-INBOX` once said anyone did. `list_feedback` reads the inbox with any token, every workspace’s feedback with its status; only where a build has no inbox store does it fall back to an admin’s token listing this workspace’s feedback without statuses (“Only admins can read the feedback.” otherwise).
