@@ -1,0 +1,433 @@
+diff --git a/package.json b/package.json
+index c911d62..51fd479 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+     "drill": "node scripts/drill.mjs",
+-    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "build:standin": "FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching} VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=${STANDIN_WITHOUT-ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching} vite build -c vite.platform.config.ts --logLevel warn",
+     "standin": "node platform/dist/server.mjs",
+     "standin:seed": "node platform/dist/server.mjs seed"
+   },
+diff --git a/platform/prove-wrap-up.mjs b/platform/prove-wrap-up.mjs
+new file mode 100644
+index 0000000..83aafbe
+--- /dev/null
++++ b/platform/prove-wrap-up.mjs
+@@ -0,0 +1,240 @@
++/* Stage 12 (Wrap-up) on the stand-in platform: behaviour proof against the running server. Seeds a fresh data folder
++   (seeded on SEED_DAY, 2026-11-15), then restarts it with the platform's clock (STANDIN_TODAY) pinned at the day after
++   the seeded year's wrap-up opens (worked out from its row: the seed's year rolls with the seed day), then checks who may write
++   a wrap-up (the server runs saveRetro on its own clock, called directly as members who may not), the two tools on
++   /mcp, switching the Wrap-up off (saves and tools refused, wrap-ups kept, screens without it, the next year still
++   starts) and back on. With --without (a build with the Wrap-up left out): no tools, no pages, the core intact and the
++   next year still starts. With --before: the clock before the wrap-up opens, every save refused with its opening day.
++   Usage: npm run build:standin && node platform/prove-wrap-up.mjs [port] [--without|--before]. */
++import { spawn } from 'node:child_process';
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { DatabaseSync } from 'node:sqlite';
++
++const WITHOUT = process.argv.includes('--without');
++const BEFORE = process.argv.includes('--before');
++const PORT = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) || 47010);
++const SEED_DAY = process.env.SEED_DAY || '2026-11-15';
++let TODAY = SEED_DAY;
++const addDays = (d, n) => new Date(Date.parse(d + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
++const B = `http://localhost:${PORT}`;
++const PASSWORD = 'faro-standin';
++const WS = 'ws_platform';
++const results = [];
++const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`); };
++const NOW = () => TODAY + 'T12:00:00.000Z';
++
++function server(dir) {
++  const env = { ...process.env, STANDIN_PORT: String(PORT), STANDIN_DATA: dir, STANDIN_TODAY: TODAY, NODE_NO_WARNINGS: '1' };
++  return {
++    seed: () => new Promise((res, rej) => { const p = spawn(process.execPath, ['platform/dist/server.mjs', 'seed', PASSWORD], { env, stdio: 'inherit' }); p.on('exit', (c) => (c ? rej(new Error('exit ' + c)) : res())); }),
++    start: async () => { const p = spawn(process.execPath, ['platform/dist/server.mjs'], { env, stdio: ['ignore', 'pipe', 'inherit'] }); await new Promise((res) => p.stdout.on('data', (d) => { if (/stand-in platform/.test(String(d))) res(); })); return p; },
++  };
++}
++const stop = (p) => new Promise((res) => { p.on('exit', res); p.kill(); });
++function client() {
++  let cookie = '';
++  const c = async (method, url, body, headers = {}) => {
++    const r = await fetch(B + url, { method, redirect: 'manual', headers: { ...(cookie ? { cookie } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
++    const set = r.headers.get('set-cookie'); if (set) cookie = set.split(';')[0];
++    const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* html */ }
++    return { status: r.status, json, text };
++  };
++  c.signIn = (email) => c('POST', '/api/signin', { email, password: PASSWORD });
++  return c;
++}
++let n = 0;
++const nid = (p) => `${p}_wuproof${String(++n).padStart(3, '0')}`;
++const retroSave = (by, goal, cycleId, extra = {}) => {
++  const r = { id: nid('retro'), goalId: goal.id, cycleId, result: 'hit', learned: 'Small steps each week worked.', next: 'carry', byId: by, at: NOW(), ...extra };
++  return { retros: [r], changes: [{ id: nid('chg'), at: NOW(), actorId: by, goalId: goal.id, entity: 'retro', entityId: r.id, action: 'posted', summary: `Wrapped up ${goal.title}: hit it`, diffs: [{ field: 'Result', from: '—', to: 'Hit it' }] }] };
++};
++const OFF_SAVE = 'Wrap-up is off in Platform Engineering.';
++const OFF_PAGE = /Wrap-up is switched off in Platform Engineering\. An admin can switch it on in Workspace, (under )?Features\./;
++const TOOLS = ['get_wrap_up', 'wrap_up_goal'];
++
++async function setup(dir) {
++  await server(dir).seed();
++  if (!BEFORE) {
++    // The day after the wrap-up opens (cycle.ts cycleDates: start + (weeks − 2 + 1) weeks, RULES.wrapUpWeeksBefore = 2).
++    const d = new DatabaseSync(path.join(dir, 'faro.db'));
++    const c = d.prepare('select start_date, weeks from okr_cycles order by start_date desc limit 1').get(); d.close();
++    TODAY = addDays(addDays(c.start_date, (c.weeks - 2 + 1) * 7), 1);
++  }
++  const p = await server(dir).start();
++  const amara = client(); await amara.signIn('amara.nwosu@example.com');
++  const snap = (await amara('GET', `/api/workspaces/${WS}`)).json;
++  const people = new Map(snap.people.map((x) => [x.id, x]));
++  const cycle = [...snap.cycles].sort((a, b) => (a.startDate < b.startDate ? 1 : -1))[0];
++  const live = snap.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && g.status !== 'proposed');
++  const goal = live.find((g) => { const o = people.get(g.ownerId); return o && !o.admin && !o.leftAt && o.email && !(snap.retros ?? []).some((r) => r.goalId === g.id); });
++  const owner = people.get(goal.ownerId);
++  const other = snap.people.find((x) => !x.admin && !x.leftAt && x.email && x.id !== owner.id && !live.some((g) => g.id === goal.id && g.ownerId === x.id));
++  const token = async (personId) => (await amara('POST', `/api/workspaces/${WS}/tokens`, { tokens: [{ id: nid('tok'), personId, name: 'Wrap-up proof', createdBy: 'amara', createdAt: NOW(), lastUsedAt: null, revokedAt: null }], changes: [] })).json?.secret;
++  const anon = client();
++  const mcpAs = (secret) => async (name, args) => (await anon('POST', '/mcp', { jsonrpc: '2.0', id: ++n, method: name ? 'tools/call' : 'tools/list', params: name ? { name, arguments: args } : {} }, { Authorization: `Bearer ${secret}`, Accept: 'application/json, text/event-stream' })).json;
++  return { p, amara, snap, cycle, goal, owner, other, token, mcpAs, db: () => new DatabaseSync(path.join(dir, 'faro.db')) };
++}
++const full = (j) => String(j?.result?.content?.[0]?.text ?? JSON.stringify(j?.error ?? j));
++const text = (j) => full(j).slice(0, 240);
++const isErr = (j) => !!(j?.result?.isError || j?.error);
++const retroCount = (db) => { const d = db(); const x = d.prepare('select count(*) n from okr_retros').get().n; d.close(); return x; };
++
++const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-wrapup-'));
++let ctx;
++try {
++  ctx = await setup(dir);
++  const { amara, snap, cycle, goal, owner, other, token, mcpAs, db } = ctx;
++  console.log(`today ${TODAY}; year ${cycle.name}; goal ${goal.key ?? goal.id} “${goal.title}” owned by ${owner.name}; other member ${other.name}`);
++  const own = client(); await own.signIn(owner.email);
++  const oth = client(); await oth.signIn(other.email);
++  const commit = (who, c) => who('POST', `/api/workspaces/${WS}/commit`, c);
++  const ownerMcp = mcpAs(await token(owner.id));
++  const adminMcp = mcpAs(await token('amara'));
++  const tools = (await ownerMcp())?.result?.tools?.map((t) => t.name) ?? [];
++
++  if (WITHOUT) {
++    check('left out: /mcp lists neither wrap-up tool; the core’s tools are there', TOOLS.every((t) => !tools.includes(t)) && tools.includes('find_goals') && tools.includes('start_next_cycle'), `${tools.length} tools`);
++    const j = await ownerMcp('wrap_up_goal', { goal_id: goal.id, result: 'hit', learned: 'Small steps worked well.', next: 'carry' });
++    check('left out: calling wrap_up_goal finds no such tool', isErr(j), text(j));
++    const before = retroCount(db);
++    const r = await commit(own, retroSave(owner.id, goal, cycle.id));
++    check('left out: a raw wrap-up save still passes saveRetro’s rules and lands (the core keeps okr_retros and saveRetro until SW8; nothing names it off)', r.status === 200 && retroCount(db) === before + 1, `${r.status} ${r.json?.error ?? ''}`);
++    const ui = await uiCheck(owner.email, goal.id);
++    check('left out: Home never leads “Wrap up your goals”; Goals has no Wrap up; /retro is not a page', !ui.homeWrap && !ui.adminSee && !ui.goalsLink && ui.retroNotFound, JSON.stringify(ui));
++    const dry = await adminMcp('start_next_cycle', {});
++    check('left out: an admin still starts the next year (dry run reads back carry, finish, stop)', !isErr(dry) && /carr/i.test(text(dry)), text(dry));
++  } else if (BEFORE) {
++    const r = await commit(own, retroSave(owner.id, goal, cycle.id));
++    check('before it opens: the owner’s save refused with its opening day, on the server’s clock', r.status === 403 && /wrap-up opens on Mon \d+ \w+ \d{4}\./.test(r.json?.error ?? ''), r.json?.error);
++    const j = await ownerMcp('wrap_up_goal', { goal_id: goal.id, result: 'hit', learned: 'Small steps worked well.', next: 'carry' });
++    check('before it opens: wrap_up_goal refuses with the same words', isErr(j) && /wrap-up opens on Mon \d+ \w+ \d{4}\./.test(text(j)), text(j));
++  } else {
++    check('on: /mcp lists get_wrap_up and wrap_up_goal', TOOLS.every((t) => tools.includes(t)), `${tools.length} tools`);
++    const start = retroCount(db);
++    // ---------- Who may write a wrap-up (RETRO), through the API as the browser would ----------
++    let r = await commit(oth, retroSave(other.id, goal, cycle.id));
++    check('R1: a member who doesn’t own the goal wraps it up: refused', r.status === 403 && r.json?.error === 'Only the goal’s owner or an admin can wrap it up.', r.json?.error);
++    r = await commit(oth, retroSave(owner.id, goal, cycle.id));
++    check('R1: a wrap-up saved as its owner by someone else: refused', r.status === 403 && /as the person signed in/.test(r.json?.error ?? ''), r.json?.error);
++    r = await commit(own, retroSave(owner.id, goal, cycle.id, { learned: 'short' }));
++    check('RETRO: under 10 characters learned: refused in the app’s words', r.status === 403 && r.json?.error === 'Say what was learned, in a sentence (10 characters or more).', r.json?.error);
++    const other2 = snap.cycles.find((c) => c.id !== cycle.id);
++    if (other2) { r = await commit(own, retroSave(owner.id, goal, other2.id)); check('a wrap-up for another year than its goal’s: refused', r.status === 403, r.json?.error); }
++    check('nothing refused reached SQLite', retroCount(db) === start, `${retroCount(db)} vs ${start}`);
++    const first = retroSave(owner.id, goal, cycle.id);
++    r = await commit(own, first);
++    check('RETRO: the goal’s owner wraps it up in its weeks: saved', r.status === 200 && retroCount(db) === start + 1, `${r.status} ${r.json?.error ?? ''}`);
++    r = await commit(own, retroSave(owner.id, goal, cycle.id, { learned: 'A second wrap-up for one goal.' }));
++    check('one wrap-up per goal per year: a second row refused', r.status === 403 && /once per goal/.test(r.json?.error ?? ''), r.json?.error);
++    const edited = { ...first.retros[0], learned: 'Edited by an admin, kept as one.', byId: 'amara', next: 'stop' };
++    r = await commit(amara, { retros: [edited], changes: [{ ...first.changes[0], id: nid('chg'), actorId: 'amara', action: 'edited' }] });
++    check('an admin changes it: saved, still one row', r.status === 200 && retroCount(db) === start + 1, `${r.status} ${r.json?.error ?? ''}`);
++    // ---------- Tools ----------
++    const g2 = snap.goals.find((g) => g.cycleId === cycle.id && g.ownerId === owner.id && g.id !== goal.id && !g.removedAt && g.status !== 'proposed');
++    let j = await ownerMcp('get_wrap_up', {});
++    check('get_wrap_up reads the year’s wrap-ups from SQLite', !isErr(j) && text(j).length > 0, text(j));
++    if (g2) {
++      j = await ownerMcp('wrap_up_goal', { goal_id: g2.id, result: 'partly', learned: 'Asked for help sooner next time.', next: 'carry' });
++      check('wrap_up_goal by the owner saves, logged as them', !isErr(j) && retroCount(db) === start + 2, text(j));
++    }
++    const notMine = snap.goals.find((g) => g.cycleId === cycle.id && g.ownerId !== owner.id && !g.removedAt && g.status !== 'proposed');
++    j = await ownerMcp('wrap_up_goal', { goal_id: notMine.id, result: 'hit', learned: 'Not mine to wrap up.', next: 'carry' });
++    check('wrap_up_goal on someone else’s goal: refused', isErr(j) && /owner or an admin/.test(text(j)), text(j));
++    const uiOn = await uiCheck(owner.email, goal.id);
++    check('on, in the wrap-up’s weeks: an admin’s Home offers See the wrap-up; Goals has Wrap up; /retro is the page', uiOn.adminSee && uiOn.goalsLink && uiOn.retroPage, JSON.stringify(uiOn));
++    // ---------- Switching off (WRAP-UP-OPTIONAL) ----------
++    const before = JSON.stringify(ctx.db().prepare('select * from okr_retros order by id').all());
++    const rb = await uiSwitchOff('amara.nwosu@example.com');
++    check('switching off reads back first: the wrap-ups written stay (History), how many said stop, the year still ends', rb.readBack, rb.text);
++    const offRow = ctx.db().prepare('select modules_off from okr_workspaces where id = ?').get(WS)?.modules_off;
++    check('it is off in SQLite after the read-back’s confirm', JSON.parse(offRow ?? '[]').includes('wrap-up'), offRow);
++    const g3 = snap.goals.find((g) => g.cycleId === cycle.id && g.ownerId === owner.id && g.id !== goal.id && g.id !== g2?.id && !g.removedAt && g.status !== 'proposed') ?? goal;
++    r = await commit(own, retroSave(owner.id, g3, cycle.id));
++    check('off: the owner’s raw save refused by the server with “Wrap-up is off in …”', r.status === 403 && r.json?.error === OFF_SAVE, r.json?.error);
++    r = await commit(amara, { retros: [{ ...edited, byId: 'amara', learned: 'Even an admin, while off.' }], changes: [{ ...first.changes[0], id: nid('chg'), actorId: 'amara' }] });
++    check('off: an admin’s save refused too', r.status === 403 && r.json?.error === OFF_SAVE, r.json?.error);
++    for (const t of TOOLS) { j = await ownerMcp(t, t === 'get_wrap_up' ? {} : { goal_id: g3.id, result: 'hit', learned: 'Small steps worked well.', next: 'carry' }); check(`off: ${t} answers the switched-off module’s sentence`, isErr(j) && /Wrap-up is (switched )?off in Platform Engineering/.test(text(j)), text(j)); }
++    check('off: the wrap-ups written are kept, unchanged', JSON.stringify(ctx.db().prepare('select * from okr_retros order by id').all()) === before);
++    const uiOff = await uiCheck(owner.email, goal.id);
++    check('off: Home never offers the wrap-up (no lead, no See the wrap-up); Goals has no Wrap up; /retro and /retro/{goal} say it is switched off', !uiOff.homeWrap && !uiOff.adminSee && !uiOff.goalButton && !uiOff.goalsLink && uiOff.retroOff && uiOff.retroGoalOff, JSON.stringify(uiOff));
++    r = await commit(own, { changes: [{ id: nid('chg'), at: NOW(), actorId: owner.id, goalId: null, entity: 'person', entityId: owner.id, action: 'edited', summary: 'noop', diffs: [] }] });
++    check('off: a core save still goes through', r.status === 200, `${r.status} ${r.json?.error ?? ''}`);
++    const dryOff = await adminMcp('start_next_cycle', {});
++    check('off: an admin still starts the next year (dry run)', !isErr(dryOff) && /carr/i.test(text(dryOff)), text(dryOff));
++    // ---------- Back on ----------
++    j = await adminMcp('set_feature', { feature: 'wrap-up', on: true });
++    check('back on (set_feature by an admin)', !isErr(j), text(j));
++    const dryOn = await adminMcp('start_next_cycle', {});
++    check('the next year’s read-back counts are the same on and off (results worked out as before)', full(dryOn).match(/\d+ (goals? )?(carr|finish|stop)\w*/g)?.join() === full(dryOff).match(/\d+ (goals? )?(carr|finish|stop)\w*/g)?.join() && /\d+ (goals? )?carr/.test(full(dryOn)), `on: ${full(dryOn).match(/\d+ (goals? )?(carr|finish|stop)\w*/g)} | off: ${full(dryOff).match(/\d+ (goals? )?(carr|finish|stop)\w*/g)}`);
++    j = await ownerMcp('wrap_up_goal', { goal_id: g3.id, result: 'missed', learned: 'Back on, saving works again.', next: 'stop' });
++    check('back on: wrap_up_goal saves again, the earlier wrap-ups as they were', !isErr(j) && JSON.parse(before).every((row) => ctx.db().prepare('select * from okr_retros where id = ?').get(row.id)?.learned === row.learned), text(j));
++    j = await adminMcp('start_next_cycle', { dry_run: false, confirm: true });
++    check('on: the admin starts the next year', !isErr(j), text(j));
++  }
++} catch (e) {
++  check('proof ran to the end', false, String(e?.stack ?? e));
++} finally {
++  if (ctx?.p) await stop(ctx.p);
++}
++
++async function signedIn(email) {
++  const { chromium } = await import('playwright');
++  const browser = await chromium.launch();
++  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
++  await page.clock.setFixedTime(new Date(NOW()));
++  await page.goto(B + '/');
++  await page.fill('input[name=email]', email);
++  await page.fill('input[name=password]', PASSWORD);
++  await page.click('button[type=submit]');
++  await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500);
++  return { browser, page };
++}
++async function bodyAt(page, url) { await page.goto(B + url); await page.waitForLoadState('networkidle'); await page.waitForTimeout(1200); return page.locator('body').innerText(); }
++async function uiCheck(email, goalId) {
++  const admin = await homeOf('amara.nwosu@example.com');
++  const { browser, page } = await signedIn(email);
++  try {
++    // A seeded person is a day-one arrival (Getting started leads Home): hide it, as they would, to see the lead under it.
++    const hide = page.getByRole('button', { name: 'Hide this' }).first();
++    if (await hide.count()) { await hide.click(); await page.waitForTimeout(800); }
++    const home = await page.locator('main').innerText().catch(() => '');
++    const goalPage = await bodyAt(page, `/goals/${goalId}`);
++    await bodyAt(page, '/goals?scope=all');
++    const goalsLink = await page.locator('main a[href="/retro"]').count() > 0;
++    const retro = await bodyAt(page, '/retro');
++    const retroGoal = await bodyAt(page, `/retro/${goalId}`);
++    return {
++      // Home's lead (home.ts: “Wrap up your {n} goals”, Start the wrap-up); Goals' title row “Wrap up” (goals.header). The
++      // stage page's “Wrap up this goal” on a goal's page is in no screen: it is checked as never shown.
++      homeWrap: /Wrap up your (\d+ )?goals?|Start the wrap-up|See the wrap-up/.test(home), goalButton: /Wrap up this goal/.test(goalPage), goalsLink,
++      retroPage: /Wrap up/.test(retro) && !/not found/i.test(retro), retroOff: OFF_PAGE.test(retro), retroGoalOff: OFF_PAGE.test(retroGoal),
++      retroNotFound: /not found/i.test(retro), adminSee: /See the wrap-up/.test(admin), lead: home.split('\n').filter(Boolean).slice(0, 14).join(' / '),
++    };
++  } finally { await browser.close(); }
++}
++/** An admin's Home: the workspace's line offers See the wrap-up while it is on and open (Home.tsx yearRow). */
++async function homeOf(email) {
++  const { browser, page } = await signedIn(email);
++  try { return await page.locator('main').innerText().catch(() => ''); } finally { await browser.close(); }
++}
++/** Workspace → Features: switch the Wrap-up off; the read-back comes first, then its confirm. */
++async function uiSwitchOff(email) {
++  const { browser, page } = await signedIn(email);
++  try {
++    await bodyAt(page, '/workspace/features');
++    const row = page.getByRole('switch', { name: /Wrap-up/ }).or(page.getByRole('checkbox', { name: /Wrap-up/ })).first();
++    await row.click();
++    await page.waitForTimeout(800);
++    const t = await page.locator('body').innerText();
++    const sheet = /History/.test(t) && /stop/i.test(t) && /(still ends|ends as usual|year)/i.test(t);
++    const confirm = page.getByRole('button', { name: /Switch (it )?off|Switch off Wrap-up|Turn off/ }).first();
++    if (await confirm.count()) { await confirm.click(); await page.waitForTimeout(1500); }
++    const after = await page.locator('body').innerText();
++    return { readBack: sheet, off: /Wrap-up[\s\S]{0,80}Off/.test(after), text: t.split('\n').filter((l) => /wrap|History|stop|year/i.test(l)).slice(0, 6).join(' | ') };
++  } finally { await browser.close(); }
++}
++const failed = results.filter((x) => !x.ok);
++console.log(`\n${results.length - failed.length}/${results.length} checks pass${failed.length ? '; failing: ' + failed.map((f) => f.name).join('; ') : ''}`);
++process.exitCode = failed.length ? 1 : 0;
+diff --git a/platform/server.ts b/platform/server.ts
+index 5ed2935..097693e 100644
+--- a/platform/server.ts
++++ b/platform/server.ts
+@@ -3,7 +3,7 @@
+    SQLite file (src/adapters/standin/sqliteStore.ts); every access rule is enforced here: who may read a workspace
+    (its members: a live person with the signed-in email, R1 rules 2 and 3) and who may change what (guard.ts, R1 rule 4).
+    Built by `npm run build:standin` into platform/dist/server.mjs; run with `node platform/dist/server.mjs`.
+-   Environment: STANDIN_PORT (47310), STANDIN_DATA (platform/data), STANDIN_APP (platform/dist/app). */
++   Environment: STANDIN_PORT (47310), STANDIN_DATA (platform/data), STANDIN_APP (platform/dist/app), STANDIN_TODAY. */
+ import fs from 'node:fs';
+ import http from 'node:http';
+ import path from 'node:path';
+@@ -32,7 +32,9 @@ const db = openDatabase(path.join(DATA, 'faro.db'), MIGRATIONS);
+ const store = new SqliteStore(db);
+ const auth = new Auth(db);
+ const files = folderFiles(path.join(DATA, 'files'));
+-const deps = standinDeps(store, () => new Date(), (email) => auth.hasLeft(email));
++/** The platform's clock (the Clock port): the real time, or STANDIN_TODAY (yyyy-mm-dd) pinned at noon for proofs. */
++const clockNow = () => (process.env.STANDIN_TODAY ? new Date(process.env.STANDIN_TODAY + 'T12:00:00Z') : new Date());
++const deps = standinDeps(store, clockNow, (email) => auth.hasLeft(email));
+ 
+ // ---------- Small helpers ----------
+ 
+@@ -134,7 +136,8 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
+     if (rest === '/history' && req.method === 'POST') return send(res, 200, await store.history(ws, await input(req)));
+     if (rest === '/commit' && req.method === 'POST') {
+       const c = await input<Commit>(req);
+-      const why = refusal(await store.load(ws), c, me);
++      const row = db.prepare('select name, modules_off from okr_workspaces where id = ?').get(ws) as { name: string; modules_off: string | null } | undefined;
++      const why = refusal(await store.load(ws), c, me, { name: row?.name ?? 'this workspace', modulesOff: JSON.parse(row?.modules_off ?? '[]') as string[] }, clockNow());
+       if (why) throw new HttpError(403, why);
+       // Revoking a token: the store checks that it's the token's person or an admin, as the actor the change names.
+       try { await store.commit(ws, c); } catch (e) { refuse(e); }
+@@ -245,7 +248,7 @@ const jobs = [
+ /** Seeds a workspace from the demo's example (as a workspace of its own, kind "own") and signs everyone in it up: a
+     password for each, and the stub directory with each. For trying the platform; never real people. */
+ async function seed(password: string) {
+-  const today = new Date();
++  const today = clockNow();
+   const s = buildPlatformOrg(today);
+   const ws: Workspace = { id: 'ws_platform', name: 'Platform Engineering', kind: 'own', createdAt: today.toISOString() };
+   if (!(await store.workspaces()).some((w) => w.id === ws.id)) await store.createWorkspace(ws, { ...s, tokens: [], feedback: [] });
+diff --git a/src/adapters/standin/guard.ts b/src/adapters/standin/guard.ts
+index 61387a2..b2c7544 100644
+--- a/src/adapters/standin/guard.ts
++++ b/src/adapters/standin/guard.ts
+@@ -11,6 +11,7 @@ import { mayChangeGoal, mayPostCheckIn } from '../../domain/goalRights';
+ import { VIA_LABEL, type Via } from '../../domain/via';
+ import type { Commit } from '../../data/store';
+ import type { Goal, Person, Snapshot } from '../../domain/types';
++import { wrapUpRefusal } from './guardWrapUp';
+ 
+ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+ const byId = <T extends { id: string }>(xs: readonly T[] | undefined) => new Map((xs ?? []).map((x) => [x.id, x]));
+@@ -23,7 +24,7 @@ export function viaOf(c: Commit): Via {
+ }
+ 
+ /** Why the server refuses this save by `actor` on the workspace as stored, in the app's words; null when it may. */
+-export function refusal(stored: Snapshot, c: Commit, actor: Person): string | null {
++export function refusal(stored: Snapshot, c: Commit, actor: Person, ws: { name: string; modulesOff?: readonly string[] } = { name: 'this workspace' }, now: Date = new Date()): string | null {
+   const me = { id: actor.id, admin: !!actor.admin };
+   if (actor.leftAt || actor.removedAt) return 'You’re no longer in this workspace.';
+   // Every change is logged as the person signed in (R1 rule 6): nobody acts as someone else.
+@@ -76,5 +77,6 @@ export function refusal(stored: Snapshot, c: Commit, actor: Person): string | nu
+     if (!admin && (was ?? v).personId !== actor.id) return 'Only its owner or an admin can change this view.';
+     if (!admin && v.pinned !== !!was?.pinned) return 'Only admins can pin a view for everyone.';
+   }
+-  return null;
++  // The Wrap-up's records (stage 12): a wrap-up, checked by running saveRetro on the server's clock.
++  return wrapUpRefusal(stored, c, actor, ws, now);
+ }
+diff --git a/src/adapters/standin/guardWrapUp.test.ts b/src/adapters/standin/guardWrapUp.test.ts
+new file mode 100644
+index 0000000..325bd8c
+--- /dev/null
++++ b/src/adapters/standin/guardWrapUp.test.ts
+@@ -0,0 +1,47 @@
++// @vitest-environment node
++/* Stage 12 on the stand-in: who may write a wrap-up, as the server checks each save (guardWrapUp.ts), on its own clock. */
++import { describe, expect, it } from 'vitest';
++import { refusal } from './guard';
++import { cycleDates } from '../../domain/cycle';
++import type { Commit } from '../../data/store';
++import type { Cycle, Person, Retro, Snapshot } from '../../domain/types';
++
++const person = (id: string, admin = false) => ({ id, name: id[0]!.toUpperCase() + id.slice(1), role: '', initials: id[0]!.toUpperCase(), teamId: null, admin }) as Person;
++const cycle = { id: 'c1', name: '2026', startDate: '2025-12-29', weeks: 52 } as Cycle;
++const d = cycleDates(cycle);
++const open = new Date(d.wrapUpOpens + 'T12:00:00Z');
++const before = new Date(d.firstDay + 'T12:00:00Z');
++const after = new Date('2027-06-01T12:00:00Z');
++const goal = { id: 'g1', title: 'Ship it', ownerId: 'bob', level: 'team', parentId: null, cycleId: 'c1', key: 'G-1' };
++const kept: Retro = { id: 'r0', goalId: 'g9', cycleId: 'c1', result: 'hit', learned: 'Kept this one.', next: 'carry', byId: 'bob', at: '2026-12-22T00:00:00Z' };
++const stored = { people: [person('ann'), person('bob'), person('ada', true)], teams: [], cycles: [cycle], goals: [goal, { ...goal, id: 'g9', key: 'G-9' }], checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [kept], requests: [] } as unknown as Snapshot;
++const as = (id: string) => stored.people.find((p) => p.id === id)!;
++const save = (byId: string, extra: Partial<Retro> = {}): Commit => ({
++  retros: [{ id: 'r1', goalId: 'g1', cycleId: 'c1', result: 'hit', learned: 'Small steps worked well.', next: 'carry', byId, at: '2026-12-22T00:00:00Z', ...extra }],
++  changes: [{ id: 'chg', at: '2026-12-22T00:00:00Z', actorId: byId, goalId: 'g1', entity: 'retro', entityId: 'r1', action: 'posted', summary: 'Wrapped up Ship it: hit it', diffs: [] }],
++});
++const ws = { name: 'Acme' };
++
++describe('who may write a wrap-up on the stand-in server', () => {
++  it('the goal’s owner or an admin wraps it up; anyone else is refused in saveRetro’s words', () => {
++    expect(refusal(stored, save('bob'), as('bob'), ws, open)).toBeNull();
++    expect(refusal(stored, save('ada'), as('ada'), ws, open)).toBeNull();
++    expect(refusal(stored, save('ann'), as('ann'), ws, open)).toBe('Only the goal’s owner or an admin can wrap it up.');
++  });
++  it('only in the wrap-up’s weeks, on the server’s clock', () => {
++    expect(refusal(stored, save('bob'), as('bob'), ws, before)).toBe(`2026’s wrap-up opens on Mon 21 Dec 2026.`);
++    expect(refusal(stored, save('bob'), as('bob'), ws, after)).toBe(`2026’s wrap-up closed on Sun 31 Jan 2027.`);
++  });
++  it('says what was learned; as the person signed in; one per goal per year', () => {
++    expect(refusal(stored, save('bob', { learned: 'short' }), as('bob'), ws, open)).toBe('Say what was learned, in a sentence (10 characters or more).');
++    const forged = save('bob'); forged.retros![0]!.byId = 'ann';
++    expect(refusal(stored, forged, as('bob'), ws, open)).toBe('A save can only be made as the person signed in.');
++    expect(refusal(stored, save('bob', { id: 'r2', goalId: 'g9' }), as('bob'), ws, open)).toMatch(/once per goal/);
++    expect(refusal(stored, save('bob', { id: 'r0', goalId: 'g9', learned: 'Changed my mind on it.' }), as('bob'), ws, open)).toBeNull();
++  });
++  it('while the Wrap-up is off, a save that writes one is refused, admins included; other saves go through', () => {
++    const off = { name: 'Acme', modulesOff: ['wrap-up'] };
++    expect(refusal(stored, save('ada'), as('ada'), off, open)).toBe('Wrap-up is off in Acme.');
++    expect(refusal(stored, { retros: [kept], changes: [] }, as('bob'), off, open)).toBeNull();
++  });
++});
+diff --git a/src/adapters/standin/guardWrapUp.ts b/src/adapters/standin/guardWrapUp.ts
+new file mode 100644
+index 0000000..ac51e4c
+--- /dev/null
++++ b/src/adapters/standin/guardWrapUp.ts
+@@ -0,0 +1,43 @@
++/* Who may write the Wrap-up's records, enforced by the stand-in platform's server on every save (stage 12, R1 rule 4).
++   The record: a wrap-up (okr_retros), one per goal per year, written only by saveRetro. The server doesn't restate its
++   rules: for each wrap-up a save writes, it runs saveRetro itself, as the person signed in, on what it holds and on the
++   platform's clock (not the browser's), and refuses with saveRetro's own words (owner or admin, the wrap-up's weeks,
++   what was learned, a stop on a copy already used). The row sent must then be the one saveRetro makes. While the
++   Wrap-up is off, a save that writes one refuses with the switched module's short sentence (SWITCHED_ACTIONS). Pure. */
++import { NotAllowed, saveRetro, type ActionContext } from '../../domain/actions';
++import { moduleOffWords } from '../../app/reads';
++import type { Commit } from '../../data/store';
++import type { Person, Retro, Snapshot } from '../../domain/types';
++
++const AS_SIGNED_IN = 'A save can only be made as the person signed in.';
++const RESULTS: readonly Retro['result'][] = ['hit', 'partly', 'missed'];
++const NEXTS: readonly Retro['next'][] = ['carry', 'stop'];
++
++/** Why the server refuses this save's wrap-ups by `actor`, in the app's words; null when it may. */
++export function wrapUpRefusal(stored: Snapshot, c: Commit, actor: Person, ws: { name: string; modulesOff?: readonly string[] }, now: Date): string | null {
++  const stored_ = new Map((stored.retros ?? []).map((r) => [r.id, r]));
++  const written = (c.retros ?? []).filter((r) => JSON.stringify(stored_.get(r.id)) !== JSON.stringify(r));
++  if (!written.length) return null;
++  if ((ws.modulesOff ?? []).includes('wrap-up')) return moduleOffWords('Wrap-up', ws.name);
++  for (const r of written) {
++    if (r.byId !== actor.id) return AS_SIGNED_IN;
++    const goal = stored.goals.find((g) => g.id === r.goalId && !g.removedAt);
++    if (!goal) return 'That wrap-up’s goal isn’t in this workspace.';
++    if (!RESULTS.includes(r.result) || !NEXTS.includes(r.next)) return 'A wrap-up says Hit it, Partly or Missed, and Carry on or Stop.';
++    const cycle = stored.cycles.find((x) => x.id === goal.cycleId);
++    if (!cycle) return 'That wrap-up’s goal isn’t in this workspace.';
++    const x: ActionContext = { snapshot: stored, cycle, week: 0, actor, now: now.toISOString(), newId: () => r.id, full: stored };
++    let made: Retro;
++    try {
++      made = saveRetro(x, goal, { result: r.result, learned: r.learned, next: r.next }).retros![0]!;
++    } catch (e) {
++      if (e instanceof NotAllowed) return e.message;
++      throw e;
++    }
++    // The row must be the one saveRetro makes: its goal's year, one per goal per year (the stored one's id), said as sent.
++    if (made.id !== r.id || made.cycleId !== r.cycleId || made.learned !== r.learned) return 'A wrap-up is saved for its goal’s year, once per goal: open it again to change it.';
++    const was = stored_.get(r.id);
++    if (was && (was.goalId !== r.goalId || was.cycleId !== r.cycleId)) return 'A wrap-up stays with its goal and year.';
++  }
++  return null;
++}
