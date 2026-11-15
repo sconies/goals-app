@@ -56,6 +56,7 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | [U155](journeys/U155.md) | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
 | N1 | Review notes, reviews | `evals/notes/1-reviews.cjs` |
 | N21 | A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays | `evals/notes/21-switched-off.cjs` |
+| [U72](journeys/U72.md) | One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it; Import’s check and its changes have one too, which goes back to Import | `evals/journeys.cjs` |
 
 ## Help
 

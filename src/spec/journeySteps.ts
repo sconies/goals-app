@@ -119,13 +119,46 @@ function cssWords(sel: string): string {
   partsNamed.set(sel, w);
   return w;
 }
+/** Splits a selector at each of `stops` that is outside brackets, parentheses and quotes (an attribute's value can hold
+    spaces: `[data-part="Checked in this week"]` is one part, review of #537). */
+function splitSelector(sel: string, stops: RegExp): string[] {
+  const out: string[] = [];
+  let cur = '', depth = 0, q = '';
+  for (const ch of sel) {
+    if (q) { cur += ch; if (ch === q) q = ''; continue; }
+    if (ch === '"' || ch === "'") { q = ch; cur += ch; continue; }
+    if (ch === '[' || ch === '(') depth++;
+    if (ch === ']' || ch === ')') depth--;
+    if (!depth && stops.test(ch)) { if (cur.trim()) out.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+/** One compound selector in words: a named part (`[data-part="…"]`) by its name, else its class names read as words. */
+function compoundWords(c: string): string {
+  const named = /\[data-part=(["'])(.*?)\1\]/.exec(c);
+  if (named) return `“${named[2]}” part`;
+  if (/^\[data-part\]$/.test(c)) return 'each named part';
+  const TAGS: Record<string, string> = { li: 'list item', tr: 'table row', td: 'cell', th: 'column heading', a: 'link', p: 'paragraph', ul: 'list', ol: 'list' };
+  if (TAGS[c]) return TAGS[c]!;
+  return c.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, '').replace(/^[a-z0-9]+(?=[.#])/, '').replace(/[.#]/g, ' ').replace(/[-_]+/g, ' ').trim();
+}
 function cssWordsOf(sel: string): string {
   if (PARTS[sel]) return PARTS[sel]!;
   const raw = sel;
-  sel = sel.replace(/\.btn\.primary\b/g, '.main-button').replace(/\.btn\b/g, '.button');
-  const parts = sel.split(/\s*[\s>+~]\s*/).map((s) => s.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, '').replace(/^[a-z0-9]+(?=[.#])/, '').replace(/[.#]/g, ' ').replace(/[-_]+/g, ' ').trim()).filter(Boolean);
-  if (!parts.length || sel.includes(',')) return `the part \`${raw}\``;
-  return `the ${parts.reverse().join(' in the ')} (\`${raw}\`)`;
+  const one = (x: string): string | null => {
+    if (PARTS[x]) return PARTS[x]!;
+    x = x.replace(/\.btn\.primary\b/g, '.main-button').replace(/\.btn\b/g, '.button');
+    const parts = splitSelector(x, /[\s>+~]/).map(compoundWords).filter(Boolean);
+    if (!parts.length) return null;
+    const [last, ...rest] = parts.reverse();
+    const head = last === 'each named part' ? last : `the ${last}`;
+    return [head, ...rest.map((p) => `the ${p}`)].join(' in ');
+  };
+  const each = splitSelector(sel, /,/).map(one);
+  if (each.some((x) => x == null)) return `the part \`${raw}\``;
+  return `${each.join(', or ')} (\`${raw}\`)`;
 }
 
 /** A regular expression as the words it matches: anchors gone, any run of characters as “…”, a number as N. */
@@ -157,8 +190,14 @@ interface Scope {
   fns: Map<string, { params: string[]; body: ts.Expression }>;
   /** Lists the journey writes out (an array of literal rows), each row in words: a loop over one shows them (gap S3-14). */
   lists?: Map<string, string[]>;
+  /** Every name the journey declares, with its declaration as written: a check or a set-up written as code names them,
+      and the page gives each, so it can be followed without the journeys file (review of #537). */
+  defs?: Map<string, string>;
 }
-const child = (s: Scope): Scope => ({ parts: new Map(s.parts), values: new Map(s.values), pages: new Set(s.pages), fns: new Map(s.fns), lists: new Map(s.lists) });
+const child = (s: Scope): Scope => ({ parts: new Map(s.parts), values: new Map(s.values), pages: new Set(s.pages), fns: new Map(s.fns), lists: new Map(s.lists), defs: new Map(s.defs) });
+
+/** Code as inline Markdown: one line, in backticks (two when it holds one). */
+const codeSpan = (src: string) => { const one = src.replace(/\s+/g, ' ').trim(); return one.includes('`') ? `\`\` ${one} \`\`` : `\`${one}\``; };
 
 /** A date as words: Sunday 8 November 2026. */
 const dayWords = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).replace(',', '');
@@ -170,6 +209,8 @@ class Reader {
   consts = new Map<string, string>();
   /** Top-level helpers with a doc comment: what each does, in its author's words. */
   docs = new Map<string, string>();
+  /** The rest of a helper's doc comment, after its first sentence: what a page adds when it calls it. */
+  docsMore = new Map<string, string>();
   modules: Map<string, string>;
   constructor(text: string, modules: Map<string, string>) {
     this.text = text;
@@ -187,7 +228,12 @@ class Reader {
   }
   private doc(name: string, st: ts.Node) {
     const c = this.comments(st).pop();
-    if (c) this.docs.set(name, c.replace(/\s*\(.*$/, '').split(/(?<=[.:])\s/)[0]!.replace(/[.:]$/, ''));
+    if (!c) return;
+    const first = c.replace(/\s*\(.*$/, '').split(/(?<=[.:])\s/)[0]!.replace(/[.:]$/, '');
+    this.docs.set(name, first);
+    // What the first sentence leaves out: a bracket it opened ("(U61's, shared with U176…)") is the file's own bookkeeping.
+    const rest = c.slice(c.indexOf(first) + first.length).replace(/^\s*\([^)]*\)\s*/, '').replace(/^[.:,]\s*/, '').trim().replace(/\.$/, '');
+    if (rest) this.docsMore.set(name, rest);
   }
   /** The comments written just above a statement, each as one line of text. */
   comments(st: ts.Node): string[] {
@@ -239,6 +285,34 @@ class Reader {
     // Longer: the code itself, so the words it works out can still be read (drill 11, gap S3-14); past a line, too long.
     const one = t.replace(/\s+/g, ' ');
     return one.length <= 160 ? `{worked out in the journey as \`${one.replace(/`/g, "'")}\`}` : '{a value worked out in the journey}';
+  }
+
+  /** Code the journey runs, with the declarations of the names it reads, and theirs in turn, and the top-level constants
+      it reads: what a page needs to follow a check or a set-up that isn't a person's step (review of #537). */
+  code(n: ts.Node, s: Scope): string {
+    const seen = new Set<string>(), used = new Set<string>(), consts: string[] = [];
+    const names = (x: ts.Node): string[] => {
+      const got: string[] = [];
+      const visit = (y: ts.Node) => {
+        if (ts.isIdentifier(y) && !(ts.isPropertyAccessExpression(y.parent) && y.parent.name === y) && !(ts.isPropertyAssignment(y.parent) && y.parent.name === y)) got.push(y.text);
+        ts.forEachChild(y, visit);
+      };
+      visit(x);
+      return got;
+    };
+    const todo = names(n);
+    while (todo.length) {
+      const id = todo.shift()!;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const d = s.pages.has(id) ? undefined : s.defs?.get(id);
+      if (d) { used.add(id); const f = ts.createSourceFile('d.js', d, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS); todo.push(...names(f)); }
+      else if (this.consts.has(id) && id !== 'BASE' && id !== 'DOWN') consts.push(`\`${id}\` is ${this.consts.get(id)}`);
+    }
+    // In the order the journey declares them, each declaration once (two names can share one).
+    const out = [...new Set([...(s.defs ?? new Map<string, string>()).entries()].filter(([k]) => used.has(k)).map(([, v]) => codeSpan(v)))];
+    const where = [...out, ...consts];
+    return `${codeSpan(this.src(n))}${where.length ? `, where ${where.join('; ')}` : ''}`;
   }
 
   /** A part of the page in words, or null when the expression isn't one. */
@@ -464,6 +538,11 @@ function statement(R: Reader, st: ts.Statement, s: Scope, out: JourneyLine[]): v
 
 function declare(R: Reader, d: ts.VariableDeclaration, s: Scope, out: JourneyLine[]): void {
   const init = unwrap(d.initializer!);
+  const declared: string[] = [];
+  const bind = (b: ts.BindingName) => { if (ts.isIdentifier(b)) declared.push(b.text); else for (const e of b.elements) if (!ts.isOmittedExpression(e)) bind(e.name); };
+  bind(d.name);
+  const kw = (d.parent as ts.VariableDeclarationList).flags & ts.NodeFlags.Let ? 'let' : 'const';
+  for (const n of declared) (s.defs ??= new Map()).set(n, `${kw} ${R.src(d)}`);
   if (ts.isIdentifier(d.name)) {
     const name = d.name.text;
     if (ts.isArrowFunction(init) && !ts.isBlock(init.body) && /\b(BASE|DOWN)\b/.test(R.src(init.body))) {
@@ -563,10 +642,17 @@ function helper(R: Reader, n: ts.CallExpression, s: Scope, out: JourneyLine[], t
       return null;
     }
     case 'fail': say('check', `Fails: ${R.value(a[0]!, s, true)}.`); return null;
+    case 'writeWorkbook': say('action', `Make the workbook to load, its sheets and rows as ${R.code(n, s)}.`); return null;
   }
   // Any other helper of the file: what its own comment says it does.
   const doc = R.docs.get(f);
-  if (top && doc && !MACHINERY.test(doc)) { say('action', `${cap(doc)} (\`${f}\`).`); return null; }
+  if (top && doc && !MACHINERY.test(doc)) {
+    // Its whole comment, and the call when it is given more than the page and the runner (U176's 2 and 12 people).
+    const more = R.docsMore.get(f);
+    const given = a.some((x) => !['p', 'h', 'page', 'device'].includes(R.src(x)));
+    say('action', `${cap(doc)}${more && !MACHINERY.test(more) ? `: ${more}` : ''} (${given ? R.code(n, s) : `\`${f}\``}).`);
+    return null;
+  }
   return null;
 }
 
@@ -607,7 +693,8 @@ function expression(R: Reader, e: ts.Expression, s: Scope, out: JourneyLine[]): 
         const always = a[1] && a[1].kind === ts.SyntaxKind.TrueKeyword;
         const msg = a[2] ? R.value(a[2], s, true) : '';
         if (always) { out.push({ kind: 'check', text: `(\`${k}\`) scored as met here.` }); return; }
-        out.push({ kind: 'check', text: `(\`${k}\`) ${c ? `${c}` : msg ? `it fails if ${msg.replace(/^\{.*\}: /, '')}` : 'as the code checks it'}${c && msg ? ` (else: ${msg})` : ''}.` });
+        // A test the words can't say is given as its code, with what it reads; the failure message is what it says, not the test.
+        out.push({ kind: 'check', text: `(\`${k}\`) ${c ? `${c}${msg ? ` (else: ${msg})` : ''}` : a[1] ? `met when ${R.code(a[1], s)}${msg ? `. Else it says: ${msg}` : ''}` : 'as the code checks it'}.` });
         return;
       }
     }
@@ -635,7 +722,25 @@ function expression(R: Reader, e: ts.Expression, s: Scope, out: JourneyLine[]): 
     case 'hover': if (part) out.push({ kind: 'action', text: `Point at ${part}.` }); return;
     case 'focus': if (part) out.push({ kind: 'action', text: `Move the focus to ${part}.` }); return;
     case 'selectOption': if (part) out.push({ kind: 'action', text: `Choose ${a[0] ? R.value(a[0], s) : 'an option'} in ${part}.` }); return;
-    case 'setInputFiles': out.push({ kind: 'action', text: `Choose ${a[0] ? R.file(a[0], s) : 'a file'} to load${part && !/file chooser/.test(part) ? ` in ${part}` : ''}.` }); return;
+    case 'setInputFiles': {
+      // A file the journey makes: the code that makes it, so its rows can be read (review of #537: U179's, U90's).
+      const made = a[0] && !ts.isStringLiteral(unwrap(a[0])) ? `; the file is ${R.code(a[0], s)}` : '';
+      out.push({ kind: 'action', text: `Choose ${a[0] ? R.file(a[0], s) : 'a file'} to load${part && !/file chooser/.test(part) ? ` in ${part}` : ''}${made}.` });
+      return;
+    }
+    case 'evaluate': {
+      // Set-up done in the page's own script (review of #537: U176's switch to Omar, U90's check-in): said, not dropped.
+      const fn = a[0] ? unwrap(a[0]) : null;
+      const viewer = fn ? /localStorage\.setItem\(\s*'goals-app-viewer:([^']+)'\s*,\s*'([^']+)'\s*\)/.exec(R.src(fn)) : null;
+      if (viewer && R.src(fn!).replace(/\s+/g, ' ').length < 120) {
+        out.push({ kind: 'action', text: `Look as ${person(viewer[2]!)} (\`${viewer[2]}\`) in the workspace \`${viewer[1]}\` from here on, as choosing them in the Demo panel does (the browser’s storage: \`goals-app-viewer:${viewer[1]}\` is \`${viewer[2]}\`).` });
+        return;
+      }
+      if (fn && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && /\b(localStorage|sessionStorage|__goalsStore|indexedDB)\b/.test(R.src(fn))) {
+        out.push({ kind: 'action', text: `Set up in the page’s own script, not a step a person takes: it runs ${R.code(a[0]!, s)}${a[1] ? `, given ${R.code(a[1], s)}` : ''}.` });
+      }
+      return;
+    }
     case 'waitForURL': out.push({ kind: 'check', text: a[0] && (ts.isArrowFunction(unwrap(a[0])) || ts.isFunctionExpression(unwrap(a[0]))) ? 'The address changes.' : `The address becomes ${a[0] ? demoAddress(R.value(a[0], s)) : 'the next page'}.` }); return;
     case 'waitFor': {
       if (!part) return;
@@ -757,6 +862,7 @@ export const HOW_TO_READ = [
   '- **Checkpoint:** the screen as it is then is checked for the ease test’s `one-action` (at most one main button in view, or in the open sheet) and `a11y` (no serious or critical axe-core fault, no sideways scrolling, and on a phone the main button at least 44px tall).',
   '- _Note:_ the journey author’s own comment, the why behind the next lines.',
   '- Text in “quotes” is what the screen says; `{name}` is a value the journey works out as it runs (a goal’s planned number, say), and {worked out in the journey as `…`} gives the code that works it out when it is longer than a name. A part named by Faro’s markup is given in words with its CSS class in backticks: a rebuild has its own markup, so it matches the words, not the class. Every part the journeys name, with its words, is in [the parts the journeys name](#the-parts-the-journeys-name).',
+  '- **Code in a line.** A check whose test, a file the journey loads, or a set-up done in the page’s own script that words can’t say is given as its code, then “where” the declarations it reads (`const …`, in the order the journey makes them) and the constants (`NOW` is 45, the week). In that code `device` is `phone` or `desktop`; `h.snapshot()` is the workspace as the app has it then (`window.__goalsStore.load`: `goals`, `checkIns`, `modules.<id>.<table>` and the rest of [the data model](data-model.md)); `window.__goalsStore.commit(workspaceId, records)` saves records straight to the store, as the app’s own save does, with no screen and no step; `OUT` is a folder the journey writes its files to; `csvFile(name, text)` is a CSV file of that name and text; `writeWorkbook(sheets, file)` writes an .xlsx file of those sheets, each `{ name, rows }`, its first row the headers. “Else it says: …” is the eval’s report when the test fails, not the test.',
   '- **For each of …, N rows:** a loop over a list the journey writes out; each _Row:_ is one entry, its values in the order the code writes them (the note above the loop, when there is one, says what each value is), then the lines done for every row.',
   '- **If …:** lines that apply only on one width (a phone is 390 × 844, a desktop 1440 × 900), with a module on or off, or in one case the code tests.',
   '',
