@@ -1,4 +1,134 @@
 {
+  "U2": {
+    "verdict": "DONE",
+    "steps": [
+      1,
+      1
+    ],
+    "budget": 1,
+    "passes": 11,
+    "fails": []
+  },
+  "U66": {
+    "verdict": "DONE",
+    "steps": [
+      2,
+      2
+    ],
+    "budget": 4,
+    "passes": 9,
+    "fails": []
+  },
+  "U65": {
+    "verdict": "DONE",
+    "steps": [
+      2,
+      2
+    ],
+    "budget": 6,
+    "passes": 19,
+    "fails": []
+  },
+  "U58": {
+    "verdict": "PART",
+    "steps": [
+      6,
+      6
+    ],
+    "budget": 12,
+    "passes": 25,
+    "fails": [
+      "address becomes /demo/people (the journey’s words; this rebuild has /people)",
+      "Goals’ By team (show=teams) is not built: the kit names it but gives no screen words for it",
+      "no button that changes people or teams for a member",
+      "old addresses: the journey’s table of old addresses (`old`) is not in the kit"
+    ]
+  },
+  "U64": {
+    "verdict": "DONE",
+    "steps": [
+      6,
+      6
+    ],
+    "budget": 10,
+    "passes": 14,
+    "fails": []
+  },
+  "U69": {
+    "verdict": "DONE",
+    "steps": [
+      0,
+      0
+    ],
+    "budget": 1,
+    "passes": 5,
+    "fails": []
+  },
+  "U70": {
+    "verdict": "PART",
+    "steps": [
+      6,
+      6
+    ],
+    "budget": 9,
+    "passes": 12,
+    "fails": [
+      "Save this view… (saved views) is not built",
+      "Settings’ section links (`.section-links`) are not built"
+    ]
+  },
+  "U71": {
+    "verdict": "DONE",
+    "steps": [
+      8,
+      8
+    ],
+    "budget": 10,
+    "passes": 17,
+    "fails": []
+  },
+  "U122": {
+    "verdict": "PART",
+    "steps": [
+      3,
+      3
+    ],
+    "budget": 6,
+    "passes": 15,
+    "fails": [
+      "Wednesday: both in, one sentence with the next date (“0/2 Check-ins are due by Thursday 12 Nov, tomorrow 2 check-ins to do One-click rollback for every deployable service and Contract tests between the top 40 service pairs. Start check-in”) — the kit’s workspace has no check-ins after 5 Nov"
+    ]
+  },
+  "U77": {
+    "verdict": "DONE",
+    "steps": [
+      7,
+      7
+    ],
+    "budget": 10,
+    "passes": 13,
+    "fails": []
+  },
+  "U78": {
+    "verdict": "DONE",
+    "steps": [
+      3,
+      3
+    ],
+    "budget": 6,
+    "passes": 10,
+    "fails": []
+  },
+  "U141": {
+    "verdict": "DONE",
+    "steps": [
+      2,
+      2
+    ],
+    "budget": 4,
+    "passes": 5,
+    "fails": []
+  },
   "U24": {
     "verdict": "DONE",
     "steps": [
@@ -7,6 +137,62 @@
     ],
     "budget": 8,
     "passes": 3,
+    "fails": []
+  },
+  "U123": {
+    "verdict": "DONE",
+    "steps": [
+      2,
+      2
+    ],
+    "budget": 4,
+    "passes": 9,
+    "fails": []
+  },
+  "U137": {
+    "verdict": "DONE",
+    "steps": [
+      16,
+      16
+    ],
+    "budget": 26,
+    "passes": 19,
+    "fails": []
+  },
+  "U1": {
+    "verdict": "PART",
+    "steps": [
+      11,
+      11
+    ],
+    "budget": 17,
+    "passes": 30,
+    "fails": [
+      "first check-in off its plan: “Keep … and say why” and the cause buttons (“Change landed early”, “What happened”) are not built: the kit names the buttons but not the screen",
+      "one question per screen (Continue, then “Still true” as a button) is one form here"
+    ]
+  },
+  "U6": {
+    "verdict": "PART",
+    "steps": [
+      4,
+      4
+    ],
+    "budget": 3,
+    "passes": 9,
+    "fails": [
+      "a change’s before and after (`.diffs ins`): the demo’s change log is not in the kit’s workspace, so there is no change to show",
+      "over budget: 4 steps"
+    ]
+  },
+  "U25": {
+    "verdict": "DONE",
+    "steps": [
+      12,
+      12
+    ],
+    "budget": 12,
+    "passes": 5,
     "fails": []
   }
 }
