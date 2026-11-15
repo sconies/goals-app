@@ -6,7 +6,7 @@ import { saveAndSay, type SheetOut } from '../../app/files';
 import type { PlanProgress } from '../../domain/changeset';
 import { toCsv } from '../../domain/export';
 import { CHANGES_SAVE_MAX, count } from '../../domain/importLimits';
-import type { ReadTables, Tables } from '../../domain/sheets';
+import { headersOfSheet, readKindOf, rowsOfSheet, sheetsIn, type ReadTables, type Tables } from '../../domain/sheets';
 import { partName, splitTables } from '../../domain/splitFile';
 import { WarnMark } from '../../ui/bits';
 import { rowsIn } from './importPlan';
@@ -53,13 +53,13 @@ export function Reading({ name, read, progress, onStop }: { name: string; read: 
 
 /** The parts' files: one sheet read as a CSV stays a CSV; a workbook stays a workbook with the same sheets. */
 function partFiles(read: ReadTables, tables: Tables) {
-  const keys = (Object.keys(tables) as (keyof Tables)[]).filter((k) => tables[k]);
+  const keys = sheetsIn(tables);
   const csv = read.read.length === 1 && /\.(csv|tsv|txt)$/i.test(read.read[0]!.name);
   return (part: Tables) => {
     const sheets: SheetOut[] = keys.flatMap((k) => {
-      const recs = part[k] ?? [];
-      const head = read.headers[k] ?? Object.keys(recs[0] ?? {}).filter((h) => h !== '__row');
-      const name = read.read.find((x) => x.kind === k)?.name.replace(/\.(csv|tsv|txt)$/i, '') ?? k;
+      const recs = rowsOfSheet(part, k) ?? [];
+      const head = headersOfSheet(read, k) ?? Object.keys(recs[0] ?? {}).filter((h) => h !== '__row');
+      const name = read.read.find((x) => x.kind === readKindOf(k))?.name.replace(/\.(csv|tsv|txt)$/i, '') ?? k;
       return [{ name, rows: [head, ...recs.map((r) => head.map((h) => r[h.toLowerCase()] ?? r[h] ?? ''))] }];
     });
     return csv ? { kind: 'csv' as const, text: toCsv(sheets[0]!.rows) } : { kind: 'xlsx' as const, sheets };

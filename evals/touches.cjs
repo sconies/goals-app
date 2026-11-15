@@ -68,6 +68,9 @@ const RULES = [
   // The import's preview (IM3): its rules and its two checks.
   [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'U98', 'F17', 'N18', 'P19']],
   [/^evals\/finish\/(17-import|18-import-design)\.cjs$/, ['F17', 'P19']],
+  // The Metrics sheet in and out (MI): the module's planner, the engine's seam for it, and the import's journeys.
+  [/^src\/modules\/metrics\/(sheet|sheetPlan)\.ts$|^src\/domain\/(sheetPlan|splitFile|leaveOut)\.ts$/, ['U179', 'U87', 'U98']],
+  [/^src\/(domain\/(changeset|sheets|removal)|core\/records|mcp\/tools)\.ts$/, ['U179']],
   [/^src\/modules\/spreadsheets\//, ['P19']],
   // Large files (IM6): the worker, progress, Stop and the split.
   [/^src\/modules\/spreadsheets\/(checkRun|worker|workerInput|Large|importPlan|importStore)\.tsx?$|^src\/domain\/(splitFile|importLimits)\.ts$|^evals\/finish\/19-import-large\.cjs$/, ['U98', 'N18']],

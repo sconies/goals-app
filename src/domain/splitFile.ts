@@ -10,9 +10,9 @@ import type { Rec, Tables } from './sheets';
 const val = (r: Rec, k: string) => (r[k] ?? '').trim();
 const blank = (r: Rec) => Object.entries(r).every(([k, v]) => k === '__row' || !String(v).trim());
 
-type Unit = { goals: Rec[]; plan: Rec[]; checkIns: Rec[]; people: Rec[] };
-const size = (u: Unit) => u.goals.length + u.plan.length + u.checkIns.length + u.people.length;
-const empty = (): Unit => ({ goals: [], plan: [], checkIns: [], people: [] });
+type Unit = { goals: Rec[]; plan: Rec[]; checkIns: Rec[]; people: Rec[]; mods: [string, Rec][] };
+const size = (u: Unit) => u.goals.length + u.plan.length + u.checkIns.length + u.people.length + u.mods.length;
+const empty = (): Unit => ({ goals: [], plan: [], checkIns: [], people: [], mods: [] });
 
 /** The refs a goal row is known by: its key, its ID and its folded name. */
 const refsOf = (r: Rec): string[] => [normalKey(val(r, 'key')) && `k:${normalKey(val(r, 'key'))}`, val(r, 'id') && `i:${val(r, 'id')}`, val(r, 'goal') && `t:${fold(val(r, 'goal'))}`].filter((x): x is string => !!x);
@@ -33,6 +33,8 @@ function goalRef(key: string, id: string, title: string): string | null {
  */
 export function splitTables(t: Tables, max: number): Tables[] {
   const units: Unit[] = [];
+  // A module's own sheet (Metrics) first: goals may name what it adds.
+  for (const [sheet, rows] of Object.entries(t.modules ?? {})) for (const r of rows) if (!blank(r)) units.push({ ...empty(), mods: [[sheet, r]] });
   for (const r of t.people ?? []) if (!blank(r)) units.push({ ...empty(), people: [r] });
 
   // Goals, in the file's order, then parents before children.
@@ -80,7 +82,7 @@ export function splitTables(t: Tables, max: number): Tables[] {
   let cur = empty();
   for (const u of units) {
     if (size(cur) && size(cur) + size(u) > max) { parts.push(cur); cur = empty(); }
-    cur.goals.push(...u.goals); cur.plan.push(...u.plan); cur.checkIns.push(...u.checkIns); cur.people.push(...u.people);
+    cur.goals.push(...u.goals); cur.plan.push(...u.plan); cur.checkIns.push(...u.checkIns); cur.people.push(...u.people); cur.mods.push(...u.mods);
   }
   if (size(cur) || !parts.length) parts.push(cur);
   return parts.map((u) => ({
@@ -88,6 +90,7 @@ export function splitTables(t: Tables, max: number): Tables[] {
     ...(t.plan ? { plan: u.plan } : {}),
     ...(t.checkIns ? { checkIns: u.checkIns } : {}),
     ...(t.people ? { people: u.people } : {}),
+    ...(t.modules ? { modules: Object.fromEntries(Object.keys(t.modules).map((k) => [k, u.mods.filter(([s]) => s === k).map(([, r]) => r)])) } : {}),
   }));
 }
 
