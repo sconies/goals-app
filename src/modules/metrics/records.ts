@@ -159,7 +159,7 @@ const records: Omit<ModuleRecords, 'module'> = {
     return {
       ...metricRows({ metrics: moved }),
       changes: moved.map((m) => log(x, { entityId: m.id, action: 'edited', summary: `Passed “${m.name}” to ${name(toId)} to confirm, as ${name(personId)} left`, diffs: [{ field: 'Owner', from: name(personId), to: `${name(toId)} (to confirm)` }] })),
-      lines: moved.map((m) => `“${m.name}” passes to ${name(toId)}, to confirm (confirm_owner on save_metric).`),
+      lines: moved.map((m) => `The metric “${m.name}” passes to ${name(toId)}, to confirm.`),
     };
   },
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],

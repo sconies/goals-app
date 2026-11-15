@@ -83,7 +83,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
       // What passes to their lead (MQ2: the metrics they own), listed so the assistant can say who must confirm what.
       const lines = R.whatPasses(ax(ctx), p, to.goalsTo ?? null).flatMap((o) => o.lines);
       const r = await save(ctx, c, `Marked ${p.name} as left`);
-      return lines.length ? { ...r, text: `${r.text}\n${lines.join('\n')}` } : r;
+      return lines.length ? { ...r, text: `${r.text}\n${lines.join('\n')}\nThe new owner confirms each with save_metric confirm_owner.` } : r;
     },
   },
   {

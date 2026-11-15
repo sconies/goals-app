@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { openAsksFor } from '../domain/asks';
-import { goalHasCheckIns, hasHistory, leaving, personHistory } from '../domain/removal';
+import { goalHasCheckIns, hasHistory, leaving, personHistory, whatPasses } from '../domain/removal';
+import { MODULE_RECORDS } from '../core/records';
 import { leftName, MIN_STOP_REASON } from '../domain/vocabulary';
 import type { Goal, Person } from '../domain/types';
 import { Sheet } from './bits';
@@ -103,6 +104,8 @@ export function LeaveSheet({ person, onClose }: { person: Person; onClose: () =>
   const l = leaving({ snapshot: app.snapshot, cycle: app.cycle, full: app.full }, person.id);
   const asks = new Set([...l.asked, ...l.asking].map((r) => r.id)).size;
   const [goalsTo, setGoalsTo] = useState('');
+  // What the modules pass to their lead (MQ2: the metrics they own), said before it happens.
+  const passes = whatPasses({ snapshot: app.snapshot, cycle: app.cycle, week: app.week, actor: app.viewer, now: new Date().toISOString(), newId: (p) => p, ...(app.full ? { full: app.full } : {}), records: MODULE_RECORDS }, person, goalsTo || null).flatMap((o) => o.lines);
   const [asksTo, setAsksTo] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -138,8 +141,9 @@ export function LeaveSheet({ person, onClose }: { person: Person; onClose: () =>
             {asks > 0 && picker(`Who takes over ${first}’s ${plural(asks, 'open ask', 'open asks')}?`, asksTo, setAsksTo, missingAsks,
               [l.asked.length ? `${plural(l.asked.length, 'they raised', 'they raised')}` : '', l.asking.length ? `${plural(l.asking.length, 'waiting on them', 'waiting on them')}` : ''].filter(Boolean).join(', ') + '. Each keeps its history.')}
             {!l.goals.length && !asks && <p className="small">{first} owns no goals in this cycle and has no open asks, so nothing needs handing over.</p>}
-            {(l.reviews.length > 0 || l.leads.length > 0) && (
+            {(l.reviews.length > 0 || l.leads.length > 0 || passes.length > 0) && (
               <ul className="remove-effects small">
+                {passes.map((line) => <li key={line}>{line}</li>)}
                 {l.reviews.length > 0 && <li>{first} leaves {l.reviews.length === 1 ? 'the review' : 'the reviews'} {l.reviews.map((r) => `“${r.name}”`).join(', ')}.</li>}
                 {l.leads.length > 0 && <li>{l.leads.map((t) => t.name).join(', ')} {l.leads.length === 1 ? 'is' : 'are'} led by {app.person(goalsTo)?.name ?? 'whoever takes over the goals (or no one)'} from now on.</li>}
               </ul>
@@ -168,6 +172,7 @@ export function LeaveWorkspaceSheet({ onClose }: { onClose: () => void }) {
   const l = leaving({ snapshot: app.snapshot, cycle: app.cycle, full: app.full }, me.id);
   const asks = new Set([...l.asked, ...l.asking].map((r) => r.id)).size;
   const [goalsTo, setGoalsTo] = useState('');
+  const passes = whatPasses({ snapshot: app.snapshot, cycle: app.cycle, week: app.week, actor: me, now: new Date().toISOString(), newId: (p) => p, ...(app.full ? { full: app.full } : {}), records: MODULE_RECORDS }, me, goalsTo || null).flatMap((o) => o.lines);
   const [asksTo, setAsksTo] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -197,6 +202,7 @@ export function LeaveWorkspaceSheet({ onClose }: { onClose: () => void }) {
             {asks > 0 && picker(`Who takes over your ${plural(asks, 'open ask', 'open asks')}?`, asksTo, setAsksTo, missingAsks, 'Each keeps its history.')}
             {!l.goals.length && !asks && <p className="small">You own no goals in this cycle and have no open asks, so nothing needs handing over.</p>}
             {l.reviews.length > 0 && <p className="small">You leave {l.reviews.length === 1 ? 'the review' : 'the reviews'} {l.reviews.map((r) => `“${r.name}”`).join(', ')}.</p>}
+            {passes.length > 0 && <ul className="remove-effects small">{passes.map((line) => <li key={line}>{line}</li>)}</ul>}
           </>
         )}
         <div className="foot-row">
