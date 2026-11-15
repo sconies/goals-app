@@ -16,7 +16,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session �
 
 - **Last merge fully reviewed:** `752d6c97` (#539), the head of main at 05:55 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #531, #493, #520, #533, #536, #537, #534 and #539, at the end, under "The reviewer of 15 November". Docs-only merges (#535) have neither.
 - **Merged since, not reviewed:** none.
-- **Since this note (15 Nov, 06:25 UTC; reviewer session …ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, one low logged. #543 (`2811e0ae`) is reviewed too: two mediums, sent to planning at 07:45 UTC (the drill passes when `drill.json` names a contract the folder lacks; five journey sentences that say what Faro doesn't do) and one low. #544 (`096920f4`) closes both, so no medium is open. Last merge fully reviewed is now `096920f4`. Lesson: before quoting a limit from a function's comment, grep for its caller (`actionList` in `src/domain/goalPage.ts` is called by nothing).
+- **Since this note (15 Nov, 06:25 UTC; reviewer session …ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, one low logged. #543 (`2811e0ae`) is reviewed too: two mediums, sent to planning at 07:45 UTC (the drill passes when `drill.json` names a contract the folder lacks; five journey sentences that say what Faro doesn't do) and one low. #544 (`096920f4`) closes both, so no medium is open. #546 (`c19bcdc0`, the main fixer, session_012kbr91wREL9Ju3c2usRofC) is reviewed with no findings. Last merge fully reviewed is now `c19bcdc0`. Lesson: before quoting a limit from a function's comment, grep for its caller (`actionList` in `src/domain/goalPage.ts` is called by nothing).
 - **Highs open:** none. #520's (Undo this import removed a goal of another year) was closed by #534.
 - **Mediums open:** two, with planning since 05:40 UTC, both left by #534:
   - A goals sheet headed with another name for Goal ("Title", "Goal name", "Objective") beside Metric and Unit is read as the Metrics sheet; before MI it was Goals. `isMetricsHeader` (`src/modules/metrics/sheet.ts`) stands aside for Goal or Key only. Track 3.
@@ -292,6 +292,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session �
 | #541 Import review: #534's two mediums | 3 | 0 | 0 | 1 |
 | #543 Kit: stage 3 drill gaps | item 11 | 0 | 2 | 1 |
 | #544 Kit: the drill's contract check and journey wording (#543's two mediums) | item 11 | 0 | 0 | 0 |
+| #546 Pickers give focus back only if nobody has moved it (U159, U109) | main fixer | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2554,3 +2555,9 @@ Read against #543's two mediums, at `096920f4`. `npx vitest run src/spec` passes
 - **The five journey sentences: closed, and one of them was mine to correct.** The read-back is "a row per topic, each with its id and label", its value "one sentence or more"; `.why-block` says when the heading is "Why"; U78 names `lead-ci-time` and `lead-runners` and what each feeds; U122 gives Tuesday for `lead-rollback`. **On "settled and stays" the finding was wrong in part:** the goal page's rows come from `goalPage.ts`'s step rows, which keep every answered or done ask however old; the eight weeks is `actionList`'s, which nothing calls. I had read the comment on `actionList` and not looked for its caller. The page now says "kept however old it is", which is what the screen does.
 
 No findings. `docs/backlog.md` gains 0v (a goal whose plan hasn't started shows a negative number of days without an update), a line only.
+
+### #546 Pickers give focus back only if nobody has moved it (main fixer, merged 15 Nov)
+
+Read at `c19bcdc0`. `Pick` and `WeekPick` close through one `focusBackLater` (`src/ui/focusBack.ts`): a frame later the opener is focused only if focus has fallen to the page. Both panels are unmounted on close (`{open && …}`), so the box that held focus is gone by the frame and the opener still gets it after Escape, a choice, Close and Done; nothing in `src/ui` takes focus on a blur in between. A click or Tab elsewhere, or "Add …" opening its own form, now keeps the focus it took. The new test in `src/ui/WeekPick.test.tsx` passes and fails with the guard taken out (tried, and put back).
+
+No findings. Not run: U159 and U109 themselves on a slowed phone page (PR CI's run is the evidence for the flake); `Pick` has no test of its own for this, only `WeekPick`.
