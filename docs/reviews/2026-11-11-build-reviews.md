@@ -16,6 +16,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session â
 
 - **Last merge fully reviewed:** `752d6c97` (#539), the head of main at 05:55 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #531, #493, #520, #533, #536, #537, #534 and #539, at the end, under "The reviewer of 15 November". Docs-only merges (#535) have neither.
 - **Merged since, not reviewed:** none.
+- **Since this note (15 Nov, 06:25 UTC; reviewer session â€¦ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, so none is open; one low logged. Last merge fully reviewed is now `8753b652`.
 - **Highs open:** none. #520's (Undo this import removed a goal of another year) was closed by #534.
 - **Mediums open:** two, with planning since 05:40 UTC, both left by #534:
   - A goals sheet headed with another name for Goal ("Title", "Goal name", "Objective") beside Metric and Unit is read as the Metrics sheet; before MI it was Goals. `isMetricsHeader` (`src/modules/metrics/sheet.ts`) stands aside for Goal or Key only. Track 3.
@@ -288,6 +289,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session â
 | #537 Kit: the core's module platform, stage 3's inputs and journeys a rebuild can follow | item 11 | 0 | 3 | 1 |
 | #534 MI review: #520's high and four mediums | 3 | 0 | 2 | 0 |
 | #539 Kit words: the reviewer's findings on #536 and #537 | item 11 | 0 | 0 | 0 |
+| #541 Import review: #534's two mediums | 3 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2513,3 +2515,16 @@ Read against #536's medium and #537's three, by the generated pages and the sour
 - **#537's third: closed.** U179 and U161 are the Metric library's, U72 the library's, Reviews' and Spreadsheets'; U179's page says it runs with the module on.
 
 No findings.
+
+## The reviewer of 15 November, morning (session â€¦ARWNy66), from #541
+
+### #541 Import review: #534's two mediums (track 3, merged 15 Nov)
+
+Read against #534's two mediums, at `8753b652`, with both first probes run again and the same doors beside them (a throwaway vitest file over the demo, deleted after).
+
+- **A goals sheet under another name for Goal: closed.** `isMetricsHeader` now asks the core's own header reading (`coreGoalsColumn`), so Title, Goal name and Objective beside Metric and Unit are a Goals sheet. Nothing the Metrics sheet writes is read as Goal or Key: of its 22 headers the core reads ID, Action, Unit, Decimals, Source, Owner, Owner email and Reason, each as a column of that name. The exported header on a sheet named "Sheet1", `Name, Unit, Direction`, `ID, Metric, Unit` and `Metric, Unit, Owner` are still Metrics.
+- **Undo over a field value changed since: closed.** `undoPlan` also takes a later change logged by the row's goal and field. Changed on the goal's page, cleared on the page, and changed by a later import: each is left as it is and listed under skipped ("Its stage was changed on 5 Nov", under the goal's title), and the import's other value goes back. With nothing since, both values go back.
+
+One finding.
+
+- **Low. A near-miss of Goal still makes a Goals sheet Metrics.** `coreGoalsColumn` answers only for `exact` and `also`, so "Goals" or "Objectives" (one letter out, which the Goals sheet itself would ask about) beside Metric and Unit is read as the Metrics sheet: `['Goals', 'Metric', 'Unit', 'Target']` on "Sheet1" gives a Metrics table and no goals. `src/modules/metrics/sheet.ts`, `isMetricsHeader`.

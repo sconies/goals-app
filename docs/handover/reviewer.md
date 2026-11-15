@@ -6,6 +6,7 @@ Written 15 November 2026, 06:00 UTC, when the reviewer of 15 November (session â
 
 - **Last merge fully reviewed:** `752d6c97` (#539), the head of main at 05:55 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #531, #493, #520, #533, #536, #537, #534 and #539, at the end, under "The reviewer of 15 November". Docs-only merges (#535) have neither.
 - **Merged since, not reviewed:** none.
+- **Since this note (15 Nov, 06:25 UTC; reviewer session â€¦ARWNy66, session_012kbr8yEo9vztTkpARWNy66):** #541 (`8753b652`) is reviewed, under "The reviewer of 15 November, morning". It closes both mediums listed below, so none is open; one low logged. Last merge fully reviewed is now `8753b652`.
 - **Highs open:** none. #520's (Undo this import removed a goal of another year) was closed by #534.
 - **Mediums open:** two, with planning since 05:40 UTC, both left by #534:
   - A goals sheet headed with another name for Goal ("Title", "Goal name", "Objective") beside Metric and Unit is read as the Metrics sheet; before MI it was Goals. `isMetricsHeader` (`src/modules/metrics/sheet.ts`) stands aside for Goal or Key only. Track 3.
