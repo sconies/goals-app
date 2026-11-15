@@ -1,0 +1,17 @@
+# Feedback's journeys, against this rebuild
+
+Driven by `modules/feedback/journeys.mjs` (Playwright, phone 390 × 844 and desktop 1440 × 900; every run passes). The ease-test scoring (`one-action`, `a11y` checkpoints) is not reproduced: there is no scorer for it in the kit.
+
+| Id | Tally | What runs, and what doesn't |
+|---|---|---|
+| U41 | DONE | Phone: Feedback in More, Send feedback, Mark up the last screen (in view). Desktop: Ctrl+Shift+M, Escape, again. Picture vs a real screenshot under 0.3% of pixels (measured 0.02–0.05%); page frozen; Box round the scorecard's last cell, Pen then Undo, a note by keyboard alone (N, Shift+↓, Enter, words, Enter, “Note added”); Next shows the picture; empty line refused; It’s OK; Send; everything the logged check reads is kept. |
+| U42 | DONE | Admin marks up Home, opens /feedback with no sign-in; Connect Claude at the top (demo words, Claude Code command, “Pictures for Claude: ready”); drawing toggles off; Mark in hand opens the feedback next; Undo puts it back; In hand tab; “Marked in hand by Amara Nwosu”; Open GitHub issue (pre-filled, link back); Paste issue link; Mark fixed; feedback from another workspace marked in hand; “Nothing new.”; Rhea at /inbox reads with no way to change a status. Deviation: Rhea opens the In hand tab, since here the same inbox was just worked (Faro's run gives her a fresh fake database). |
+| U47 | DONE | Rhea's markup read by Grace in another browser; Won’t fix disabled until a reason; Closed tab; “Marked won’t fix by Grace”; picture loads. |
+| U52 | DONE | 75 seeded (6 folded on Home's week strip, 3 on a scorecard, 36 others, 30 feedback, five people): New 75, 25 rows, “1–25 of 68”, “6 on this part”; search, fold “Mark in hand (all 6)”, “No item matches”; Kind (inline on a computer, in Filters on a phone); From Jun Park in Filters with “Show N items”; Remove; J/I/W keys on a computer, Next on a phone; pages closed as won’t fix until “Nothing new.”; In hand fixed in a batch; Closed 75, all by Grace. Not built: the “75 new” count beside Feedback in the menu (G9; the journey's own check is a constant). |
+| U40 | PART | Its Feedback part runs: Feedback in the menu, Send feedback, It gets in the way, a few words, Send, “It goes to the people building this app”. The check-in's Something else and the research side panel are the core's (stage 3), not run here. |
+| U51 | PART | Its Feedback part: `/workspace?inbox=1&markup=mk_old` becomes `/feedback?markup=mk_old`. Workspace's sections are the core's. |
+| U53 | PART | Its Feedback part: `/workspace/inbox` becomes `/feedback` with the heading Feedback, and Feedback is in the sidebar right after Help. The switcher, the draft and leaving are the core's. |
+| U165 | PART | Its Feedback part: switched off on Features (“Feedback is off in”), no Feedback in the menu (desktop and More), Ctrl+Shift+M opens nothing, /feedback is Page not found with the sentence, the change is logged; back on, the page and the key return. The Goal map half belongs to stage 6. |
+| N22 | DONE (by its one line) | In `exit.test.mjs` criterion 2 “off”: no menu row, no Send feedback script, no Help article (a link to one says the sentence; get_help says its sentence), and each comes back on. Its steps aren't in the kit (G16). |
+
+Tally: DONE 5 (U41, U42, U47, U52, N22), PART 4 (U40, U51, U53, U165: their Feedback parts done; the rest is another stage's), NOT BUILT 0.

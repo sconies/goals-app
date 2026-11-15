@@ -1,0 +1,78 @@
+Running in /tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/s2/rebuild:
+  node main.mjs '/tmp/faro-drill-siVbRa/workspace.json' '/tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/s2/rebuild/drill-out'
+Finished in 0.6 s.
+
+changes.csv: 120 of 135 rows match (88.8%), 3 not expected
+  case 100.0% · row 100.0% · actor 100.0% · sheet 100.0% · line 100.0% · rows 100.0% · answers 100.0% · given 100.0% · target 100.0% · name 100.0% · kind 100.0% · diffs 92.5% · counts 97.7% · unchanged 100.0% · needs_reason 99.2% · saves 98.5% · author 100.0%
+import.csv: 52 of 70 rows match (74.2%)
+  case 100.0% · actor 100.0% · sheet 100.0% · rows 100.0% · answers 100.0% · given 100.0% · kind 92.8% · level 92.8% · group 91.4% · message 87.1% · must 98.5% · questions 94.2% · saves 97.1% · kinds 81.4%
+
+Score: 98.1% of cells (3214 of 3275); 172 of 205 rows. Not yet: see the first differences below.
+
+First differences (up to 200 per file; row numbers are lines in the expected file, header = line 1):
+  changes.csv
+    line 5 (case baseline-provisional, row 1) diffs: expected "Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Baseline: — → Baseline, June to September 2026, provisional | Via: — → Spreadsheet", got "Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Baseline: — → 10% (June to September 2026, provisional) | Via: — → Spreadsheet"
+    line 26 (case checkin-incomplete, row 0) needs_reason: expected "no", got "yes"
+    line 46 (case week-unknown, row 0) counts: expected "", got "newGoals=1"
+    line 46 (case week-unknown, row 0) saves: expected "no", got "yes"
+    line 49 (case to-next-year, row 1) diffs: expected "Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 46 | Target due: — → Week 66 | Via: — → Spreadsheet", got "Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 46 | Target due: — → Week 14 of 2027 | Via: — → Spreadsheet"
+    line 103 (case near-header, row 0) counts: expected "", got "newGoals=1"
+    line 104 (case two-columns, row 0) counts: expected "", got "newGoals=1"
+    line 107 (case left-alone, row 0) saves: expected "no", got "yes"
+    line 109 (case unknown-owner-setup, row 1) diffs: expected "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Spreadsheet", got "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Set-up"
+    line 111 (case past-stage-setup, row 1) diffs: expected "Name: — → Rota agreed | Type: — → Hit dated stages | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Stages: — → Draft (wk 2), Agreed (wk 6), Live (wk 50) | Via: — → Spreadsheet", got "Name: — → Rota agreed | Type: — → Hit dated stages | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Stages: — → Draft (wk 2), Agreed (wk 6), Live (wk 50) | Via: — → Set-up"
+    line 112 (case past-stage-setup, row 2) diffs: expected "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Spreadsheet", got "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Set-up"
+    line 114 (case past-stage-setup-answered, row 1) diffs: expected "Name: — → Rota agreed | Type: — → Hit dated stages | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Stages: — → Draft (wk 46), Agreed (wk 46), Live (wk 53) | Via: — → Spreadsheet", got "Name: — → Rota agreed | Type: — → Hit dated stages | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Stages: — → Draft (wk 46), Agreed (wk 46), Live (wk 53) | Via: — → Set-up"
+    line 115 (case past-stage-setup-answered, row 2) diffs: expected "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Spreadsheet", got "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Set-up"
+    line 118 (case as-recorded, row 1) diffs: expected "Name: — → Cache hit rate | Type: — → Move a number | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 1 | Target due: — → Week 40 | Via: — → Spreadsheet", got "Name: — → Cache hit rate | Type: — → Move a number | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 1 | Target due: — → Week 40 | Via: — → Set-up"
+    line 119 (case as-recorded, row 2) diffs: expected "Status call: — → On track | Value: — → 12% | Via: — → Spreadsheet", got "Status call: — → On track | Value: — → 12% | Via: — → Set-up"
+    line 120 (case as-recorded, row 3) diffs: expected "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Spreadsheet", got "Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Set-up"
+    your line 47 (case week-unknown, row 1): (no such row expected)
+    your line 105 (case near-header, row 1): (no such row expected)
+    your line 107 (case two-columns, row 1): (no such row expected)
+  import.csv
+    line 2 (case required-empty) kinds: expected "required-empty", got "required-empty default"
+    line 13 (case impossible-number) message: expected "Week 45: It can’t be below zero %.", got "Week 45: It can’t be below zero%."
+    line 15 (case unknown-ref) kinds: expected "by-name unknown-ref", got "by-name unknown-ref default"
+    line 16 (case conflicting-refs) message: expected "Owner and Owner ID name different people (Rhea Kapoor and Tunde Bakare). Change just one of them.", got "Owner ID and Owner name different people (Tunde Bakare and Rhea Kapoor). Change just one of them."
+    line 16 (case conflicting-refs) kinds: expected "conflicting-refs", got "conflicting-refs default"
+    line 20 (case type-unclear) message: expected "Type is empty and the row has Start and Target, and Stages. Say metric, range or milestone.", got "Type is empty and the row has Start and Target and Stages. Say metric or milestone."
+    line 24 (case checkin-incomplete) kinds: expected "checkin-incomplete", got "checkin-incomplete replaces"
+    line 30 (case effect-not-number) message: expected "“lots” isn’t a number. Type digits only, like 29.4.", got "“lots” isn’t a number. Type digits only, like 29."
+    line 33 (case over-100-answered) kind: expected "", got "odd-number"
+    line 33 (case over-100-answered) level: expected "", got "check"
+    line 33 (case over-100-answered) group: expected "", got "odd-number:goals:target:over-100"
+    line 33 (case over-100-answered) message: expected "", got "The target is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is 150% right?"
+    line 33 (case over-100-answered) questions: expected "0", got "1"
+    line 33 (case over-100-answered) kinds: expected "by-name default", got "by-name default odd-number"
+    line 37 (case to-before-from) group: expected "plan-order:goals:due-week:", got "plan-order:goals:to:"
+    line 38 (case week-unknown) kind: expected "week-wrong", got ""
+    line 38 (case week-unknown) level: expected "must", got ""
+    line 38 (case week-unknown) group: expected "week-wrong:goals:to:", got ""
+    line 38 (case week-unknown) message: expected "2027 has 52 weeks. Use 2027-W52, or 2028-W01.", got ""
+    line 38 (case week-unknown) must: expected "1", got "0"
+    line 38 (case week-unknown) saves: expected "no", got "yes"
+    line 38 (case week-unknown) kinds: expected "by-name default week-wrong", got "by-name default"
+    line 43 (case near-ref) kinds: expected "by-name near-ref", got "by-name near-ref default"
+    line 44 (case near-ref-answered) kind: expected "", got "near-ref"
+    line 44 (case near-ref-answered) level: expected "", got "check"
+    line 44 (case near-ref-answered) group: expected "", got "near-ref:goals:team:ci-dc"
+    line 44 (case near-ref-answered) message: expected "", got "There’s no team called “CI/DC”. Did you mean CI/CD?"
+    line 44 (case near-ref-answered) questions: expected "0", got "1"
+    line 44 (case near-ref-answered) kinds: expected "by-name default", got "by-name near-ref default"
+    line 45 (case near-ref-person) kinds: expected "near-ref", got "near-ref default"
+    line 64 (case two-columns) kinds: expected "two-columns", got "two-columns by-name default"
+    line 66 (case left-alone) saves: expected "no", got "yes"
+    line 67 (case unknown-owner-setup) kinds: expected "unknown-ref", got "unknown-ref default"
+    line 69 (case past-stage-setup-answered) kind: expected "", got "past-stage"
+    line 69 (case past-stage-setup-answered) level: expected "", got "check"
+    line 69 (case past-stage-setup-answered) group: expected "", got "past-stage:goals:stages:"
+    line 69 (case past-stage-setup-answered) message: expected "", got "2 stages of “Rota agreed” are due before this week (week 45): Draft@2, Agreed@6, so it would start late."
+    line 69 (case past-stage-setup-answered) questions: expected "0", got "1"
+    line 69 (case past-stage-setup-answered) kinds: expected "", got "past-stage"
+    line 71 (case as-recorded) kind: expected "", got "past-plan"
+    line 71 (case as-recorded) level: expected "", got "check"
+    line 71 (case as-recorded) group: expected "", got "past-plan:goals:due-week:"
+    line 71 (case as-recorded) message: expected "", got "“Cache hit rate” has a plan that ended in week 40; it’s week 45."
+    line 71 (case as-recorded) questions: expected "0", got "1"
+    line 71 (case as-recorded) kinds: expected "default as-recorded", got "default past-plan as-recorded"
