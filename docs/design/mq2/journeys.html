@@ -1,0 +1,536 @@
+<title>Metric quality journeys</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one reading column of numbered sketches; each sketch is a Faro screen on the left, its notes on the right
+   (stacked on a phone). Tokens are Faro's own (src/styles.css), so the sketches look like the app. */
+:root {
+  --bg: #F6F5F1; --surface: #FFFFFF; --surface-2: #FAF9F6; --surface-3: #EEECE6;
+  --line: #E4E1D9; --line-2: #EBE8E1; --line-strong: #D2CEC4;
+  --fg: #183638; --fg-2: #2F4A4C; --muted: #465759; --faint: #9AA3A1;
+  --primary: #183638; --primary-fg: #FFFFFF;
+  --accent: #21968E; --accent-soft: #E2F1EF; --accent-wash: #F2F8F7; --accent-text: #136F78;
+  --on-fg: #0E6B50; --on-mark: #1F8A68;
+  --risk-fg: #93450A; --risk-bg: #FDF1E3; --risk-mark: #E59A3E;
+  --off-fg: #B42318; --off-mark: #C8372B; --off-wash: #FFF6F5;
+  --chrome: #183638; --chrome-fg: #FFFFFF; --chrome-muted: #B9CACB;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1B1C; --surface: #152426; --surface-2: #1A2B2D; --surface-3: #213537;
+    --line: #263A3C; --line-2: #223538; --line-strong: #354B4D;
+    --fg: #E6EEED; --fg-2: #C5D3D2; --muted: #94A8A8; --faint: #627676;
+    --primary: #4FC0C4; --primary-fg: #0F1B1C;
+    --accent: #4FC0C4; --accent-soft: #173B3A; --accent-wash: #132A2A; --accent-text: #74CDD3;
+    --on-fg: #5FD3A8; --on-mark: #3DBB8C;
+    --risk-fg: #F5B86B; --risk-bg: #3A2A12; --risk-mark: #E59A3E;
+    --off-fg: #FF8A7A; --off-mark: #E5584A; --off-wash: #26130F;
+    --chrome: #0A1314; --chrome-fg: #FFFFFF; --chrome-muted: #94A8A8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1B1C; --surface: #152426; --surface-2: #1A2B2D; --surface-3: #213537;
+  --line: #263A3C; --line-2: #223538; --line-strong: #354B4D;
+  --fg: #E6EEED; --fg-2: #C5D3D2; --muted: #94A8A8; --faint: #627676;
+  --primary: #4FC0C4; --primary-fg: #0F1B1C;
+  --accent: #4FC0C4; --accent-soft: #173B3A; --accent-wash: #132A2A; --accent-text: #74CDD3;
+  --on-fg: #5FD3A8; --on-mark: #3DBB8C;
+  --risk-fg: #F5B86B; --risk-bg: #3A2A12; --risk-mark: #E59A3E;
+  --off-fg: #FF8A7A; --off-mark: #E5584A; --off-wash: #26130F;
+  --chrome: #0A1314; --chrome-fg: #FFFFFF; --chrome-muted: #94A8A8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 0.9375rem/1.375rem var(--font); -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 40px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+.intro { display: grid; gap: 12px; max-width: 720px; }
+.eyebrow { font-size: 0.75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.intro h1 { font-size: 1.75rem; line-height: 2.25rem; font-weight: 700; }
+.intro p { color: var(--fg-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 24px; padding-top: 8px; font-size: 0.875rem; color: var(--fg-2); }
+
+.sketch { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+.sketch.narrow { grid-template-columns: 400px minmax(0, 1fr); }
+@media (max-width: 960px) { .sketch, .sketch.narrow { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+.sk-head { grid-column: 1 / -1; display: flex; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--line-strong); padding-bottom: 8px; }
+.sk-num { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; font-size: 0.875rem; }
+.sk-head h2 { font-size: 1.125rem; font-weight: 600; }
+
+/* The mock screen */
+.frame { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; }
+.frame.phone { max-width: 390px; border-radius: 20px; border-color: var(--line-strong); }
+.bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--chrome); color: var(--chrome-muted); font-size: 0.8125rem; }
+.bar b { color: var(--chrome-fg); font-weight: 600; }
+.screen { padding: 24px; display: grid; gap: 20px; min-width: 0; }
+.phone .screen { padding: 16px; gap: 16px; }
+.crumb { font-size: 0.8125rem; color: var(--muted); }
+.title-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; justify-content: space-between; }
+.title-row h3 { font-size: 1.375rem; line-height: 1.75rem; font-weight: 700; }
+.metaline { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.875rem; color: var(--fg-2); align-items: center; }
+.metaline .sep { color: var(--faint); }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.875rem; font-weight: 600; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg); white-space: nowrap; }
+.btn.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.btn.quiet { border-color: transparent; color: var(--accent-text); padding-inline: 4px; }
+.btn.off { opacity: .45; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* Marks: level (steps, its own shape family), status (circles), warning (triangle) */
+.mark { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.875rem; white-space: nowrap; }
+.mark svg { width: 16px; height: 16px; flex: none; }
+.lv-verified { color: var(--on-fg); }
+.lv-defined { color: var(--accent-text); }
+.lv-draft { color: var(--muted); }
+.st-on { color: var(--on-fg); }
+.st-risk { color: var(--risk-fg); }
+.st-off { color: var(--off-fg); }
+.warn { color: var(--risk-fg); }
+
+.section { display: grid; gap: 10px; }
+.section h4 { font-size: 0.75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.meaning { color: var(--fg-2); max-width: 62ch; }
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.part { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: grid; gap: 6px; background: var(--surface-2); min-width: 0; }
+.part .label { font-size: 0.75rem; color: var(--muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.part .what { font-weight: 600; }
+.part dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 0.8125rem; }
+.part dt { color: var(--muted); }
+.part dd { margin: 0; color: var(--fg-2); }
+.over { text-align: center; color: var(--muted); font-size: 0.8125rem; }
+
+.kv { display: grid; grid-template-columns: 150px minmax(0, 1fr); border-top: 1px solid var(--line-2); }
+.kv > div { padding: 9px 0; border-bottom: 1px solid var(--line-2); font-size: 0.875rem; min-width: 0; overflow-wrap: anywhere; }
+.kv > div:nth-child(odd) { color: var(--muted); padding-right: 12px; }
+.phone .kv { grid-template-columns: 110px minmax(0, 1fr); }
+a.fake, .fake { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+th { text-align: left; font-weight: 600; font-size: 0.75rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .sub { display: block; font-size: 0.8125rem; color: var(--muted); }
+tr.old td { color: var(--muted); }
+
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; font-size: 0.8125rem; }
+.seg span { padding: 6px 12px; border-left: 1px solid var(--line-strong); white-space: nowrap; }
+.seg span:first-child { border-left: 0; }
+.seg span.on { background: var(--surface-3); font-weight: 600; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.search { border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 10px; color: var(--faint); font-size: 0.875rem; min-width: 200px; }
+
+.field { display: grid; gap: 6px; }
+.field .lab { font-size: 0.8125rem; font-weight: 600; }
+.field .hint { font-size: 0.8125rem; color: var(--muted); }
+.input { border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; font-size: 0.875rem; background: var(--surface); min-height: 38px; }
+.input.empty { color: var(--faint); }
+.input.multi { min-height: 60px; }
+.types { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.type { border: 1px solid var(--line-strong); border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; font-size: 0.8125rem; color: var(--muted); }
+.type b { color: var(--fg); font-size: 0.875rem; }
+.type.sel { outline: 2px solid var(--accent); outline-offset: -1px; background: var(--accent-wash); }
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.radio { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.875rem; }
+.radio span { display: inline-flex; gap: 6px; align-items: center; }
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: inline-block; flex: none; }
+.dot.sel { border: 4px solid var(--accent); }
+.box { width: 16px; height: 16px; border-radius: 3px; border: 1.5px solid var(--line-strong); display: inline-grid; place-items: center; flex: none; margin-top: 2px; }
+.box.ticked { background: var(--accent); border-color: var(--accent); }
+.box.ticked svg { width: 12px; height: 12px; }
+
+.missing { border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); padding: 14px 16px; display: grid; gap: 8px; }
+.missing h5 { margin: 0; font-size: 0.875rem; font-weight: 600; }
+.missing ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.875rem; }
+.missing li { display: flex; gap: 8px; align-items: baseline; }
+.missing li .k { color: var(--muted); }
+.got { color: var(--on-fg); }
+
+.checklist { display: grid; gap: 12px; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 0.875rem; }
+.check .sub { display: block; color: var(--muted); font-size: 0.8125rem; }
+
+.notice { border: 1px solid var(--line-strong); border-radius: 6px; padding: 12px 14px; display: grid; gap: 6px; font-size: 0.875rem; background: var(--surface-2); }
+.notice .head { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.notice.risk { background: var(--risk-bg); border-color: var(--risk-mark); }
+.notice.risk .head { color: var(--risk-fg); }
+
+.pick { border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.pick .q { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.opt { padding: 10px 12px; border-bottom: 1px solid var(--line-2); display: grid; gap: 2px; font-size: 0.875rem; }
+.opt:last-child { border-bottom: 0; }
+.opt .top { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; align-items: center; }
+.opt .name { font-weight: 600; }
+.opt .sub { color: var(--muted); font-size: 0.8125rem; }
+.opt.dim .name { color: var(--muted); }
+.opt.hl { background: var(--accent-wash); }
+
+.goalrow { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line-2); font-size: 0.875rem; }
+.goalrow .who { color: var(--muted); }
+.goalrow.offwash { background: var(--off-wash); padding-inline: 10px; }
+
+.big { font-size: 2.75rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.verify { display: grid; gap: 6px; font-size: 0.875rem; }
+.verify .who { color: var(--fg-2); }
+.said { display: grid; gap: 2px; font-size: 0.875rem; }
+.said .by { color: var(--muted); font-size: 0.8125rem; }
+
+/* Notes beside each sketch */
+.notes { display: grid; gap: 14px; font-size: 0.875rem; color: var(--fg-2); align-content: start; }
+.notes p { max-width: 60ch; }
+.notes .dec { display: grid; gap: 4px; }
+.notes .dec b { color: var(--fg); font-size: 0.75rem; letter-spacing: .05em; text-transform: uppercase; }
+.notes ol { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.open { border: 1px dashed var(--line-strong); border-radius: 6px; padding: 12px 14px; font-size: 0.875rem; color: var(--fg-2); display: grid; gap: 4px; }
+.open b { color: var(--fg); }
+
+.block { display: grid; gap: 14px; }
+.block h2 { font-size: 1.125rem; font-weight: 600; border-bottom: 1px solid var(--line-strong); padding-bottom: 8px; }
+.lede { color: var(--fg-2); max-width: 72ch; }
+.findings { margin: 0; padding-left: 20px; display: grid; gap: 12px; max-width: 80ch; }
+.findings li { color: var(--fg-2); }
+.findings b { color: var(--fg); }
+.tag { display: inline-block; font-size: 0.6875rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-right: 8px; }
+.tag.ask { color: var(--risk-fg); }
+.tag.done { color: var(--on-fg); }
+.flowwrap { overflow-x: auto; }
+.flow { width: 100%; min-width: 640px; max-width: 900px; height: auto; display: block; }
+.t-node { font: 600 16px var(--font); fill: var(--fg); }
+.t-sub { font: 12px var(--font); fill: var(--muted); }
+.t-edge { font: 12px var(--font); fill: var(--fg-2); }
+.journey { display: grid; gap: 16px; border-top: 1px solid var(--line-strong); padding-top: 20px; }
+.j-head { display: flex; gap: 16px; align-items: baseline; }
+.j-num { font-size: 1.75rem; font-weight: 700; color: var(--accent-text); font-variant-numeric: tabular-nums; min-width: 2ch; }
+.j-head h3 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+.who { color: var(--muted); font-size: 0.875rem; }
+.j-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+@media (max-width: 900px) { .j-body { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; max-width: 72ch; color: var(--fg-2); }
+.steps b { color: var(--fg); font-weight: 600; }
+.steps .mark { font-size: 0.875rem; vertical-align: -2px; }
+.j-side { display: grid; gap: 14px; font-size: 0.875rem; color: var(--fg-2); }
+.j-side .dec { display: grid; gap: 4px; }
+.j-side .dec b { color: var(--fg); font-size: 0.75rem; letter-spacing: .05em; text-transform: uppercase; }
+td code { white-space: nowrap; }
+code { font-size: 0.8125rem; background: var(--surface-3); padding: 1px 4px; border-radius: 3px; }
+.page { max-width: 1120px; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="lv-draft" viewBox="0 0 16 16"><rect x="1.5" y="10" width="3.5" height="4.5" rx="1" fill="currentColor"/><rect x="6.25" y="6.5" width="3.5" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2.5" width="3.5" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="lv-defined" viewBox="0 0 16 16"><rect x="1.5" y="10" width="3.5" height="4.5" rx="1" fill="currentColor"/><rect x="6.25" y="6.5" width="3.5" height="8" rx="1" fill="currentColor"/><rect x="11" y="2.5" width="3.5" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="lv-verified" viewBox="0 0 16 16"><rect x="1.5" y="10" width="3.5" height="4.5" rx="1" fill="currentColor"/><rect x="6.25" y="6.5" width="3.5" height="8" rx="1" fill="currentColor"/><rect x="11" y="2.5" width="3.5" height="12" rx="1" fill="currentColor"/></symbol>
+    <symbol id="st-on" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="st-risk" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></symbol>
+    <symbol id="st-off" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="warn" viewBox="0 0 16 16"><path d="M8 1.8 15 14H1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.2v3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.8" r="1" fill="currentColor"/></symbol>
+    <symbol id="tick" viewBox="0 0 16 16"><path d="m3.5 8.2 3 3 6-6.4" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+
+<header class="intro">
+  <span class="eyebrow">Faro · MQ2 · metric quality · 15 November</span>
+  <h1>Metric quality journeys</h1>
+  <p>Twelve journeys through metric quality as revised on 15 November, walked step by step with the demo workspace's people and metrics. Each one says who does it and how often, what Faro shows at each step, what it costs them in time, and what the walk found. The point is to catch the workflow's gaps and burdens before anything is built.</p>
+  <p class="crumb">Companion to the <a class="fake" href="https://claude.ai/artifact/ARLpTE62czMwfxyTyu62zZ">metric quality sketches</a>. Times are estimates for a confident user, not measurements.</p>
+</header>
+
+<section class="block">
+  <h2>The lifecycle in one picture</h2>
+  <div class="flowwrap">
+    <svg class="flow" viewBox="0 0 860 230" role="img" aria-label="A metric moves from Draft to Defined when its definition is complete, and from Defined to Verified when someone else reproduces its figure. Verified drops back to Defined when the calculation, window, source link or direction changes, or after 12 months.">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="var(--muted)"/></marker></defs>
+      <rect x="20" y="70" width="180" height="64" rx="8" fill="var(--surface)" stroke="var(--line-strong)"/>
+      <text x="110" y="98" text-anchor="middle" class="t-node">Draft</text>
+      <text x="110" y="118" text-anchor="middle" class="t-sub">measures goals, with a warning</text>
+      <rect x="340" y="70" width="180" height="64" rx="8" fill="var(--surface)" stroke="var(--line-strong)"/>
+      <text x="430" y="98" text-anchor="middle" class="t-node">Defined</text>
+      <text x="430" y="118" text-anchor="middle" class="t-sub">the definition is complete</text>
+      <rect x="660" y="70" width="180" height="64" rx="8" fill="var(--surface)" stroke="var(--line-strong)"/>
+      <text x="750" y="98" text-anchor="middle" class="t-node">Verified</text>
+      <text x="750" y="118" text-anchor="middle" class="t-sub">someone else reproduced it</text>
+      <line x1="202" y1="94" x2="336" y2="94" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ah)"/>
+      <text x="269" y="82" text-anchor="middle" class="t-edge">all 10 parts filled</text>
+      <text x="269" y="112" text-anchor="middle" class="t-edge">(by itself, no button)</text>
+      <line x1="522" y1="94" x2="656" y2="94" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ah)"/>
+      <text x="589" y="82" text-anchor="middle" class="t-edge">a figure reproduced</text>
+      <text x="589" y="112" text-anchor="middle" class="t-edge">by a non-owner</text>
+      <path d="M750 136 C 750 200, 430 200, 430 138" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+      <text x="590" y="214" text-anchor="middle" class="t-edge">lapses: calculation, window, source link or direction changes; or 12 months pass</text>
+      <path d="M430 68 C 430 18, 110 18, 110 66" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+      <text x="270" y="24" text-anchor="middle" class="t-edge">a required part is cleared (rare)</text>
+    </svg>
+  </div>
+</section>
+
+<section class="block">
+  <h2>What the journeys found</h2>
+  <p class="lede">The revised design holds up: a goal owner's weekly work doesn't change, and the extra work falls on metric owners and verifiers, a few times a year. The walk found eight gaps. Lane decided four on 15 November, each as recommended; the other four were settled as details.</p>
+  <ol class="findings">
+    <li><span class="tag done">Lane decided</span><b>A verification that fails has nowhere to go.</b> When the reproduced figure doesn't match, the design has only "Mark as Verified". The verifier should be able to record "Couldn't reproduce" with their figure and a note, so the owner sees it and the next verifier doesn't start blind (journey 4).</li>
+    <li><span class="tag done">Lane decided</span><b>Baselines outlive the source they were taken from.</b> After a source change, the stored baselines came from the old system and may not match readings from the new one. The goal would then show a jump that is the source, not the work (journey 5).</li>
+    <li><span class="tag done">Lane decided</span><b>A metric that refreshes monthly makes a weekly goal look neglected.</b> Cost per 1,000 requests refreshes monthly, so three weeks in four the owner has nothing new to report. Refresh is now a required field, so the goal's check-in rhythm could follow it, which is MC's job, pulled forward (journey 8).</li>
+    <li><span class="tag done">Lane decided</span><b>A metric's owner can leave.</b> Owner is required for Defined, so a metric whose owner leaves would drop to Draft and warn on every goal it measures, though nothing about the number changed (journey 11).</li>
+    <li><span class="tag done">Settled</span><b>Verifying with no baseline.</b> Baselines are no longer needed for Defined, so a verifier may have nothing stored to compare with. They pick a period; Faro shows the stored baseline for it if there is one, otherwise the latest reading from the source (NR), otherwise only records the figure (journey 3).</li>
+    <li><span class="tag done">Settled</span><b>Duplicates.</b> Adding a metric checks names, source and meaning against the library and offers "Use this one". Two that already exist are merged by retiring one with "replaced by" (MT3), so goals move across (journey 10).</li>
+    <li><span class="tag done">Settled</span><b>Re-verification arrives in waves.</b> A library set up in one month lapses in one month a year later. "To verify" shows a metric 30 days before it lapses ("due 3 Nov"), so the verifiers spread the work over the month (journey 12).</li>
+    <li><span class="tag done">Settled</span><b>Quarterly baselines are the biggest routine chore.</b> Where a source can be read, "Take this quarter's baselines" fills every slice's value and period from the readings for the owner to confirm in one go. Where it can't, the owner types them in (journey 6).</li>
+  </ol>
+</section>
+
+<section class="block">
+  <h2>Who carries the work</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Who</th><th>What</th><th>How often</th><th>Time each</th><th>Platform Engineering, a year</th></tr></thead>
+      <tbody>
+        <tr><td>Goal owner</td><td>Check in; nothing new</td><td>Weekly</td><td class="num">0 extra</td><td class="num">0</td></tr>
+        <tr><td>Metric owner</td><td>Define a metric, Draft to Defined</td><td>Once per metric</td><td class="num">10–20 min</td><td class="num">≈ 3 h, at set-up</td></tr>
+        <tr><td>Metric owner</td><td>Confirm quarterly baselines</td><td>Quarterly, per slice</td><td class="num">1–3 min</td><td class="num">≈ 2 h (13 metrics, ≈ 20 slices)</td></tr>
+        <tr><td>Metric owner</td><td>Answer a lapse or failed verification</td><td>Rare</td><td class="num">5–15 min</td><td class="num">≈ 1 h</td></tr>
+        <tr><td>Verifier</td><td>Open the link, reproduce, note</td><td>Yearly per metric, and after a lapse</td><td class="num">10–20 min</td><td class="num">≈ 4 h, spread over several people</td></tr>
+        <tr><td>Analyst</td><td>Load a register, sort out Drafts</td><td>Once, then as it grows</td><td class="num">1–2 h per 60 rows</td><td class="num">≈ 2 h</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="crumb">About 12 hours a year for the whole division, none of it on the weekly path. The original design (hard gate, baselines lapsing Verified every quarter, admin-only verification) would have been roughly 40 hours, mostly re-verification, and would have stopped goals going in at cycle start.</p>
+</section>
+
+
+<section class="block">
+  <h2>Every journey through MCP</h2>
+  <p class="lede">Each journey can be done from an AI tool without opening Faro. The tools call the same rules as the screens, ask through <code>checks</code> wherever a screen would ask, and refuse in words where a screen would refuse. Two tools are new (<code>save_baselines</code>, <code>verify_metric</code>); the rest extend today's.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Journey</th><th>Through MCP</th></tr></thead>
+    <tbody>
+      <tr><td>1 · A goal on an undefined number</td><td><code>save_metric</code> (name, unit, direction) then <code>link_goal_metric</code>: linked with the Draft warning and the missing list; later <code>save_metric</code> with the parts, returning "now Defined".</td></tr>
+      <tr><td>2 · Load a register</td><td><code>bulk_change</code> with <code>metrics</code>, dry run first: counts by stage, similar metrics, each Draft's missing list.</td></tr>
+      <tr><td>3 · Verify</td><td><code>list_metrics</code> <code>to_verify</code>, then <code>verify_metric</code> with period, figure, note and <code>outcome: "verified"</code>.</td></tr>
+      <tr><td>4 · Doesn't match</td><td><code>verify_metric</code> with <code>outcome: "couldnt_reproduce"</code>; the owner is told and <code>get_metric</code> shows the attempt.</td></tr>
+      <tr><td>5 · Source changes</td><td><code>save_metric</code> returns a <code>lapse</code> check first; after it, <code>save_baselines</code> lists the old-source baselines to retake.</td></tr>
+      <tr><td>6 · Quarterly baselines</td><td><code>save_baselines</code> with <code>from_readings: true</code> for every slice, corrected figures with a <code>reason</code>.</td></tr>
+      <tr><td>7 · A team's slice</td><td><code>link_goal_metric</code> with team and part, then <code>save_baselines</code> for that slice.</td></tr>
+      <tr><td>8 · Check-ins</td><td><code>post_check_in</code> as today; <code>get_my_work</code> shows the goal due when its metric refreshes.</td></tr>
+      <tr><td>9 · In a review</td><td><code>get_goal</code> and <code>get_metric</code> carry stage, refresh and the last verification.</td></tr>
+      <tr><td>10 · Duplicates</td><td><code>save_metric</code> returns a <code>similar</code> check; <code>merge_metrics</code> joins existing copies.</td></tr>
+      <tr><td>11 · Owner leaves</td><td><code>mark_person_left</code> passes their metrics to their lead; the new owner confirms with <code>save_metric</code>.</td></tr>
+      <tr><td>12 · Gap closed, a year on</td><td><code>save_metric</code> sets Measured and the link; <code>list_metrics</code> <code>to_verify</code> shows what's due in 30 days.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- J1 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">1</span><div><h3>Set a goal on a number nobody has defined yet</h3><p class="who">Rhea Kapoor, CI/CD manager · week 1 of a cycle · once per new metric</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Rhea creates "Flaky test rate in the main pipelines" and opens <b>Measured by</b>. She types "flaky"; nothing matches, so the picker offers <b>Add a metric "flaky"</b>.</li>
+      <li>A short form asks only for the name, unit and direction, the minimum to save. The metric is saved as <span class="mark lv-draft"><svg><use href="#lv-draft"/></svg>Draft</span> and measures her goal at once.</li>
+      <li>The goal page shows the warning "Measured by a Draft metric" and a <b>Finish defining it</b> link. Her goal's status works as normal.</li>
+      <li>Later that week she opens the metric, picks Ratio, writes the numerator and denominator, sets "rolling 7 days" and "refreshed daily", and names CI test analytics. The "still needed" box counts down to one item: the report link.</li>
+      <li>Aiko sends her the dashboard link; she pastes it and the metric becomes <span class="mark lv-defined"><svg><use href="#lv-defined"/></svg>Defined</span> by itself. The warning disappears from her goal.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>About 1 minute on the day, 10–15 minutes later in the week. Goal setting never waits.</p></div>
+      <div class="dec"><b>Found</b><p>Adding a metric from inside the picker must ask for no more than name, unit and direction, or people will avoid it and leave the goal unmeasured.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J2 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">2</span><div><h3>Load a 60-row metrics register</h3><p class="who">Lucía Romero, engineering analyst · once, at set-up · by spreadsheet or through an AI tool (MCP)</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Lucía fills in the workbook's Metrics sheet: name, meaning, unit, direction, and whichever of the structured columns the register has (what is measured, aggregation, numerator, denominator, window, source link, refresh).</li>
+      <li>The import's check says, before anything is saved: "60 metrics: 9 will be Defined, 51 Draft. 3 look like metrics you already have." It lists the three with "Use the existing one" chosen.</li>
+      <li>Rows that can't be parsed into the structure (for example "window: last quarter-ish") keep their words in the meaning and land as Draft, with the missing part named.</li>
+      <li>After the load, <b>Metrics › Draft 51</b> is her work list, sorted by how many goals each one measures, so the ones that matter most come first.</li>
+      <li>The same load through an AI tool (<code>bulk_change</code> with <code>metrics</code>) returns the same summary in words, and each metric's missing list, so the tool can ask for the missing links in one go.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>1–2 hours for the sheet, then the Drafts over a few weeks, shared with the owners.</p></div>
+      <div class="dec"><b>Found</b><p>Nothing is lost when a row is incomplete; it lands as Draft. The duplicate check runs on import too, not only on the add form.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J3 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">3</span><div><h3>Verify a metric</h3><p class="who">Amara Nwosu, VP and admin · whenever "To verify" has something · 10–20 minutes each</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Home shows Amara "2 metrics to verify". She opens CI pipeline time on main (p90), owned by Daniel. She is neither its owner nor its last editor, so <b>Verify</b> is offered.</li>
+      <li>She opens the report link in a new tab. It shows the p90, rolling 7 days, for main.</li>
+      <li>Faro asks for a period. The metric has a company baseline for Aug–Oct 2026 (22 min), so it suggests that period. She reads 21 min from the dashboard and enters it.</li>
+      <li>Faro shows "1 min lower than stored" in the metric's own unit, with no pass mark. She adds a note: "Matches within rounding; Sept's runner outage week is in both."</li>
+      <li>She marks it <span class="mark lv-verified"><svg><use href="#lv-verified"/></svg>Verified</span>. Daniel is told; the record shows her name, the date, both figures, the note and "due again 15 Nov 2027".</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>10 minutes for a metric with a clean dashboard.</p></div>
+      <div class="dec"><b>Found</b><p>With no stored baseline, Faro falls back to the latest reading from the source, then to no comparison at all. The figure is still required; it is what makes the record mean something.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J4 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">4</span><div><h3>A verification that doesn't match</h3><p class="who">Lucía Romero, named verifier · Cloud cost per 1,000 requests, owned by Björn Halvorsen</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Lucía opens the FinOps dashboard for October and gets $0.41. Faro has $0.38 stored for October.</li>
+      <li>She reads the caveat: committed-use discounts land in the month they're bought. October was a purchase month, and the dashboard spreads the discount over the year; the stored figure didn't.</li>
+      <li>The figures don't match and she can't tell which is right, so she chooses <b>Couldn't reproduce</b> with her figure and a note: "Dashboard amortises the CUD; the stored baseline doesn't. Which does the definition mean?"</li>
+      <li>The metric stays <span class="mark lv-defined"><svg><use href="#lv-defined"/></svg>Defined</span>. Björn is told. The metric's page shows the attempt: who, when, both figures, the note.</li>
+      <li>Björn adds "discounts amortised over 12 months" to the exclusions and retakes the baseline. The next verifier sees Lucía's attempt and checks that point first.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>20 minutes for Lucía, 15 for Björn. It found a real ambiguity in the definition, which is the feature working.</p></div>
+      <div class="open"><b>Lane decided</b><span>Record "Couldn't reproduce" with the figure and note; the metric stays Defined and the owner is told.</span></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J5 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">5</span><div><h3>The source changes</h3><p class="who">Pavel Novák moves Lead time for changes from Four Keys to deploy pipeline events · Rhea owns the metric</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Pavel edits the source and link and gives a reason. Before saving, Faro says: "This changes the source, so the metric will no longer be Verified, and 1 goal is measured by it."</li>
+      <li>He saves. The metric drops to <span class="mark lv-defined"><svg><use href="#lv-defined"/></svg>Defined</span>, joins "To verify", and Rhea (owner) is told. Pavel can't verify it: he made the change.</li>
+      <li>The company baseline (31 hours, Jul–Sep) came from Four Keys. Deploy events will read higher, because they count to production, not to merge.</li>
+      <li>The goal's chart shows a mark at week 46, "Source changed: deploy pipeline events", so a step in the line is read as the source and not as a bad week.</li>
+      <li>The stored baselines are shown as "taken from the old source". Rhea is asked to retake them from the new one, and the goal is asked whether to start from the retaken figure.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>2 minutes for Pavel, 10 for Rhea to retake baselines, a re-verification by someone else.</p></div>
+      <div class="open"><b>Lane decided</b><span>Flag the old baselines as "taken from the old source" and ask the owner to retake them; the chart marks the change too.</span></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J6 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">6</span><div><h3>A new quarter, new baselines</h3><p class="who">Marisol Duarte, Director of Reliability · first week of each quarter · her four metrics</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Home shows "4 of your metrics have no baseline for Oct–Dec". She opens Metrics, filtered to hers.</li>
+      <li><b>Take this quarter's baselines</b> lists each metric and slice with a value already filled from the source's readings, the period, today's date and "read from Four Keys" as how it was taken.</li>
+      <li>She corrects one figure where the incident tracker was late, gives a reason, and confirms the rest in one go.</li>
+      <li>The old baselines move to History, each with "replaced by Oct–Dec 2026". Every metric stays Verified: a baseline is a reading.</li>
+      <li>Goals already running keep their start values. Goals she sets this quarter start from the new figures.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>About 5 minutes for four metrics when the sources can be read; 15 if she types the figures in.</p></div>
+      <div class="dec"><b>Found</b><p>This is the most frequent chore in the whole feature. Without the readings pre-fill it is the one most likely to be skipped, leaving stale baselines.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J7 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">7</span><div><h3>A team wants its own slice</h3><p class="who">Pavel Novák, Build &amp; Release · a team goal on the company's Change failure rate</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Pavel sets "Change failures in our services" and picks Change failure rate, measured for Build &amp; Release, part "tier-1 services".</li>
+      <li>There is no baseline for that slice. The goal asks for its start value as usual and offers <b>Also save it as the slice's baseline</b>, with the period and how it was taken.</li>
+      <li>He ticks it. The metric's page now lists a Build &amp; Release (tier-1 services) baseline beside the company's. The metric stays Verified.</li>
+      <li>His goal and Marisol's company goal share one definition, so the review can put 9.4% beside 11.8% and both mean the same thing.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>About 1 extra minute, folded into setting the goal.</p></div>
+      <div class="dec"><b>Found</b><p>A slice is a team plus an optional part (MT2), not only a team. Taking the baseline from inside the goal avoids a second visit to the metric.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J8 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">8</span><div><h3>The weekly check-in</h3><p class="who">Mateo Fernández (Mean time to restore, refreshed weekly) and Ethan Brooks (Cloud cost per 1,000 requests, refreshed monthly)</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Mateo's check-in opens with this week's reading filled in: "From the incident tracker, 58 min, read Monday". He confirms it and writes his story. Metric quality adds nothing to his week.</li>
+      <li>Ethan's opens in week 2 of the month with "No new reading: Cloud cost refreshes monthly, next on 1 Dec".</li>
+      <li>Today he must still post something or the goal turns "No recent update" after two weeks, though there is nothing new to say.</li>
+      <li>With refresh now required, Faro knows this. The goal could take its rhythm from the metric: due monthly, after each refresh, and never "No recent update" in between.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>Nothing for Mateo. Ethan today: three empty check-ins a month.</p></div>
+      <div class="open"><b>Lane decided</b><span>A goal's check-in rhythm follows its metric's refresh, as part of MQ2 (MC's core, pulled forward).</span></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J9 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">9</span><div><h3>Trusting the number in a review</h3><p class="who">Amara Nwosu, the Reliability weekly · agenda of six goals</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>An agenda row shows the goal's status and number as today, with one quiet line underneath: "Change failure rate · Verified 3 Nov · refreshed weekly".</li>
+      <li>Mean time to detect's row says "Draft metric" with the warning mark. Amara asks Yuki what's missing, and the answer is on the metric page: the window.</li>
+      <li>Daniel claims the deploy count is the real cause of the change-failure rise. Both numbers are Verified, so the argument is about the work, not the numbers.</li>
+      <li>Nothing in the review lets anyone change a metric. The meeting asks; owners change things afterwards.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>None. This is where the value shows up: less time arguing about whose number is right.</p></div>
+      <div class="dec"><b>Found</b><p>Verified must be visible where decisions are made (review rows, goal pages), or it is library housekeeping nobody sees.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J10 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">10</span><div><h3>Two people define the same number</h3><p class="who">Tariq Haddad adds "Deploy frequency" · the library already has Production deploys per day</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>As Tariq types the name and source, Faro shows "Similar: Production deploys per day (Verified, DORA dashboard, Pavel Novák)" with <b>Use this one</b>.</li>
+      <li>He reads its meaning: successful production deploys per working day, 28 days. It is what he means, so he picks it. No second metric is made.</li>
+      <li>Had both existed already (two teams' copies from a register), an admin retires one with "replaced by" the other (MT3). Its goals' owners are offered the replacement; their history keeps a mark where the definition changed.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>Saves a duplicate that would otherwise need defining, verifying and baselining twice.</p></div>
+      <div class="dec"><b>Found</b><p>The duplicate check is worth more than any field on the form: one definition per number is the whole point.</p></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J11 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">11</span><div><h3>A metric's owner leaves</h3><p class="who">Rhea Kapoor moves to another division · she owns four metrics</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>An admin removes Rhea from the workspace. Her four metrics, including Lead time for changes, now have no owner.</li>
+      <li>Owner is one of the ten parts of Defined, so as designed all four would drop to Draft, and five goals would show the warning.</li>
+      <li>Nothing about the numbers has changed, so that warning would be wrong.</li>
+      <li>Better: ownership passes to the person's team lead (CI/CD's new manager), each metric is listed under "To sort out: new owner, please confirm", and the stage doesn't move.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>2 minutes per metric for the new owner to confirm.</p></div>
+      <div class="open"><b>Lane decided</b><span>Ownership passes to the person's team lead, to confirm under "To sort out"; the stage doesn't change.</span></div>
+    </aside>
+  </div>
+</article>
+
+<!-- J12 -->
+<article class="journey">
+  <header class="j-head"><span class="j-num">12</span><div><h3>A measurement gap is closed, and a year passes</h3><p class="who">Yuki Tanaka, Observability · Mean time to detect, a Gap metric · then the library's first anniversary</p></div></header>
+  <div class="j-body">
+    <ol class="steps">
+      <li>Time to detect has been a Gap (MS) since the register load: nobody records an incident's first bad data point. Its goal went in held to no number, and Draft never blocked it.</li>
+      <li>In March the incident tracker gains a "first bad data point" field. Yuki sets the metric to Measured, adds the report link and window, and it becomes Defined. Its goal starts counting from its first reading.</li>
+      <li>A year after set-up, 9 of the 13 metrics were verified in the same fortnight. From 30 days before, "To verify" lists them as "due 3 Nov", so Lucía and Amara spread them over the month instead of all lapsing on one day.</li>
+      <li>Two still lapse because nobody got to them. They drop to Defined with the reason "12 months since verified", and their goals don't change. Only Draft warns.</li>
+    </ol>
+    <aside class="j-side">
+      <div class="dec"><b>Cost</b><p>About 3 hours of verifying a year for the division, spread over a month.</p></div>
+      <div class="dec"><b>Found</b><p>Gap and Draft are different questions (is it measured; is it defined) and both must stay visible without blocking. The yearly lapse needs the 30-day warning or it lands as a wave.</p></div>
+    </aside>
+  </div>
+</article>
+
+</main>

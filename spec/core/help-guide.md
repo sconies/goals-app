@@ -1639,8 +1639,8 @@ Routes: `/workspace/privacy`. Requirements: `TELEMETRY-SIGNALS`, `TELEMETRY-PRIV
 #### When you send a markup
 
 - A markup is sent only when you press Send. It carries the picture of your screen as it was (nothing on it is hidden, and you see it before sending), your marks, your line, your name, the page, your screen size, light or dark, your accent and the app’s version.
-- Apart from Recording, whether it is on or off, the app keeps the last 20 steps of a visit in your browser’s memory: the pages you opened, the buttons you pressed and any errors, never what you typed. They go when you close the tab, and leave your browser only in a markup you send with them included.
-- The form shows those steps before you send (See the steps), and the box to include them starts unticked. It also carries any errors or saves that didn’t go through on this visit.
+- Apart from Recording, whether it is on or off, the app keeps the last 20 steps of a visit in your browser’s memory, with its errors and saves that didn’t go through: the pages you opened and the buttons you pressed, never what you typed. They go when you close the tab, and leave your browser only in a markup you send with them included.
+- The form shows those steps and errors before you send (See the steps), and the one box to include them starts unticked. Unticked, a markup carries neither.
 - Only the people building Faro read markups.
 
 #### Turning it off
@@ -1701,7 +1701,7 @@ Requirements: `MARKUP`, `FEEDBACK-RAISED`.
 
 - The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.
 - Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.
-- Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.
+- Only if you tick to include them: your last 20 steps on this visit (the pages you opened and the buttons you pressed, never what you typed) and any errors or saves that didn’t go through. The form lists them first, and the box starts unticked.
 - In the demo, markups are sent too, marked as from the demo. Anyone can read them in the inbox on Workspace, picture included: Faro holds no real data, so nothing on your screen should be private.
 
 ### The inbox

@@ -92,7 +92,7 @@ export const STEPS_MAX = 20;
  * Recording, the app keeps a visit's last steps in the browser's memory (telemetry `recentSteps`); they leave it only
  * in a markup sent with them included, which its form shows first and starts unticked.
  */
-export const STEPS_NOTE = `Apart from Recording, the last ${STEPS_MAX} steps of a visit (pages opened, buttons pressed, errors) stay in your browser’s memory, and go when you close the tab. They leave it only if you send a markup and tick to include them; the form shows them first.`;
+export const STEPS_NOTE = `Apart from Recording, the last ${STEPS_MAX} steps of a visit (pages opened, buttons pressed) and its errors and failed saves stay in your browser’s memory, and go when you close the tab. They leave it only if you send a markup and tick to include them; the form shows them first.`;
 export const ERRORS_MAX = 25;
 export const PICTURES = ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'] as const;
 /** How big a numbered pin is on screen, for what it covers. */
@@ -203,7 +203,8 @@ export interface MarkupInput {
 
 export class MarkupError extends Error {}
 
-/** The markup to send: the line and mood, the drawing and what it covers, where it was, and (when ticked) the visit's steps. */
+/** The markup to send: the line and mood, the drawing and what it covers, where it was, and (only when ticked) the
+    visit's steps and its errors and failed saves: one box covers both (Lane, 15 Nov). */
 export function buildMarkup(i: MarkupInput): Markup {
   const line = i.line.trim().replace(/\s+/g, ' ');
   if (!line) throw new MarkupError('Say what should change.');
@@ -235,7 +236,7 @@ export function buildMarkup(i: MarkupInput): Markup {
     strokes,
     context: i.context,
     steps: i.includeSteps ? i.steps.slice(-STEPS_MAX) : [],
-    errors: i.errors.slice(-ERRORS_MAX),
+    errors: i.includeSteps ? i.errors.slice(-ERRORS_MAX) : [],
     pictures: i.pictures,
     status: 'new',
     issueUrl: null,
