@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `5d857a70` (#536), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520, #533, #536) are at the end. **Open from it:** #520's high (Undo removes another year's goal) and four mediums, all fixed on track 3's branch `mi-review`, not merged when this was written: read that PR against each, probing each door. #493's three mediums were closed by #533. #536's medium (eight kit sentences) is with planning for item 11. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `59ed597b` (#537), by the reviewer of 15 Nov (session …JXAVxo), whose sections (#531, #493, #520, #533, #536, #537) are at the end. **Open from it:** #520's high (Undo removes another year's goal) and four mediums, all fixed on track 3's branch `mi-review`, not merged when this was written: read that PR against each, probing each door. #493's three mediums were closed by #533. #536's medium (eight kit sentences) and #537's three (journey pages, the module platform page, three journeys classed as core) are with planning for item 11. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
 - **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
@@ -282,6 +282,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #520 MI: the Metrics sheet in and out | 3 | 1 | 4 | 3 |
 | #533 TG2 review: field names, Undo and Help (#493's three mediums) | 2 | 0 | 0 | 1 |
 | #536 Kit: stage 1 and 2 words from the full drill's re-run | item 11 | 0 | 1 | 1 |
+| #537 Kit: the core's module platform, stage 3's inputs and journeys a rebuild can follow | item 11 | 0 | 3 | 1 |
 
 **High findings, and where each stands**
 
@@ -2468,3 +2469,20 @@ Words only, in `src/spec/rules.ts`, `changeEngineDoc.ts`, `rebuild.ts`, `edge.ts
 - **Low: two more.** The unmeasured paragraph names projection.csv's E-15 rows as showing the goal projects like any other, but E-15 has one check-in and every one of its projection rows is empty. "A known fault, backlog 0v": `docs/backlog.md` has no 0v (edge.ts's text, older than this PR, says the same).
 
 Found beside them, in sentences this PR didn't add (not counted): New IDs' order "the change log's entries, then the check-ins and asks" (they interleave: `ci_c1`, `chg_c2`, `req_c3`, `chg_c4`); `needs_reason` is also yes for a check-in corrected with no reason; the store contract's `load` keeps the newest two years whatever `from` says. Not checked: the Postgres and Supabase adapters against the `load` words.
+
+### #537 Kit: the core's module platform, stage 3's inputs and journeys a rebuild can follow (item 11, merged 15 Nov)
+
+Run on main at `59ed597b`: `npx vitest run src/spec` passes (111); `scripts/check-rebuild.mjs` finds a stage for all nine modules; `npm run drill -- scripts/drill-faro` scores 100% of cells and 56 of 56 contract cases; `npm run build:mcp` writes the committed `api/mcp.js`. A subagent then checked about 75 hand-written statements against the code (14 by running `handle`, `callTool` and `moduleOffLine`, the rest by reading), and six of what it found were checked again here.
+
+- **Medium: the journey pages can't yet be followed, and some say the wrong thing.**
+  - Set-up the journey does in the page's own script is dropped: U176 switches the viewer to Omar before "A member sees none of it" and the page doesn't, so its check can't be met; U90's check-in by Rhea (which goal, which week) and the files U90 and U179 load (U179's seven columns and five rows) are not given.
+  - A check prints its failure message as its condition: U90 "it fails if goals left after Undo: {left}" (the code wants exactly one goal left, so none left fails too); U176's two checks name none of the words they look for.
+  - The words for a `[data-part="…"]` selector are scrambled (`cssWordsOf`, `src/spec/journeySteps.ts`): `spec/core/journeys.md` line 447 reads `the check in"] in the goal’s in the each in the [data part="In`; fourteen rows and U161's steps.
+- **Medium: the module platform page says five things the code doesn't do.**
+  1. A `lookup` menu row goes "after Data": `src/domain/navigation.ts` puts it after People, before Activity and Data (navigation.csv agrees).
+  2. "An action of a switched-off module, refused (the app's `run`, and the AI tools through it)": no tool goes through the action table; `callTool` refuses with `moduleOffSentence`, a different sentence.
+  3. An unknown tool is "never a JSON-RPC error… “There’s no tool called {tool}.”": through the server it is -32602 "Unknown tool: {name}" (`src/mcp/protocol.ts`), and those words are never reached.
+  4. What the import says once is "today Reviews' sheet and column": the Metrics sheet says it too since #520, and that sentence is not among the page's "every sentence the core says while one is off"; nor are the core tools that refuse with the module's sentence.
+  5. "A notification (no id)… No reply": `initialize` and `tools/list` with no id are answered with `id: null`.
+- **Medium: three journeys that need a module are classed as the core's.** U179 (#520's, on /metrics and the library's switch), U161 and U72 are in no `module.json`, so their pages say "Belongs to: the core… the core journeys run again with each module left out", and stage 3's "each core journey can be done" can't hold for them. U179 belongs in the metrics module's list (#520 left it out).
+- **Low: smaller ones.** readback.csv's key is `case` alone, though the stage 3 line says each CSV's keys are its inputs; `STAGE3_GAPS` still lists saved views and the step-by-step check-in as not described, which this PR describes; the core-only README says no row scores a switched-off module's address, and about fourteen rows do, with the module's page names; `goal.measure` is drawn after "What it measures", not after the name; "module order" is id order.
