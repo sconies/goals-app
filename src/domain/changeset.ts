@@ -1869,6 +1869,13 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       const moved = Object.fromEntries(Object.entries(mg).filter(([k, v]) => v !== base?.[k]));
       ordered[at] = { ...ordered[at]!, ...moved } as Goal;
     }
+    // A module's own Goals columns' rows (TG2: field values, a list's added value) are kept as they were too, so Undo
+    // puts them back with the goals they sit on (TG2 review).
+    for (const [module, keys] of Object.entries(moduleOut ?? {})) for (const [key, rows] of Object.entries(keys)) {
+      if (!rows.length) continue;
+      const saved = (s.modules?.[module]?.[key] ?? []) as { id: string }[];
+      moduleUndo.push({ module, key, rows: (rows as { id: string }[]).map((r) => ({ id: r.id, before: saved.find((x) => x.id === r.id) ?? null })) });
+    }
     const moduleGoals = plannedGoals.filter((g) => !ordered.some((o) => o.id === g.id));
     for (const ch of changes) ch.importId = importId;
     const requestsBefore = asksOf(s);

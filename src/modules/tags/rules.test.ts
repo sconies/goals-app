@@ -14,6 +14,13 @@ describe('a field (rule 1)', () => {
     expect(fieldProblem({ ...stage, id: 'new' }, [{ ...stage, retiredAt: '2026-11-01' }])).toBeNull();
     expect(fieldProblem(stage, [stage])).toBeNull();
   });
+  it('isn’t called like one of the Goals sheet’s own columns, whatever the case or accents (TG2 review)', () => {
+    for (const [name, col] of [['Owner', 'Owner'], ['  team ', 'Team'], ['TYPE', 'Type'], ['Reason', 'Reason'], ['Ówner', 'Owner'], ['Goal name', 'Goal'], ['Status', 'Status']] as const)
+      expect(fieldProblem({ ...stage, id: 'new', name }, [])).toBe(`The Goals sheet already has a column called “${col}”. Call the field something else.`);
+    // A name near one, or that only contains one, is a field's own.
+    expect(fieldProblem({ ...stage, id: 'new', name: 'Owner team' }, [])).toBeNull();
+    expect(fieldProblem({ ...stage, id: 'new', name: 'Programme' }, [])).toBeNull();
+  });
   it('holds at most six live fields', () => {
     const six = Array.from({ length: 6 }, (_, i) => ({ id: `f${i}`, name: `Field ${i}`, retiredAt: null }));
     expect(fieldProblem({ ...notes, id: 'new', name: 'Region' }, six)).toBe('A workspace has at most 6 fields. Retire one first.');

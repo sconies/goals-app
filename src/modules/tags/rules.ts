@@ -2,6 +2,7 @@
    or free text. Pure. No rule in src/domain reads a field (no status, flag or check-in rule): that is what lets the
    module be switched off. The database holds each limit too (migration 0052; src/spec/limits.ts). */
 
+import { coreGoalsColumn } from '../../domain/sheets';
 import { NOT_SET } from './filter';
 import type { GoalField } from './types';
 
@@ -16,7 +17,8 @@ const live = (f: Pick<GoalField, 'retiredAt'>) => !f.retiredAt;
 
 /**
  * Rule 1. What stops a field being saved, or null: a name of 1 to 40 characters that no other live field has (whatever
- * the case); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
+ * the case) and that isn't the name of one of the Goals sheet's own columns (or another name it reads one by, whatever
+ * the case or accents); a list of 1 to 20 values, each 1 to 40 characters, none twice; free text with no values; and no more than
  * six live fields. `fields`
  * is the workspace's fields as they are now (the one being changed among them, by id, or not yet).
  */
@@ -24,6 +26,10 @@ export function fieldProblem(field: Pick<GoalField, 'id' | 'name' | 'kind' | 'op
   const name = field.name.trim();
   if (!name) return 'Give the field a name.';
   if (name.length > FIELD_LIMITS.name) return `Keep the name to ${FIELD_LIMITS.name} characters.`;
+  // A field is a column of the Goals sheet: a name the sheet already reads as one of its own columns would make two
+  // columns read the same way, so the workbook wouldn't load back as it went out (TG2 review).
+  const core = coreGoalsColumn(name);
+  if (live(field) && core) return `The Goals sheet already has a column called “${core}”. Call the field something else.`;
   const others = fields.filter((f) => f.id !== field.id && live(f));
   if (live(field) && others.some((f) => key(f.name) === key(name))) return `There’s already a field called “${others.find((f) => key(f.name) === key(name))!.name.trim()}”.`;
   if (live(field) && !fields.some((f) => f.id === field.id && live(f)) && others.length >= FIELD_LIMITS.fields) return `A workspace has at most ${FIELD_LIMITS.fields} fields. Retire one first.`;
