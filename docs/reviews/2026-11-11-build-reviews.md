@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `1956ac3a` (#527), the head of main at 00:15 UTC, 15 Nov, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
+- **Last merge fully reviewed:** `ef677c76` (#529), the head of main at 00:25 UTC, 15 Nov, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** two, both sent to planning on 14 Nov and both being fixed on branch `board-lane` by track 3 (session …S2dzmsnp2LfvYMFm): #503's (a goal stopped while held stays held) and #510's (a goal that is Not measured yet is in no lane of the Board). Fixed since: #517's by #522, #504's by #519, #497's by #526, #515's by #524, #513's by #521 (Lane chose the kit's rule).
+- **Mediums open:** one, sent to planning 15 Nov, 00:25 UTC: what is left of #503's after #529, the merge door (a goal stopped while held, whose gap metric is then merged into a measured one, is still held when restarted; `mergeMetrics` in `rulesChange.ts` still skips stopped and removed goals). Fixed since: #517's by #522, #504's by #519, #497's by #526, #515's by #524, #513's by #521 (Lane chose the kit's rule), #510's and two of #503's three doors by #529.
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -273,6 +273,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #524 The change engine's kit sentences match the engine (#515's medium) | item 11 | 0 | 0 | 1 |
 | #521 A moment is fixed as of its own week (#513's medium; Lane, 14 Nov) | item 11 | 0 | 0 | 0 |
 | #527 Rebuild kit: every journey's steps and checks in words, and Goals' filters and sort | item 11 | 0 | 0 | 1 |
+| #529 A goal stopped while held, and the Board's lane (#503's and #510's mediums) | 3 | 0 | 1 | 0 |
 
 **High findings, and where each stands**
 
@@ -2370,3 +2371,12 @@ Generated pages only: `src/spec/journeySteps.ts` reads `evals/journeys.cjs` with
 **Low.** A check the code makes on one width only is written as if on both: U175's "It fails if Workspace’s menu still has AI access" is `device === 'desktop' && …` in the journey, and the page's own head says a line is for both widths "unless one says otherwise". A rebuild checking it on a phone would look for a menu that isn't there.
 
 Not read: the other 170 generated pages.
+
+### #529 A goal stopped while held, and the Board's lane (track 3, merged 15 Nov)
+
+Read against #503's and #510's mediums; the merge door probed.
+
+- **#510's medium: closed.** The Board's lanes are the vocabulary's `STATUS_ORDER`, so Not measured yet has a lane and a later status can't go missing the same way; U170 opens the Board at that status and looks for the held goal's card in a lane named "Not measured yet, 1". The shared order also puts Not started after On track, where the Board had it before.
+- **#503's medium: closed for the gap closing and for the library's switch.** `heldBy` and `heldOnSwitch` now keep stopped and removed goals in step, with a test that stops the goal, closes the gap or switches the library off, restarts it and finds it held to its plan.
+
+**1. Medium (ran). The merge door of #503's medium is still open.** `mergeMetrics` (`src/modules/metrics/rulesChange.ts`) still re-works only goals that are neither removed nor stopped (`!g.removedAt && !g.stoppedAt ? heldByLink(…)`), and this PR doesn't touch it. Probe on main: Flaky test rate made a Gap, its goal stopped, the metric merged into Remote build cache hit rate (measured; the merge writes no goal), the goal restarted: `isUnmeasured` is still true, under a Measured metric. Drop the same two conditions there, and add the merge as a third case to the new test.
