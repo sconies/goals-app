@@ -1,0 +1,11 @@
+import { App } from '../app/state.mjs';
+import * as X from '../modules/spreadsheets/exporter.mjs';
+import * as I from '../modules/spreadsheets/importer.mjs';
+import { readWorkbook, writeWorkbook } from '../modules/spreadsheets/book.mjs';
+const app = new App(); app.now = app.W.builtFor;
+const book = readWorkbook(X.workbook(app));
+const P = book.find((x) => x.name === 'People').rows;
+const pr = P.find((x) => x[1] === 'rhea'); pr[P[0].indexOf('Job title')] = 'Pipeline lead';
+const rec = I.recognise(app, 'x.xlsx', I.readFile('x.xlsx', writeWorkbook(book)));
+const res = I.check(app, 'tunde', rec.tables);
+console.log(res.issues.filter(i=>i.level!=='note').map(i=>[i.sheet,i.row,i.kind,i.message]).slice(0,8), res.issues.filter(i=>i.level!=='note').length);

@@ -1,0 +1,25 @@
+U20 · phone · PASS
+U20 · desktop · PASS
+U87 · phone · PASS
+U87 · desktop · PASS
+U88 · phone · PASS
+U88 · desktop · PASS
+U89 · phone · PASS
+U89 · desktop · PASS
+U90 · phone · PASS
+U90 · desktop · PASS
+U95 · phone · PASS
+U95 · desktop · PASS
+U96 · phone · PASS
+U96 · desktop · PASS
+U48 · phone · PASS
+U48 · desktop · PASS
+U19 · phone · PASS
+U19 · desktop · PASS
+U72 · phone · PASS
+U72 · desktop · PASS
+U46 · phone · PASS
+U46 · desktop · PASS
+U94 · phone · PASS
+U94 · desktop · PASS
+exit 0

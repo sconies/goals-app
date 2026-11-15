@@ -1,0 +1,17 @@
+# Core changes for stage 9 (Spreadsheets)
+
+Four core files changed. Each change is generic (no core file names the module, except `state.mjs`, which installs it as it installs the example module).
+
+| File | Change | Why |
+|---|---|---|
+| `engine.mjs` | A row may carry its own line number (a non-enumerable `__line`). | The import skips blank rows, a title row above the header, rows left out and example rows; the engine numbered rows by position, so every message would name the wrong row. |
+| `engine.mjs` | Exports `SHEETS` and `SHEET_ORDER`. | The file line names the columns nothing reads, and a sheet is known by its header row: both need the one format's columns and their other names. |
+| `engine.mjs` | “Keep the name to 80 characters” only for a new goal or a changed name. | The demo has a goal named in 141 characters: an unedited workbook loaded back raised a Must fix (exit criterion 4). |
+| `engine.mjs` | A row that says Stop (or Delete) is “changing the goal” only where a cell differs from what the goal already says (`sameAsGoal`), not wherever a cell is filled. | A whole exported row with Action Stop was refused with cant-change (U46, IMPORT-ACTIONS). |
+| `engine.mjs` | Someone who isn’t an admin is refused (not-allowed) only on a People row that changes someone, not on every People row. | Tunde’s exported workbook raised 97 “Only an admin can change people” (U94 wants one row, one group). |
+| `app/server.mjs` | A module’s routes may have `:params` and a `handle(app, viewer, req)` that gets the method, address, params and raw body (a file upload), and answers a page, a redirect or a download; a module’s `redirects` (old addresses); both Page not found with the module’s sentence while it is off. | The platform only had exact GET routes rendering one HTML body: no upload, no POST, no download, no `/data/import/done/:importId`, no `/import` → `/data/import`. |
+| `app/server.mjs` | Data’s toolbar is a `.data-tools` element around the `data.tools` place, given the viewer and the open table. | The place was drawn bare with only `{ app }`; the kit says it is given the table as laid out. |
+| `app/server.mjs` | Help leaves out the kit guide’s article of a module that is off or not built (the guide says “from the X module”), and a built module’s own article replaces the guide’s. | “Importing from a spreadsheet” stayed in Help with Spreadsheets off or left out. |
+| `app/pages.mjs` | Goals draws the `goals.tools` place (in a `.goals-toolbar`), given the goals shown and the address. | The core never drew `goals.tools`, a place the kit lists. |
+| `app/pages.mjs` | Activity folds an import’s rows under its one entry (“Show the N changes”), lists imports under kind=imports, doesn’t list imported check-ins again, and lets a module add to an entry (`activityEntry`, used for Undo). | IMPORT-UNDO: one entry in Activity per import, its rows folded (core rule: undoing an import, `foldImports`). The kit has no place for this; `activityEntry` is a new extension point. |
+| `app/state.mjs` | Installs the module; a built module’s own facts replace the kit’s stand-in entry for it in `INSTALLED`; a module may have `reset()` (called with `/api/reset`); `FARO_OFF=<ids>` starts with those modules switched off. | Facts: Features showed the kit’s short summary twice over. `reset`: an import in progress outlived a reset between journeys. `FARO_OFF`: to run the core journeys with the module switched off. |

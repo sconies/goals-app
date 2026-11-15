@@ -1,0 +1,18 @@
+import { App } from '../app/state.mjs';
+import { workbook } from '../modules/spreadsheets/exporter.mjs';
+import { readFile, recognise, check, fileLine, workedOutEdits } from '../modules/spreadsheets/importer.mjs';
+const app = new App(); app.now = app.W.builtFor;
+let t = Date.now();
+const buf = workbook(app);
+console.log('export ms', Date.now() - t, buf.length);
+t = Date.now();
+const f = readFile('x.xlsx', buf);
+const rec = recognise(app, 'x.xlsx', f);
+console.log('read ms', Date.now() - t, rec.read, rec.notRead, rec.unknownCols.slice(0,5), rec.rowCount);
+t = Date.now();
+const res = check(app, 'amara', rec.tables);
+console.log('check ms', Date.now() - t, 'items', res.items.length, 'unchanged', res.unchanged, 'issues', res.issues.length);
+console.log(fileLine(app, rec, res.examples), workedOutEdits(app, rec));
+const kinds = {}; for (const i of res.issues) kinds[i.kind] = (kinds[i.kind] || 0) + 1; console.log(kinds);
+for (const i of res.issues.filter(i=>i.level!=="note").slice(0, 6)) console.log(i.sheet, i.row, i.kind, i.message);
+for (const it of res.items.slice(0, 6)) console.log(it.sheet, it.line, it.kind, JSON.stringify(it.diffs));
