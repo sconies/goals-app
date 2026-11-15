@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (session …TMGey4V) stopped after 20 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `18ed7cb4` (#532), the head of main at 01:05 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
+- **Last merge fully reviewed:** `96b212f7` (#531), the head of main when the reviewer of 15 Nov (session …JXAVxo) started; its section is at the end. Before it: `18ed7cb4` (#532). Every code PR merged from #121 up to it has a row in State and a section below. This session's are #505 to #532, at the end, under "The reviewer of 14 November, night". Docs-only merges (#511, #516, #523) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none. #529's (main failed `npm test`, the spec stale) was fixed by #530.
-- **Mediums open:** one, with planning for item 11: #527's. Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
+- **Mediums open:** none: #527's was closed by #531 (15 Nov), so what follows is history. It was: Each generated journey page carries its journey's line number in `evals/journeys.cjs`, so a PR that adds a line to a journey and merges without regenerating on top of main leaves every later page stale and main's `npm test` red, as #529 did. Until the line number goes, run `npx vitest run src/spec` on main after any merge that touches `evals/journeys.cjs`; a failure there is a high for the PR that merged.
 - **Fixed in this session:** #503's by #529 and #532; #513's by #521 (Lane chose the kit's rule: a moment is fixed as of its own week, and History follows); #497's by #526; #517's by #522; #504's by #519; #515's by #524; #510's by #529.
 - **Expected next:** MI (#520, track 3, after its gate). TG2 (#493, track 2). More of item 11's kit-gap PRs (its sessions change; the latest were session_012kbr8yzCbkjiihKi6sbjNe and session_012kbr91xr465aJnuHqSW7tT). Lane deferred MC and FT4 on 14 Nov.
 - **Read, not walked on screen by this session:** #504 (SW2; U175 is its browser run, and tokens exist only in the real app), #519, #521 (History's row after a later check-in: unit-tested, not opened), #529's Board lane (U170 checks it). #497's own-teams set (`scope=team`) and #510 on the Map and at a phone's width were not seen: nobody in the demo has an own-teams set drawn as teams.
@@ -277,6 +277,7 @@ Written 15 November 2026, 01:10 UTC, when the reviewer of 14 November night (ses
 | #525 Rebuild kit: the edge-case workspace, scored with stage 1 | item 11 | 0 | 0 | 0 |
 | #530 The spec regenerated on main (#529's high) | 3 | 0 | 0 | 0 |
 | #532 A merge re-works stopped and removed goals too (the last door of #503's medium) | 3 | 0 | 0 | 0 |
+| #531 Spec: journey pages name their entry, not a line number (#527's medium) | item 11 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2400,3 +2401,13 @@ Read against #529's high and what was left of #503's medium; both run on main at
 - **#503's medium, the merge door: closed by #532.** `mergeMetrics` re-works every goal it moves, stopped and removed ones too, and the merge is the third case in #529's test (stop while held, merge into a measured metric, restart: held to its plan). The metric tests pass.
 
 #527's medium (line numbers in the journey pages) is not answered by #530: the next PR that adds a line to a journey above another will leave main stale again unless it regenerates after merging main.
+
+## The reviewer of 15 November (session …JXAVxo), from #531
+
+### #531 Spec: journey pages name their entry, not a line number (item 11, merged 15 Nov)
+
+Read against #527's medium; run on main at `96b212f7`.
+
+- **#527's medium: closed.** `src/spec/journeySteps.ts` no longer reads a journey's line in `evals/journeys.cjs`; each page's Source line says "the entry for U10". The 145 regenerated pages change in that line only. No other generated page carries a source line number (the `lineOf` in `src/spec/engineWords.ts` feeds error messages and an `at` field nothing writes out). On main `npx vitest run src/spec` passes (107 tests) and `npm run spec` writes nothing. The check after each merge that touches `evals/journeys.cjs` is no longer needed for this cause.
+
+No findings.
