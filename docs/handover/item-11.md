@@ -1,6 +1,6 @@
 # Handover: item 11, the full rebuild drill
 
-Replace this entry at each handover; don't append. Last written 15 Nov, about 03:15 UTC, by session_012kbr8yzCbkjiihKi6sbjNe, which handed over at about 320k tokens of context (Lane's 14 Nov rule).
+Replace this entry at each handover; don't append. Last written 15 Nov, about 04:40 UTC, by session_012kbr8yzCbkjiihKi6sbjNe, which handed over at about 320k tokens of context (Lane's 14 Nov rule).
 
 ## The brief, in short
 Backlog item 11: a fresh session rebuilds Faro stage by stage from the kit alone (`spec/` and `llms.txt`): the core first, then each module, one at a time. Record every gap with its stage and evidence, and fix gaps in the kit (`src/spec/*`, a module.json's `rebuild`, conformance rows): `npm run spec`, then small `[no news]` PRs through the gate. Never point the drill at the source.
@@ -50,9 +50,11 @@ To run a stage (S = your scratchpad):
 | #525 | The edge-case workspace | Merged, sent to the reviewer |
 | #531 | Journey pages name their entry, not a line number (main had gone red) | Merged, sent |
 | #536 | Stage 1–2 words: the 3 wrong guesses, the 14 diff-learned engine behaviours, more edge cases | Merged (5d857a70), sent to the reviewer; one medium back (step 0) |
-| **#537** | The core's module platform (`spec/rebuild/module-platform.md`); stage 3 builds it; `screen-cases.json`; core-only conformance set; harness reads `also` for reviews, tags and watching; journeys a rebuild can follow; read-back words | **Draft, gate green locally, CI running at handover** |
+| #537 | The core's module platform (`spec/rebuild/module-platform.md`); stage 3 builds it; `screen-cases.json`; core-only conformance set; harness reads `also` for reviews, tags and watching; journeys a rebuild can follow; read-back words | Merged (59ed597b), sent to the reviewer; three mediums back (step 0) |
 
-#536 and #537 both touch `src/spec/rules.ts` and `rebuild.ts`. Merge whichever goes green first, then merge main into the other, run `npm run spec`, run the gate, and merge it.
+Both are merged. Two notes for later builds:
+- **node_modules:** never symlink `node_modules` from another checkout. Vite writes the outside path into `api/mcp.js`'s comments, and CI's `build:mcp` check then fails, as it did on #537. Run `npm ci` in each worktree. The old session's main checkout still had such a symlink; a new container starts clean.
+- **Core-only drill:** `npm run drill -- scripts/drill-faro --expected spec/conformance/core-only` crashes unless you pass `--files navigation,readback,find,home`. The harness should infer the files from the folder.
 
 **#512's CI:** the smoke job failed twice on this branch, which is docs-only and identical to main under `spec/`. The failures were `spec/core/goals-query.md` reported stale, and the scale test at 3.08 against < 3 under load. Neither reproduces locally with a clean `npm ci`. #512 is a draft: give it one re-run after the next main merge before digging further.
 
@@ -77,8 +79,23 @@ To run a stage (S = your scratchpad):
    - `undo` now has `moduleRows` (#520).
 
    The evidence is in #536's section of the reviewer's log on `build-reviews` (0a5a5aa9 and the commit after), with two lows and three older sentences beside them. Send the reviewer the PR number when it merges.
-1. Subscribe to #536 and #537. Mark each ready, merge it when green, and send the numbers to the reviewer. Merge main into the second one as above.
-2. **Re-pin** to main after both merge, then recreate kit/ and pin/.
+
+   **And the reviewer's three mediums on #537 (planning, 15 Nov), also yours** (track 3 has handed over). The evidence is in #537's section on `build-reviews`. They can go in the same PR as the #536 fix.
+   1. **Journey pages can't yet be followed.**
+      - Set-up done in a journey's own script is dropped: U176's switch to Omar, U90's check-in, and the files U90 and U179 load.
+      - Some checks print the failure message as the condition (U90, U176).
+      - The words for `[data-part="…"]` selectors are scrambled (`cssWordsOf`; `spec/core/journeys.md` line 447, 14 rows).
+   2. **The module platform page says five things the code doesn't do:**
+      - a lookup menu row comes after People, not after Data;
+      - AI tools aren't refused through the action table (it's `callTool`, with a different sentence);
+      - an unknown tool gets JSON-RPC -32602 "Unknown tool", not a result saying "There's no tool called…";
+      - the import's said-once line has also been Metrics' since #520, and it is missing from the off sentences;
+      - initialize and tools/list with no id are answered.
+   3. **U179, U161 and U72 need a module but are in no module.json**, so their pages say they belong to the core. Add U179 to metrics' journeys list (it's #520's), and place U161 and U72 in their modules.
+
+   Send the reviewer the PR number(s) when they merge. Report to planning only when done or blocked.
+1. Fix step 0 in one `[no news]` kit PR, merge it when green, and send the number to the reviewer.
+2. **Re-pin** to main after it merges (main is at 59ed597b or later), then recreate kit/ and pin/.
 3. **Re-run the core from the fixed kit:** stage 3 must now build the module platform and pass the core-only set. Score each stage independently. The aim is many more of the 73 core journeys DONE; record the new tally against 13.
 4. **Re-run every module on the new core**, each with a kit-only reviewer. They should now need few or no core changes; CORE-CHANGES.md shows it. First run the two missing reviews (9 and 10) on the old core if useful; otherwise go straight to: 4 to 12, then module 7 again with MI, then the late ones. Fix gaps in small `[no news]` PRs: the module gaps in each `m*/…/GAPS.md` are mostly words not yet fixed (switched-off words, tool outputs, parts the journeys name, `seedStage` data).
 5. Once every stage on main has passed: update the scorecard `docs/drill/2026-11-full-drill.md` from `RESULTS.md` (it still shows the old pin and the old stage numbers: the kit now numbers AI access 4 … Wrap-up 12). Then do the doc rewrites and the repo description, report to planning, and take #512 out of draft.
