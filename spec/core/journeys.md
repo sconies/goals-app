@@ -167,11 +167,11 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 |---|---|---|
 | `.about` | the about | [U49](../modules/reviews/journeys/U49.md), [U80](../modules/reviews/journeys/U80.md) |
 | `.ai-block` | the ai block | [U62](../modules/ai-access/journeys/U62.md) |
-| `.arow` | the arow | [U2](journeys/U2.md), [U123](journeys/U123.md) |
-| `.arow .arow-who` | the arow who in the arow | [U123](journeys/U123.md) |
-| `.arow .btn` | the button in the arow | [U123](journeys/U123.md) |
-| `.arow-why` | the arow why | [U2](journeys/U2.md) |
-| `.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon` | the arow icon in the arow, or the arow icon in the arow | [U2](journeys/U2.md) |
+| `.arow` | a goal’s attention row (its status shape, title and why) | [U2](journeys/U2.md), [U123](journeys/U123.md) |
+| `.arow .arow-who` | the owner’s name in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
+| `.arow .btn` | the button in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
+| `.arow-why` | the line saying why | [U2](journeys/U2.md) |
+| `.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon` | the status shape in a goal’s attention row (its status shape, title and why), marked at risk, or the status shape in a goal’s attention row (its status shape, title and why), marked off track | [U2](journeys/U2.md) |
 | `.arrival-person` | the arrival person | [U97](journeys/U97.md) |
 | `.attention-switch:visible` | the attention switch | [U33](journeys/U33.md), [U34](../modules/goal-map/journeys/U34.md), [U26](../modules/goal-map/journeys/U26.md) |
 | `.backlink` | the backlink | [U72](../modules/metrics/journeys/U72.md) |
@@ -196,7 +196,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.ci-result` | the ci result | [U151](journeys/U151.md) |
 | `.ci-week` | a week in the check-in | [U71](journeys/U71.md), [U57](journeys/U57.md) |
 | `.ciq-go` | the ciq go | [U31](../modules/watching/journeys/U31.md) |
-| `.ciq-row` | the ciq row | [U71](journeys/U71.md), [U102](journeys/U102.md) |
+| `.ciq-row` | a goal’s row in the check-in’s list | [U71](journeys/U71.md), [U102](journeys/U102.md) |
 | `.coach` | the coach | [U39](../modules/goal-map/journeys/U39.md), [U27](journeys/U27.md) |
 | `.coach-ring` | the coach ring | [U31](../modules/watching/journeys/U31.md), [U27](journeys/U27.md), [U29](journeys/U29.md) |
 | `.connect` | the connect | [U42](../modules/feedback/journeys/U42.md), [U175](../modules/ai-access/journeys/U175.md) |
@@ -235,17 +235,17 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.from-metric` | the from metric | [U146](../modules/metrics/journeys/U146.md) |
 | `.goal-bar` | the goal’s summary bar | [U141](journeys/U141.md), [U6](journeys/U6.md), [U8](../modules/watching/journeys/U8.md), [U9](../modules/watching/journeys/U9.md), [U41](../modules/feedback/journeys/U41.md), [U70](journeys/U70.md), [U44](journeys/U44.md), [U164](../modules/watching/journeys/U164.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md), [U81](../modules/metrics/journeys/U81.md), [U162](journeys/U162.md), [U150](journeys/U150.md), [U170](../modules/metrics/journeys/U170.md), [U174](../modules/tags/journeys/U174.md), [U85](journeys/U85.md) |
 | `.goal-bar .bar-actions` | the buttons on the goal’s summary bar | [U141](journeys/U141.md), [U77](journeys/U77.md), [U80](../modules/reviews/journeys/U80.md) |
-| `.goal-bar .bar-actions .btn.primary` | the main button in the bar actions in the goal bar | [U77](journeys/U77.md), [U78](journeys/U78.md) |
+| `.goal-bar .bar-actions .btn.primary` | the main button on the goal’s summary bar | [U77](journeys/U77.md), [U78](journeys/U78.md) |
 | `.goal-bar .bar-status` | the status on the goal’s summary bar | [U141](journeys/U141.md), [U3](../modules/reviews/journeys/U3.md) |
-| `.goal-bar .btn.primary` | the main button in the goal bar | [U44](journeys/U44.md) |
+| `.goal-bar .btn.primary` | the main button in the goal’s summary bar | [U44](journeys/U44.md) |
 | `.goal-bar summary[aria-label="More about this goal"]` | the goal’s “…” menu | [U141](journeys/U141.md), [U70](journeys/U70.md), [U134](../modules/goal-map/journeys/U134.md) |
-| `.goal-bar[data-tone=off] .bar-status.off` | the bar status off in the goal bar | [U6](journeys/U6.md) |
-| `.goal-bar[data-tone=stale] .bar-status.stale` | the bar status stale in the goal bar | [U8](../modules/watching/journeys/U8.md) |
+| `.goal-bar[data-tone=off] .bar-status.off` | the status word, marked off track in the goal’s summary bar, marked off track | [U6](journeys/U6.md) |
+| `.goal-bar[data-tone=stale] .bar-status.stale` | the status word, marked with no recent update in the goal’s summary bar, marked with no recent update | [U8](../modules/watching/journeys/U8.md) |
 | `.goal-chart svg.chart[data-before-stop="1"]` | the chart in the goal chart | [U44](journeys/U44.md) |
 | `.goal-edit` | the goal edit | [U149](journeys/U149.md) |
 | `.goal-edit .edit-part` | the edit part in the goal edit | [U136](journeys/U136.md) |
 | `.goal-proposed` | the goal proposed | [U134](../modules/goal-map/journeys/U134.md), [U163](journeys/U163.md) |
-| `.goal-read-back` | the goal read back | [U137](journeys/U137.md) |
+| `.goal-read-back` | New goal’s read-back (the list named “Read back”, a row per sentence, each with its id) | [U137](journeys/U137.md) |
 | `.goal-row, .gtable tbody tr, .tree li` | the goal row, or the table row in the tbody in the gtable, or the list item in the tree | [U66](journeys/U66.md) |
 | `.goals-head` | the goals head | [U135](../modules/goal-map/journeys/U135.md) |
 | `.goals-line` | the Goals count line | [U122](journeys/U122.md), [U123](journeys/U123.md), [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U70](journeys/U70.md), [U73](../modules/watching/journeys/U73.md), [U101](journeys/U101.md), [U134](../modules/goal-map/journeys/U134.md), [U153](journeys/U153.md), [U150](journeys/U150.md) |
@@ -265,11 +265,11 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.hero a.btn.primary` | the main button in the hero | [U27](journeys/U27.md) |
 | `.hero a.btn.primary[href*="/check-in?start=1"]` | the main button in the hero | [U27](journeys/U27.md) |
 | `.hgrid` | the History grid | [U19](../modules/spreadsheets/journeys/U19.md), [U23](journeys/U23.md), [U38](journeys/U38.md) |
-| `.home-counts a` | the link in the home counts | [U123](journeys/U123.md) |
+| `.home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) | [U123](journeys/U123.md) |
 | `.home-hero` | Home’s lead | [U2](journeys/U2.md), [U49](../modules/reviews/journeys/U49.md), [U122](journeys/U122.md), [U71](journeys/U71.md), [U57](journeys/U57.md) |
 | `.home-main [data-part]` | each named part in the home main | [U49](../modules/reviews/journeys/U49.md) |
-| `.home-mine .home-counts` | the home counts in the home mine | [U122](journeys/U122.md) |
-| `.home-mine .home-counts a` | the link in the home counts in the home mine | [U122](journeys/U122.md) |
+| `.home-mine .home-counts` | the status counts (each a shape, a number and a word, linking to those goals) in the “Your goals” block on Home | [U122](journeys/U122.md) |
+| `.home-mine .home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) in the “Your goals” block on Home | [U122](journeys/U122.md) |
 | `.home-side` | the home side | [U103](../modules/reviews/journeys/U103.md) |
 | `.home-sort-out` | the home sort out | [U176](journeys/U176.md) |
 | `.home-sort-out, [data-part="The workspace’s line"]` | the home sort out, or the “The workspace’s line” part | [U176](journeys/U176.md) |
@@ -334,8 +334,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.page` | the page | [U175](../modules/ai-access/journeys/U175.md), [U176](journeys/U176.md) |
 | `.page-head` | the page’s heading area | [U17](journeys/U17.md), [U22](../modules/ai-access/journeys/U22.md), [U51](../modules/feedback/journeys/U51.md), [U59](journeys/U59.md), [U86](journeys/U86.md), [U43](journeys/U43.md), [U48](../modules/spreadsheets/journeys/U48.md) |
 | `.page.home` | Home | [U122](journeys/U122.md), [U48](../modules/spreadsheets/journeys/U48.md), [U103](../modules/reviews/journeys/U103.md), [U104](../modules/reviews/journeys/U104.md), [U101](journeys/U101.md), [U155](../modules/reviews/journeys/U155.md), [U164](../modules/watching/journeys/U164.md), [U165](../modules/feedback/journeys/U165.md) |
-| `.page.home .btn.primary` | the main button in the page home | [U122](journeys/U122.md) |
-| `.page.home h2` | the h2 in the page home | [U122](journeys/U122.md) |
+| `.page.home .btn.primary` | the main button in Home | [U122](journeys/U122.md) |
+| `.page.home h2` | the h2 in Home | [U122](journeys/U122.md) |
 | `.people-row` | the people row | [U14](journeys/U14.md), [U58](journeys/U58.md) |
 | `.person-facts` | the person facts | [U14](journeys/U14.md), [U58](journeys/U58.md) |
 | `.pick` | the pick | [U86](journeys/U86.md) |
@@ -370,7 +370,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.reviews-list` | the list of reviews | [U3](../modules/reviews/journeys/U3.md), [U104](../modules/reviews/journeys/U104.md), [U155](../modules/reviews/journeys/U155.md) |
 | `.rhythm-row` | the rhythm row | [U101](journeys/U101.md), [U102](journeys/U102.md) |
 | `.ring:visible` | the ring | [U12](journeys/U12.md), [U13](../modules/reviews/journeys/U13.md) |
-| `.rr-value` | the rr value | [U137](journeys/U137.md) |
+| `.rr-value` | the row’s sentence | [U137](journeys/U137.md) |
 | `.said` | the said | [U3](../modules/reviews/journeys/U3.md) |
 | `.sc-hit, .goal-chart .c-fc, .goal-chart .c-band` | the sc hit, or the c fc in the goal chart, or the c band in the goal chart | [U44](journeys/U44.md) |
 | `.section-links` | the section links | [U70](journeys/U70.md) |
@@ -392,11 +392,11 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.status-shape, .chip` | a status shape, or the chip | [U57](journeys/U57.md) |
 | `.status-shape, svg.shape` | a status shape, or the shape | [U105](../modules/metrics/journeys/U105.md) |
 | `.status-shape[data-status="unmeasured"]` | the status shape | [U170](../modules/metrics/journeys/U170.md) |
-| `.step-do button, .step-do a` | the button in the step do, or the link in the step do | [U78](journeys/U78.md) |
-| `.step-panel` | the step panel | [U78](journeys/U78.md) |
-| `.step-panel button[type=submit]` | the button in the step panel | [U77](journeys/U77.md) |
-| `.step-row` | the step row | [U3](../modules/reviews/journeys/U3.md), [U33](journeys/U33.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md) |
-| `.step-row.is-settled` | the step row is settled | [U37](journeys/U37.md), [U78](journeys/U78.md) |
+| `.step-do button, .step-do a` | the button in the row’s button, or the link in the row’s button | [U78](journeys/U78.md) |
+| `.step-panel` | the “Respond” form the row opens | [U78](journeys/U78.md) |
+| `.step-panel button[type=submit]` | the button in the “Respond” form the row opens | [U77](journeys/U77.md) |
+| `.step-row` | an ask’s row under “Next steps and asks” | [U3](../modules/reviews/journeys/U3.md), [U33](journeys/U33.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md) |
+| `.step-row.is-settled` | an answered or done row under “Next steps and asks” | [U37](journeys/U37.md), [U78](journeys/U78.md) |
 | `.steps` | the step counter | [U5](journeys/U5.md), [U11](journeys/U11.md), [U49](../modules/reviews/journeys/U49.md), [U54](journeys/U54.md), [U147](journeys/U147.md), [U86](journeys/U86.md) |
 | `.story-row` | the story row | [U33](journeys/U33.md) |
 | `.stream > li` | an entry in the stream | [U79](../modules/reviews/journeys/U79.md) |
@@ -421,8 +421,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.weekpick-is, .weekpick-is-inline` | the weekpick is, or the weekpick is inline | [U18](journeys/U18.md) |
 | `.weekpick.open` | the open week picker | [U109](journeys/U109.md) |
 | `.welcome .btn.primary` | the main button in the welcome | [U97](journeys/U97.md) |
-| `.why-block` | the why block | [U78](journeys/U78.md) |
-| `.why-block .why-pointer` | the why pointer in the why block | [U78](journeys/U78.md) |
+| `.why-block` | the goal’s “Why” section | [U78](journeys/U78.md) |
+| `.why-block .why-pointer` | the line pointing to Next steps and asks in the goal’s “Why” section | [U78](journeys/U78.md) |
 | `.ws-body .btn.primary:visible` | the main button in the ws body | [U51](../modules/feedback/journeys/U51.md) |
 | `.ws-facts` | the workspace facts | [U59](journeys/U59.md), [U61](journeys/U61.md), [U62](../modules/ai-access/journeys/U62.md), [U53](../modules/feedback/journeys/U53.md) |
 | `.ws-facts a` | the link in the ws facts | [U59](journeys/U59.md) |
@@ -438,7 +438,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
 | `[data-part="Changed since"]` | the “Changed since” part | [U124](journeys/U124.md) |
 | `[data-part="Checked in this week"]` | the “Checked in this week” part | [U102](journeys/U102.md) |
-| `[data-part="Checked in this week"] .ciq-row` | the ciq row in the “Checked in this week” part | [U102](journeys/U102.md) |
+| `[data-part="Checked in this week"] .ciq-row` | a goal’s row in the check-in’s list in the “Checked in this week” part | [U102](journeys/U102.md) |
 | `[data-part="Fields"]` | the “Fields” part | [U174](../modules/tags/journeys/U174.md) |
 | `[data-part="Goals you watch"]` | the “Goals you watch” part | [U124](journeys/U124.md) |
 | `[data-part="Home"]` | Home | [U103](../modules/reviews/journeys/U103.md), [U101](journeys/U101.md), [U155](../modules/reviews/journeys/U155.md) |
@@ -471,7 +471,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `input[type=file]` | the file chooser | [U5](journeys/U5.md), [U54](journeys/U54.md), [U147](journeys/U147.md) |
 | `legend` | the legend | [U135](../modules/goal-map/journeys/U135.md) |
 | `li` | the list item | [U23](journeys/U23.md) |
-| `li[data-row="who"] .rr-value` | the rr value in the li | [U137](journeys/U137.md) |
+| `li[data-row="who"] .rr-value` | the row’s sentence in the li | [U137](journeys/U137.md) |
 | `main` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U17](journeys/U17.md), [U33](journeys/U33.md), [U36](../modules/reviews/journeys/U36.md), [U37](journeys/U37.md), [U38](journeys/U38.md), [U40](../modules/feedback/journeys/U40.md), [U41](../modules/feedback/journeys/U41.md), [U58](journeys/U58.md), [U44](journeys/U44.md), [U102](journeys/U102.md), [U154](../modules/reviews/journeys/U154.md), [U155](../modules/reviews/journeys/U155.md), [U170](../modules/metrics/journeys/U170.md) |
 | `main .backlink` | the backlink in the main | [U70](journeys/U70.md) |
 | `main .btn.primary` | the main button in the main | [U179](../modules/metrics/journeys/U179.md) |

@@ -686,6 +686,9 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/rebuild/reads.md'] = await readsPage();
   // The module platform stage 3 builds and every module stage stands on (drill 11, fix 1).
   out['spec/rebuild/module-platform.md'] = modulePlatformPage(mods);
+  // Each installed module's facts as data (drill 11, S3-10): its module.json as Faro reads it, without its stage's words
+  // (`rebuild`, which is its stage page), so a rebuild's platform loads the same facts and Features shows the same summaries.
+  out['spec/rebuild/modules.json'] = JSON.stringify((mods as (ModuleFacts & { rebuild?: unknown })[]).map(({ rebuild: _r, ...m }) => m), null, 2) + '\n';
   Object.assign(out, await databaseFiles(root));
   return out;
 }

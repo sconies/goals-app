@@ -96,6 +96,30 @@ fs.writeFileSync('seen.json', JSON.stringify([...seen, { near, ws: JSON.parse(fs
     expect(r.stdout).toMatch(/no column .*“kind”/);
     fs.rmSync(rb, { recursive: true, force: true });
   }, 30_000);
+
+  it('scores core-only/ with drill.json as it is: files and contracts the folder lacks are named once, not a crash (drill 11, S3-1)', () => {
+    const rb = fs.mkdtempSync(path.join(os.tmpdir(), 'drill-core-only-'));
+    const co = path.join(root, 'spec/conformance/core-only');
+    // A stage 3 rebuild that also asks for stage 2's files and a store contract, as one carried from stage 2 does.
+    fs.writeFileSync(path.join(rb, 'drill.json'), JSON.stringify({ stage: 3, run: 'node main.mjs', shim: 'node shim.mjs', contracts: ['store'], also: ['changes', 'import', 'status'] }));
+    fs.writeFileSync(path.join(rb, 'main.mjs'), `import fs from 'node:fs'; import path from 'node:path';
+const out = process.argv[3];
+for (const f of ['navigation', 'readback', 'find', 'home']) fs.copyFileSync(path.join(${JSON.stringify(co)}, f + '.csv'), path.join(out, f + '.csv'));`);
+    fs.writeFileSync(path.join(rb, 'shim.mjs'), 'process.exit(3);');
+    const r = drill(rb, '--expected', co, '--diffs', '0');
+    expect(r.stderr).toBe('');
+    expect(r.stdout).toContain('Contracts not run: ');
+    expect(r.stdout).toContain('changes.csv: not scored (the conformance folder has no changes.csv)');
+    expect(r.stdout).toContain('status.csv: not scored (the conformance folder has no status.csv)');
+    expect(r.stdout).toMatch(/home\.csv: 56 of 56 rows match/);
+    expect(r.stdout).toContain('PASS');
+    expect(r.status).toBe(0);
+    // A contract named on the command line that the full folder lacks is still a typo, said as one.
+    const t = drill(rb, '--contracts', 'stor', '--diffs', '0');
+    expect(t.status).toBe(2);
+    expect(t.stderr).toMatch(/No contract stor in .*; there are /);
+    fs.rmSync(rb, { recursive: true, force: true });
+  }, 60_000);
 });
 
 describe('rebuild stages', () => {

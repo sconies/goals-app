@@ -10,7 +10,7 @@ export const STAGE3_BUILD: string[] = [
 
 /** Stage 3's exit criteria, after its own. */
 export const STAGE3_EXIT: string[] = [
-  '`node spec/rebuild/drill.mjs rebuild --expected spec/conformance/core-only` prints **PASS** too: the same four files on the same workspace with every feature module switched off (`modulesOff`), so the core is proved without any module ([the core alone](../conformance/README.md#the-core-alone-core-only)).',
+  '`node spec/rebuild/drill.mjs rebuild --expected spec/conformance/core-only` prints **PASS** too: the same four files on the same workspace with every feature module switched off (`modulesOff`), so the core is proved without any module ([the core alone](../conformance/README.md#the-core-alone-core-only)). Leave `drill.json` as it is: a file or contract `core-only/` doesn’t hold (it has these four files and no `contracts/`) is named once as not scored, so `also` and `contracts` carried from stage 2 can stay.',
   'The module platform holds what [its page](module-platform.md#what-proves-it-stage-3s-exit-criterion-for-the-platform) lists, with one example module on, switched off and left out.',
 ];
 

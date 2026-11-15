@@ -49,6 +49,7 @@ const ROLE: Record<string, string> = {
 const PARTS: Record<string, string> = {
   '.goal-bar': 'the goal’s summary bar',
   '.goal-bar .bar-actions': 'the buttons on the goal’s summary bar',
+  '.goal-bar .bar-actions .btn.primary': 'the main button on the goal’s summary bar',
   '.goal-bar .bar-status': 'the status on the goal’s summary bar',
   '.pick.open': 'the open find-and-pick list',
   '.weekpick.open': 'the open week picker',
@@ -110,6 +111,34 @@ const PARTS: Record<string, string> = {
   '.checklist': 'the checklist',
 };
 
+/** Faro's names for one piece of a selector (a class, or classes on one element), with its article, so a longer selector
+    reads as parts a rebuild can build without Faro's CSS: “the row's button in a row under Next steps and asks” rather
+    than “the step do in the step row” (drill 11, stage 3 re-run, S3-14). A tone after it (`[data-tone=off]`, or a status
+    class such as `.off`) is said as “marked off track”. */
+const PIECES: Record<string, string> = {
+  '.arow': 'a goal’s attention row (its status shape, title and why)',
+  '.arow-who': 'the owner’s name',
+  '.arow-why': 'the line saying why',
+  '.arow-icon': 'the status shape',
+  '.goal-bar': 'the goal’s summary bar',
+  '.bar-actions': 'the buttons',
+  '.bar-status': 'the status word',
+  '.step-row': 'an ask’s row under “Next steps and asks”',
+  '.step-row.is-settled': 'an answered or done row under “Next steps and asks”',
+  '.step-do': 'the row’s button',
+  '.step-panel': 'the “Respond” form the row opens',
+  '.why-block': 'the goal’s “Why” section',
+  '.why-pointer': 'the line pointing to Next steps and asks',
+  '.page.home': 'Home',
+  '.home-mine': 'the “Your goals” block on Home',
+  '.home-counts': 'the status counts (each a shape, a number and a word, linking to those goals)',
+  '.goal-read-back': 'New goal’s read-back (the list named “Read back”, a row per sentence, each with its id)',
+  '.rr-value': 'the row’s sentence',
+  '.after-publish': 'the “After you publish” section',
+  '.ciq-row': 'a goal’s row in the check-in’s list',
+};
+const TONES: Record<string, string> = { off: 'off track', risk: 'at risk', on: 'on track', stale: 'with no recent update', done: 'done', stopped: 'stopped' };
+
 /** The parts named by CSS selector while reading one journey: the selector and its words (gap S3-12). */
 let partsNamed = new Map<string, string>();
 
@@ -144,17 +173,27 @@ function compoundWords(c: string): string {
   if (TAGS[c]) return TAGS[c]!;
   return c.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, '').replace(/^[a-z0-9]+(?=[.#])/, '').replace(/[.#]/g, ' ').replace(/[-_]+/g, ' ').trim();
 }
+/** One piece of a selector in words, with its article: Faro's name for it (PIECES) when it has one, else its classes read as words. */
+function pieceWords(c: string): string {
+  const tone = /\[data-tone=["']?(\w+)/.exec(c)?.[1];
+  const bare = c.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, '');
+  const classes = bare.split('.').filter(Boolean);
+  const status = classes.length > 1 && TONES[classes.at(-1)!] ? classes.at(-1)! : undefined;
+  const named = PIECES[bare] ?? (status ? PIECES['.' + classes.slice(0, -1).join('.')] : undefined);
+  const marked = tone ?? status;
+  if (named) return marked && TONES[marked] ? `${named}, marked ${TONES[marked]}` : named;
+  const w = compoundWords(c);
+  return !w ? '' : w === 'each named part' ? w : `the ${w}`;
+}
 function cssWordsOf(sel: string): string {
   if (PARTS[sel]) return PARTS[sel]!;
   const raw = sel;
   const one = (x: string): string | null => {
     if (PARTS[x]) return PARTS[x]!;
     x = x.replace(/\.btn\.primary\b/g, '.main-button').replace(/\.btn\b/g, '.button');
-    const parts = splitSelector(x, /[\s>+~]/).map(compoundWords).filter(Boolean);
+    const parts = splitSelector(x, /[\s>+~]/).map(pieceWords).filter(Boolean);
     if (!parts.length) return null;
-    const [last, ...rest] = parts.reverse();
-    const head = last === 'each named part' ? last : `the ${last}`;
-    return [head, ...rest.map((p) => `the ${p}`)].join(' in ');
+    return parts.reverse().join(' in ');
   };
   const each = splitSelector(sel, /,/).map(one);
   if (each.some((x) => x == null)) return `the part \`${raw}\``;
@@ -905,6 +944,34 @@ export function partsAndDays(docs: JourneyDoc[], link: (id: string) => string): 
   ];
 }
 
+/**
+ * What a journey takes for granted that its lines don't show (drill 11, stage 3 re-run, S3-14): the records it starts
+ * from and why the screen asks what it asks, so a rebuild can set the same scene. Keyed by journey id; `{up}` is the
+ * path back to spec/.
+ */
+export const JOURNEY_SET_UP: Record<string, string[]> = {
+  U4: [
+    'Mateo Fernández (`mateo`) owns goals and leads SRE, which owns north-star goals, so New goal starts with no level ([new goal](rules/new-goal.md), rule 1) until a goal it feeds is chosen.',
+    'Typing “restore” under Feeds into offers “Mean time to restore service (P1 and P2)” (G-41, `ns-mttr`), a north star; choosing it makes the goal SVP, one level below. The Level field is a group named “Level” of buttons, one per level, the chosen one pressed (`aria-pressed="true"`).',
+  ],
+  U78: [
+    'Rhea Kapoor (`rhea`) asked Amara Nwosu (`amara`) for a decision, “approve the extra CI runner budget for Q4”, on `ns-lead` and two goals feeding it: request `req_po164` in [`workspace.json`]({up}conformance/workspace.json), open, with no due week. Two older copies of the same words are withdrawn and not shown.',
+    '“Look as Amara at …” changes who is viewing in the same browser (Faro’s Demo panel does this) and opens the address; a fresh browser as Amara does the same for a rebuild.',
+    'Each ask is one row under “Next steps and asks”: its words, its line, its state and at most one button, the one the viewer may press (for a decision: Respond for the one asked, Withdraw for the asker). For Amara the goal’s summary bar’s main button is “Answer Rhea’s request” ([the goal’s page](rules/goal-act.md)), which opens the same reply form as Respond, in the row: a section named “Respond” with a text box and a submit button. An answered row is settled and stays, with its answer; a withdrawn one goes.',
+  ],
+  U122: [
+    'The demo on each day is the demo as it stands that day. On Monday 9 November Tunde Bakare (`tunde`) owns two goals, `lead-rollback` and `cfr-contract`, with week 46’s check-ins still to do, due Thursday 12 November. By Wednesday 11 November both are posted, on time, that morning (Faro’s demo has them; a rebuild working from [`workspace.json`]({up}conformance/workspace.json), built for 5 November, posts them itself before the Wednesday step). Friday 13 November adds nothing.',
+    'On Wednesday 11 November Rhea Kapoor (`rhea`) still has week 46 check-ins to do, so Check-ins leads her Home ([Home](rules/home.md), lead 2).',
+    '“Switch to Rhea in the Demo panel” changes who is viewing in the same browser; a fresh browser as Rhea does the same for a rebuild.',
+  ],
+  U137: [
+    'Tunde Bakare (`tunde`) is in Build & Release (`build`) and adds a goal for CI/CD (`cicd`), with himself as its owner, so New goal asks “Tunde is in Build & Release, not CI/CD. Which team is this goal for?” with “Keep it in CI/CD” first ([goal entry](rules/goal-entry.md), rule 3, `owner-other-team`). The answer is read back under You said, and History keeps it as Checked.',
+    'G-41 is “Mean time to restore service (P1 and P2)”, a north star, so the goal starts at SVP. Its reviews (Platform leadership weekly and Reliability weekly) are the ones it joins ([the read-back](rules/read-back.md)).',
+    'The read-back’s rows are found by their ids (`what`, `who`, `measured`, `usual`, `said`, as [the read-back](rules/read-back.md) lists them), each row’s sentence by itself; “After you publish” is its own section under that heading.',
+    'The loop over `Object.entries(want)` checks four rows, word for word: `what` “A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027), the same amount each week. Higher is better.”; `who` “Tunde Bakare owns it, in CI/CD. It’s an SVP goal and feeds “Mean time to restore service (P1 and P2)” (G-41).”; `usual` “Whole numbers. From this week to the end of 2026. Steady. Not a guardrail. Helps no other goal.”; `said` “Tunde is in Build & Release; the goal stays in CI/CD.”',
+  ],
+};
+
 /** One journey's page. `up` is the path back to spec/ from the page. */
 export function journeyPage(j: JourneyDoc, up: string, owner: string): string {
   return [
@@ -918,6 +985,7 @@ export function journeyPage(j: JourneyDoc, up: string, owner: string): string {
     `- **Ease test:** ${j.na.length ? `every point but ${j.na.map((x) => `\`${x}\``).join(', ')}` : 'all ten points'} ([the ease test](${up}core/journeys.md#the-ease-test))`,
     `- **Runs on:** a phone (390 × 844) and a desktop (1440 × 900), the same lines on each unless one says otherwise`,
     `- **Starts:** ${j.start}`,
+    ...(JOURNEY_SET_UP[j.id] ? [`- **Set-up it takes for granted:**`, ...JOURNEY_SET_UP[j.id]!.map((x) => `  - ${x.replaceAll('{up}', up).replace(/\]\(rules\//g, `](${up}core/rules/`)}`)] : []),
     `- **Source:** \`${JOURNEYS_FILE}\`, the entry for ${j.id}`,
     '',
     '## Steps and checks',
