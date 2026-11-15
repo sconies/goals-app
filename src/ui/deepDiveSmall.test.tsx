@@ -10,10 +10,11 @@ describe('deep dive, small fixes', () => {
     expect(MAP_ARIA['node.a11yDescription.default']).toMatch(/never removes a goal/);
   });
 
-  it('lets a range kept between two limits break after its dash, each limit whole, so it stays in its cell (item 7)', () => {
+  it('lets a range kept between two limits break after its dash, and a long limit at its spaces, so it stays in its cell (item 7)', () => {
     const { container } = render(<TargetWords text="1,200 ms–1,500 ms" />);
-    expect([...container.querySelectorAll('.nb')].map((e) => e.textContent)).toEqual(['1,200 ms–', '1,500 ms']);
-    expect(container.querySelector('wbr')).not.toBeNull();
+    // A break after the dash, and nothing held unbreakable: a limit wider than the column wraps at its own space.
+    expect(container.innerHTML).toBe('1,200 ms–<wbr>1,500 ms');
+    expect(container.querySelector('.nb')).toBeNull();
     const one = render(<TargetWords text="≤ 15.0%" />).container;
     expect(one.textContent).toBe('≤ 15.0%');
     expect(one.querySelector('wbr')).toBeNull();
