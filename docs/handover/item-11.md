@@ -31,7 +31,7 @@ To set up (S = your scratchpad):
 | 1–2 core | Carried; re-scored 100% after fixing E-16, E-18 from the kit | in stage 3's |
 | 3 core + module platform | Harness 100%; platform 37/37; journeys 8 DONE / 18 PART / 45 NOT BUILT of 71 | 1 VERIFIED, 2–3 NOT MET, 4–5 WEAK |
 | 4 AI access | 5 of 7; 8 core changes | 3–7 VERIFIED; 1, 2 WEAK |
-| 5 Feedback | 5 of 5 (FEEDBACK-RAISED part); journeys 5/4/0; 5 core files | **review was running at handover** (see below) |
+| 5 Feedback | 5 of 5 (FEEDBACK-RAISED part); journeys 5/4/0; 5 core files | 3–5 VERIFIED; 1, 2 WEAK; list_feedback and triage access contradict; no inbox data model; no menu-count place |
 | 6 Goal map | 4 of 4 (journeys only partly); 3 core files | 3, 4 VERIFIED; 1 WEAK; 2 NOT MET |
 | 7 Metric library + MI | metrics.csv 124/124; 16 of 22; 5 core files | 11 VERIFIED, 9 WEAK, 2 NOT MET; U81 phone fails; ~45 of 124 rows' questions learned from diffs |
 | 8 Reviews | reviews.csv 91/91 first run; 11 of 12 (U103) | 3, 4, 6–10, 12 VERIFIED; 1, 11 WEAK; 2, 5 NOT MET; real gap is the missing `attention` lead and lead order (core-only home.csv leads with attention) |
