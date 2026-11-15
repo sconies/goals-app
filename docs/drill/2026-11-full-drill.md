@@ -64,7 +64,7 @@ These share one pattern, and it is what the platform must do:
 7. Give admin rights per workspace (builders for the feedback inbox), and scope files to the workspace and the reader, with paths normalised.
 8. Restate, in the server, the rules the database's CHECK constraints held.
 
-**R1 now lists every record kind and side-effect write the server checks:** [`spec/requirements/internal/r1-sign-in-and-access.md#record-kinds-the-server-checks`](../../spec/requirements/internal/r1-sign-in-and-access.md#record-kinds-the-server-checks) (that section lands with the kit PR, `drill-11-kit`). **The internal platform must enforce this, per record kind, against stored rows.** Faro's browser store does not, on purpose: it never holds real data. In several modules the guard was covered only by a proof script, not by `npm test`; a platform should have unit tests for it.
+**R1 now lists every record kind and side-effect write the server checks:** [`spec/requirements/internal/r1-sign-in-and-access.md#record-kinds-the-server-checks`](../../spec/requirements/internal/r1-sign-in-and-access.md#record-kinds-the-server-checks) (that section has been in R1 since #550). **The internal platform must enforce this, per record kind, against stored rows.** Faro's browser store does not, on purpose: it never holds real data. In several modules the guard was covered only by a proof script, not by `npm test`; a platform should have unit tests for it.
 
 ## The platform requirements
 
@@ -95,7 +95,7 @@ Everything the stand-in needed from a platform, as the kit stands after this dri
 6. **Where a module's own rows are checked.** There is no hook for a module's guard; two builds invented a registry independently (`platform` in metrics, `guard` in tags). The kit should name one.
 7. **The server refuses a switched-off or left-out module's rows**, not only its tools, menu, Home card and import.
 8. **The server's own clock** for every time it records (wrap-up weeks, retro time, watches).
-9. **Side-effect writes**: a metric's save relabelling others' goals, a watch carried at cycle start and undone with it, a leaver leaving a review, a carried goal joining a review. R1 does not list them (the kit PR now does).
+9. **Side-effect writes**: a metric's save relabelling others' goals, a watch carried at cycle start and undone with it, a leaver leaving a review, a carried goal joining a review. R1 did not list them; since #550 it does.
 10. **Module tables in their own migration**, kept while the module is left out of a build.
 11. **Files:** list and delete are missing from the port; `/api/files` served any path to any signed-in person.
 12. **Smaller:** who creates a workspace and becomes its first admin (by email); which admin triages an inbox that spans workspaces; who sees and answers an import job; an admin writing another person's watch (silent in R1); who may wrap up a goal (the owner or an admin, stated in the code and stage words); the Supabase client chunk still shipped in the app bundle.
