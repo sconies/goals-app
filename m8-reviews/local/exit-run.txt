@@ -1,0 +1,299 @@
+TAP version 13
+# Subtest: 1. Its requirements hold (REVIEW, REVIEW-SETUP, REVIEW-RUN, REVIEW-SPEAK, REVIEW-DECIDE, REVIEW-LIST-STATE, REVIEW-AGENDA, REVIEWS-OPTIONAL, REVIEWS-SWITCH-CLOCK)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 142.329545
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 34.559046
+      type: 'test'
+      ...
+    1..2
+ok 1 - 1. Its requirements hold (REVIEW, REVIEW-SETUP, REVIEW-RUN, REVIEW-SPEAK, REVIEW-DECIDE, REVIEW-LIST-STATE, REVIEW-AGENDA, REVIEWS-OPTIONAL, REVIEWS-SWITCH-CLOCK)
+  ---
+  duration_ms: 638.782471
+  type: 'test'
+  ...
+# Subtest: 2. Its journeys and checks can be done (U3, U13, U30, U36, U47, U49, U63, U67, U79, U80, U103, U104, U154, U155, N1, N21)
+    # Subtest: Reviews on
+    not ok 1 - Reviews on
+      ---
+      duration_ms: 18498.608358
+      type: 'test'
+      location: '/tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:40:43'
+      failureType: 'testCodeFailure'
+      error: |-
+        journeys not done: U3 PART, U30 PART, U36 PART, U47 NOT BUILT, U49 NOT BUILT, U67 PART, U79 NOT BUILT, U80 NOT BUILT, U154 PART, N1 NOT BUILT, N21 NOT BUILT
+        + actual - expected
+        
+        + [
+        +   'U3 PART',
+        +   'U30 PART',
+        +   'U36 PART',
+        +   'U47 NOT BUILT',
+        +   'U49 NOT BUILT',
+        +   'U67 PART',
+        +   'U79 NOT BUILT',
+        +   'U80 NOT BUILT',
+        +   'U154 PART',
+        +   'N1 NOT BUILT',
+        +   'N21 NOT BUILT'
+        + ]
+        - []
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+        0: 'U3 PART'
+        1: 'U30 PART'
+        2: 'U36 PART'
+        3: 'U47 NOT BUILT'
+        4: 'U49 NOT BUILT'
+        5: 'U67 PART'
+        6: 'U79 NOT BUILT'
+        7: 'U80 NOT BUILT'
+        8: 'U154 PART'
+        9: 'N1 NOT BUILT'
+        10: 'N21 NOT BUILT'
+      operator: 'deepStrictEqual'
+      stack: |-
+        file:///tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:103:10
+        TestContext.<anonymous> (file:///tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:40:152)
+        process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async both (file:///tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:40:35)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: Reviews off
+    not ok 2 - Reviews off
+      ---
+      duration_ms: 7.614807
+      type: 'test'
+      location: '/tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:40:43'
+      failureType: 'testCodeFailure'
+      error: 'fetch failed'
+      code: 'ERR_TEST_FAILURE'
+      name: 'TypeError'
+      stack: |-
+        node:internal/deps/undici/undici:15456:13
+        async TestContext.<anonymous> (file:///tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:40:97)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async both (file:///tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:40:35)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..2
+not ok 2 - 2. Its journeys and checks can be done (U3, U13, U30, U36, U47, U49, U63, U67, U79, U80, U103, U104, U154, U155, N1, N21)
+  ---
+  duration_ms: 18506.975908
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-goals-app/2a3c5068-5831-574f-814c-2274e93a5b4e/scratchpad/m8/rebuild/modules/reviews/exit.test.mjs:97:1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: 3. Switched off, no Reviews row; the tabs are Home, Check-in, Goals, People (an owner) or Home, Goals, People, Activity
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 33.247825
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 25.161483
+      type: 'test'
+      ...
+    1..2
+ok 3 - 3. Switched off, no Reviews row; the tabs are Home, Check-in, Goals, People (an owner) or Home, Goals, People, Activity
+  ---
+  duration_ms: 59.238069
+  type: 'test'
+  ...
+# Subtest: 4. Switched off, every review address says so; ?review= opens the goal; whatever would save Reviews’ records is refused (N21)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 69.448626
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 50.425536
+      type: 'test'
+      ...
+    1..2
+ok 4 - 4. Switched off, every review address says so; ?review= opens the goal; whatever would save Reviews’ records is refused (N21)
+  ---
+  duration_ms: 120.429852
+  type: 'test'
+  ...
+# Subtest: 5. Switched off, Home has no Next review and no review lead; an owner of no goal is led to the goals they watch; a question waits by its age; the due flag is the same
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 26.611135
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 26.302115
+      type: 'test'
+      ...
+    1..2
+ok 5 - 5. Switched off, Home has no Next review and no review lead; an owner of no goal is led to the goals they watch; a question waits by its age; the due flag is the same
+  ---
+  duration_ms: 53.367347
+  type: 'test'
+  ...
+# Subtest: 6. Switching off first reads back what stays (switchOffReadBack), and Undo brings Reviews back (U103)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 33.720823
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 34.432489
+      type: 'test'
+      ...
+    1..2
+ok 6 - 6. Switching off first reads back what stays (switchOffReadBack), and Undo brings Reviews back (U103)
+  ---
+  duration_ms: 68.629751
+  type: 'test'
+  ...
+# Subtest: 7. Back on, every review, its people, its cadence and what was said are as they were (U104)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 43.817358
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 44.059398
+      type: 'test'
+      ...
+    1..2
+ok 7 - 7. Back on, every review, its people, its cadence and what was said are as they were (U104)
+  ---
+  duration_ms: 88.227559
+  type: 'test'
+  ...
+# Subtest: 8. The clock’s words come from dueWords and match every row of reviews.csv; off, the receipt says “…are in by Thursday.” (U154)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 878.007244
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 29.003133
+      type: 'test'
+      ...
+    1..2
+ok 8 - 8. The clock’s words come from dueWords and match every row of reviews.csv; off, the receipt says “…are in by Thursday.” (U154)
+  ---
+  duration_ms: 907.530039
+  type: 'test'
+  ...
+# Subtest: 9. A closed page and every review tool (and edit_call on a review note) answer with the one switched-off sentence (N30)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 45.656813
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 28.455468
+      type: 'test'
+      ...
+    1..2
+ok 9 - 9. A closed page and every review tool (and edit_call on a review note) answer with the one switched-off sentence (N30)
+  ---
+  duration_ms: 74.635636
+  type: 'test'
+  ...
+# Subtest: 10. The read-back adds the accepted risks (left out at nought) and the due day’s line (RS2)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 35.305684
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 32.425897
+      type: 'test'
+      ...
+    1..2
+ok 10 - 10. The read-back adds the accepted risks (left out at nought) and the due day’s line (RS2)
+  ---
+  duration_ms: 68.161138
+  type: 'test'
+  ...
+# Subtest: 11. Switched off, the workbook has no Notes sheet and no Review column on Asks; an import with them says once they were not read
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 26.238439
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 28.645297
+      type: 'test'
+      ...
+    1..2
+ok 11 - 11. Switched off, the workbook has no Notes sheet and no Review column on Asks; an import with them says once they were not read
+  ---
+  duration_ms: 55.385145
+  type: 'test'
+  ...
+# Subtest: 12. Back on after a week off, a session whose date passed while it was off moves on: neither Reviews nor Home says Not held yet (U155)
+    # Subtest: Reviews on
+    ok 1 - Reviews on
+      ---
+      duration_ms: 30.756604
+      type: 'test'
+      ...
+    # Subtest: Reviews off
+    ok 2 - Reviews off
+      ---
+      duration_ms: 37.774376
+      type: 'test'
+      ...
+    1..2
+ok 12 - 12. Back on after a week off, a session whose date passed while it was off moves on: neither Reviews nor Home says Not held yet (U155)
+  ---
+  duration_ms: 69.037222
+  type: 'test'
+  ...
+1..12
+# tests 36
+# suites 0
+# pass 33
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20788.377512

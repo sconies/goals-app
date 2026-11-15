@@ -1,0 +1,2 @@
+#!/bin/sh
+cd "$(dirname "$0")/.." && timeout 900 node modules/reviews/journeys.cjs "$@" 2>&1 | tail -1 | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const o=JSON.parse(s.trim());for(const[k,v]of Object.entries(o)){console.log(k,v.tally,v.part?'('+v.part.slice(0,40)+')':'');for(const[w,x]of Object.entries(v.widths||{}))console.log('  ',w,x.steps,x.fails.join(' || ').slice(0,1500), x.notes.length?'NOTES '+x.notes[0]:'')}}catch(e){console.log(s)}})"
