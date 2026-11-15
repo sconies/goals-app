@@ -62,7 +62,7 @@ Every outside part sits behind one interface in `src/ports/`, with a contract te
 ### 5. Prove it
 
 - [ ] **The rules:** run the drill harness on your build (`spec/rebuild/drill.mjs`) until it scores 100% against the conformance data.
-- [ ] **The journeys:** `spec/core/journeys.md` lists what people do end to end; Faro's own checks are in `evals/` if you keep the code.
+- [ ] **The journeys:** `spec/core/journeys.md` lists what people do end to end, and each journey's page (`spec/core/journeys/<id>.md`, a module's under its section) gives its steps and checks in words, read from Faro's own checks in `evals/` (keep those if you keep the code).
 - [ ] **Each stage's exit criteria** in `spec/rebuild/`.
 - [ ] **Each requirement's acceptance checks** in `spec/requirements/internal/`.
 
