@@ -9973,6 +9973,17 @@ function undoPlan(x, importId) {
 	let moduleBack = 0;
 	for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
 		const cur = (full.modules?.[m.module]?.[m.key] ?? []).find((r) => r.id === id);
+		const row = cur ?? before;
+		const onGoal = row && typeof row.goalId === "string" && typeof row.fieldId === "string" ? {
+			goalId: row.goalId,
+			fieldId: row.fieldId
+		} : null;
+		const by = latest((c) => c.entity !== "workspace" && c.entity !== "goal" && (c.entityId === id || !!onGoal && c.goalId === onGoal.goalId && c.entityId === onGoal.fieldId));
+		const goalTitle = onGoal ? full.goals.find((g) => g.id === onGoal.goalId)?.title : void 0;
+		if (by && cur) {
+			keep(String(cur.name ?? goalTitle ?? `A ${m.key} row`), by, "other");
+			continue;
+		}
 		const back = before ?? (cur && !cur.removedAt ? {
 			...cur,
 			removedAt: x.now,
@@ -13389,6 +13400,18 @@ function* planChangesInChunks(input) {
 		for (const p of planned) changes.push(...p.result.commit.changes ?? []);
 		const moduleRowsOut = planned.reduce((m, p) => mergeModuleRows(m, p.result.commit.modules), void 0);
 		const moduleUndo = planned.flatMap((p) => p.result.undo);
+		const allGoals = new Map((input.full?.goals ?? s.goals).map((g) => [g.id, g]));
+		const plannedGoals = planned.flatMap((p) => p.result.commit.goals ?? []);
+		for (const mg of plannedGoals) {
+			const at = ordered.findIndex((o) => o.id === mg.id);
+			if (at < 0) continue;
+			const base = allGoals.get(mg.id);
+			const moved = Object.fromEntries(Object.entries(mg).filter(([k, v]) => v !== base?.[k]));
+			ordered[at] = {
+				...ordered[at],
+				...moved
+			};
+		}
 		for (const [module, keys] of Object.entries(moduleOut ?? {})) for (const [key, rows] of Object.entries(keys)) {
 			if (!rows.length) continue;
 			const saved = s.modules?.[module]?.[key] ?? [];
@@ -13401,7 +13424,7 @@ function* planChangesInChunks(input) {
 				}))
 			});
 		}
-		const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
+		const moduleGoals = plannedGoals.filter((g) => !ordered.some((o) => o.id === g.id));
 		for (const ch of changes) ch.importId = importId;
 		const requestsBefore = asksOf(s);
 		const summary = {
@@ -13449,7 +13472,7 @@ function* planChangesInChunks(input) {
 		};
 		for (const g of moduleGoals) summary.undo.goals.push({
 			id: g.id,
-			before: savedGoal.get(g.id) ?? null
+			before: allGoals.get(g.id) ?? null
 		});
 		result.commit = {
 			...peopleOut.size ? { people: [...peopleOut.values()] } : {},
@@ -16016,6 +16039,7 @@ var init_sheetPlan = __esmMin((() => {
 }));
 // src/modules/metrics/sheet.ts
 init_columns();
+init_sheets();
 init_rules$1();
 init_rulesStill();
 init_rulesStructure();
@@ -16073,8 +16097,13 @@ var METRICS_SHEET = {
 	}
 };
 /** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
-Direction or Measures. */
+Direction or Measures; never one with a column the Goals sheet reads as Goal or Key (its own name or another the
+field table gives it: Title, Goal name, Objective…), which is a Goals sheet. */
 function isMetricsHeader(h) {
+	for (const x of h) {
+		const c = coreGoalsColumn(x);
+		if (c === "Goal" || c === "Key") return false;
+	}
 	return h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
 }
 // src/modules/metrics/records.ts
@@ -17007,7 +17036,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "AI access, as a feature a workspace can switch off. An admin makes a personal MCP token for someone (shown once, only its hash kept) and anyone revokes their own; an AI tool using the token acts as that person through the MCP server, with that person's rights, every change logged as theirs “via MCP”. The tokens are listed on their own Workspace section, AI access (/workspace/ai, admins), in Settings (your own) and on a person's page (Make an MCP token). Off, the server refuses every token of the workspace with one sentence, but still lists its tools; no token can be made; Workspace, Settings and People show no tokens; /workspace/ai says it is switched off. Tokens are kept, not revoked: switching it back on makes them work again. An admin switches it on Workspace, Features, after a read-back that names the tokens.",
-			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 2).", "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (the AI tools' stage)."],
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 3, the module platform).", "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (stage 3, the module platform); this stage adds the tokens and the switch that shuts its door."],
 			"exit": [
 				"Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.",
 				"Switched off, making a token is refused with “AI access is off in {workspace}.”, and revoking one still works.",
@@ -17071,7 +17100,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "Feedback, as a feature a workspace can switch off. Anyone can send feedback about Faro (a mood and a few words) or mark up the screen they are on (a still picture with marks and a line, from Send feedback or Ctrl+Shift+M), and everything sent goes to the builders' inbox, the page Feedback, which the people who build Faro work through from New to In hand to Closed, and which an AI tool can review. Off, Feedback leaves the menu, Send feedback and Mark up this screen go, Ctrl+Shift+M does nothing, /feedback says it is switched off and who can switch it on, and the inbox's tools and send_feedback refuse. What was sent stays in the builders' inbox.",
-			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2).", "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."],
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform).", "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."],
 			"exit": [
 				"Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U165).",
 				"Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).",
@@ -17211,7 +17240,10 @@ var _virtual_faro_modules_default = [
 			"N29",
 			"F15",
 			"N16",
-			"U170"
+			"U170",
+			"U179",
+			"U161",
+			"U72"
 		],
 		elsewhere: [],
 		rebuild: /* @__PURE__ */ JSON.parse("{\"status\":\"outline\",\"builds\":\"The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. Measurement status: each metric says whether it is measured today (Measured, Partly or Gap, a shape and a word, with what is missing); a gap or a part is listed under To sort out, and a goal measured by a gap is held to no number (the core’s rule over the goal’s own field, which the library fills in when it links the goal and when the metric is measured). The Metrics sheet in and out: the workbook’s Metrics sheet loads back through the core’s change engine, by a planner the module gives its sheet, with the library’s own rules, the import’s questions and one Undo; it carries the metric’s structure as Part of, How it relates, Confidence and How it could be gamed, refusing a loop or a level with no parent in the library’s words.\",\"entry\":[\"The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.\",\"Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.\"],\"exit\":[\"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.\",\"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.\",\"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.\",\"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.\",\"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).\",\"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.\",\"Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).\",\"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.\",\"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).\",\"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).\",\"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).\",\"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).\",\"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).\",\"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).\",\"A metric said to be a Gap holds every goal it measures to no number in the same save (the goal says Not measured yet and nothing on it is due); said to be measured, partly or in full, or unlinked, the goal is held to its plan again; the library lists the gap under To sort out.\",\"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).\",\"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was.\",\"Where a number came from shows beyond the check-in, from what each check-in recorded: the goal’s Measured by says “This week’s number” from its latest check-in, each History row says it came from the source or was typed over it and why, the metric’s page says for each goal how its check-in gets its number and, over the last 8 weeks, how many numbers filled in from the source were typed over (goals and weeks, never people; rule 4), a review’s agenda says “· from {source}” after a confirmed number, and the Check-ins sheet has four columns for reading that load back as no change; get_goal and get_metric say the same (journey U161). Real connectors are R12’s (spec/requirements/internal/r12-number-sources.md).\",\"The Metrics sheet loads back (MI): an export loaded unchanged plans nothing; a row with no ID adds a metric owned by whoever loads it; a row with an ID changes that metric, and Retire with a Reason retires it; a name used twice, an ID that isn’t here and a unit change on a metric goals use are each a Must fix in the form’s words; one Undo puts every row back; with the module off the sheet is said once and not read.\",\"A Metrics sheet row whose Part of would put a metric under itself, directly or round a loop, is a Must fix in the library’s words (“Choose another parent: it’s already under this one.”), and an export of a metric with a parent, level, confidence and gaming loads back changing nothing.\"],\"gaps\":[\"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).\",\"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).\",\"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.\"]}"),
@@ -17337,13 +17369,14 @@ var _virtual_faro_modules_default = [
 			"U154",
 			"U155",
 			"N1",
-			"N21"
+			"N21",
+			"U72"
 		],
 		elsewhere: [],
 		rebuild: {
 			"status": "outline",
 			"builds": "Reviews, as a feature a workspace can switch off. A review walks a set of goals together on a cadence (every 1, 2 or 4 weeks, on a weekday): its agenda puts the goals that need attention first, worst and stalest, and the walk opens each goal's page in turn, where someone in the review marks it reviewed, adds a note, asks the owner a question, agrees a next step with who and by when, or accepts the risk on a goal behind; a goal off track or at risk leaves the walk with a decision. What was said stays on each goal: questions and next steps are asks, open on the owner's Home until answered or done; a held session leads its page with what was said, and prints. Off, Reviews has no menu row or phone tab, no page (its addresses say it is switched off and who can switch it on), no Next review on Home, no Last time we talked or walk on a goal, no review tools for an assistant and no review asked for on Workspace; asks and next steps stay as they are, History keeps what was said, and switching it back on brings every review back as it was. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
-			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."],
 			"exit": [
 				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
 				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing (check N21; src/app/reviewsOffWrites.test.ts).",
@@ -17433,7 +17466,8 @@ var _virtual_faro_modules_default = [
 			"F7",
 			"F8",
 			"F17",
-			"N5"
+			"N5",
+			"U72"
 		],
 		elsewhere: [],
 		rebuild: {
@@ -17517,7 +17551,7 @@ var _virtual_faro_modules_default = [
 			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. Goals' Filters sheet has a row per live list field (its values and “Not set”, any of them ticked), the filter line says “Stage is Build” with Remove, and the address carries it as /goals?f.<field id>=Build so a link and a saved view keep it; free text is not a filter. Data's Goals table and every export's Goals sheet have a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, an export loaded straight back changes nothing, and a value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”), which only an admin may add. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields), finds goals by them (find_goals' fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block, no Fields in Workspace's menu, no field filter on Goals and no field column on Data or in an export (a file's are columns nothing reads, named once), /workspace/fields says Fields is switched off and who can switch it on, and the three tools and find_goals' fields refuse; every field and value stays, and comes back when it is switched on.",
 			"entry": [
 				"The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.",
-				"The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).",
+				"The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 3, the module platform).",
 				"What a module adds to Goals loads only when a workspace has something for it (domain/records goalExtras: Fields' extras.ts, once a live field exists; core/records loadGoalExtras): a family of Goals filters (parameters by their start, f.) and its columns on the Goals sheet (written by every export, read back by the change engine, which asks the module's question as its own Check, module-value)."
 			],
 			"exit": [
@@ -17597,7 +17631,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "Watching, as a feature a workspace can switch off. Anyone can watch a goal, a goal and everything feeding it, or every goal at a level; the goals a person's watches cover are on their Home under “Goals you watch” (what needs attention first) and under the Watching tab of Goals, a goal's page has Watch (or Watching) for anyone but its owner, and an AI tool lists, adds and stops watches. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; /watching says it is switched off and who can switch it on; someone who owns no goal is led to every goal that needs attention. Every watch is kept, and switching it back on restores each person's. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
-			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention; Watching reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention; Watching reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."],
 			"exit": [
 				"Switched off, /watching shows Page not found with “Watching is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_watching, watch and unwatch answer “Watching is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” (check N22).",
 				"Switched off, Goals has no Watching tab (a remembered Watching tab opens Mine, or All for someone who owns no goal), Home has no “Goals you watch”, a goal's page has no Watch or Watching and no “Watched by”, and the watch action refuses with “Watching is off in {workspace}.” (journey U164).",
@@ -17635,7 +17669,7 @@ var _virtual_faro_modules_default = [
 		rebuild: {
 			"status": "outline",
 			"builds": "The Wrap-up, as a feature a workspace can switch off: in the last two weeks of the year (and four weeks after) each owner says how each goal landed, one thing learned, and whether it carries on or stops, from Home's wrap-up lead, a goal's “Wrap up this goal” and the page Wrap up. Results, carrying on and starting the next year are the core's and never switch off. Off, nobody is asked how a goal landed: no wrap-up lead on Home, no “See the wrap-up”, no “Wrap up this goal”, /retro says it is switched off, and get_wrap_up and wrap_up_goal refuse; wrap-ups already written stay in History, and an admin still starts the next year from Cycles.",
-			"entry": ["The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"entry": ["The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."],
 			"exit": [
 				"Switched off, /retro and /retro/{goal} show Page not found with “Wrap-up is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and get_wrap_up and wrap_up_goal answer the switched-off module's sentence (check N22).",
 				"Switched off, in the year's last two weeks an owner's Home leads with check-ins as in any other week, never “Wrap up your goals”, and a goal's page has no “Wrap up this goal”; saving a wrap-up refuses with “Wrap-up is off in {workspace}.” (journey U166).",
@@ -25923,6 +25957,7 @@ function systemOverview() {
 		"",
 		"- [Rebuild Faro stage by stage](spec/rebuild/README.md): each stage’s entry and exit criteria, which stages have a drill today, where a rebuild is written and how it is scored",
 		"- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data",
+		"- [The module platform](spec/rebuild/module-platform.md): where a module plugs into the core, how a workspace switches one off, every sentence the core says while one is off, and the AI tools’ server and its door (stage 3 builds it)",
 		"- [Swap the outside parts](spec/rebuild/adapters.md): copy the code and write an adapter per outside part until its contract passes",
 		"- [The ports at company scale](spec/rebuild/ports-at-scale.md): why the goals store is the demo-scale port, and the query and command ports that replace it (the rules stay the same)",
 		"- [Accepting scale](spec/rebuild/scale.md): a generator for a company-size workspace, the week’s turn with its budget and what people see while it runs, and being handled from one goal’s records",

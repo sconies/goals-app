@@ -97,6 +97,10 @@ describe('queryParts (find rule 3, on Goals)', () => {
 });
 
 describe('a module’s filter, declared as a column (architecture 4.2)', () => {
+  // These add parameters to the module's own list, and the workers share modules (isolate: false), so they work on a
+  // fresh copy and leave none behind for the spec test, whose Goals page lists the parameters the build registered.
+  beforeAll(() => { vi.resetModules(); });
+  afterAll(() => { vi.resetModules(); });
   it('reads its parameter once added, compares the column, words it and removes it', async () => {
     const q = await import('./query');
     q.addColumnParams(['measuredby']);

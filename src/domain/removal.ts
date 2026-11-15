@@ -650,6 +650,13 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
   let moduleBack = 0;
   for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
     const cur = ((full.modules?.[m.module]?.[m.key] ?? []) as ModuleRow[]).find((r) => r.id === id);
+    // A row changed since by anything else is left as it is, and said (rule 9; #520 review). A row that sets something
+    // on a goal (a field value: goalId and fieldId) is logged by its goal and field, not its own id (#534 review).
+    const row = (cur ?? before) as { goalId?: unknown; fieldId?: unknown } | null;
+    const onGoal = row && typeof row.goalId === 'string' && typeof row.fieldId === 'string' ? { goalId: row.goalId, fieldId: row.fieldId } : null;
+    const by = latest((c) => c.entity !== 'workspace' && c.entity !== 'goal' && (c.entityId === id || (!!onGoal && c.goalId === onGoal.goalId && c.entityId === onGoal.fieldId)));
+    const goalTitle = onGoal ? full.goals.find((g) => g.id === onGoal.goalId)?.title : undefined;
+    if (by && cur) { keep(String((cur as { name?: unknown }).name ?? goalTitle ?? `A ${m.key} row`), by, 'other'); continue; }
     const back = (before as ModuleRow | null) ?? (cur && !cur.removedAt ? { ...cur, removedAt: x.now, removedBy: x.actor.id } : null);
     if (!back) continue;
     ((modules[m.module] ??= {})[m.key] ??= []).push(back);

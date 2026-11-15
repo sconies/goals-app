@@ -7,7 +7,7 @@ What a goal needs, what can’t be saved and who may save it: one rule for New g
 
 ## The rule
 
-Every way a goal comes in asks the same rule, in the same words: New goal, the edit page, set-up's goal cards, a Goals row of a spreadsheet, Data or a bulk edit (the change engine, `planChanges`), and the AI tools (which use the change engine). The form saves through `planGoal`, run by the `saveGoal` action, so it can't save what the engine would refuse.
+Every way a goal comes in asks the same rule, in the same words: New goal, the edit page, set-up's goal cards, a Goals row of a spreadsheet, Data or a bulk edit (the change engine, `planChanges`), and the AI tools (which use the change engine). The form saves through `planGoal`, run by the `saveGoal` action (its input, the form's `GoalDraft` with the answers given, is in [the actions](../actions.md#savegoal)), so it can't save what the engine would refuse.
 
 **Who may (rule 7).** Anyone may add a goal for anyone, at any level, at every door (Lane, 11 Nov: `mayAddGoal` is always yes, and is the one place that is said). A goal for someone else starts proposed unless said otherwise (GE10, decision 16): the form's last step starts on "Not yet: propose it", and a file or a tool with new goals for other people and no State asks once (`for-someone-else`): "{n} of these goals are for other people and would start as active. Is that what you mean?", answered "Yes, active" or "No, start them as proposed". Set-up and an admin's file aren't asked; a tool's `confirm` answers active. Changing a goal stays with its owner and admins (`mayChangeGoal`), whoever made it; New goal says so as soon as someone else is chosen as owner: “Amara will own it. After it is published, only Amara or an admin can change it.”
 
@@ -20,6 +20,29 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 **Decimals, worked out (`decimalsFor`).** The places chosen; or, when none were, the most typed in Today, Target or Limit, at most 3, said in one line (“Kept to 1 decimal place, as you typed them.”) with Change. A number with more places than chosen is refused, offering to keep them.
 
 **What is asked (rule 3, `goalChecks`).** What is possible but unlikely is a question, never a refusal: a Check, in the same block as the check-in's, under the field it is about, with two answers, the first keeping what was typed. In this order, each that applies, and only once the fields it is about have no Must fix: a stage already past (“Week 43 was 2 weeks ago. Is this stage already done?”, either answer an answer); no unit (“This number has no unit. Is it a plain count?”, asked once); a number below zero for a percentage, time or money; over 100% (“The target is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is 150% right?”); a target 100 times its start or more, or a 100th; a billion or more; a target on the worse side of the start for the metric chosen to measure it (““Pipeline queue wait” is better lower, but the target (9 min) is above today (7 min). Is that the plan?”: the metric the form chose, from the goal.measure place, else the one that measures the goal now, which a module says through its records' `measures` (`goalMeasureOf`), so the saving rule, a spreadsheet's rows and the AI tools ask it of a goal already measured); the same name in the same team; an owner in another team (“Amara is in Office of the VP, not Build & Release. Which team is this goal for?”, whose second answer moves it); a link to a goal at a lower level (whose second answer removes the link); a warning margin as wide as the limit; weeks set by hand that leave more than 60% of the change to the last quarter of the plan's weeks (`lateShare`); and, for a goal being changed, a target that flips which way is better or a number far outside the old plan (`planQuestion`). An answer is kept in the draft as the values it was about (`answers[slot] = key`), so changing them asks again (`unanswered`, shared with the check-in); answered, the block collapses to “You said 150% is right.” with Change. A goal already saved isn't asked again about what it already says. The import asks the same questions in the same words (an unlikely number, a link to a lower level), keeping its own forms of no unit, the same name and stages already past; a file's Team column says the team in so many words, so an owner in another team is asked only in the form. The AI tools list every question goal by goal (“Not saved. Check with the person first: …”) and take `confirm: true` as yes to each. About a number goal's weeks (the [years and weeks](years-and-weeks.md) rules): a From before this week (“Week 40 was 6 weeks ago. Has this been running since then? The plan would expect 39 min by this week.”, whose second answer starts it this week), a To already past, and a plan longer than 53 weeks; a file is asked only the last. The question about a metric's latest number (`far-from-metric`) waits for the metrics module to keep one for a slice; a file is asked `wrong-side` once the import reads Measured by.
+
+**What each answer reads back as** (each question's `readBack`: the sentence its block collapses to once answered, and New goal's read-back's You said row, the answers in the order asked, joined by a space). {n} is a number said with its unit (“150%”, “9 min”, “1,500”), {week} as the years and weeks rules say it in a sentence:
+
+| Question | Read back |
+|---|---|
+| `stage-past` | “Done in week {w}.”; answered No, ““{stage}” isn’t done: it’s overdue since week {w}.”; where a module marks stages, its own sentence |
+| `no-unit` | “You said it is a plain count, with no unit.” |
+| `below-zero` | “You said {n} is right.” |
+| `over-100` | “You said {digits}% is right.” (the number alone, digits grouped: “1,500%”) |
+| `hundredfold` | “You said {start} to {target} is right.” |
+| `billion` | “You said {n} is right.” |
+| `wrong-side` | “You said the target is right though “{metric}” is better {lower | higher}.” |
+| `same-name` | “{team} already has “{title}” ({key}); this is a different goal.” |
+| `owner-other-team` | “{First name} is in {owner’s team}; the goal stays in {team}.” |
+| `feeds-lower` | “You said it feeds “{goal}”, {a level}.” |
+| `margin-wide` | “You said to warn within {n}.” |
+| `late-plan` | “You said most of the change comes in the last {k} weeks.” |
+| `from-past` | “You said it has been running since {week}.” (“week 40 (28 Sep–4 Oct 2026)”) |
+| `to-past` | “You said the target was due in {week}.” (“week 43”) |
+| `long-plan` | “You said the plan runs {k} weeks.” |
+| `direction`, `far-from-plan` | nothing: a goal being changed, which New goal never is |
+
+A No that changes the draft (start from this week, move the team, remove the link) is no answer to read back: the draft no longer raises the question.
 
 **Whether a step goes on (rule 4, `stepState`).** The button is never disabled. Pressed with a Must fix on its step, every field of the step shows its own, focus goes to the first, and one line above the button counts them: “2 things to fix above: Unit and Target.” (more than three: the first two “and {k} more”), the same line the check-in uses. A Must fix shows under a field once it has been changed and left, never while typing. With none, an unanswered question holds the step: focus goes to it and the line reads “Answer the question above, under Target.” (several: “Answer the 2 questions above.”; `openLine`). The edit page's Save changes does the same.
 

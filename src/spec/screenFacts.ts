@@ -97,6 +97,31 @@ function wordsOf(node: ts.Node): string {
   return short(parts.join(' ').replace(/(…\s*)+/g, '… ').replace(/\s+([.,;:!?’”)])/g, '$1').replace(/([“(‘])\s+/g, '$1'));
 }
 
+/**
+ * A button whose words are all worked out when it shows (drill 11, stage 3 re-run, S3-15): what it can say, from the
+ * rule that words it, keyed by the screen's file and the expression the markup writes. A new one reads “… (worked out
+ * when it shows: `expr`)”, so the expression at least says where the words come from.
+ */
+export const WORKED_OUT: Record<string, string> = {
+  'src/screens/Home.tsx|lead.action.label': 'the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open the review, Continue the review, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them',
+  'src/screens/Home.tsx|ASK_BUTTON[w.kind]': 'the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)',
+  'src/screens/Home.tsx|r.action': 'the Getting started row’s action: Start check-in, Choose owners, Add people, Copy the link (which copies the invite link), New goal, See the goals or Find goals to watch',
+  'src/screens/CheckInFlow.tsx|label': 'Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue',
+  'src/screens/GoalScreen.tsx|primary.label': 'the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update',
+  'src/screens/GoalScreen.tsx|standing.label': 'Check in again',
+  'src/screens/GoalScreen.tsx|x.button': 'the row’s one button: Respond (a decision asked of the viewer), Answer (a question), Mark done (a next step); Check in and Withdraw are drawn on their own rows above',
+  'src/screens/Home.tsx|b.label': 'the quiet line’s buttons, as [Home](rules/home.md) words them: Check in early; See the goals and Set up a goal',
+};
+
+function exprText(el: El): string {
+  const kids: readonly ts.JsxChild[] = ts.isJsxElement(el) ? el.children : [];
+  return kids.filter((k): k is ts.JsxExpression => ts.isJsxExpression(k)).map((k) => squash(k.expression?.getText() ?? '')).filter(Boolean).join(' ');
+}
+function workedOut(file: string, el: El): string {
+  const e = exprText(el);
+  return WORKED_OUT[`${file}|${e}`] ?? (e ? `… (worked out when it shows: \`${short(e)}\`)` : '… (worked out when it shows)');
+}
+
 /** The conditions around a node, outermost first, up to (not past) the root: `a && <x/>` and `a ? <x/> : <y/>`. */
 function conditions(node: ts.Node, root: ts.Node): string[] {
   const out: string[] = [];
@@ -204,7 +229,7 @@ export function screenFacts(r: Repo, file: string, component?: string): ScreenFa
     }
     if (tag === 'button' || (BUTTON_LINKS.has(tag) && /\bbtn\b/.test(clsText))) {
       let words = wordsOf(el);
-      if (!words || words === '…') words = attr(el, 'aria-label').text ? `(${attr(el, 'aria-label').text})` : /\bbtn\b/.test(clsText) ? '… (worked out when it shows)' : '';
+      if (!words || words === '…') words = attr(el, 'aria-label').text ? `(${attr(el, 'aria-label').text})` : /\bbtn\b/.test(clsText) ? workedOut(file, el) : '';
       if (!words) continue;
       buttons.push({ words, kind: /\bprimary\b/.test(clsText) ? 'primary' : tag === 'button' ? 'button' : 'link', when });
     }

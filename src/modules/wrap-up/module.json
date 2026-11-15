@@ -34,7 +34,7 @@
     "builds": "The Wrap-up, as a feature a workspace can switch off: in the last two weeks of the year (and four weeks after) each owner says how each goal landed, one thing learned, and whether it carries on or stops, from Home's wrap-up lead, a goal's “Wrap up this goal” and the page Wrap up. Results, carrying on and starting the next year are the core's and never switch off. Off, nobody is asked how a goal landed: no wrap-up lead on Home, no “See the wrap-up”, no “Wrap up this goal”, /retro says it is switched off, and get_wrap_up and wrap_up_goal refuse; wrap-ups already written stay in History, and an admin still starts the next year from Cycles.",
     "entry": [
       "The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.",
-      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."
+      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform)."
     ],
     "exit": [
       "Switched off, /retro and /retro/{goal} show Page not found with “Wrap-up is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and get_wrap_up and wrap_up_goal answer the switched-off module's sentence (check N22).",

@@ -9,8 +9,9 @@ Walk a set of goals together on a cadence, decide what happens next and keep wha
 ## Entry criteria
 
 - Stages 1 to 3 pass their exit criteria.
+- The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.
-- The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2).
+- The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 3, the module platform).
 
 ## What to build
 
@@ -21,7 +22,7 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-SPEAK`, `REVIEW-DECIDE`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK` (words in [its section](../modules/reviews/README.md#requirements)).
-2. Its journeys and checks can be done: U3, U13, U30, U36, U47, U49, U63, U67, U79, U80, U103, U104, U154, U155, N1, N21 ([its section](../modules/reviews/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
+2. Its journeys and checks can be done: U3, U13, U30, U36, U47, U49, U63, U67, U79, U80, U103, U104, U154, U155, N1, N21, U72 ([its section](../modules/reviews/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
 3. Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).
 4. Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing (check N21; src/app/reviewsOffWrites.test.ts).
 5. Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.

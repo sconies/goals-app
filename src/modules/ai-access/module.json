@@ -35,8 +35,8 @@
     "status": "outline",
     "builds": "AI access, as a feature a workspace can switch off. An admin makes a personal MCP token for someone (shown once, only its hash kept) and anyone revokes their own; an AI tool using the token acts as that person through the MCP server, with that person's rights, every change logged as theirs “via MCP”. The tokens are listed on their own Workspace section, AI access (/workspace/ai, admins), in Settings (your own) and on a person's page (Make an MCP token). Off, the server refuses every token of the workspace with one sentence, but still lists its tools; no token can be made; Workspace, Settings and People show no tokens; /workspace/ai says it is switched off. Tokens are kept, not revoked: switching it back on makes them work again. An admin switches it on Workspace, Features, after a read-back that names the tokens.",
     "entry": [
-      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 2).",
-      "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (the AI tools' stage)."
+      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 3, the module platform).",
+      "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (stage 3, the module platform); this stage adds the tokens and the switch that shuts its door."
     ],
     "exit": [
       "Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.",

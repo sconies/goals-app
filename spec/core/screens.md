@@ -65,6 +65,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
 - **Named parts:** “Getting started”, “This week (region)”, “For you (region)”
+- **Parts by name** (`data-part`): “This week’s main action”, “Needs your response”, “This week”, “The workspace’s line”, “Home”, “Getting started”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
@@ -85,17 +86,18 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “… (worked out when it shows)” | primary | always |
-| “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
+| “the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open the review, Continue the review, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them” | primary | always |
+| “the quiet line’s buttons, as [Home](rules/home.md) words them: Check in early; See the goals and Set up a goal” | link | `quiet.buttons.length > 0` |
 | “Check in” | link | `rest.length > 0` and `checkInHere?.(g)` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
+| “the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)” | link | always |
 | “Show all …” | button | `asks.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind ===…` |
 | “See them” | link | `sort` |
 | “See the wrap-up” | link | `wrapping` |
 | “See Cycles / Start …” | link | always |
-| “… (worked out when it shows)” | button | `r.id === 'invite'` |
-| “… (worked out when it shows)” | link | `!(r.id === 'invite')` and `r.to` |
+| “the Getting started row’s action: Start check-in, Choose owners, Add people, Copy the link (which copies the invite link), New goal, See the goals or Find goals to watch” | button | `r.id === 'invite'` |
+| “the Getting started row’s action: Start check-in, Choose owners, Add people, Copy the link (which copies the invite link), New goal, See the goals or Find goals to watch” | link | `!(r.id === 'invite')` and `r.to` |
 | “Hide this” | button | always |
 
 ## CheckInFlow
@@ -173,7 +175,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
-| “… (worked out when it shows)” | primary | `step !== 'carry'` |
+| “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
 | “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
@@ -272,6 +274,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/goals` (`GoalsScreen`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look. Help: “Goals and its layouts” (`goals`).
 
 - **Named parts:** “Goals”, “Not linked”
+- **Parts by name** (`data-part`): “Goals”, “Views, search and filters”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.
 - **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
@@ -299,12 +302,12 @@ None: nothing to type or choose here.
 | “… · …” | button | always |
 | “New goal” | link | always |
 | “Wrap up” | link | `wrapUpOn(modules.on) && wrapUpOpenOn(app.cycle, app.today)` |
-| “… (worked out when it shows)” | button | `app.snapshot.goals.length > 0` |
+| “… (worked out when it shows: `viewSays`)” | button | `app.snapshot.goals.length > 0` |
 | “Clear” | button | `app.snapshot.goals.length > 0` and `query.status.includes('stale') && !rhythmOf(app.cycle)` |
 | “Set up the first goal” | primary | `!app.snapshot.goals.length` |
 | “Save this view…” | button | `canSave` |
 | “Copy link” | button | always |
-| “… (worked out when it shows)” | button | always |
+| “… (worked out when it shows: `m.label`)” | button | always |
 | “Done” | primary | always |
 
 ## GoalWizard
@@ -377,6 +380,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/goals/:goalId` (`GoalScreen`): Everything about one goal: how it’s doing, why, what’s being done, where it’s heading, and what has happened. Help: “A goal’s page” (`goal-page`).
 
 - **Named parts:** “Chart and recent check-ins”, “For you”, “Done lately”, “About this goal”, “First check-in (region)”, “Next steps and asks (region)”, “On this page (region)”, “Respond (region)”, “Chart (region)”, “Show (region)”
+- **Parts by name** (`data-part`): “Chart and recent check-ins”, “Goal page”, “Section links”, “Summary bar”, “Scorecard”, “Guardrail”, “Next steps and asks”, “Chart”, “Why”, “Path to green”, “Review notes”, “What feeds it”, “Quarters”, “History”, “About this goal”
 - **Main action:** The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.
 - **Primary buttons in its markup:** “Post the first check-in”
 - **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `make_goal_proposed`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
@@ -408,11 +412,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Button | Kind | Shown when |
 |---|---|---|
 | “All goals” | link | always |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `primary.kind === 'check-in' \|\| primary.kind === 'first-check-in'` |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `primary.kind === 'ask-update'` |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `primary.kind === 'add-step'` |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `!(primary.kind === 'add-step')` |
-| “… (worked out when it shows)” | link | `!(review \|\| !standing.kind)` and `standing.kind === 'check-in-again'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `primary.kind === 'check-in' \|\| primary.kind === 'first-check-in'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `primary.kind === 'ask-update'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `primary.kind === 'add-step'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `!(primary.kind === 'add-step')` |
+| “Check in again” | link | `!(review \|\| !standing.kind)` and `standing.kind === 'check-in-again'` |
 | “Ask … for an update” | button | `!review` and `askable` |
 | “Undo” | button | `!stopped` and `!isOwner && (stale \|\| noRhythm) && !review` and `updateAsk` and `canWithdraw(updateAsk, app.viewer, goal)` |
 | “Post the first check-in” | primary | `published` and `!(week < 1)` and the goal’s owner |
@@ -425,7 +429,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Ask for a decision or help” | link | `live` and the goal’s owner and `app.week > 0` |
 | “Check in” | link | `!(!x.button \|\| open)` and `x.button === 'Check in'` |
 | “Withdraw” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `x.button === 'Withdraw'` |
-| “… (worked out when it shows)” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `!(x.button === 'Withdraw')` |
+| “the row’s one button: Respond (a decision asked of the viewer), Answer (a question), Mark done (a next step); Check in and Withdraw are drawn on their own rows above” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `!(x.button === 'Withdraw')` |
 | “Change” | button | `canChange` |
 | “Cancel” | button | always |
 | “Asking… / Ask” | primary | always |
@@ -496,7 +500,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “At most” | button | `d.kind === 'range'` |
 | “At least” | button | `d.kind === 'range'` |
 | “Between” | button | `d.kind === 'range'` |
-| “… (worked out when it shows)” | primary | always |
+| “… (worked out when it shows: `label`)” | primary | always |
 
 ## Print
 
@@ -655,7 +659,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “… (worked out when it shows)” | link | `needs.length > 0` |
+| “… (worked out when it shows: `x.action`)” | link | `needs.length > 0` |
 | “and … more” | button | `needs.length > 0` and `needs.length > NEEDS_SHOWN` and `!all` |
 | “Undo” | button | `later && undo?.ok` and an admin |
 | “Start …” | primary | `canStart` |
@@ -676,7 +680,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “See the token / See the … tokens” | button | always |
 | “Change” | button | always |
 | “Save” | primary | always |
-| “… (worked out when it shows)” | primary | always |
+| “… (worked out when it shows: `primary`)” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
 | “Cancel” | button | `open` |
@@ -754,7 +758,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Add a goal” | button | `step === 'goals'` and `start === 'own'` |
 | “Download the template” | button | `step === 'goals'` and `start === 'file'` |
 | “Back” | button | `idx > 0` and `!fromCheck` |
-| “… (worked out when it shows)” | primary | always |
+| “… (worked out when it shows: `label`)” | primary | always |
 | “Done” | primary | always |
 | “Move a number” | button | `!headline` |
 | “Keep a number in range” | button | `!headline` |
@@ -815,11 +819,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Add them” | button | an admin and `noEmail > 0` |
 | “Previous …” | link | `found.pages > 1` and `found.page > 1` |
 | “Next …” | link | `found.pages > 1` and `found.page < found.pages` |
-| “… (worked out when it shows)” | primary | `see` and `!left` |
+| “… (worked out when it shows: `see`)” | primary | `see` and `!left` |
 | “Change details” | button | an admin and `!left` |
 | “Make an admin” | button | an admin and `!left` and `!p.admin` |
 | “Make an MCP token” | button | an admin and `!left` and `app.mode === 'live'` and `aiHere` |
-| “… (worked out when it shows)” | button | an admin and `!left` and `!you` |
+| “… (worked out when it shows: `leaveLabel(app, p)`)” | button | an admin and `!left` and `!you` |
 | “Add a team” | primary | an admin |
 | “Previous …” | link | `shown.pages > 1` and `shown.page > 1` |
 | “Next …” | link | `shown.pages > 1` and `shown.page < shown.pages` |
@@ -841,6 +845,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/workspace/cycles/next` (`StartNext`): An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it. Help: “Starting the next year” (`start-next-year`).
 
 - **Named parts:** “What happens to each goal (region)”
+- **Parts by name** (`data-part`): “Start the next year”
 - **Main action:** For an admin, once the wrap-up opens: read what carries on, finishes and stops, then Start the next year (it opens for everyone on its first Monday).
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `start_next_cycle`, `list_people`
@@ -1009,6 +1014,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/reviews/:reviewId/summary` (`ReviewSummary`)
 
 - **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
+- **Parts by name** (`data-part`): “Reviews”, “You’re in”, “Other reviews”, “What was said”, “Review”, “Last time”, “Still to review”, “Nothing flagged”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
@@ -1059,6 +1065,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/watching` (`Watching`)
 
 - **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
+- **Parts by name** (`data-part`): “What changed this week”, “What you watch”
 - **Main action:** Open a goal you watch that needs attention.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
@@ -1127,6 +1134,17 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Carry it on” | button | always |
 | “Stop it here” | button | always |
 | “Saving… / Save changes / Save and continue” | primary | always |
+
+## Parts by name
+
+A screen’s parts are named in its markup by `data-part` (listed under each screen above, where written as plain text; a name worked out when it shows, such as a goal’s title, isn’t listed). A part inside another reads as a path (Goal page › Scorecard › Will it hit): Feedback’s markups name the parts a drawing covers this way, and the journeys find some parts by it. These shared components, drawn by several screens, name theirs:
+
+| Component | Parts by name |
+|---|---|
+| [src/ui/HealthLine.tsx](../../src/ui/HealthLine.tsx) | “Health” |
+| [src/ui/HomeSets.tsx](../../src/ui/HomeSets.tsx) | “Your team”, “Goals you watch”, “How the week’s check-ins stand”, “Without being asked”, “This week”, “Changed since” |
+| [src/ui/ProposedFeeders.tsx](../../src/ui/ProposedFeeders.tsx) | “Proposed feeders” |
+| [src/ui/Shell.tsx](../../src/ui/Shell.tsx) | “Header”, “Sidebar”, “Tab bar” |
 
 ## Views, overlays and pages with no route of their own
 
@@ -1526,9 +1544,133 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Button | Kind | Shown when |
 |---|---|---|
 | “(Remove owner …)” | button | always |
-| “… (worked out when it shows)” | button | `match.length > 0` |
+| “… (worked out when it shows: `p.name`)” | button | `match.length > 0` |
 | “Clear filters” | button | always |
 | “Show the goals” | primary | always |
+
+### Goals: the View sheet
+
+[src/screens/GoalsScreen.tsx](../../src/screens/GoalsScreen.tsx) (`ViewSheet`)
+
+- **Where:** View, on Goals on a phone: the layout and the group, the saved views and Save this view….
+- **Help:** “Goals and its layouts” (`goals`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
+- **Main action:** Choose a layout or a group, or open a saved view; each choice applies at once, and Done closes it.
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Save this view…” | button | `canSave` |
+| “Copy link” | button | always |
+| “… (worked out when it shows: `m.label`)” | button | always |
+| “Done” | primary | always |
+
+### Check-in: one goal, a step at a time
+
+[src/screens/CheckInFlow.tsx](../../src/screens/CheckInFlow.tsx) (`GoalCheckIn`)
+
+- **Where:** /check-in/:goalId, once a goal is chosen.
+- **Help:** “Checking in on a goal” (`check-in`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next.
+- **Main action:** Post this goal’s check-in, one question a step: its number or stage, whether the reason and path to green still hold, and on a first check-in off the plan, Start the plan from this number or Keep it and say why.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “This week’s value” | text | `step === 'measure'` and `!(goal.kind === 'milestone')` |
+| “Why are you changing it? …” | textarea | `step === 'measure'` and `correcting` |
+| “Keep this request open on their Home” | checkbox | `step === 'carry'` and `previous` and `priorAsk` |
+| “What happened” | textarea | `step === 'account'` and `needsWhy` |
+| “Who can decide or help?” | PickOne | `step === 'account'` and `needsWay` and `draft.ptgState === 'help'` |
+| “Also need a decision or help? Optional; shown at the top of the goal and in reviews” | text | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `showNeeds` |
+
+**States**
+
+| State | What it says | Shown when |
+|---|---|---|
+| error | “Type this week’s number.” | `step === 'measure' and !(goal.kind === 'milestone') and empty` |
+| error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
+| error | “Say why it’s better than the numbers: tap Change.” | `step === 'measure' and valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0) and tried && e.codes.includes('greener-why')` |
+| error | “Pick a cause, then write a sentence. / Write a sentence about what happened.” | `step === 'account' and needsWhy and tried and !whyOk` |
+| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried and !wayOk` |
+| error | “Pick who it goes to.” | `step === 'account' and needsWay and draft.ptgState === 'help' and tried and !helpFrom` |
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Waiting on a decision already asked for another goal?” | button | `othersAsked.length > 0` |
+| “… For … · asked by …” | button | `linking` |
+| “Keep … for this goal” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `shown?.block` and `!(keep == null)` |
+| “Measured again: unchanged” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!numberStep` and `lastNumber?.value != null && !draft.value` |
+| “Start from …” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
+| “Keep … and say why” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
+| “Undo” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `rebased === 'start'` and `rebasedFrom` |
+| “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip && !numberStep` |
+| “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
+| “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
+| “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
+| “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
+| “Back” | button | `!(step !== 'carry')` |
+| “Something changed” | button | `!(step !== 'carry')` |
+| “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
+
+### The week picker
+
+[src/ui/WeekPick.tsx](../../src/ui/WeekPick.tsx) (`WeekPick`)
+
+- **Where:** Wherever a goal’s week is chosen: a number goal’s From and To, and a stage’s Due, in New goal and Change a goal.
+- **Help:** “Setting up a goal” (`new-goal`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing.
+- **Main action:** Choose a week from the goal year’s short list with its dates, opened at the chosen week; or type a week or a date (“50”, “14 Dec”) and press Enter.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “…: type a week or a date” | text | `open` |
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Close” | button | `open` |
+
+### Workspace: Features
+
+[src/screens/Workspace.tsx](../../src/screens/Workspace.tsx) (`Features`)
+
+- **Where:** /workspace/features, for an admin.
+- **Help:** “Features: switching parts of Faro on or off” (`features`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.
+- **Main action:** Switch an optional feature on or off for everyone (reading first what it keeps, for one that owns something), or change the check-in rhythm.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “… Off until … is on. On / Off” | checkbox | always |
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “See the token / See the … tokens” | button | always |
+| “Change” | button | always |
 
 ### Check-in: the week’s list
 
@@ -1612,7 +1754,7 @@ None: nothing to type or choose here.
 | “Answer it” | button | `allowed` and `canAskBack` |
 | “Ask the owner first” | button | `allowed` and `canAskBack` |
 | “Leave it open” | button | `allowed` |
-| “… (worked out when it shows)” | primary | `allowed` |
+| “… (worked out when it shows: `button`)” | primary | `allowed` |
 
 ### A review: one goal at a time
 
@@ -1649,7 +1791,7 @@ None: nothing to type or choose here.
 | “Edit” | button | `said.length > 0` and `d.byId === app.viewer.id` |
 | “Remove” | button | `said.length > 0` and `d.kind === 'note' && (d.byId === app.viewer.id \|\| app.viewer.admin)` |
 | “Add the next step” | primary | `mustDecide` |
-| “… (worked out when it shows)” | button | `mustDecide` |
+| “… (worked out when it shows: `DECIDED['accept-risk'].label`)” | button | `mustDecide` |
 | “Reviewed & finish / Reviewed & back to the review / Reviewed & next” | primary | `!mustDecide` |
 | “Add a note” | button | `!mustDecide` |
 | “Add a note” | button | `mustDecide` |

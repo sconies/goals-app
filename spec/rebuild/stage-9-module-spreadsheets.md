@@ -9,6 +9,7 @@ Download the goals as an Excel workbook or CSV files, and load changes back from
 ## Entry criteria
 
 - Stages 1 to 3 pass their exit criteria.
+- The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.
 - The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them.
 
@@ -21,7 +22,7 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-UNDO`, `IMPORT-LARGE` (words in [its section](../modules/spreadsheets/README.md#requirements)).
-2. Its journeys and checks can be done: U19, U20, U46, U48, U87, U88, U89, U94, U90, U95, U96, F7, F8, F17, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
+2. Its journeys and checks can be done: U19, U20, U46, U48, U87, U88, U89, U94, U90, U95, U96, F7, F8, F17, N5, U72 ([its section](../modules/spreadsheets/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
 3. Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.
 4. A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.
 5. A workbook with one wrong row saves nothing, and the preview names the row and the problem.

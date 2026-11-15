@@ -1,0 +1,654 @@
+[
+  {
+    "id": "ai-access",
+    "name": "AI access",
+    "summary": "Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights.",
+    "group": "beyond",
+    "needs": [],
+    "routes": [],
+    "redirects": [],
+    "navigation": [],
+    "places": [],
+    "sections": [
+      "ai"
+    ],
+    "tables": [],
+    "aiTools": [
+      "list_tokens",
+      "create_token",
+      "revoke_token"
+    ],
+    "help": [
+      "ai"
+    ],
+    "requirements": [
+      "MCP-TOKENS",
+      "TOKENS-SERVER-ONLY",
+      "AI-ACCESS-OPTIONAL"
+    ],
+    "journeys": [
+      "U22",
+      "U62",
+      "U175"
+    ],
+    "elsewhere": []
+  },
+  {
+    "id": "feedback",
+    "name": "Feedback",
+    "summary": "Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.",
+    "group": "beyond",
+    "needs": [],
+    "routes": [
+      "/feedback"
+    ],
+    "redirects": [
+      [
+        "/workspace/inbox",
+        "/feedback"
+      ],
+      [
+        "/inbox",
+        "/feedback"
+      ]
+    ],
+    "navigation": [],
+    "places": [],
+    "tables": [],
+    "aiTools": [
+      "list_markups",
+      "get_markup",
+      "review_inbox",
+      "update_markup",
+      "list_feedback",
+      "get_feedback",
+      "update_feedback",
+      "send_feedback"
+    ],
+    "help": [
+      "feedback",
+      "inbox"
+    ],
+    "requirements": [
+      "MARKUP",
+      "FEEDBACK-RAISED",
+      "MARKUP-INBOX",
+      "FEEDBACK-INBOX",
+      "MCP-FEEDBACK",
+      "CONNECT-CLAUDE",
+      "MCP-PICTURES",
+      "INBOX-TRIAGE",
+      "FEEDBACK-PAGE",
+      "FEEDBACK-OPTIONAL"
+    ],
+    "journeys": [
+      "U40",
+      "U41",
+      "U42",
+      "U47",
+      "U51",
+      "U52",
+      "U53",
+      "U165",
+      "N22"
+    ],
+    "elsewhere": []
+  },
+  {
+    "id": "goal-map",
+    "name": "Goal map",
+    "summary": "See every goal and what feeds it on one canvas, with the path the risk runs along.",
+    "group": "tools",
+    "needs": [],
+    "routes": [],
+    "redirects": [],
+    "navigation": [],
+    "places": [],
+    "tables": [],
+    "aiTools": [],
+    "help": [
+      "goal-map"
+    ],
+    "requirements": [
+      "GOAL-MAP",
+      "MAP-OPTIONAL"
+    ],
+    "journeys": [
+      "U26",
+      "U30",
+      "U34",
+      "U39",
+      "U90",
+      "U134",
+      "U135",
+      "U165",
+      "F6",
+      "N22"
+    ],
+    "elsewhere": []
+  },
+  {
+    "id": "metrics",
+    "name": "Metric library",
+    "summary": "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+    "group": "tools",
+    "needs": [],
+    "routes": [
+      "/metrics",
+      "/metrics/new",
+      "/metrics/:metricId",
+      "/metrics/:metricId/edit"
+    ],
+    "redirects": [
+      [
+        "/data/metrics",
+        "/metrics"
+      ]
+    ],
+    "navigation": [
+      "Metrics"
+    ],
+    "menu": {
+      "waitsFor": "metrics"
+    },
+    "places": [
+      "goal.facts",
+      "goal.measure",
+      "goal.sections",
+      "people.person",
+      "people.team",
+      "checkin.number",
+      "checkin.table"
+    ],
+    "tables": [
+      {
+        "name": "okr_metrics",
+        "migration": "0033_metric_library.sql",
+        "purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
+      },
+      {
+        "name": "okr_goal_metrics",
+        "migration": "0033_metric_library.sql",
+        "purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
+      }
+    ],
+    "records": [
+      {
+        "name": "metric",
+        "table": "okr_metrics",
+        "key": "metrics",
+        "removable": true
+      },
+      {
+        "name": "metric link",
+        "table": "okr_goal_metrics",
+        "key": "metricLinks",
+        "removable": false
+      }
+    ],
+    "aiTools": [
+      "list_metrics",
+      "get_metric",
+      "save_metric",
+      "remove_metric",
+      "retire_metric",
+      "merge_metrics",
+      "link_goal_metric"
+    ],
+    "help": [
+      "metrics",
+      "metric-define",
+      "metric-measured-by",
+      "metric-slices",
+      "metric-change",
+      "metric-measurement",
+      "metric-structure",
+      "metric-sheet"
+    ],
+    "requirements": [
+      "METRICS-LIBRARY",
+      "METRICS-MEASURED-BY",
+      "METRICS-CARE",
+      "METRIC-DEFINED",
+      "METRIC-PARTS",
+      "METRIC-CHANGE",
+      "METRIC-MEASUREMENT",
+      "METRIC-STRUCTURE",
+      "METRIC-SHEET",
+      "READING-PREFILL",
+      "READING-RECORDED-ONLY",
+      "READING-SEVEN-DAYS",
+      "READING-SHOWN"
+    ],
+    "journeys": [
+      "U81",
+      "U82",
+      "U83",
+      "U145",
+      "U105",
+      "U146",
+      "U106",
+      "U152",
+      "U156",
+      "U157",
+      "U158",
+      "U159",
+      "U160",
+      "U172",
+      "N29",
+      "F15",
+      "N16",
+      "U170",
+      "U179",
+      "U161",
+      "U72"
+    ],
+    "elsewhere": [],
+    "growth": [
+      {
+        "idea": "Draft and Ready states",
+        "why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
+        "how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
+      },
+      {
+        "idea": "Versions, with a reason for each change",
+        "why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
+        "how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
+      },
+      {
+        "idea": "Owner-only editing and other governance",
+        "why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
+        "how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
+      },
+      {
+        "idea": "Dimensions an admin defines, and slices side by side",
+        "why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
+        "how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
+      },
+      {
+        "idea": "Suggestions and grouping look-alikes for existing goals",
+        "why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
+        "how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
+      },
+      {
+        "idea": "“Metric not defined” enforcement",
+        "why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
+        "how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
+      },
+      {
+        "idea": "Loading the Metrics sheet back, and numbers from the source",
+        "why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
+        "how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+      }
+    ],
+    "finders": [
+      "metric"
+    ],
+    "filters": [
+      "metric"
+    ],
+    "toSortOut": true,
+    "parity": {
+      "Metrics": [
+        "list_metrics",
+        "get_metric",
+        "save_metric",
+        "remove_metric",
+        "restore_removed"
+      ],
+      "MetricPlaces": [
+        "get_goal",
+        "get_metric",
+        "list_metrics"
+      ],
+      "MeasuredBy": [
+        "list_metrics",
+        "save_metric",
+        "link_goal_metric"
+      ],
+      "GoalFilterSheet": [
+        "list_metrics"
+      ],
+      "CheckInNumber": [
+        "post_check_in",
+        "get_goal",
+        "get_metric"
+      ]
+    }
+  },
+  {
+    "id": "reviews",
+    "name": "Reviews",
+    "summary": "Walk a set of goals together on a cadence, decide what happens next and keep what was said.",
+    "group": "together",
+    "needs": [],
+    "routes": [
+      "/review",
+      "/reviews",
+      "/reviews/new",
+      "/reviews/:reviewId",
+      "/reviews/:reviewId/edit",
+      "/reviews/:reviewId/summary",
+      "/reviews/:reviewId/print"
+    ],
+    "redirects": [],
+    "navigation": [],
+    "places": [],
+    "tables": [],
+    "aiTools": [
+      "list_reviews",
+      "get_review",
+      "review_call",
+      "unmark_reviewed",
+      "save_review",
+      "end_review",
+      "delete_review"
+    ],
+    "help": [
+      "reviews"
+    ],
+    "requirements": [
+      "REVIEW",
+      "REVIEW-SETUP",
+      "REVIEW-RUN",
+      "REVIEW-SPEAK",
+      "REVIEW-DECIDE",
+      "REVIEW-LIST-STATE",
+      "REVIEW-AGENDA",
+      "REVIEWS-OPTIONAL",
+      "REVIEWS-SWITCH-CLOCK"
+    ],
+    "journeys": [
+      "U3",
+      "U13",
+      "U30",
+      "U36",
+      "U47",
+      "U49",
+      "U63",
+      "U67",
+      "U79",
+      "U80",
+      "U103",
+      "U104",
+      "U154",
+      "U155",
+      "N1",
+      "N21",
+      "U72"
+    ],
+    "elsewhere": [],
+    "parity": {
+      "Review": [
+        "list_reviews",
+        "get_review",
+        "save_review",
+        "end_review",
+        "delete_review"
+      ],
+      "Inspect": [
+        "get_review",
+        "review_call",
+        "edit_call",
+        "delete_comment"
+      ],
+      "Print": [
+        "get_review"
+      ]
+    }
+  },
+  {
+    "id": "spreadsheets",
+    "name": "Spreadsheets",
+    "summary": "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+    "group": "tools",
+    "needs": [],
+    "routes": [
+      "/data/import",
+      "/data/import/check",
+      "/data/import/check/changes",
+      "/data/import/done/:importId",
+      "/data/imports"
+    ],
+    "redirects": [
+      [
+        "/import",
+        "/data/import"
+      ]
+    ],
+    "navigation": [],
+    "places": [
+      "data.tools",
+      "goals.tools",
+      "help.article"
+    ],
+    "tables": [],
+    "aiTools": [
+      "export",
+      "export_table"
+    ],
+    "help": [
+      "import",
+      "past-imports",
+      "export",
+      "columns"
+    ],
+    "requirements": [
+      "EXPORT",
+      "BULK-IMPORT",
+      "IMPORT-ACTIONS",
+      "SPREADSHEETS-ON-DATA",
+      "FIELD-TABLE",
+      "IMPORT-LEVELS",
+      "IMPORT-PREVIEW",
+      "IMPORT-UNDO",
+      "IMPORT-LARGE"
+    ],
+    "journeys": [
+      "U19",
+      "U20",
+      "U46",
+      "U48",
+      "U87",
+      "U88",
+      "U89",
+      "U94",
+      "U90",
+      "U95",
+      "U96",
+      "F7",
+      "F8",
+      "F17",
+      "N5",
+      "U72"
+    ],
+    "elsewhere": [],
+    "parity": {
+      "Import": [
+        "bulk_change"
+      ],
+      "Check": [
+        "bulk_change"
+      ],
+      "CheckClose": [
+        "bulk_change"
+      ],
+      "Large": [
+        "bulk_change"
+      ],
+      "Changes": [
+        "bulk_change"
+      ],
+      "Imported": [
+        "get_activity",
+        "undo_import"
+      ],
+      "PastImports": [
+        "get_activity",
+        "undo_import"
+      ],
+      "Export": [
+        "export"
+      ],
+      "ExportButton": [
+        "export"
+      ],
+      "DataMenu": [
+        "export",
+        "export_table",
+        "bulk_change"
+      ],
+      "ColumnsHelp": [
+        "get_help",
+        "export"
+      ]
+    }
+  },
+  {
+    "id": "tags",
+    "name": "Fields",
+    "summary": "Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.",
+    "group": "tools",
+    "needs": [],
+    "routes": [],
+    "redirects": [],
+    "navigation": [],
+    "places": [
+      "goal.sections"
+    ],
+    "tables": [
+      {
+        "name": "goal_fields",
+        "migration": "0052_goal_fields.sql",
+        "purpose": "A workspace's own fields on goals: name, kind (list or text), a list's values, position; never deleted (retired_at when retired). 0054 holds that free text has no values."
+      },
+      {
+        "name": "goal_field_values",
+        "migration": "0052_goal_fields.sql",
+        "purpose": "A goal's value for one field: one row per goal and field (id {goal_id}:{field_id}); empty when cleared."
+      }
+    ],
+    "aiTools": [
+      "list_fields",
+      "set_goal_fields",
+      "save_field"
+    ],
+    "help": [
+      "fields"
+    ],
+    "requirements": [
+      "TAGS-FIELDS",
+      "TAGS-FILTER",
+      "TAGS-SHEET",
+      "TAGS-OFF"
+    ],
+    "journeys": [
+      "U174",
+      "U177",
+      "U178",
+      "N34"
+    ],
+    "elsewhere": [],
+    "sections": [
+      "fields"
+    ],
+    "records": [
+      {
+        "name": "field",
+        "table": "goal_fields",
+        "key": "fields",
+        "removable": false
+      },
+      {
+        "name": "field value",
+        "table": "goal_field_values",
+        "key": "fieldValues",
+        "removable": false
+      }
+    ],
+    "parity": {
+      "FieldsSection": [
+        "list_fields",
+        "save_field"
+      ],
+      "FieldsBlock": [
+        "list_fields",
+        "set_goal_fields"
+      ]
+    }
+  },
+  {
+    "id": "watching",
+    "name": "Watching",
+    "summary": "Follow goals you don’t own: they show on your Home and under Watching in Goals.",
+    "group": "together",
+    "needs": [],
+    "routes": [
+      "/watching"
+    ],
+    "redirects": [],
+    "navigation": [],
+    "places": [],
+    "tables": [],
+    "aiTools": [
+      "list_watching",
+      "watch",
+      "unwatch"
+    ],
+    "help": [
+      "watching"
+    ],
+    "requirements": [
+      "WATCHING",
+      "ONE-WATCHING",
+      "WATCHING-OPTIONAL"
+    ],
+    "journeys": [
+      "U7",
+      "U8",
+      "U9",
+      "U16",
+      "U31",
+      "U73",
+      "U80",
+      "U90",
+      "U103",
+      "U164",
+      "F1",
+      "N22"
+    ],
+    "elsewhere": []
+  },
+  {
+    "id": "wrap-up",
+    "name": "Wrap-up",
+    "summary": "At the end of the year, each owner says how their goals landed and what they learned.",
+    "group": "together",
+    "needs": [],
+    "routes": [
+      "/retro",
+      "/retro/:goalId"
+    ],
+    "redirects": [],
+    "navigation": [],
+    "places": [],
+    "tables": [],
+    "aiTools": [
+      "get_wrap_up",
+      "wrap_up_goal"
+    ],
+    "help": [
+      "wrap-up"
+    ],
+    "requirements": [
+      "RETRO",
+      "WRAP-UP-OPTIONAL"
+    ],
+    "journeys": [
+      "U10",
+      "U166",
+      "N22"
+    ],
+    "elsewhere": []
+  }
+]

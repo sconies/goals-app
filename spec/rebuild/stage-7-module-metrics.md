@@ -9,6 +9,7 @@ Define each number goals are measured by once (its meaning and calculation, unit
 ## Entry criteria
 
 - Stages 1 to 3 pass their exit criteria.
+- The core’s [module platform](module-platform.md) is built (stage 3): the places, routes, menu rows, Workspace sections, Help and AI tools a module registers into, `Workspace.modulesOff` and Workspace → Features, the sentences a switched-off module says, and the AI tools’ server with its door.
 - The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.
 - Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.
 
@@ -23,7 +24,7 @@ It keeps records of its own, which the core stores without knowing what they are
 ## Exit criteria
 
 1. Its requirements hold: `METRICS-LIBRARY`, `METRICS-MEASURED-BY`, `METRICS-CARE`, `METRIC-DEFINED`, `METRIC-PARTS`, `METRIC-CHANGE`, `METRIC-MEASUREMENT`, `METRIC-STRUCTURE`, `METRIC-SHEET`, `READING-PREFILL`, `READING-RECORDED-ONLY`, `READING-SEVEN-DAYS`, `READING-SHOWN` (words in [its section](../modules/metrics/README.md#requirements)).
-2. Its journeys and checks can be done: U81, U82, U83, U145, U105, U146, U106, U152, U156, U157, U158, U159, U160, U172, N29, F15, N16, U170 ([its section](../modules/metrics/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
+2. Its journeys and checks can be done: U81, U82, U83, U145, U105, U146, U106, U152, U156, U157, U158, U159, U160, U172, N29, F15, N16, U170, U179, U161, U72 ([its section](../modules/metrics/README.md#journeys-and-checks), where each journey’s Id opens its steps and checks in words).
 3. A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.
 4. Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.
 5. A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.

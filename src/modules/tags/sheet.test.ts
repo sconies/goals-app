@@ -114,6 +114,22 @@ describe('the Goals sheet’s field columns', () => {
     expect(valueOf(again, 'lead-flaky', stage.id)).toBe('Build');
   });
 
+  it('[#534 review] Undo leaves a field value changed since as it is, and lists it under skipped (rule 9)', () => {
+    const s = withFields();
+    const only = load(s, { goals: csv(`key|stage\n${keyOf(s, 'lead-flaky')}|Run\n${keyOf(s, 'ns-ci')}|Run`) });
+    const after = applyCommit(s, only.commit!);
+    const stage = liveFields(after)[0]!;
+    const importId = only.commit!.changes!.find((c) => c.action === 'imported')!.importId!;
+    // An hour later, ns-ci is set to Discover on its page.
+    const later = (x: Snapshot) => ({ ...ctx(x, 'amara'), now: new Date(today.getTime() + 3600e3).toISOString() });
+    const edited = applyCommit(after, setGoalFields(later(after), after.goals.find((g) => g.id === 'ns-ci')!, { [stage.id]: 'Discover' })!);
+    const undone = undoImport({ ...later(edited), now: new Date(today.getTime() + 7200e3).toISOString() }, importId);
+    expect(undone.restored).toBe(1);
+    expect(undone.skipped.map((k) => k.reason)).toEqual(['Its stage was changed on 5 Nov']);
+    const back = applyCommit(edited, undone.commit);
+    expect([valueOf(back, 'lead-flaky', stage.id), valueOf(back, 'ns-ci', stage.id)]).toEqual(['Build', 'Discover']);
+  });
+
   it('anyone but an admin may only leave the cells empty, or fix the file', () => {
     const s = withFields();
     const own = s.goals.filter((g) => g.ownerId === 'rhea').slice(0, 1);
