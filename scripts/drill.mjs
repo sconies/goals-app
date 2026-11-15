@@ -39,7 +39,10 @@
    Options:
      --files status,flags   score only these files (the others are listed as not scored)
      --diffs 10             how many differences to print (default 10; 0 for none)
-     --expected <folder>    the conformance data (default: spec/conformance, found from where this file is)
+     --expected <folder>    the conformance data (default: spec/conformance, found from where this file is). A file or
+                            contract the folder doesn't hold (core-only/ has stage 3's four files and no contracts) is
+                            left out and named once as not scored, so drill.json's "also" and "contracts" can stay as
+                            they are: `--expected spec/conformance/core-only` scores what core-only holds.
      --timeout 600          seconds the command may take (default 600)
      --contracts search     run only these contracts through the shim
      --json                 print the scores as JSON instead of words
@@ -147,7 +150,7 @@ export function scoreFile(name, want, got) {
 /** Scores the rebuild's files against the expected ones: { files, cells, matchedCells, pass }. `edge`, when given, is
     the edge-case workspace's { expected, actual }: the same files from it are scored too, named edge/<file>.csv. */
 export function scoreAll(expected, actual, only = FILES, edge = null) {
-  const files = only.map((n) => scoreFile(n, expected[n], actual[n]));
+  const files = only.filter((n) => expected[n]).map((n) => scoreFile(n, expected[n], actual[n]));
   if (edge) for (const n of only.filter((f) => EDGE.includes(f))) files.push({ ...scoreFile(n, edge.expected[n], edge.actual[n]), file: `edge/${n}.csv` });
   const cells = files.reduce((s, f) => s + f.rows * f.columns.length, 0);
   const matchedCells = files.reduce((s, f) => s + f.columns.reduce((t, c) => t + c.matched, 0), 0);
@@ -159,7 +162,7 @@ export function scoreAll(expected, actual, only = FILES, edge = null) {
 
 const pct = (a, b) => (b === 0 ? '100%' : `${(Math.floor((a / b) * 1000) / 10).toFixed(1)}%`);
 
-export function report(score, { diffs = 10, skipped = [] } = {}) {
+export function report(score, { diffs = 10, skipped = [], absent = [] } = {}) {
   const out = [];
   for (const f of score.files) {
     out.push(`${f.file}: ${f.matchedRows} of ${f.rows} rows match (${pct(f.matchedRows, f.rows)})${f.missing ? `, ${f.missing} missing` : ''}${f.extra ? `, ${f.extra} not expected` : ''}`);
@@ -167,6 +170,7 @@ export function report(score, { diffs = 10, skipped = [] } = {}) {
     if (!f.problems.includes('not written')) out.push('  ' + f.columns.map((c) => `${c.column} ${pct(c.matched, f.rows)}`).join(' · '));
   }
   for (const s of skipped) out.push(`${s}.csv: not scored (--files)`);
+  for (const s of absent) out.push(`${s}.csv: not scored (the conformance folder has no ${s}.csv)`);
   out.push('');
   out.push(`Score: ${pct(score.matchedCells, score.cells)} of cells (${score.matchedCells} of ${score.cells}); ${score.files.reduce((s, f) => s + f.matchedRows, 0)} of ${score.files.reduce((s, f) => s + f.rows, 0)} rows. ${score.pass ? 'PASS: every row and column matches.' : 'Not yet: see the first differences below.'}`);
   if (!score.pass && diffs > 0 && score.files.some((f) => f.diffs.length)) {
@@ -366,7 +370,7 @@ async function main(argv) {
   if (m && typeof m.run === 'string' && m.run.trim()) {
     const stage = m.stage ?? 1;
     if (!STAGES[stage]) { console.error(`drill.json says stage ${stage}; this harness scores stages ${Object.keys(STAGES).join(', ')} (spec/rebuild/README.md says which stages have a drill).`); return 2; }
-    if (!opt.files) opt.files = [...new Set([...STAGES[stage], ...(Array.isArray(m.also) ? m.also.filter((f) => ALSO.includes(f) || FILES.includes(f)) : [])])];
+    if (!opt.files) opt.files = [...new Set([...STAGES[stage], ...(Array.isArray(m.also) ? m.also.filter((f) => typeof f === 'string') : [])])];
     outDir = path.join(target, 'drill-out');
     fs.rmSync(outDir, { recursive: true, force: true });
     fs.mkdirSync(outDir, { recursive: true });
@@ -410,32 +414,44 @@ async function main(argv) {
   if (shim) {
     const dir = path.join(expectedDir, 'contracts');
     const all = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort() : [];
-    const names = opt.contracts ?? (Array.isArray(m.contracts) ? m.contracts : all);
-    const unknown = names.filter((n) => !all.includes(n));
-    if (unknown.length) { console.error(`No contract ${unknown.join(', ')} in ${dir}; there are ${all.join(', ') || 'none'}.`); return 2; }
-    say(`Running the contracts through the shim, in ${target}:\n  ${shim}`);
-    const open = openShim(shim, target);
-    contracts = [];
-    try {
-      for (const n of names) contracts.push({ contract: n, cases: await runContract(JSON.parse(fs.readFileSync(path.join(dir, `${n}.json`), 'utf8')), open.call) });
-    } finally { open.close(); }
+    const asked = opt.contracts ?? (Array.isArray(m.contracts) ? m.contracts : all);
+    const unknown = asked.filter((n) => !all.includes(n));
+    // A name --contracts gives that the folder's contracts don't have is a typo: say so. Names drill.json lists that a
+    // folder with no such contract lacks (core-only/ has no contracts/ at all) are left out and named once.
+    if (unknown.length && opt.contracts && all.length) { console.error(`No contract ${unknown.join(', ')} in ${dir}; there are ${all.join(', ')}.`); return 2; }
+    if (!all.length) say(`Contracts not run: ${expectedDir} has no contracts folder.`);
+    else if (unknown.length) say(`Not run: contract${unknown.length > 1 ? 's' : ''} ${unknown.join(', ')} (not in ${dir}).`);
+    const names = asked.filter((n) => all.includes(n));
+    if (names.length) {
+      say(`Running the contracts through the shim, in ${target}:\n  ${shim}`);
+      const open = openShim(shim, target);
+      contracts = [];
+      try {
+        for (const n of names) contracts.push({ contract: n, cases: await runContract(JSON.parse(fs.readFileSync(path.join(dir, `${n}.json`), 'utf8')), open.call) });
+      } finally { open.close(); }
+    }
   }
 
   const scoreCsv = !m || (typeof m.run === 'string' && m.run.trim()) || opt.files;
-  let score = null, skipped = [];
+  if (!scoreCsv && !contracts) { console.error(`Nothing to score: no contract ran and drill.json has no "run".`); return 2; }
+  let score = null, skipped = [], absent = [];
   if (scoreCsv) {
     if (!opt.files) opt.files = FILES;
+    // Only the files the conformance folder holds: the rest are named once as not scored, never a crash.
+    absent = opt.files.filter((f) => !fs.existsSync(path.join(expectedDir, `${f}.csv`)));
+    opt.files = opt.files.filter((f) => !absent.includes(f));
+    if (!opt.files.length && !contracts) { console.error(`Nothing to score: ${expectedDir} has none of ${absent.map((f) => `${f}.csv`).join(', ')}, and no contract ran.`); return 2; }
     // The edge-case rows: when this run wrote them, or a folder scored as it is has an edge/ folder of its own.
     const edgeExpected = path.join(expectedDir, 'edge');
     const edgeActual = path.join(outDir, 'edge');
     const edge = fs.existsSync(path.join(edgeExpected, 'workspace.json')) && (ran ? !!ran.edge : fs.existsSync(edgeActual)) ? { expected: readCsvs(edgeExpected), actual: readCsvs(edgeActual) } : null;
-    score = scoreAll(readCsvs(expectedDir), readCsvs(outDir), opt.files, edge);
+    if (opt.files.length) score = scoreAll(readCsvs(expectedDir), readCsvs(outDir), opt.files, edge);
     skipped = FILES.filter((f) => !opt.files.includes(f) && opt.files.some((g) => FILES.includes(g)));
   }
   const contractsPass = !contracts || contracts.every((c) => c.cases.every((x) => x.pass));
-  if (opt.json) console.log(JSON.stringify({ ran, pass: (!score || score.pass) && contractsPass, ...(score ? { cells: score.cells, matchedCells: score.matchedCells, files: score.files.map(({ diffs, ...f }) => ({ ...f, firstDiffs: diffs.slice(0, opt.diffs) })), notScored: skipped } : {}), ...(contracts ? { contracts } : {}) }, null, 2));
+  if (opt.json) console.log(JSON.stringify({ ran, pass: (!score || score.pass) && contractsPass, ...(score ? { cells: score.cells, matchedCells: score.matchedCells, files: score.files.map(({ diffs, ...f }) => ({ ...f, firstDiffs: diffs.slice(0, opt.diffs) })), notScored: skipped, notInExpected: absent } : {}), ...(contracts ? { contracts } : {}) }, null, 2));
   else {
-    if (score) say('\n' + report(score, { diffs: opt.diffs, skipped }));
+    if (score) say('\n' + report(score, { diffs: opt.diffs, skipped, absent }));
     if (contracts) say('\n' + contractReport(contracts, opt.diffs));
   }
   return (!score || score.pass) && contractsPass && (!ran || (ran.exit === 0 && (!ran.edge || ran.edge.exit === 0))) ? 0 : 1;

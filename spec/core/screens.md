@@ -86,17 +86,18 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “… (worked out when it shows)” | primary | always |
-| “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
+| “the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open the review, Continue the review, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them” | primary | always |
+| “the quiet line’s buttons, as [Home](rules/home.md) words them: Check in early; See the goals and Set up a goal” | link | `quiet.buttons.length > 0` |
 | “Check in” | link | `rest.length > 0` and `checkInHere?.(g)` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
+| “the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)” | link | always |
 | “Show all …” | button | `asks.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind ===…` |
 | “See them” | link | `sort` |
 | “See the wrap-up” | link | `wrapping` |
 | “See Cycles / Start …” | link | always |
-| “… (worked out when it shows)” | button | `r.id === 'invite'` |
-| “… (worked out when it shows)” | link | `!(r.id === 'invite')` and `r.to` |
+| “the Getting started row’s action: Start check-in, Choose owners, Add people, Copy the link (which copies the invite link), New goal, See the goals or Find goals to watch” | button | `r.id === 'invite'` |
+| “the Getting started row’s action: Start check-in, Choose owners, Add people, Copy the link (which copies the invite link), New goal, See the goals or Find goals to watch” | link | `!(r.id === 'invite')` and `r.to` |
 | “Hide this” | button | always |
 
 ## CheckInFlow
@@ -174,7 +175,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
-| “… (worked out when it shows)” | primary | `step !== 'carry'` |
+| “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
 | “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
@@ -301,12 +302,12 @@ None: nothing to type or choose here.
 | “… · …” | button | always |
 | “New goal” | link | always |
 | “Wrap up” | link | `wrapUpOn(modules.on) && wrapUpOpenOn(app.cycle, app.today)` |
-| “… (worked out when it shows)” | button | `app.snapshot.goals.length > 0` |
+| “… (worked out when it shows: `viewSays`)” | button | `app.snapshot.goals.length > 0` |
 | “Clear” | button | `app.snapshot.goals.length > 0` and `query.status.includes('stale') && !rhythmOf(app.cycle)` |
 | “Set up the first goal” | primary | `!app.snapshot.goals.length` |
 | “Save this view…” | button | `canSave` |
 | “Copy link” | button | always |
-| “… (worked out when it shows)” | button | always |
+| “… (worked out when it shows: `m.label`)” | button | always |
 | “Done” | primary | always |
 
 ## GoalWizard
@@ -411,11 +412,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Button | Kind | Shown when |
 |---|---|---|
 | “All goals” | link | always |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `primary.kind === 'check-in' \|\| primary.kind === 'first-check-in'` |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `primary.kind === 'ask-update'` |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `primary.kind === 'add-step'` |
-| “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `!(primary.kind === 'add-step')` |
-| “… (worked out when it shows)” | link | `!(review \|\| !standing.kind)` and `standing.kind === 'check-in-again'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `primary.kind === 'check-in' \|\| primary.kind === 'first-check-in'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `primary.kind === 'ask-update'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `primary.kind === 'add-step'` |
+| “the goal’s one main action ([acting on a goal](rules/goal-act.md)): Answer {name}’s question, Answer {name}’s request (or Answer your own request), Post the first check-in, Check in for week {w}, Mark your next step done, Add a next step, or Ask {name} for an update” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `!(primary.kind === 'add-step')` |
+| “Check in again” | link | `!(review \|\| !standing.kind)` and `standing.kind === 'check-in-again'` |
 | “Ask … for an update” | button | `!review` and `askable` |
 | “Undo” | button | `!stopped` and `!isOwner && (stale \|\| noRhythm) && !review` and `updateAsk` and `canWithdraw(updateAsk, app.viewer, goal)` |
 | “Post the first check-in” | primary | `published` and `!(week < 1)` and the goal’s owner |
@@ -428,7 +429,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Ask for a decision or help” | link | `live` and the goal’s owner and `app.week > 0` |
 | “Check in” | link | `!(!x.button \|\| open)` and `x.button === 'Check in'` |
 | “Withdraw” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `x.button === 'Withdraw'` |
-| “… (worked out when it shows)” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `!(x.button === 'Withdraw')` |
+| “the row’s one button: Respond (a decision asked of the viewer), Answer (a question), Mark done (a next step); Check in and Withdraw are drawn on their own rows above” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `!(x.button === 'Withdraw')` |
 | “Change” | button | `canChange` |
 | “Cancel” | button | always |
 | “Asking… / Ask” | primary | always |
@@ -499,7 +500,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “At most” | button | `d.kind === 'range'` |
 | “At least” | button | `d.kind === 'range'` |
 | “Between” | button | `d.kind === 'range'` |
-| “… (worked out when it shows)” | primary | always |
+| “… (worked out when it shows: `label`)” | primary | always |
 
 ## Print
 
@@ -658,7 +659,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “… (worked out when it shows)” | link | `needs.length > 0` |
+| “… (worked out when it shows: `x.action`)” | link | `needs.length > 0` |
 | “and … more” | button | `needs.length > 0` and `needs.length > NEEDS_SHOWN` and `!all` |
 | “Undo” | button | `later && undo?.ok` and an admin |
 | “Start …” | primary | `canStart` |
@@ -679,7 +680,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “See the token / See the … tokens” | button | always |
 | “Change” | button | always |
 | “Save” | primary | always |
-| “… (worked out when it shows)” | primary | always |
+| “… (worked out when it shows: `primary`)” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
 | “Cancel” | button | `open` |
@@ -757,7 +758,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Add a goal” | button | `step === 'goals'` and `start === 'own'` |
 | “Download the template” | button | `step === 'goals'` and `start === 'file'` |
 | “Back” | button | `idx > 0` and `!fromCheck` |
-| “… (worked out when it shows)” | primary | always |
+| “… (worked out when it shows: `label`)” | primary | always |
 | “Done” | primary | always |
 | “Move a number” | button | `!headline` |
 | “Keep a number in range” | button | `!headline` |
@@ -818,11 +819,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Add them” | button | an admin and `noEmail > 0` |
 | “Previous …” | link | `found.pages > 1` and `found.page > 1` |
 | “Next …” | link | `found.pages > 1` and `found.page < found.pages` |
-| “… (worked out when it shows)” | primary | `see` and `!left` |
+| “… (worked out when it shows: `see`)” | primary | `see` and `!left` |
 | “Change details” | button | an admin and `!left` |
 | “Make an admin” | button | an admin and `!left` and `!p.admin` |
 | “Make an MCP token” | button | an admin and `!left` and `app.mode === 'live'` and `aiHere` |
-| “… (worked out when it shows)” | button | an admin and `!left` and `!you` |
+| “… (worked out when it shows: `leaveLabel(app, p)`)” | button | an admin and `!left` and `!you` |
 | “Add a team” | primary | an admin |
 | “Previous …” | link | `shown.pages > 1` and `shown.page > 1` |
 | “Next …” | link | `shown.pages > 1` and `shown.page < shown.pages` |
@@ -1543,7 +1544,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Button | Kind | Shown when |
 |---|---|---|
 | “(Remove owner …)” | button | always |
-| “… (worked out when it shows)” | button | `match.length > 0` |
+| “… (worked out when it shows: `p.name`)” | button | `match.length > 0` |
 | “Clear filters” | button | always |
 | “Show the goals” | primary | always |
 
@@ -1569,7 +1570,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Save this view…” | button | `canSave` |
 | “Copy link” | button | always |
-| “… (worked out when it shows)” | button | always |
+| “… (worked out when it shows: `m.label`)” | button | always |
 | “Done” | primary | always |
 
 ### Check-in: one goal, a step at a time
@@ -1617,7 +1618,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
-| “… (worked out when it shows)” | primary | `step !== 'carry'` |
+| “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
 | “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
@@ -1753,7 +1754,7 @@ None: nothing to type or choose here.
 | “Answer it” | button | `allowed` and `canAskBack` |
 | “Ask the owner first” | button | `allowed` and `canAskBack` |
 | “Leave it open” | button | `allowed` |
-| “… (worked out when it shows)” | primary | `allowed` |
+| “… (worked out when it shows: `button`)” | primary | `allowed` |
 
 ### A review: one goal at a time
 
@@ -1790,7 +1791,7 @@ None: nothing to type or choose here.
 | “Edit” | button | `said.length > 0` and `d.byId === app.viewer.id` |
 | “Remove” | button | `said.length > 0` and `d.kind === 'note' && (d.byId === app.viewer.id \|\| app.viewer.admin)` |
 | “Add the next step” | primary | `mustDecide` |
-| “… (worked out when it shows)” | button | `mustDecide` |
+| “… (worked out when it shows: `DECIDED['accept-risk'].label`)” | button | `mustDecide` |
 | “Reviewed & finish / Reviewed & back to the review / Reviewed & next” | primary | `!mustDecide` |
 | “Add a note” | button | `!mustDecide` |
 | “Add a note” | button | `mustDecide` |

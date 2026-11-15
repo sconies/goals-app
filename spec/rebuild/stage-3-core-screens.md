@@ -69,7 +69,7 @@ Stage 3’s drill scores the parts of the screens that are rules of the viewer, 
 2. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths: its page’s steps, in order, from where it starts, with every check on it true.
 3. Each core requirement in [the requirements](../core/requirements.md) holds.
 4. No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).
-5. `node spec/rebuild/drill.mjs rebuild --expected spec/conformance/core-only` prints **PASS** too: the same four files on the same workspace with every feature module switched off (`modulesOff`), so the core is proved without any module ([the core alone](../conformance/README.md#the-core-alone-core-only)).
+5. `node spec/rebuild/drill.mjs rebuild --expected spec/conformance/core-only` prints **PASS** too: the same four files on the same workspace with every feature module switched off (`modulesOff`), so the core is proved without any module ([the core alone](../conformance/README.md#the-core-alone-core-only)). Leave `drill.json` as it is: a file or contract `core-only/` doesn’t hold (it has these four files and no `contracts/`) is named once as not scored, so `also` and `contracts` carried from stage 2 can stay.
 6. The module platform holds what [its page](module-platform.md#what-proves-it-stage-3s-exit-criterion-for-the-platform) lists, with one example module on, switched off and left out.
 
 ## Gaps in the kit

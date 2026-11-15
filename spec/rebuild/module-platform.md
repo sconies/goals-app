@@ -58,17 +58,19 @@ Beside the places, a module may add:
 
 ### What each installed module plugs in
 
-| Module | Group | Needs | Menu rows | Routes | Places | Workspace sections | Records | AI tools |
-|---|---|---|---|---|---|---|---|---|
-| AI access (`ai-access`) | beyond | — | — | 0 | — | `ai` | — | 3 |
-| Feedback (`feedback`) | beyond | — | — | 1 | — | — | — | 8 |
-| Goal map (`goal-map`) | tools | — | — | 0 | — | — | — | 0 |
-| Metric library (`metrics`) | tools | — | Metrics | 4 | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 7 |
-| Reviews (`reviews`) | together | — | — | 7 | — | — | — | 7 |
-| Spreadsheets (`spreadsheets`) | tools | — | — | 5 | `data.tools`, `goals.tools`, `help.article` | — | — | 2 |
-| Fields (`tags`) | tools | — | — | 0 | `goal.sections` | `fields` | field, field value | 3 |
-| Watching (`watching`) | together | — | — | 1 | — | — | — | 3 |
-| Wrap-up (`wrap-up`) | together | — | — | 2 | — | — | — | 2 |
+Each one’s facts in full, as data, are in [`modules.json`](modules.json): every installed module’s `module.json` (its summary, routes, menu rows, places, sections, AI tools, Help articles, requirements and journeys), without its stage’s words, which are its stage page. A rebuild’s platform can load it as it is.
+
+| Module | Summary (Features) | Group | Needs | Menu rows | Routes | Places | Workspace sections | Records | AI tools |
+|---|---|---|---|---|---|---|---|---|---|
+| AI access (`ai-access`) | Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights. | beyond | — | — | 0 | — | `ai` | — | 3 |
+| Feedback (`feedback`) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. | beyond | — | — | 1 | — | — | — | 8 |
+| Goal map (`goal-map`) | See every goal and what feeds it on one canvas, with the path the risk runs along. | tools | — | — | 0 | — | — | — | 0 |
+| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 4 | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 7 |
+| Reviews (`reviews`) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | together | — | — | 7 | — | — | — | 7 |
+| Spreadsheets (`spreadsheets`) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | tools | — | — | 5 | `data.tools`, `goals.tools`, `help.article` | — | — | 2 |
+| Fields (`tags`) | Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by. | tools | — | — | 0 | `goal.sections` | `fields` | field, field value | 3 |
+| Watching (`watching`) | Follow goals you don’t own: they show on your Home and under Watching in Goals. | together | — | — | 1 | — | — | — | 3 |
+| Wrap-up (`wrap-up`) | At the end of the year, each owner says how their goals landed and what they learned. | together | — | — | 2 | — | — | — | 2 |
 
 Several modules are switches whose screens are still the core’s (Reviews, Watching, the Wrap-up, the Goal map, Feedback, AI access): their pages, rows and leads are drawn by core screens that ask whether the module is on, so their `places` are empty. A rebuild may build them either way; what each must do while off is the same.
 
@@ -119,6 +121,7 @@ One endpoint (Faro: `/api/mcp`) answering JSON-RPC 2.0 over HTTP POST, the Model
 
 - A personal token, `gk_` and 40 letters or digits, sent as `Authorization: Bearer <token>` (or `?token=` for an assistant that only takes an address). The server keeps only its SHA-256 hash, looks the token up by it, and acts as its person in its workspace; every save is logged as that person, marked “via MCP”.
 - Each request loads the workspace afresh, its `modulesOff` included. A request the door let through moves the token’s last use.
+- Making and revoking tokens is AI access’s (stage 4), so stage 3 has no screen that makes one. To test the server in stage 3, a build stores a token record itself (its hash, its person and workspace, no revoked date) and sends the token: what the door does with it is the same as with one AI access made.
 
 | When | HTTP status | Answer |
 |---|---|---|
@@ -154,6 +157,6 @@ With one example module (Faro’s conformance uses `example`: a menu row “Exam
 
 1. With it on, each shows where this page says, and its action and tool run.
 2. Switched off by an admin on Workspace → Features: its row, page, part, article and Workspace section are gone; its address is Page not found with “{Module} is switched off in {workspace}. An admin can switch it on in Workspace, Features.”; its action is refused with the action’s sentence; its tool is still listed and answers with the tool’s sentence; the change is in the log; nothing it saved is deleted, and switching it back on brings everything back.
-3. Someone who isn’t an admin can’t switch it (the rule’s words), and a module that needs it goes off with it.
+3. Someone who isn’t an admin can’t switch it (the rule’s words), and a module that needs it goes off with it. No installed module has `needs` today (the table above), so prove this half with a second example module whose `needs` names the first: switching the first off switches both off, logs “, and with it {the second}”, and Features says “Off until {the first} is on.” under the second.
 4. Built without the module at all, the core runs every core journey, the server answers the core’s tools, and Features shows no switch for it.
 5. The server answers `initialize`, `ping`, `tools/list` and a batch as above, refuses a missing or revoked token with 401 and its words, and a write with `dry_run: true` saves nothing.
