@@ -1,0 +1,302 @@
+diff --git a/package.json b/package.json
+index c911d62..dbd82d1 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+     "spec:shots": "node scripts/screen-shots.mjs",
+     "icons": "node scripts/icons.mjs",
+     "drill": "node scripts/drill.mjs",
+-    "build:standin": "FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=ai-access,feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up vite build -c vite.platform.config.ts --logLevel warn",
++    "build:standin": "FARO_WITHOUT=${STANDIN_WITHOUT-feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up} VITE_STANDIN=1 vite build --outDir platform/dist/app --emptyOutDir && FARO_WITHOUT=${STANDIN_WITHOUT-feedback,goal-map,metrics,reviews,spreadsheets,tags,watching,wrap-up} vite build -c vite.platform.config.ts --logLevel warn",
+     "standin": "node platform/dist/server.mjs",
+     "standin:seed": "node platform/dist/server.mjs seed"
+   },
+diff --git a/platform/prove-ai.mjs b/platform/prove-ai.mjs
+new file mode 100644
+index 0000000..0183b11
+--- /dev/null
++++ b/platform/prove-ai.mjs
+@@ -0,0 +1,222 @@
++/* Stage 4 (AI access) on the stand-in platform: its exit criteria, checked on the running server, with the module on,
++   switched off, and back on, through the API, /mcp and the app's screens. With `--without` it checks a build that left
++   the module out (STANDIN_WITHOUT=…,ai-access npm run build:standin): no token made, no token tools, the core's still
++   answering. Usage: node platform/prove-ai.mjs [port] [--without]. One line per check and a tally. */
++import { spawn } from 'node:child_process';
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { DatabaseSync } from 'node:sqlite';
++import { chromium } from 'playwright';
++
++const WITHOUT = process.argv.includes('--without');
++const PORT = Number(process.argv.find((a) => /^\d+$/.test(a)) || 47410);
++const B = `http://localhost:${PORT}`;
++const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'faro-standin-ai-'));
++const ENV = { ...process.env, STANDIN_PORT: String(PORT), STANDIN_DATA: DATA, NODE_NO_WARNINGS: '1' };
++const PASSWORD = 'faro-standin';
++const WS = 'ws_platform';
++const WSNAME = 'Platform Engineering';
++const SHUT = `AI access is switched off in ${WSNAME}. An admin can switch it on in Faro, under Workspace, Features.`;
++const results = [];
++const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`); };
++
++function run(args) { return new Promise((res, rej) => { const p = spawn(process.execPath, ['platform/dist/server.mjs', ...args], { env: ENV, stdio: 'inherit' }); p.on('exit', (c) => (c ? rej(new Error('exit ' + c)) : res())); }); }
++async function start() {
++  const p = spawn(process.execPath, ['platform/dist/server.mjs'], { env: ENV, stdio: ['ignore', 'pipe', 'inherit'] });
++  await new Promise((res) => p.stdout.on('data', (d) => { if (/stand-in platform/.test(String(d))) res(); }));
++  return p;
++}
++const stop = (p) => new Promise((res) => { p.on('exit', res); p.kill(); });
++function client() {
++  let cookie = '';
++  const c = async (method, url, body, headers = {}) => {
++    const r = await fetch(B + url, { method, redirect: 'manual', headers: { ...(cookie ? { cookie } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
++    const set = r.headers.get('set-cookie'); if (set) cookie = set.split(';')[0];
++    const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* html */ }
++    return { status: r.status, json, text };
++  };
++  c.signIn = (email) => c('POST', '/api/signin', { email, password: PASSWORD });
++  return c;
++}
++let n = 0;
++const token = (id, personId, name, createdBy) => ({ tokens: [{ id, personId, name, createdBy, createdAt: new Date(Date.now() + ++n).toISOString(), lastUsedAt: null, revokedAt: null }], changes: [] });
++const anon = client();
++const mcp = async (secret, method, params = {}) => (await anon('POST', '/mcp', { jsonrpc: '2.0', id: ++n, method, params }, { Authorization: `Bearer ${secret}`, Accept: 'application/json, text/event-stream' }));
++const said = (r) => String(r.json?.result?.content?.[0]?.text ?? r.json?.error?.message ?? r.json?.error ?? r.text).slice(0, 200);
++const db = () => new DatabaseSync(path.join(DATA, 'faro.db'));
++const lastUsed = (id) => { const d = db(); const v = d.prepare('select last_used_at from okr_api_tokens where id = ?').get(id)?.last_used_at ?? null; d.close(); return v; };
++
++await run(['seed', PASSWORD]);
++const server = await start();
++const browser = await chromium.launch();
++try {
++  const amara = client(); await amara.signIn('amara.nwosu@example.com');
++  const rhea = client(); await rhea.signIn('rhea.kapoor@example.com');
++
++  if (WITHOUT) {
++    // Left out, tokens stay the core's (the stage's gap 2): the API still makes one, though no screen offers it.
++    let r = await amara('POST', `/api/workspaces/${WS}/tokens`, token('tok_amaraw', 'amara', 'Claude', 'amara'));
++    const sec = r.json?.secret;
++    check('left out: tokens stay the core’s (made through the API, no screen)', r.status === 200 && /^gk_/.test(sec ?? ''), r.json?.error);
++    r = await mcp(sec, 'tools/list');
++    const tools = r.json?.result?.tools?.map((t) => t.name) ?? [];
++    check('left out: /mcp stays open with the core’s tools and no token tools', tools.includes('find_goals') && !tools.some((t) => /token/.test(t)), `${tools.length} tools`);
++    r = await mcp(sec, 'tools/call', { name: 'find_goals', arguments: { text: 'G-1' } });
++    check('left out: a core tool answers (the door is only the workspace’s switch)', !r.json?.result?.isError, said(r));
++    r = await mcp(sec, 'tools/call', { name: 'set_feature', arguments: { feature: 'ai-access', on: false } });
++    check('left out: set_feature doesn’t know ai-access', !!(r.json?.result?.isError || r.json?.error), said(r));
++    const page = await browser.newPage();
++    await page.goto(B + '/signin'); await page.fill('input[name=email]', 'amara.nwosu@example.com'); await page.fill('input[name=password]', PASSWORD); await page.click('button[type=submit]');
++    await page.waitForTimeout(1500);
++    await page.goto(B + '/workspace/ai'); await page.waitForTimeout(1500);
++    const ai = await page.locator('body').innerText();
++    check('left out: /workspace/ai is not a section', /Page not found|not found/i.test(ai) && !/The MCP tokens that let an AI tool act/.test(ai), ai.slice(0, 120).replace(/\s+/g, ' '));
++    await page.goto(B + '/settings'); await page.waitForTimeout(1200);
++    check('left out: Settings has no “Your MCP tokens” section', !(await page.getByRole('heading', { name: /^Your MCP tokens/ }).count()));
++    await page.goto(B + '/workspace/features'); await page.waitForTimeout(1200);
++    check('left out: Features has no AI access line', !/AI access/.test(await page.locator('main, .page').first().innerText()));
++    await page.goto(B + '/people/rhea'); await page.waitForTimeout(1200);
++    check('left out: a person’s page has no Make an MCP token', !/Make an MCP token/.test(await page.locator('body').innerText()));
++  } else {
++
++  // ---------- On: tokens made, used as their person, via MCP ----------
++  let r = await amara('POST', `/api/workspaces/${WS}/tokens`, token('tok_rheaai', 'rhea', 'Claude on Rhea’s laptop', 'amara'));
++  const rheaSecret = r.json?.secret;
++  check('MCP-TOKENS: an admin makes a token for someone; the secret comes back once', r.status === 200 && /^gk_/.test(rheaSecret ?? ''));
++  r = await amara('POST', `/api/workspaces/${WS}/tokens`, token('tok_amaraai', 'amara', 'Claude on Amara’s desk', 'amara'));
++  const amaraSecret = r.json?.secret;
++  let d = db();
++  const row = d.prepare('select * from okr_api_tokens where id = ?').get('tok_rheaai'); d.close();
++  check('TOKENS-SERVER-ONLY: only the SHA-256 hash is kept, never the secret', row && row.token_hash?.length === 64 && !Object.values(row).includes(rheaSecret));
++  r = await rhea('GET', `/api/workspaces/${WS}`);
++  check('TOKENS-SERVER-ONLY: a load never carries a hash; a member sees only their own tokens', r.json?.tokens?.length === 1 && r.json.tokens[0].id === 'tok_rheaai' && !JSON.stringify(r.json.tokens).includes(row?.token_hash));
++  r = await mcp(rheaSecret, 'tools/list');
++  const tools = r.json?.result?.tools?.map((t) => t.name) ?? [];
++  check('on: /mcp lists AI access’s tools (list_tokens, create_token, revoke_token)', ['list_tokens', 'create_token', 'revoke_token'].every((t) => tools.includes(t)), `${tools.length} tools`);
++  r = await mcp(rheaSecret, 'tools/call', { name: 'create_token', arguments: { person: 'rhea', name: 'Another' } });
++  check('MCP-TOKENS: the token has its person’s rights (Rhea, not an admin, can’t make a token)', r.json?.result?.isError && /Only admins can make tokens/.test(said(r)), said(r));
++  r = await mcp(amaraSecret, 'tools/call', { name: 'create_token', arguments: { person: 'tariq', name: 'Tariq’s assistant' } });
++  const tariqSecret = /gk_[A-Za-z0-9]+/.exec(said(r))?.[0];
++  d = db(); const via = d.prepare("select summary, diffs from okr_changes where actor_id = 'amara' and summary like 'Gave Tariq%'").get(); d.close();
++  check('MCP-TOKENS: an admin’s token makes one via MCP, logged as theirs “via MCP”', !!tariqSecret && /MCP/.test(String(via?.diffs)), `${said(r).slice(0, 60)} | ${via?.diffs}`);
++  r = await mcp(rheaSecret, 'tools/call', { name: 'list_tokens', arguments: {} });
++  check('on: list_tokens answers, never the secret', !r.json?.result?.isError && !said(r).includes(rheaSecret) && /Claude on Rhea/.test(JSON.stringify(r.json)), said(r).slice(0, 100));
++  const usedBefore = lastUsed('tok_rheaai');
++  check('on: a token’s use is recorded (lastUsedAt)', !!usedBefore, usedBefore);
++
++  // ---------- R1 for the module's record (tokens) through /commit, as a member without the right ----------
++  await amara('POST', `/api/workspaces/${WS}/tokens`, token('tok_rheaspare', 'rhea', 'Spare', 'amara'));
++  const toks = (await amara('GET', `/api/workspaces/${WS}`)).json.tokens;
++  const amaraTok = toks.find((x) => x.id === 'tok_amaraai');
++  const spare = toks.find((x) => x.id === 'tok_rheaspare');
++  const now = () => new Date().toISOString();
++  const chg = (id, entityId, summary) => ({ id, at: now(), actorId: 'rhea', goalId: null, entity: 'person', entityId, action: 'edited', summary, diffs: [] });
++  const forged = [
++    ['forges a new token through a save', { tokens: [{ id: 'tok_forged', personId: 'rhea', name: 'Forged', createdBy: 'rhea', createdAt: now(), lastUsedAt: null, revokedAt: null }], changes: [chg('chg_f1', 'rhea', 'Forged')] }, /Only admins can make tokens/],
++    ['revokes someone else’s token', { tokens: [{ ...amaraTok, revokedAt: now() }], changes: [chg('chg_f2', 'amara', 'Revoked')] }, /Only an admin or the token’s person can revoke it/],
++    ['renames their own token', { tokens: [{ ...spare, name: 'Renamed' }], changes: [chg('chg_f3', 'rhea', 'Renamed')] }, /can only be revoked, not changed/],
++    ['hands their own token to someone else', { tokens: [{ ...spare, personId: 'amara', revokedAt: now() }], changes: [chg('chg_f4', 'rhea', 'Moved')] }, /can only be revoked, not changed/],
++  ];
++  for (const [what, commit, words] of forged) {
++    r = await rhea('POST', `/api/workspaces/${WS}/commit`, commit);
++    check(`R1 tokens: a member who ${what}: refused by the server`, r.status === 403 && words.test(r.json?.error ?? ''), `${r.status} ${r.json?.error}`);
++  }
++  r = await rhea('POST', `/api/workspaces/${WS}/commit`, { tokens: [{ ...spare, revokedAt: now() }], changes: [{ ...chg('chg_f5', 'rhea', 'Revoked the MCP token “Spare”'), diffs: [{ field: 'MCP token', from: 'Spare', to: 'Revoked' }] }] });
++  check('R1 tokens: a member revokes their own token: allowed', r.status === 200, r.json?.error);
++  r = await rhea('POST', `/api/workspaces/${WS}/commit`, { tokens: [{ ...spare, revokedAt: null }], changes: [chg('chg_f6', 'rhea', 'Unrevoked')] });
++  check('R1 tokens: a revoked token can’t be brought back by a save', r.status === 403, `${r.status} ${r.json?.error}`);
++
++  // ---------- Switching off, as an AI tool (criterion 7) ----------
++  r = await mcp(amaraSecret, 'tools/call', { name: 'set_feature', arguments: { feature: 'ai-access', on: false } });
++  check('7: set_feature switching AI access off answers the last words', said(r) === `AI access is off in ${WSNAME}. This connection stops working now. An admin switches it back on in Faro.`, said(r));
++
++  // ---------- Off: the door (criterion 3) ----------
++  await new Promise((res) => setTimeout(res, 20));
++  r = await mcp(rheaSecret, 'tools/call', { name: 'find_goals', arguments: { text: 'G-1' } });
++  const callSaid = said(r);
++  const init = await mcp(rheaSecret, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'proof', version: '1' } });
++  const list = await mcp(rheaSecret, 'tools/list');
++  const ping = await mcp(rheaSecret, 'ping');
++  check('3: off, a tool call is answered with the switched-off sentence', callSaid.includes(SHUT), callSaid);
++  check('3: off, initialize and tools/list still answer (the tools still listed)', !!init.json?.result && (list.json?.result?.tools?.length ?? 0) > 0, `${list.json?.result?.tools?.length} tools`);
++  check('3: off, any other request (ping) gets the sentence too', said(ping).includes(SHUT), said(ping));
++  check('3: off, the token’s lastUsedAt does not move', lastUsed('tok_rheaai') === usedBefore, `${usedBefore} → ${lastUsed('tok_rheaai')}`);
++  d = db(); const kept = d.prepare("select count(*) n from okr_api_tokens where workspace_id = ? and revoked_at is null").get(WS).n; const offRow = d.prepare('select modules_off from okr_workspaces where id = ?').get(WS).modules_off; d.close();
++  check('off: kept in SQLite (modules_off), tokens kept, not revoked', /ai-access/.test(offRow) && kept === 3, `${offRow}, ${kept} live tokens`);
++
++  // ---------- Off: making refused, revoking runs (criteria 4 and 8) ----------
++  r = await amara('POST', `/api/workspaces/${WS}/tokens`, token('tok_off', 'rhea', 'While off', 'amara'));
++  check('4/8: off, making a token is refused by the server with “AI access is off in {workspace}.”', r.status === 403 && r.json?.error === `AI access is off in ${WSNAME}.`, `${r.status} ${r.json?.error}`);
++  const at = new Date().toISOString();
++  const tariqRow = (await amara('GET', `/api/workspaces/${WS}`)).json.tokens.find((t) => t.personId === 'tariq');
++  r = await amara('POST', `/api/workspaces/${WS}/commit`, { tokens: [{ ...tariqRow, revokedAt: at }], changes: [{ id: 'chg_revokeoff', at, actorId: 'amara', goalId: null, entity: 'person', entityId: 'tariq', action: 'edited', summary: `Revoked the MCP token “${tariqRow.name}”`, diffs: [{ field: 'MCP token', from: tariqRow.name, to: 'Revoked' }] }] });
++  d = db(); const rev = d.prepare("select revoked_at from okr_api_tokens where person_id = 'tariq'").get(); d.close();
++  check('4/8: off, revoking a token still works', r.status === 200 && !!rev?.revoked_at, `${r.status} ${r.json?.error ?? ''}`);
++
++  // ---------- Off and on, through the screens (criteria 5 and 6) ----------
++  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
++  const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
++  await page.goto(B + '/signin'); await page.fill('input[name=email]', 'amara.nwosu@example.com'); await page.fill('input[name=password]', PASSWORD); await page.click('button[type=submit]');
++  await page.waitForTimeout(1500);
++  const text = async (url) => { await page.goto(B + url); await page.waitForTimeout(1300); return page.locator('body').innerText(); };
++  let t = await text('/workspace/ai');
++  check('5: off, /workspace/ai is Page not found and says AI access is switched off', /Page not found/.test(t) && t.includes(`AI access is switched off in ${WSNAME}. An admin can switch it on in Workspace, Features.`), t.slice(0, 160).replace(/\s+/g, ' '));
++  check('5: off, Workspace’s menu has no AI access section', !(await page.locator('nav a[href="/workspace/ai"], a[href="/workspace/ai"]').count()));
++  t = await text('/settings');
++  check('5: off, Settings has no “Your MCP tokens” section (as U175 checks: its heading)', /Settings/.test(t) && !(await page.getByRole('heading', { name: /^Your MCP tokens/ }).count()));
++  // Faro finding: the page's “On this page” links (Settings.tsx SECTIONS) still name it, a link to nothing.
++  console.log(`NOTE  off, Settings' “On this page” row still links “Your MCP tokens”: ${await page.locator('.section-links a[href="#ai-mine"]').count() > 0}`);
++  t = await text('/people/rhea');
++  check('5: off, a person’s page has no Make an MCP token', !/Make an MCP token/.test(t) && /Rhea/.test(t), t.slice(0, 80).replace(/\s+/g, ' '));
++  await text('/workspace/features');
++  await page.getByRole('checkbox', { name: /AI access/ }).first().click();
++  await page.waitForTimeout(600);
++  t = await page.locator('body').innerText();
++  check('6: switching back on names, first, the kept tokens that work again', /Switch AI access back on/.test(t) && /2 tokens made before will work again at once/.test(t) && /Amara Nwosu’s “Claude on Amara’s desk”/.test(t) && /Rhea Kapoor’s “Claude on Rhea’s laptop”/.test(t) && !/Tariq/.test(t.split('Switch AI access back on')[1] ?? ''), (t.match(/tokens? made before[^\n]*/) ?? [''])[0]);
++  await page.getByRole('button', { name: 'Switch on AI access' }).click();
++  await page.waitForTimeout(1200);
++  r = await mcp(rheaSecret, 'tools/call', { name: 'list_tokens', arguments: {} });
++  check('on again: the kept tokens work again at once', !r.json?.result?.isError && !said(r).includes(SHUT), said(r).slice(0, 80));
++  t = await text('/workspace/ai');
++  check('on again: /workspace/ai is back, listing the tokens', /The MCP tokens that let an AI tool act as someone here/.test(t) && /Claude on Rhea/.test(t));
++  t = await text('/settings');
++  check('on again: Settings has “Your MCP tokens”', /Your MCP tokens/.test(t));
++  t = await text('/people/rhea');
++  check('on again: an admin sees Make an MCP token on a person’s page', /Make an MCP token/.test(t));
++  t = await text('/workspace/features');
++  check('on: Features’ third line counts the tokens in use', /2 tokens are in use/.test(t), (t.match(/tokens? (is|are) in use[^\n]*/) ?? [''])[0]);
++  await page.getByRole('checkbox', { name: /AI access/ }).first().click();
++  await page.waitForTimeout(600);
++  t = await page.locator('body').innerText();
++  check('6: switching off first reads back the tokens that stop and the changes AI tools made', /Switch off AI access in/.test(t) && /2 tokens stop working at once/.test(t) && /kept, not revoked/.test(t) && /marked “via MCP” in Activity: \d+ change/.test(t), (t.match(/marked “via MCP”[^\n]*/) ?? [''])[0]);
++  await page.getByRole('button', { name: 'Switch off AI access' }).click();
++  await page.waitForTimeout(1200);
++  d = db(); const off2 = d.prepare('select modules_off from okr_workspaces where id = ?').get(WS).modules_off; const logged = d.prepare("select count(*) n from okr_changes where actor_id = 'amara' and summary = 'Switched off AI access'").get().n; d.close();
++  check('switched off through the screens: kept in SQLite and logged as the admin', /ai-access/.test(off2) && logged >= 1, `${off2}, ${logged} log entries`);
++  r = await mcp(amaraSecret, 'tools/call', { name: 'list_tokens', arguments: {} });
++  check('off again: the door is shut again', said(r).includes(SHUT));
++  // A member can't switch it back on (R1 rule 4, the core's guard).
++  r = await rhea('POST', `/api/workspaces/${WS}/commit`, { modulesOff: [], changes: [{ id: 'chg_rheaon', at: new Date().toISOString(), actorId: 'rhea', goalId: null, entity: 'workspace', entityId: WS, action: 'edited', summary: 'Switched on AI access', diffs: [] }] });
++  check('a member who isn’t an admin can’t switch it back on', r.status === 403, r.json?.error);
++  // With no token, either way it acts at once: revoke them all, switch on.
++  for (const id of ['tok_rheaai', 'tok_amaraai']) {
++    const tk = (await amara('GET', `/api/workspaces/${WS}`)).json.tokens.find((x) => x.id === id);
++    const at2 = new Date().toISOString();
++    await amara('POST', `/api/workspaces/${WS}/commit`, { tokens: [{ ...tk, revokedAt: at2 }], changes: [{ id: `chg_rv_${id}`, at: at2, actorId: 'amara', goalId: null, entity: 'person', entityId: tk.personId, action: 'edited', summary: `Revoked the MCP token “${tk.name}”`, diffs: [{ field: 'MCP token', from: tk.name, to: 'Revoked' }] }] });
++  }
++  await text('/workspace/features');
++  await page.getByRole('checkbox', { name: /AI access/ }).first().click();
++  await page.waitForTimeout(1200);
++  t = await page.locator('body').innerText();
++  d = db(); const off3 = d.prepare('select modules_off from okr_workspaces where id = ?').get(WS).modules_off; d.close();
++  check('6: with no token, switching on acts at once (no read-back)', !/Switch AI access back on/.test(t) && !/ai-access/.test(off3 ?? ''), off3);
++  check('no page errors in the browser', errs.length === 0, errs.join(' | ').slice(0, 200));
++  }
++} finally {
++  await browser.close();
++  await stop(server);
++}
++const failed = results.filter((x) => !x.ok);
++console.log(`\n${results.length - failed.length}/${results.length} checks pass${failed.length ? '; failing: ' + failed.map((f) => f.name).join('; ') : ''}`);
++process.exitCode = failed.length ? 1 : 0;
+diff --git a/platform/prove.mjs b/platform/prove.mjs
+index 3e9039e..683a3fb 100644
+--- a/platform/prove.mjs
++++ b/platform/prove.mjs
+@@ -124,7 +124,9 @@ try {
+   const mcp = async (method, params, token = secret) => (await anon('POST', '/mcp', { jsonrpc: '2.0', id: ++n, method, params }, { Authorization: `Bearer ${token}`, Accept: 'application/json, text/event-stream' }));
+   r = await mcp('tools/list', {});
+   const tools = r.json?.result?.tools?.map((t) => t.name) ?? [];
+-  check('/mcp lists the core’s tools, with every module left out', tools.includes('find_goals') && tools.includes('post_check_in') && !tools.includes('create_token'), `${tools.length} tools`);
++  // AI access's token tools are listed when it is built in (stage 4), not when it is left out (STANDIN_WITHOUT names it).
++  const aiBuilt = !(process.env.STANDIN_WITHOUT ?? '').split(',').includes('ai-access');
++  check(`/mcp lists the core’s tools${aiBuilt ? ' and AI access’s' : ', with every module left out'}`, tools.includes('find_goals') && tools.includes('post_check_in') && tools.includes('create_token') === aiBuilt, `${tools.length} tools`);
+   r = await mcp('tools/call', { name: 'update_goal', arguments: { goal_id: theirs.id, title: 'Taken over' } });
+   check('MCP: a token acts with its person’s rights (rhea can’t change another’s goal)', r.json?.result?.isError && /its owner/.test(JSON.stringify(r.json)), JSON.stringify(r.json?.result?.content?.[0]?.text ?? r.json).slice(0, 160));
+   r = await mcp('tools/call', { name: 'find_goals', arguments: { text: mine.key } });
+diff --git a/platform/server.ts b/platform/server.ts
+index 5ed2935..9b2ce81 100644
+--- a/platform/server.ts
++++ b/platform/server.ts
+@@ -15,6 +15,8 @@ import { folderFiles } from '../src/adapters/standin/files';
+ import { refusal } from '../src/adapters/standin/guard';
+ import { matchSignIn } from '../src/adapters/signIn';
+ import { isStale } from '../src/ports/store';
++import { isModuleOn } from '../src/core/registry';
++import { moduleOffWords } from '../src/app/reads';
+ import { personFromRow, type PersonRow } from '../src/data/rows';
+ import type { Commit } from '../src/data/store';
+ import type { Person, Snapshot, Workspace } from '../src/domain/types';
+@@ -143,6 +145,10 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
+     if (rest === '/tokens' && req.method === 'POST') {
+       const c = await input<Commit>(req);
+       if (c.tokens?.some((t) => t.createdBy !== me.id) || c.changes.some((x) => x.actorId !== me.id)) throw new HttpError(403, 'A save can only be made as the person signed in.');
++      // AI access (stage 4): no token is made while the module is switched off here; revoking one (a commit) still runs.
++      // Like the door in server/mcp.ts, only the workspace's switch refuses: a build that leaves the module out keeps
++      // tokens as the core's (the stage's gap 2), with no screen to make one. The words are the app's (moduleOffWords).
++      if (isModuleOn(null, 'ai-access') && !isModuleOn({ modulesOff: await deps.modulesOff!(ws) }, 'ai-access')) throw new HttpError(403, moduleOffWords('AI access', await deps.workspaceName(ws)));
+       try { return send(res, 200, { secret: await store.issueToken(ws, c) }); } catch (e) { refuse(e); }
+     }
+     if (rest === '/prefs' && req.method === 'GET') return send(res, 200, (await store.personPrefs(ws)).filter((x) => x.personId === me.id));
+diff --git a/src/adapters/standin/guard.ts b/src/adapters/standin/guard.ts
+index 61387a2..26e7917 100644
+--- a/src/adapters/standin/guard.ts
++++ b/src/adapters/standin/guard.ts
+@@ -68,6 +68,17 @@ export function refusal(stored: Snapshot, c: Commit, actor: Person): string | nu
+     if (!g) return 'That check-in’s goal isn’t in this workspace.';
+     if (!mayPostCheckIn(me, g, via)) return `Only ${nameOf(stored, g.ownerId) ?? 'its owner'} (its owner) can check in on “${g.title}”.`;
+   }
++  // MCP tokens (AI access, stage 4): made only through issueToken (an admin, while AI access is on); a save may only
++  // revoke one, by its person or an admin (actions.ts revokeToken), and changes nothing else about it.
++  const tokens = byId(stored.tokens);
++  const fixed = (t: { id: string; personId: string; name: string; createdBy: string; createdAt: string }) => [t.id, t.personId, t.name, t.createdBy, t.createdAt];
++  for (const t of c.tokens ?? []) {
++    const was = tokens.get(t.id);
++    if (!was) return 'Only admins can make tokens, with Make an MCP token.';
++    if (!same(fixed(was), fixed(t)) || (was.revokedAt && t.revokedAt !== was.revokedAt) || (!was.revokedAt && !t.revokedAt)) return 'A token can only be revoked, not changed.';
++    if (was.revokedAt) continue;
++    if (!admin && was.personId !== actor.id) return 'Only an admin or the token’s person can revoke it.';
++  }
+   // Views: its owner or an admin changes one; only an admin pins one for everyone.
+   const views = byId(stored.views);
+   for (const v of c.views ?? []) {
