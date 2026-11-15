@@ -4,7 +4,7 @@ The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` bra
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `f158c007` (#521), the head of main at 23:50 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
+- **Last merge fully reviewed:** `1956ac3a` (#527), the head of main at 00:15 UTC, 15 Nov, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
 - **Mediums open:** two, both sent to planning on 14 Nov and both being fixed on branch `board-lane` by track 3 (session …S2dzmsnp2LfvYMFm): #503's (a goal stopped while held stays held) and #510's (a goal that is Not measured yet is in no lane of the Board). Fixed since: #517's by #522, #504's by #519, #497's by #526, #515's by #524, #513's by #521 (Lane chose the kit's rule).

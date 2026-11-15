@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `f158c007` (#521), the head of main at 23:50 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
+- **Last merge fully reviewed:** `1956ac3a` (#527), the head of main at 00:15 UTC, 15 Nov, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
 - **Mediums open:** two, both sent to planning on 14 Nov and both being fixed on branch `board-lane` by track 3 (session …S2dzmsnp2LfvYMFm): #503's (a goal stopped while held stays held) and #510's (a goal that is Not measured yet is in no lane of the Board). Fixed since: #517's by #522, #504's by #519, #497's by #526, #515's by #524, #513's by #521 (Lane chose the kit's rule).
@@ -272,6 +272,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #526 U176: the admin's workspace line, drawn (#497's medium) | 1 | 0 | 0 | 0 |
 | #524 The change engine's kit sentences match the engine (#515's medium) | item 11 | 0 | 0 | 1 |
 | #521 A moment is fixed as of its own week (#513's medium; Lane, 14 Nov) | item 11 | 0 | 0 | 0 |
+| #527 Rebuild kit: every journey's steps and checks in words, and Goals' filters and sort | item 11 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2361,3 +2362,11 @@ Read against #515's medium, sentence by sentence: **closed, all seven and the na
 ### #521 A moment is fixed as of its own week (item 11, merged 14 Nov)
 
 Read against #513's medium and Lane's answer (the kit's rule; History changes to match): **closed.** Both cuts are now inside `moment` (`src/domain/habit.ts`): it takes the goal's whole history, keeps only the goal's own check-ins posted before this one (the same instant counts for an earlier week), and judges Reached by `goalAsOf(goal, week)`; `momentText` quotes that week's target and start. History, the receipt, `post_check_in` and the conformance rows all pass the whole history and the goal as it stands, so no caller cuts for itself. The three cases the finding gave are tests: a later check-in in the same week or a later one, a backfill posted afterwards, and a re-plan either way. The generated conformance rows did not change, so the rule now is what checkin.csv always said. Help and What's new say it; `habit.test.ts` and `src/spec` pass (127).
+
+### #527 Rebuild kit: each journey's steps and checks in words (item 11, merged 15 Nov)
+
+Generated pages only: `src/spec/journeySteps.ts` reads `evals/journeys.cjs` with the TypeScript parser, without running it, and writes a page per journey (the core's under `spec/core/journeys/`, a module's under its own section), with a line it can't read left out rather than guessed and the journey's own comments kept as notes; `src/spec/goalsQuery.ts` writes Goals' filters and sort from `src/domain/query.ts`. In `src/domain` only comments change and `FIXED` is exported. No rule, journey or budget changes. `src/spec`: 95 tests pass, and `npm run spec` on main writes nothing new. I read U175's page beside its code (which I had read for #504 and #519): every step, check and note is there, in order, in the screen's words. No high, no medium.
+
+**Low.** A check the code makes on one width only is written as if on both: U175's "It fails if Workspace’s menu still has AI access" is `device === 'desktop' && …` in the journey, and the page's own head says a line is for both widths "unless one says otherwise". A rebuild checking it on a phone would look for a menu that isn't there.
+
+Not read: the other 170 generated pages.
