@@ -22,7 +22,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
-| Amara, the VP, in the demo workspace on Thursday 5 Nov: she watches goals across thirteen teams, drawn as teams. | `over watching: Checked in for week 45 · 45 of 55 goals · Due by Thu 5 Nov → /goals?scope=watching&checkedin=no` |
+| Amara, the VP, in the demo workspace on Thursday 5 Nov: she watches goals across thirteen teams, drawn as teams. | `over watching: Checked in for week 45 · 43 of 53 goals · Due by Thu 5 Nov → /goals?scope=watching&checkedin=no` |
 | Tunde: he owns goals and none of his sets is drawn as teams; he isn’t an admin. | `no cell` |
 | What an admin sees to sort out: no review set up, and two people with no email. | `2 things to sort out: No review is set up, and 1 more.` |
 | Nothing to sort out. | `no row` |

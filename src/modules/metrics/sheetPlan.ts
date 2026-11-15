@@ -15,6 +15,8 @@ import { nameChecks } from './rulesDefine';
 import { linkedGoals, retireMetric, saveMetricChange, unretireMetric } from './rulesChange';
 import { METRICS_KEY, metricsOf, MODULE, REFRESH_LABEL, type Metric, type MetricInput } from './rules';
 import { CONFIDENCE_WORDS, CONFIDENCES, LEVEL_WORDS, LEVELS, parentRefusal, structureProblems } from './rulesStructure';
+import { AGGREGATE_LABEL, MEASURE_LABEL, missingLine, similarMetrics, stageOf, STAGE_LABEL, STAGES, windowFrom } from './rulesQuality';
+import type { MetricAggregate, MetricCalc, MetricMeasure } from './types';
 
 const goalsWord = (n: number) => `${n} ${n === 1 ? 'goal is' : 'goals are'}`;
 
@@ -32,8 +34,26 @@ const LEVEL_BY_WORD = Object.fromEntries(LEVELS.map((k) => [fold(LEVEL_WORDS[k].
 const CONFIDENCE_BY_WORD = Object.fromEntries(CONFIDENCES.map((k) => [fold(CONFIDENCE_WORDS[k].label), k]));
 const ACTION_WORDS: Record<string, 'retire' | 'back'> = { retire: 'retire', 'bring back': 'back', 'bring it back': 'back' };
 
-/** The fields a row gives that differ from the metric as it is (nothing given: nothing differs). */
-const differs = (before: Metric, input: MetricInput) => (Object.keys(input) as (keyof MetricInput)[]).some((k) => (typeof before[k] === 'string' ? String(before[k]).trim() : before[k] ?? null) !== (typeof input[k] === 'string' ? String(input[k]).trim() : input[k] ?? null));
+/** The fields a row gives that differ from the metric as it is (nothing given: nothing differs). The calculation and the
+    window are compared by what they say. */
+const said = (v: unknown) => (typeof v === 'string' ? v.trim() : v && typeof v === 'object' ? JSON.stringify(v) : v ?? null);
+const differs = (before: Metric, input: MetricInput) => (Object.keys(input) as (keyof MetricInput)[]).some((k) => said(before[k]) !== said(input[k]));
+
+/* MQ2's columns (sheet.ts): the calculation's, the words each takes, and how a cell is read. */
+const CALC_COLUMNS = ['what is measured', 'how aggregated', 'counts', 'filters', 'leaves out', 'numerator', 'numerator filters', 'numerator leaves out', 'denominator', 'denominator filters', 'denominator leaves out', 'formula'];
+const PART_COLUMN = { counts: 'counts', filters: 'filters', excludes: 'leaves out' } as const;
+const MEASURE_BY_WORD = Object.fromEntries(Object.entries(MEASURE_LABEL).flatMap(([k, v]) => [[fold(v), k], [fold(k), k]])) as Record<string, MetricMeasure>;
+const WINDOW_KINDS: string[] = ['point', 'rolling', 'period', 'cumulative'];
+const calcOf = (c: MetricCalc | null | undefined): MetricCalc => (c ? JSON.parse(JSON.stringify(c)) as MetricCalc : { measure: '' as MetricMeasure, aggregate: null });
+/** "p90", "percentile 90", "mean per day", "Median": the aggregate and its number or per; null for words it doesn't know. */
+function aggregateFrom(raw: string): Pick<MetricCalc, 'aggregate' | 'percentile' | 'per'> | null {
+  const w = fold(raw);
+  let m: RegExpExecArray | null;
+  if ((m = /^(?:p|percentile\s*)(\d{1,2})(?:th)?$/.exec(w))) return { aggregate: 'percentile', percentile: Number(m[1]) };
+  if ((m = /^mean per (.+)$/.exec(w))) return { aggregate: 'mean', per: m[1]!.trim() };
+  const k = (Object.keys(AGGREGATE_LABEL) as MetricAggregate[]).find((a) => a !== 'percentile' && fold(AGGREGATE_LABEL[a]) === w);
+  return k ? { aggregate: k } : null;
+}
 
 export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
   const { x: x0, rows } = api;
@@ -121,6 +141,27 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
     if (conf.v) { const k = CONFIDENCE_BY_WORD[fold(conf.v)]; if (k) input.confidence = k; else must('Confidence', `Confidence says “${conf.v}”. Use ${oneOf(CONFIDENCES.map((c) => CONFIDENCE_WORDS[c].label))}, or leave it empty.`, conf.v); }
     const gaming = cell(api, r, 'how it could be gamed');
     if (gaming.v) input.gaming = gaming.v;
+    // MQ2 (rulesQuality.ts): the calculation in two fields and its parts, the window and the source link. A cell given
+    // changes only what it says; the rest of the calculation stays as the metric has it.
+    if (CALC_COLUMNS.some((c) => cell(api, r, c).v)) {
+      const base = calcOf(was?.calculation);
+      const what = cell(api, r, 'what is measured').v;
+      if (what) { const k = MEASURE_BY_WORD[fold(what)]; if (k) base.measure = k; else must('What is measured', `What is measured says “${what}”. Use ${oneOf(Object.values(MEASURE_LABEL))}, or leave it empty.`, what); }
+      const how = cell(api, r, 'how aggregated').v;
+      if (how) { const a = aggregateFrom(how); if (a) Object.assign(base, a); else must('How aggregated', `How aggregated says “${how}”. Use ${oneOf(['total', 'mean', 'median', 'latest'])}, a percentile such as p90, or “mean per day”.`, how); }
+      for (const [key, prefix] of [['part', ''], ['numerator', 'numerator '], ['denominator', 'denominator ']] as const) {
+        const given = (['counts', 'filters', 'excludes'] as const).map((f) => [f, cell(api, r, key === 'part' ? PART_COLUMN[f] : `${prefix}${f === 'counts' ? '' : PART_COLUMN[f]}`.trim()).v] as const).filter(([, v]) => v);
+        if (given.length) base[key] = { counts: '', filters: '', excludes: '', ...base[key], ...Object.fromEntries(given) };
+      }
+      const formula = cell(api, r, 'formula').v;
+      if (formula) base.formula = formula;
+      if (!base.measure) must('What is measured', `Say what is measured (${oneOf(Object.values(MEASURE_LABEL))}) before its parts.`);
+      else input.calculation = base;
+    }
+    const win = cell(api, r, 'window').v;
+    if (win) { const w = windowFrom(win); if (w && WINDOW_KINDS.includes(w.kind) && (w.kind !== 'rolling' || w.days > 0)) input.timeWindow = w; else must('Window', `Window says “${win}”. Use Point in time, Rolling 28 days, Per week, Per month, Per quarter or Cumulative since 2026-01-01.`, win); }
+    const link = cell(api, r, 'source link').v;
+    if (link) input.sourceLink = link;
     if (bad) continue;
 
     // One letter from a metric already here (rule 1 nameChecks): asked, never guessed.
@@ -203,9 +244,30 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
 
   const metrics = metricsOf(snap).filter((m) => before.has(m.id));
   return {
+    notes: stageNotes(metrics, metricsOf(snap), [...before].filter(([, b]) => !b).map(([id]) => id), snap.people, x0.now),
     items,
     commit: { modules: metrics.length ? { [MODULE]: { [METRICS_KEY]: metrics } } : undefined, changes, ...(goalsOut.size ? { goals: [...goalsOut.values()] } : {}) },
     undo: before.size ? [{ module: MODULE, key: METRICS_KEY, rows: [...before].map(([id, b]) => ({ id, before: b })) }] : [],
     noun: ['metric', 'metrics'],
   };
+}
+
+/**
+ * What the preview and a dry run say after the counts (MQ2): the stage each metric the file adds or changes would have,
+ * counted ("Stages after loading: 2 Draft, 1 Defined"); each new metric that looks like one already in the library; and
+ * each Draft's missing parts. A new metric lands as Draft until its ten parts are said.
+ */
+export function stageNotes(saved: readonly Metric[], all: readonly Metric[], added: readonly string[], people: readonly { id: string; leftAt?: string | null }[], now: string): string[] {
+  if (!saved.length) return [];
+  const here = (id: string) => people.some((p) => p.id === id && !p.leftAt);
+  const st = saved.map((m) => ({ m, s: stageOf(m, { now, ownerIsHere: here(m.ownerId) }) }));
+  const by = STAGES.map((k) => [k, st.filter((x) => x.s.stage === k).length] as const).filter(([, n]) => n);
+  const out = [`Stages after loading: ${by.map(([k, n]) => `${n} ${STAGE_LABEL[k]}`).join(', ')}.`];
+  for (const id of added) {
+    const m = saved.find((v) => v.id === id);
+    const like = m ? similarMetrics(m, all.filter((v) => !added.includes(v.id)))[0] : undefined;
+    if (m && like) out.push(`“${m.name}” looks like “${like.name}”, already in the library. Change that one instead if they are the same number.`);
+  }
+  for (const { m, s: x } of st) if (x.stage === 'draft') out.push(`“${m.name}” is Draft: it ${missingLine(x.missing)}.`);
+  return out;
 }

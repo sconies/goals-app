@@ -148,6 +148,10 @@ interface GoalBase {
       from its plan, nothing on it is late, and a baseline isn't asked for. Set and cleared by whatever measures it (the
       metric library, when it links the goal to a metric with a gap); absent or null when it is held to its plan. */
   unmeasuredSince?: string | null;
+  /** Its own check-in rhythm (MQ2; domain/goalRhythm): 'monthly' or 'quarterly' when what measures it changes only that
+      often, so it checks in once a month or quarter instead of every week. Set and cleared by whatever measures it (the
+      metric library, from its metric's refresh); absent or null: the cycle's rhythm. */
+  checkInRhythm?: 'monthly' | 'quarterly' | null;
 }
 
 export interface PendingChange {

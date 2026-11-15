@@ -295,7 +295,7 @@ export function StandingCell({ alone }: { alone: boolean }) {
 function leaderHabit(set: string, goals: Goal[], app: ReturnType<typeof useApp>, reviewsHere: boolean) {
   const { snapshot: s, cycle, week, today } = app;
   if (week < 1) return null;
-  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [], cycle };
   const isDue = dueIn(cycle, s.checkIns);
   const dueGoals = goals.filter((g) => isDue(g, week));
   if (!habitShown(dueGoals, app.viewer.id)) return null;

@@ -119,7 +119,7 @@ export interface ChangeSet {
   needsConfirm: boolean;
   /** Ready to save: null while a Must fix or an unanswered Check remains, or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed". */ records?: { one: string; many: string; added: number; changed: number }[] };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed", and what its planner says after (`notes`). */ records?: { one: string; many: string; added: number; changed: number; notes?: string[] }[] };
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
@@ -1827,7 +1827,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     stopped: items.filter((x) => x.kind === 'stop goal').length,
     deleted: items.filter((x) => x.kind === 'delete goal').length,
     left: items.filter((x) => x.kind === 'person left').length,
-    ...(planned.length ? { records: planned.map((p) => { const mine = items.filter((x) => x.sheet === p.sheet); return { one: p.result.noun[0], many: p.result.noun[1], added: mine.filter((x) => x.kind === 'new record').length, changed: mine.filter((x) => x.kind === 'record').length }; }) } : {}),
+    ...(planned.length ? { records: planned.map((p) => { const mine = items.filter((x) => x.sheet === p.sheet); return { one: p.result.noun[0], many: p.result.noun[1], added: mine.filter((x) => x.kind === 'new record').length, changed: mine.filter((x) => x.kind === 'record').length, ...(p.result.notes?.length ? { notes: p.result.notes } : {}) }; }) } : {}),
   };
   const needsConfirm = issues.some((x) => x.kind === 'plan-question');
   // Saved only with no Must fix and every Check answered (rule 7), a reason where one is needed, and something to save.

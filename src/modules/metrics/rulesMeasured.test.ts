@@ -164,13 +164,33 @@ describe('a metric’s measurement status (MS)', () => {
     const mods = [{ id: 'metrics', name: 'Metric library', needs: [] as string[] }];
     const off = setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws' }, mods, 'metrics', false)!;
     expect(off.modulesOff).toEqual(['metrics']);
-    expect(off.goals?.map((g) => [g.id, g.unmeasuredSince])).toEqual([['lead-flaky', null]]);
+    expect(off.goals?.filter((g) => g.unmeasuredSince !== undefined).map((g) => [g.id, g.unmeasuredSince])).toEqual([['lead-flaky', null]]);
+    // MQ2: the demo's goals on a monthly metric check in on the cycle's rhythm again.
+    expect(off.goals?.filter((g) => g.checkInRhythm !== undefined).map((g) => [g.id, g.checkInRhythm]).sort()).toEqual([['ns-cost', null], ['ns-devsat', null]]);
     expect(off.changes.map((c) => c.summary)).toContain('Held to its plan again, as the metric library is switched off');
     w.apply(off);
     expect(isUnmeasured(w.goal('lead-flaky'))).toBe(false);
     const on = setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws', modulesOff: ['metrics'] }, mods, 'metrics', true)!;
-    expect(on.goals?.[0]?.id).toBe('lead-flaky');
-    expect(on.goals?.[0]?.unmeasuredSince).toBeTruthy();
+    expect(on.goals?.find((g) => g.id === 'lead-flaky')?.unmeasuredSince).toBeTruthy();
+    // MQ2: switched on, each goal measured by a monthly metric checks in monthly again (the demo's cloud cost goal).
+    expect(on.goals?.find((g) => g.id === 'ns-cost')?.checkInRhythm).toBe('monthly');
+    w.apply(on);
+    const offAgain = setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws' }, mods, 'metrics', false)!;
+    expect(offAgain.goals?.find((g) => g.id === 'ns-cost')?.checkInRhythm).toBeNull();
+    expect(offAgain.changes.map((c) => c.summary)).toContain('Checks in on the cycle’s rhythm again, as the metric library is switched off');
+  });
+
+  it('gives a goal its metric’s rhythm when linked, when the refresh changes, and takes it away when unlinked (MQ2)', () => {
+    const w = world();
+    const goal = w.goal('lead-flaky');
+    expect(goal.checkInRhythm ?? null).toBeNull();
+    const monthly = saveMetricAsked(w.x('rhea'), { id: 'metric_flaky-rate', refresh: 'monthly' }).commit!;
+    expect(monthly.goals?.find((g) => g.id === 'lead-flaky')?.checkInRhythm).toBe('monthly');
+    expect(monthly.changes.map((c) => c.summary)).toContain('Checks in monthly, as “Flaky test rate” refreshes monthly');
+    w.apply(monthly);
+    const daily = saveMetricAsked(w.x('rhea'), { id: 'metric_flaky-rate', refresh: 'daily' }).commit!;
+    expect(daily.goals?.find((g) => g.id === 'lead-flaky')?.checkInRhythm).toBeNull();
+    expect(daily.changes.map((c) => c.summary)).toContain('Checks in on the cycle’s rhythm again, as “Flaky test rate” refreshes more often than monthly');
   });
 
   it('keeps the hold when the goal’s own form is saved (MS review, medium 3)', () => {
@@ -189,5 +209,31 @@ describe('a metric’s measurement status (MS)', () => {
     const g = out.goals.find((v) => v.id === 'lead-flaky')!;
     expect(g.unmeasured?.since).toBeTruthy();
     expect(g.now.statusLabel).toBe('Not measured yet');
+  });
+});
+
+describe('someone leaving passes their metrics to their lead (MQ2)', () => {
+  it('passes each metric they own to their team’s lead, to confirm, and keeps its stage', async () => {
+    const { markPersonLeft, whatPasses, leadOf } = await import('../../domain/removal');
+    const { stageOf } = await import('./rulesQuality');
+    const w = world();
+    const admin = w.full.people.find((p) => p.admin && p.id !== 'rhea')!;
+    const rhea = w.full.people.find((p) => p.id === 'rhea')!;
+    const other = w.full.people.find((p) => p.id !== 'rhea' && p.id !== admin.id && !p.leftAt)!;
+    const x = { ...w.x(admin.id), records: MODULE_RECORDS };
+    const lead = leadOf(x, rhea, other.id);
+    const team = w.full.teams.find((t) => t.id === rhea.teamId);
+    expect(lead).toBe(team && team.leadId !== 'rhea' ? team.leadId : other.id);
+    const before = M.metricsOf(w.full).filter((m) => m.ownerId === 'rhea' && !m.removedAt);
+    expect(before.length).toBeGreaterThan(0);
+    const lines = whatPasses(x, rhea, other.id).flatMap((o) => o.lines);
+    expect(lines).toHaveLength(before.length);
+    const c = markPersonLeft(x, 'rhea', { goalsTo: other.id, asksTo: other.id });
+    w.apply(c);
+    const after = M.metricsOf(w.full).filter((m) => before.some((b) => b.id === m.id));
+    expect(after.every((m) => m.ownerId === lead && m.handover?.from === 'rhea')).toBe(true);
+    const st = (m: (typeof before)[number]) => stageOf(m, { now: '2026-11-05T14:00:00Z', ownerIsHere: true }).stage;
+    expect(after.map(st)).toEqual(before.map(st));
+    expect(c.changes.filter((ch) => ch.entity === 'metric').map((ch) => ch.summary)[0]).toMatch(/^Passed “.+” to .+ to confirm, as Rhea .+ left$/);
   });
 });

@@ -73,12 +73,17 @@ export const REMOVE_TOOLS: ToolDef[] = [
   {
     name: 'mark_person_left',
     title: 'Mark someone as left',
-    description: 'Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.',
+    description: 'Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. The metrics they own pass to their team’s lead (whoever takes the team when they led it), each to confirm with save_metric confirm_owner; the answer lists them. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['person'], properties: { person: str('Their ID or full name.'), goals_to: str('Who takes over their goals: an ID or full name.'), asks_to: str('Who takes over their open asks: an ID or full name.') } },
     annotations: REMOVE,
     async run(a, ctx) {
       const p = personOf(ctx, a.person);
-      return save(ctx, R.markPersonLeft(ax(ctx), p.id, { goalsTo: optPerson(ctx, a.goals_to), asksTo: optPerson(ctx, a.asks_to) }), `Marked ${p.name} as left`);
+      const to = { goalsTo: optPerson(ctx, a.goals_to), asksTo: optPerson(ctx, a.asks_to) };
+      const c = R.markPersonLeft(ax(ctx), p.id, to);
+      // What passes to their lead (MQ2: the metrics they own), listed so the assistant can say who must confirm what.
+      const lines = R.whatPasses(ax(ctx), p, to.goalsTo ?? null).flatMap((o) => o.lines);
+      const r = await save(ctx, c, `Marked ${p.name} as left`);
+      return lines.length ? { ...r, text: `${r.text}\n${lines.join('\n')}` } : r;
     },
   },
   {

@@ -407,6 +407,7 @@ No arguments.
                 says: string | null;
             } | null;
         }[];
+        checkInRhythm?: 'monthly' | 'quarterly' | undefined;
         unmeasured?: {
             since: string;
         } | undefined;
@@ -584,6 +585,7 @@ No arguments.
                 says: string | null;
             } | null;
         }[];
+        checkInRhythm?: 'monthly' | 'quarterly' | undefined;
         unmeasured?: {
             since: string;
         } | undefined;
@@ -3533,7 +3535,7 @@ No arguments.
 
 ## mark_person_left
 
-**Mark someone as left.** Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.
+**Mark someone as left.** Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. The metrics they own pass to their team’s lead (whoever takes the team when they led it), each to confirm with save_metric confirm_owner; the answer lists them. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.
 
 **Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint false, openWorldHint false.
 
@@ -5425,7 +5427,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## link_goal_metric
 
-**Say which metric measures a goal.** Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.
+**Say which metric measures a goal.** Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. A Draft metric is linked too, with a warning saying what it still needs (data.draft). When the metric refreshes monthly or quarterly the goal’s check-ins become monthly or quarterly (data.rhythm); unlinking puts them back on the cycle’s rhythm. Linking again the same way changes nothing.
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -6374,6 +6376,7 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
                 says: string | null;
             } | null;
         }[];
+        checkInRhythm?: 'monthly' | 'quarterly' | undefined;
         unmeasured?: {
             since: string;
         } | undefined;

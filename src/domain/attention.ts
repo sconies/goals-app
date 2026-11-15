@@ -1,6 +1,7 @@
 /* What needs someone's attention, and why. One list drives the homes, the goals list and the review.
    "Needs attention" means new information: a goal that is behind but that someone has looked at since its latest
    check-in (reviewed, noted, an action agreed, or its request answered) is being handled until something new happens. */
+import { checkedInFor, isDueWeek } from './goalRhythm';
 import { checkInsFor, goalStatus, type GoalStatus } from './status';
 import { askText, answeredSince, isOverdue, openAsksFor, openFor } from './asks';
 import { dueWords, firstDueWeek } from './progress';
@@ -82,8 +83,9 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   if (status.greener && latest && status.status !== 'stale' && status.status !== 'done') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
   // Nothing is due once the cycle's last day is past (cycle-end rule 2). The flag's words are dueWords' (RS1), the same
   // with Reviews on or off. A goal held to no number (domain/unmeasured) has nothing due: it lists under its metric's
-  // "To sort out" instead.
-  if (!status.unmeasured && week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', dueWords(false, cycle, week).flag, 'info');
+  // "To sort out" instead. A goal on its own monthly or quarterly rhythm (MQ2) is due only in its month's last week, and
+  // a check-in earlier that month counts.
+  if (!status.unmeasured && week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && isDueWeek(goal, cycle, week) && !checkedInFor(goal, cycle, checkInsFor(goal, s.checkIns), week)) add('due', dueWords(false, cycle, week).flag, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };

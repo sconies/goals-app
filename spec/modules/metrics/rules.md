@@ -106,6 +106,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
+- metric library tools › gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
 - metric library tools › get_metric lists the parts its goals use
@@ -211,6 +212,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
+- metric library tools › gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
 - metric library tools › get_metric lists the parts its goals use
@@ -476,6 +478,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
+- metric library tools › gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
 - metric library tools › get_metric lists the parts its goals use
@@ -596,6 +599,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
+- metric library tools › gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
 - metric library tools › get_metric lists the parts its goals use
@@ -703,6 +707,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
+- metric library tools › gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
 - metric library tools › get_metric lists the parts its goals use
@@ -775,8 +780,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a metric’s measurement status (MS) › re-works the hold when its metric is retired, brought back or merged (MS review, medium 4)
 - a metric’s measurement status (MS) › a goal stopped while held comes back as its metric says now: measured again, the library off, or merged into a measured metric in between (#503 review)
 - a metric’s measurement status (MS) › lets go of every held goal when the library is switched off, and holds them again when it is on (MS review, medium 4)
+- a metric’s measurement status (MS) › gives a goal its metric’s rhythm when linked, when the refresh changes, and takes it away when unlinked (MQ2)
 - a metric’s measurement status (MS) › keeps the hold when the goal’s own form is saved (MS review, medium 3)
 - a metric’s measurement status (MS) › says so in the export: held to no number, and the word for it
+- someone leaving passes their metrics to their lead (MQ2) › passes each metric they own to their team’s lead, to confirm, and keeps its stage
 
 ## Where a metric sits, and how far to trust it
 
@@ -1026,6 +1033,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
+- metric library tools › gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
 - metric library tools › get_metric lists the parts its goals use

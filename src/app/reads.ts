@@ -93,7 +93,7 @@ export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cyc
     standing cell counts (HM7), so both count the same goals. */
 export function standingIn(s: Pick<Snapshot, 'checkIns' | 'requests'>, cycle: Cycle, week: number): (g: Goal) => Standing | null {
   const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [], cycle };
   return (g) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
 }
 

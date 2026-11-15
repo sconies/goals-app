@@ -153,8 +153,9 @@ export const METRICS: MetricSpec[] = [
 
 /**
  * The library, set up the week before the year starts, each goal linked as it's created, by the people the app would
- * (the metric's owner adds it; the goal's owner links it). Fixed ids of their own, so nothing else's id moves; linking
- * changes no goal, so no number, status or date moves.
+ * (the metric's owner adds it; the goal's owner links it). Fixed ids of their own, so nothing else's id moves. Linking
+ * changes no number; a goal on a metric that refreshes monthly checks in monthly (MQ2): Cloud cost and Developer
+ * satisfaction.
  */
 export function addDemoMetrics(b: DemoBuild) {
   const startMs = b.start.getTime();

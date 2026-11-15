@@ -358,7 +358,7 @@ export function unlinkGoalMetric(x: ActionContext, goal: Goal): Commit | null {
   const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? 'its metric';
   // MS: measured by nothing, a goal held to no number is held to its plan again.
   const hold = heldByLink(x, goal, null);
-  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] }), ...(hold ? [hold.change] : [])] };
+  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] }), ...(hold ? hold.changes : [])] };
 }
 
 /** Two saves as one (a new goal and its link, made in one form): records and change-log entries together, in order. */

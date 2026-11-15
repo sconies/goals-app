@@ -102,7 +102,7 @@ export interface ModuleSheet<C = unknown> {
  * once (its rows and its change-log entries), so each later rule sees it.
  */
 export interface DemoBuild {
-  /** Keep a commit's module rows and change-log entries in the demo workspace. */
+  /** Keep a commit's module rows, the goals it changes and its change-log entries in the demo workspace. */
   save(c: Commit): void;
   /** When the goal year starts (week 0). */
   start: Date;
@@ -136,6 +136,12 @@ export interface ModuleRecords {
   /** What the core's own records need when the module is switched off or on, in the same save as the switch: the
       metric library lets go of the goals it held to no number, and holds them again (MS). Null when nothing. */
   switched?(x: ActionContext, on: boolean): Pick<Commit, 'goals' | 'changes'> | null;
+  /** Someone leaves (mark_person_left, Leave this workspace), in the same save: what the module passes from them to
+      `toId`, the core's choice of their lead (their team's lead; whoever takes over the team when they led it). The
+      metric library passes the metrics they own, each to confirm under "To sort out" (MQ2). `lines` say each thing
+      passed, for the tool's answer. Null when they hold nothing of the module's. Runs whatever the switch: what is
+      theirs moves on, as watches carry with their goals. */
+  personLeft?(x: ActionContext, personId: string, toId: string): (Pick<Commit, 'modules' | 'changes'> & { lines: string[] }) | null;
 }
 
 /** What a module's `goalExtras` loads (TG2): a family of Goals filters, and its columns on the Goals sheet. */

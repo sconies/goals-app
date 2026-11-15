@@ -255,6 +255,8 @@ export function toJson(x: ExportInput) {
         ...(s.state === 'proposed' ? { state: 'proposed' } : {}),
         // Held to no number (MS; domain/unmeasured): its status says nothing about its plan, and nothing on it is due.
         ...(isUnmeasured(g) ? { unmeasured: { since: g.unmeasuredSince! } } : {}),
+        // Its own check-in rhythm (MQ2; domain/goalRhythm): due once a month or quarter, never quiet in between.
+        ...(g.checkInRhythm ? { checkInRhythm: g.checkInRhythm } : {}),
         now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
           projection: s.projection && g.kind === 'metric' ? { likeliest: Number(s.projection.value.toFixed(g.decimals)), low: Number(s.projection.low.toFixed(g.decimals)), high: Number(s.projection.high.toFixed(g.decimals)), byWeek: s.projection.week, fittedWeeks: [s.projection.from, s.projection.to] } : null },
         story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, recoveryPlan: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, warningKinds: s.story.flags, feeds: s.story.feeds },

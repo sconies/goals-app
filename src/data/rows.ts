@@ -28,6 +28,7 @@ export interface GoalRow extends W, Removal {
   proposed_in?: string | null;
   /** MS (migration 0046): held to no number since then, written only when set; null clears it. */
   unmeasured_since?: string | null;
+  check_in_rhythm?: string | null;
   id: string; key?: string | null; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
@@ -105,6 +106,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn }),
     // MS: written on every row, null when the goal isn't held, so Undo of a hold and a mixed batch clear it (MS review, medium 2).
     unmeasured_since: g.unmeasuredSince ?? null,
+    check_in_rhythm: g.checkInRhythm ?? null,
   };
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
   return { goal, stages };
@@ -125,7 +127,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     ...(r.also_helps?.length ? { alsoHelps: r.also_helps } : {}),
     ...(r.guards?.length ? { guards: r.guards } : {}),
     ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by), ...when('stoppedAt', r.stopped_at), ...who('stoppedBy', r.stopped_by), ...who('stopReason', r.stop_reason),
-    ...when('proposedAt', r.proposed_at), ...who('proposedBy', r.proposed_by), ...who('proposedIn', r.proposed_in), ...when('unmeasuredSince', r.unmeasured_since),
+    ...when('proposedAt', r.proposed_at), ...who('proposedBy', r.proposed_by), ...who('proposedIn', r.proposed_in), ...when('unmeasuredSince', r.unmeasured_since), ...(r.check_in_rhythm === 'monthly' || r.check_in_rhythm === 'quarterly' ? { checkInRhythm: r.check_in_rhythm as 'monthly' | 'quarterly' } : {}),
   };
   if (r.kind === 'metric') {
     const op = r.original_plan;

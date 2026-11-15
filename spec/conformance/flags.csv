@@ -188,7 +188,7 @@ week,goal,flags,handled,needs_attention,attention_group
 1,G-64,,,no,
 1,G-65,,,no,
 1,G-66,,,no,
-1,G-67,due,,no,
+1,G-67,,,no,
 1,G-68,,,no,
 1,G-69,,,no,
 1,G-70,,,no,
@@ -672,7 +672,7 @@ week,goal,flags,handled,needs_attention,attention_group
 5,G-56,,,no,
 5,G-57,,,no,
 5,G-58,,,no,
-5,G-59,due,,no,
+5,G-59,,,no,
 5,G-60,,,no,
 5,G-61,,,no,
 5,G-62,,,no,
@@ -680,7 +680,7 @@ week,goal,flags,handled,needs_attention,attention_group
 5,G-64,,,no,
 5,G-65,trend,,yes,needs
 5,G-66,due,,no,
-5,G-67,due,,no,
+5,G-67,,,no,
 5,G-68,,,no,
 5,G-69,,,no,
 5,G-70,,,no,
@@ -1541,7 +1541,7 @@ week,goal,flags,handled,needs_attention,attention_group
 12,G-64,trend,,yes,needs
 12,G-65,due,,no,
 12,G-66,,,no,
-12,G-67,due,,no,
+12,G-67,,,no,
 12,G-68,,,no,
 12,G-69,trend,,yes,needs
 12,G-70,,,no,
@@ -1657,7 +1657,7 @@ week,goal,flags,handled,needs_attention,attention_group
 13,G-56,due,,no,
 13,G-57,,,no,
 13,G-58,due,,no,
-13,G-59,due,,no,
+13,G-59,,,no,
 13,G-60,,,no,
 13,G-61,,,no,
 13,G-62,,,no,
@@ -3021,7 +3021,7 @@ week,goal,flags,handled,needs_attention,attention_group
 24,G-56,,,no,
 24,G-57,,,no,
 24,G-58,,,no,
-24,G-59,risk trend due,,yes,needs
+24,G-59,risk trend,,yes,needs
 24,G-60,,,no,
 24,G-61,,,no,
 24,G-62,trend,,yes,needs
@@ -3153,7 +3153,7 @@ week,goal,flags,handled,needs_attention,attention_group
 25,G-64,,,no,
 25,G-65,,,no,
 25,G-66,,,no,
-25,G-67,due,,no,
+25,G-67,,,no,
 25,G-68,,,no,
 25,G-69,trend,,yes,needs
 25,G-70,,,no,
@@ -3889,7 +3889,7 @@ week,goal,flags,handled,needs_attention,attention_group
 31,G-56,,,no,
 31,G-57,,,no,
 31,G-58,,,no,
-31,G-59,due,,no,
+31,G-59,,,no,
 31,G-60,,,no,
 31,G-61,due,,no,
 31,G-62,risk due,,yes,needs
@@ -4385,7 +4385,7 @@ week,goal,flags,handled,needs_attention,attention_group
 35,G-56,,,no,
 35,G-57,,,no,
 35,G-58,,,no,
-35,G-59,due,,no,
+35,G-59,,,no,
 35,G-60,,,no,
 35,G-61,,,no,
 35,G-62,off,,yes,needs
@@ -5253,7 +5253,7 @@ week,goal,flags,handled,needs_attention,attention_group
 42,G-56,,,no,
 42,G-57,,,no,
 42,G-58,trend,,yes,needs
-42,G-59,due,,no,
+42,G-59,,,no,
 42,G-60,,,no,
 42,G-61,,,no,
 42,G-62,risk,,yes,needs

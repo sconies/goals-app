@@ -14,6 +14,8 @@
 import type { ActionContext } from '../../domain/actions';
 import type { Change, Goal } from '../../domain/types';
 import { heldToNoNumber } from '../../domain/unmeasured';
+import { rhythmChange, type GoalRhythm } from '../../domain/goalRhythm';
+import { rhythmFor } from './rulesQuality';
 import type { Metric, MetricLink, MetricMeasurement } from './types';
 
 /** The three, in the order the form offers them. */
@@ -55,47 +57,71 @@ export const measurementWords = (m: Pick<Metric, 'measurement' | 'measurementNot
  * differs from what the metric says. Each with its History line. Empty when nothing changes, so a save that leaves the
  * gap as it was writes no goal. Stopped and removed goals are kept in step too (#503 review): restarting or restoring
  * one re-works nothing, so it must come back held exactly as its metric says now.
+ * MQ2: the same save gives each goal its check-in rhythm from the metric's refresh (monthly or quarterly; the cycle's
+ * otherwise), on the core's own field (domain/goalRhythm), with its own History line.
  */
 export function heldBy(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, m: Metric, goals: readonly Goal[], links: readonly MetricLink[]): { goals: Goal[]; changes: Change[] } {
   const ids = new Set(links.filter((l) => l.metricId === m.id && !l.removedAt).map((l) => l.goalId));
-  const held = holdsToNoNumber(m);
-  const moved = goals.filter((g) => ids.has(g.id) && !!g.unmeasuredSince !== held && g.kind !== 'milestone');
-  return {
-    goals: moved.map((g) => heldToNoNumber(g, held, x.now)),
-    changes: moved.map((g) => heldChange(x, g, m, held)),
-  };
+  const out = { goals: [] as Goal[], changes: [] as Change[] };
+  for (const g of goals) {
+    if (!ids.has(g.id)) continue;
+    const r = heldByLink(x, g, m);
+    if (r) { out.goals.push(r.goal); out.changes.push(...r.changes); }
+  }
+  return out;
 }
 
 /**
- * One goal's hold when what measures it changes: linked to `m` (null: unlinked, or measured by nothing). Null when the
- * goal is already as it should be.
+ * One goal's hold and rhythm when what measures it changes: linked to `m` (null: unlinked, or measured by nothing). Null
+ * when the goal is already as it should be.
  */
-export function heldByLink(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, goal: Goal, m: Metric | null): { goal: Goal; change: Change } | null {
+export function heldByLink(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, goal: Goal, m: Metric | null): { goal: Goal; changes: Change[] } | null {
+  let g = goal;
+  const changes: Change[] = [];
   const held = holdsToNoNumber(m) && goal.kind !== 'milestone';
-  if (held === !!goal.unmeasuredSince) return null;
-  return { goal: heldToNoNumber(goal, held, x.now), change: heldChange(x, goal, m, held) };
+  if (held !== !!goal.unmeasuredSince) { g = heldToNoNumber(g, held, x.now); changes.push(heldChange(x, goal, m, held)); }
+  const r = rhythmChange(x, g, rhythmOfMetric(m), rhythmWhy(m));
+  if (r) { g = r.goal; changes.push(r.change); }
+  return changes.length ? { goal: g, changes } : null;
 }
+
+/** The rhythm a metric gives the goals it measures: its refresh's, when that is monthly or quarterly (rulesQuality
+    rhythmFor); none from a removed metric or none at all. */
+const rhythmOfMetric = (m: Metric | null): GoalRhythm | null => (m && !m.removedAt ? rhythmFor(m.refresh) : null);
+const rhythmWhy = (m: Metric | null): string => {
+  const r = rhythmOfMetric(m);
+  return r ? `as “${m!.name}” refreshes ${r}` : m && !m.removedAt ? `as “${m.name}” refreshes more often than monthly` : 'as no metric sets its rhythm';
+};
 
 function heldChange(x: Pick<ActionContext, 'actor' | 'now' | 'newId'>, g: Goal, m: Metric | null, held: boolean): Change {
   const summary = held ? `Held to no number until “${m!.name}” is measured` : m && !m.removedAt && !m.retiredAt && measurementOf(m) !== 'gap' ? `Held to its plan again, as “${m.name}” is measured` : 'Held to its plan again';
   return { id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal', entityId: g.id, action: 'edited', summary, diffs: [{ field: 'Measured', from: held ? 'Yes' : 'Not yet', to: held ? 'Not yet' : 'Yes' }] };
 }
 
-/** What the library leaves on the goals' own field when it is switched off or on (ModuleRecords.switched). Off, nothing
-    measures a goal, so every goal held to no number is held to its plan again; on, each gap holds its goals once more.
-    Null when no goal moves. */
+/** What the library leaves on the goals' own fields when it is switched off or on (ModuleRecords.switched). Off, nothing
+    measures a goal, so every goal held to no number is held to its plan again, and every goal on a metric's rhythm
+    checks in on the cycle's again (MQ2); on, each metric holds its goals and sets their rhythm once more. Null when no
+    goal moves. */
 export function heldOnSwitch(x: Pick<ActionContext, 'actor' | 'now' | 'newId' | 'snapshot' | 'full'>, on: boolean, metrics: readonly Metric[], links: readonly MetricLink[]): { goals: Goal[]; changes: Change[] } | null {
   const goals = (x.full ?? x.snapshot).goals;
   if (!on) {
     // Stopped and removed goals too, so one restarted or restored later is held as its metric says then (#503 review).
-    const held = goals.filter((g) => !!g.unmeasuredSince);
-    if (!held.length) return null;
-    return {
-      goals: held.map((g) => heldToNoNumber(g, false, x.now)),
-      changes: held.map((g) => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal', entityId: g.id, action: 'edited', summary: 'Held to its plan again, as the metric library is switched off', diffs: [{ field: 'Measured', from: 'Not yet', to: 'Yes' }] }) as Change),
-    };
+    const moved = goals.filter((g) => !!g.unmeasuredSince || !!g.checkInRhythm);
+    if (!moved.length) return null;
+    const out = { goals: [] as Goal[], changes: [] as Change[] };
+    for (const g of moved) {
+      let next = g;
+      if (g.unmeasuredSince) {
+        next = heldToNoNumber(next, false, x.now);
+        out.changes.push({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal', entityId: g.id, action: 'edited', summary: 'Held to its plan again, as the metric library is switched off', diffs: [{ field: 'Measured', from: 'Not yet', to: 'Yes' }] });
+      }
+      const r = rhythmChange(x, next, null, 'as the metric library is switched off');
+      if (r) { next = r.goal; out.changes.push(r.change); }
+      out.goals.push(next);
+    }
+    return out;
   }
-  const parts = metrics.filter((m) => holdsToNoNumber(m)).map((m) => heldBy(x, m, goals, links));
+  const parts = metrics.filter((m) => holdsToNoNumber(m) || rhythmFor(m.refresh)).map((m) => heldBy(x, m, goals, links));
   const out = { goals: parts.flatMap((p) => p.goals), changes: parts.flatMap((p) => p.changes) };
   return out.goals.length ? out : null;
 }

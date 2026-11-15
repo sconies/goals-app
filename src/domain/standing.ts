@@ -2,12 +2,16 @@
    small file because Goals' `checkedin=` filter reads it through src/app/reads.ts, which Home's first download carries:
    Home must not import habit.ts (spec 9). habit.ts builds the measure (rules 2 and 4) on it. */
 import { firstDueWeek } from './progress';
+import { isDueWeek, weeksCounting } from './goalRhythm';
 import type { Ask, CheckIn, Cycle, Goal } from './types';
 
 /** What the measure reads for each goal: its check-ins and the asks for an update on it. Rows, never the workspace. */
 export interface HabitRows {
   checkIns: readonly CheckIn[];
   asks: readonly Pick<Ask, 'kind' | 'goalIds' | 'createdAt' | 'answeredAt' | 'status' | 'updatedAt'>[];
+  /** The cycle, so a goal on its own monthly or quarterly rhythm (MQ2) counts a check-in from earlier in its month.
+      Without it, only the week's own check-ins count. */
+  cycle?: Cycle;
 }
 
 /** A goal's standing in a week (rule 1). */
@@ -20,7 +24,8 @@ export type Standing = 'unasked' | 'asked' | 'after' | 'none';
  * action is not a nudge, and a correction doesn't change a week's standing (it keeps the first check-in's time).
  */
 export function checkInStanding(goal: Goal, week: number, rows: HabitRows, dueDay: string): Standing {
-  const first = rows.checkIns.filter((c) => c.goalId === goal.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
+  const weeks = new Set(rows.cycle ? weeksCounting(goal, rows.cycle, week) : [week]);
+  const first = rows.checkIns.filter((c) => c.goalId === goal.id && weeks.has(c.week) && !c.removedAt).map((c) => c.postedAt).sort()[0];
   if (!first) return 'none';
   if (first.slice(0, 10) > dueDay) return 'after';
   const asked = rows.asks.some((a) => a.kind === 'update' && a.goalIds.includes(goal.id) && a.createdAt <= first
@@ -33,6 +38,6 @@ export function checkInStanding(goal: Goal, week: number, rows: HabitRows, dueDa
  * day and its plan's From, `firstDueWeek`), and not already done before that week. The default `isDue` for rule 2.
  */
 export function dueIn(cycle: Cycle, checkIns: readonly CheckIn[]): (g: Goal, week: number) => boolean {
-  return (g, week) => !g.stoppedAt && !g.removedAt && !g.proposedAt && firstDueWeek(g, cycle) <= week
+  return (g, week) => !g.stoppedAt && !g.removedAt && !g.proposedAt && firstDueWeek(g, cycle) <= week && isDueWeek(g, cycle, week)
     && !checkIns.some((c) => c.goalId === g.id && c.week < week && c.status === 'done' && !c.removedAt);
 }

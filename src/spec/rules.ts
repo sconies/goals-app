@@ -3,6 +3,7 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { checkedInFor, goalRhythmOf, isDueWeek, periodWeeks, staleAfterDaysFor } from '../domain/goalRhythm';
 import { daysSinceIn, weekIn } from './zones';
 import { homeFor, longDay, ownFirst, theOneTeam, waiting, type HomeFacts } from '../domain/home';
 import { asTeamRows, asTeams, homeSets, standingOver, standingSet, standingWords, type SetFacts } from '../domain/homeSets';
@@ -1683,6 +1684,38 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     })(),
     unclear: ['The goal side asks for no baseline once a goal may be saved without one (backlog GB and BL); until then a held goal keeps the plan it was given, unjudged.'],
   },
+  /* ---------- a goal's own check-in rhythm (MQ2 part 3; core) ---------- */
+  {
+    id: 'goal-rhythm',
+    title: 'A goal’s own check-in rhythm',
+    summary: 'A goal measured by a number that changes only monthly or quarterly checks in once a month or quarter, by its period’s last due day, and never reads No recent update in between: a core rule over the goal’s own field.',
+    code: [{ file: 'src/domain/goalRhythm.ts', names: ['goalRhythmOf', 'periodKey', 'periodWeeks', 'isDueWeek', 'weeksCounting', 'checkedInFor', 'staleAfterDaysFor', 'rhythmChange'] }, { file: 'src/domain/progress.ts', names: ['weekProgress', 'onTimeStreak'] }, { file: 'src/domain/standing.ts', names: ['dueIn', 'checkInStanding'] }],
+    tests: ['src/domain/goalRhythm.test.ts'],
+    reqs: [],
+    body: `
+**Data.** A goal's \`checkInRhythm\` is \`monthly\`, \`quarterly\` or empty. Empty is the cycle's rhythm (FT1: every week, due by a weekday, or no set rhythm), as before. The field is the goal's own: whatever measures the goal sets and clears it, in the same save as the cause and with a line in the goal's History (\`rhythmChange\`: "Checks in monthly, as “Cloud cost per 1,000 requests” refreshes monthly"). The metric library sets it from its metric's refresh when the goal is linked and when the refresh changes, clears it when the goal is unlinked, and clears every goal's when it is switched off. A milestone goal keeps the cycle's rhythm. These rules read the goal alone, so they hold with every module switched off.
+
+**No set rhythm wins.** With no set rhythm on the cycle nothing is due, whatever a goal says (\`goalRhythmOf\` is null).
+
+**Its period** (\`periodKey\`, \`periodWeeks\`). A week belongs to the calendar month (or quarter) its due day falls in. A monthly goal's period is the cycle's weeks whose due days fall in the same month.
+
+**Due** (\`isDueWeek\`, \`weekProgress\`, \`flagsFor\`). A monthly goal is due by its month's last due day, so the month's new figure is in first: in that week only, and only when it has no check-in from earlier in the month (\`checkedInFor\`: any week of the period up to this one counts). Before then, with no check-in yet, it is *later*: left out of the week's count, so a week can be complete without it. Once checked in it counts as done for the rest of the month.
+
+**Quiet** (\`staleAfterDaysFor\`). Two of its own check-ins' time without one: 62 days monthly, 184 quarterly; the cycle's 14 days otherwise. Never No recent update in between.
+
+**The run and the habit** (\`onTimeStreak\`, \`dueIn\`, \`checkInStanding\`). A periodic goal counts only in its period's last week, and a check-in from earlier in the period, posted by that week's due day, is on time. A week in which none of the person's goals is due is passed over, never the end of a run.`,
+    examples: (() => {
+      const cy = { id: 'c', name: 'Q4', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
+      const g = { id: 'g', checkInRhythm: 'monthly' as const };
+      return [
+        { given: 'A cycle from Mon 7 Sep 2026, due by Thursday; a monthly goal in week 5 (due Thu 15 Oct).', then: 'weeks 3–7, due in week 7', run: () => `weeks ${periodWeeks('monthly', cy, 5).join('–').replace(/–.*–/, '–')}, due in week ${periodWeeks('monthly', cy, 5).filter((w) => isDueWeek(g, cy, w)).join(', ')}` },
+        { given: 'The same goal, checked in in week 3, asked about week 6.', then: 'checked in', run: () => (checkedInFor(g, cy, [{ goalId: 'g', week: 3 } as never], 6) ? 'checked in' : 'not yet') },
+        { given: 'Days without a check-in before No recent update: weekly, monthly, quarterly.', then: '14, 62, 184', run: () => [staleAfterDaysFor({}, cy), staleAfterDaysFor(g, cy), staleAfterDaysFor({ checkInRhythm: 'quarterly' }, cy)].join(', ') },
+        { given: 'The monthly goal in a cycle with no set rhythm.', then: 'none', run: () => String(goalRhythmOf(g, { ...cy, checkInWeeks: 0 }) ?? 'none') },
+      ];
+    })(),
+    unclear: ['A goal’s own rhythm for a goal with no metric (backlog MC) and a cycle-wide monthly rhythm (FT4) are deferred: today only a module that measures the goal sets it.'],
+  },
   /* ---------- a baseline as a field of its own (backlog BL; core) ---------- */
   {
     id: 'baseline',
@@ -2130,7 +2163,7 @@ The cell (\`standingWords\`): "Checked in for week {w}" · "{in} of {of} goals" 
 **The workspace's line** (Home's rule 7), for an admin only: headed with the workspace's name; the year's row first when the year is ending or has ended (as before); then, from the same list Workspace's About shows (\`toSortOut\`: the core's needs, each module section's, then each module's own), "{n} things to sort out" ("1 thing to sort out") with the first need's sentence and ", and {k} more", and "See them", which opens Workspace (\`sortOutRow\`). Nothing to sort out: no row. Never a lead, never a cell. A member sees none of it.
 `,
   examples: [
-    { given: 'Amara, the VP, in the demo workspace on Thursday 5 Nov: she watches goals across thirteen teams, drawn as teams.', then: 'over watching: Checked in for week 45 · 45 of 55 goals · Due by Thu 5 Nov → /goals?scope=watching&checkedin=no', run: () => standingCellOf('amara') },
+    { given: 'Amara, the VP, in the demo workspace on Thursday 5 Nov: she watches goals across thirteen teams, drawn as teams.', then: 'over watching: Checked in for week 45 · 43 of 53 goals · Due by Thu 5 Nov → /goals?scope=watching&checkedin=no', run: () => standingCellOf('amara') },
     { given: 'Tunde: he owns goals and none of his sets is drawn as teams; he isn’t an admin.', then: 'no cell', run: () => standingCellOf('tunde') },
     { given: 'What an admin sees to sort out: no review set up, and two people with no email.', then: '2 things to sort out: No review is set up, and 1 more.', run: () => { const r = sortOutRow([{ says: 'No review is set up' }, { says: '2 people have no email' }])!; return `${r.says}: ${r.line}`; } },
     { given: 'Nothing to sort out.', then: 'no row', run: () => (sortOutRow([]) ? 'a row' : 'no row') },

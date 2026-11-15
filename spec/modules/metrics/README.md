@@ -15,7 +15,7 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | Old addresses | `/data/metrics` → `/metrics` |
 | Navigation | Metrics |
 | Places on core screens | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` |
-| Drawn for it by the core while it is on | `workspace.about`, `afterGoalSaved`, `beforeCheckIn`, `onSwitch`, `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
+| Drawn for it by the core while it is on | `workspace.about`, `afterGoalSaved`, `beforeCheckIn`, `onSwitch`, `goalRhythm`, `personLeft`, `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | `okr_metrics` (0033_metric_library.sql): The metric library: one row per metric, never deleted (removed_at when removed).; `okr_goal_metrics` (0033_metric_library.sql): Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked. |
 | Its own records | metric (`okr_metrics`, filed under `modules.metrics.metrics`; removable and restorable); metric link (`okr_goal_metrics`, filed under `modules.metrics.metricLinks`) |

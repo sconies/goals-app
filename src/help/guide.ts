@@ -302,6 +302,11 @@ const CORE_ARTICLES: Article[] = [
         'The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.',
         'A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.',
       ] },
+      { heading: 'Goals that check in monthly', list: [
+        'Some goals check in once a month or once a quarter instead of every week: those measured by a number that only changes that often (with the Metric library on, a metric that refreshes monthly or quarterly). Such a goal is due by the last due day of its month or quarter, and a check-in earlier in the month counts for the whole month.',
+        'Until then it isn’t counted in your week, so the week can be complete without it, and it never reads No recent update between check-ins: only after two months (or two quarters) with none.',
+        'With no set rhythm for the workspace, nothing is due on any goal, monthly ones included.',
+      ] },
       { heading: 'With no set rhythm', list: [
         'An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.',
         'A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.',

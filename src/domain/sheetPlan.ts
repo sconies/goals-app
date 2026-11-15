@@ -41,6 +41,9 @@ export interface SheetPlanResult {
   undo: { module: string; key: string; rows: { id: string; before: unknown }[] }[];
   /** How the counts say one and many of what it changes ("metric", "metrics"). */
   noun: [string, string];
+  /** What the preview and a dry run say after the counts, a line each (the Metrics sheet: stages, similar metrics and
+      what each Draft still needs). */
+  notes?: string[];
 }
 
 export type SheetPlanner = (api: SheetPlanApi) => SheetPlanResult;
