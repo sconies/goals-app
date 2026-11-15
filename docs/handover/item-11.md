@@ -38,7 +38,8 @@ Stage 3 gaps left for words (not done by #527): 3.1, 3.5, 3.6, 3.8â€“3.17, 3.20â
 | 4 Feedback, 5 Goal map | Switch criteria verified; requirements and journeys weak (journeys now have steps: re-check) |
 | 6 Metric library | Rebuild lost with the old scratchpad; re-run with a reviewer |
 | 7 Reviews, 8 Spreadsheets, 9 Fields (TG1), 10 Watching, 11 Wrap-up | Not started |
-| Late modules: GR, MQ (#502, #505), TG2 (#493), SW2 (#504), MI (track 3), FT1 | Add when on main. MC deferred (Lane, 14 Nov) |
+| Late modules: GR, MQ (#502, #505), TG2 (#493), SW2 (#504), FT1 | Add when on main. MC deferred (Lane, 14 Nov) |
+| MI (#520, merged; track 3, 15 Nov) | Ready as a stage: the Metrics sheet in and out, folded into the metrics module's stage (`spec/rebuild/stage-7-module-metrics.md`): the sheet loads back through the core's change engine by the module's planner (`domain/sheetPlan.ts`), with MQ's four columns; exit lines for the round trip and the loop refusal; conformance `spec/conformance/metrics.csv`, rule `sheet`, 15 cases; journey U179 |
 
 Backlog 0v (added in #512): negative days-without-update before a plan starts; the edge rows record today's behaviour, with a note, until it's fixed.
 
