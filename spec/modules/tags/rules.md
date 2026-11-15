@@ -208,6 +208,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the Goals sheet’s field columns › changes what differs, in History as the goal’s page says it, and an empty cell clears a value
 - the Goals sheet’s field columns › asks once about a value a list doesn’t hold; an admin may add it, and every row it covers takes it
 - the Goals sheet’s field columns › Undo this import puts field values back, and takes out a list value it added (TG2 review)
+- the Goals sheet’s field columns › [#534 review] Undo leaves a field value changed since as it is, and lists it under skipped (rule 9)
 - the Goals sheet’s field columns › anyone but an admin may only leave the cells empty, or fix the file
 - the Goals sheet’s field columns › refuses free text over 80 characters, and a goal its loader may not change
 - the Goals sheet’s field columns › with Fields off: no columns in an export, a file’s are read by nothing, and values stay (the file line: spreadsheets/unread.test.ts)
