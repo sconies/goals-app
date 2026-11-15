@@ -1682,6 +1682,7 @@ Routes: `/feedback`, `/workspace/inbox`, `/inbox`. Screens: `Feedback`. Requirem
 
 - The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.
 - It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.
+- You always see what you sent. Feedback sent in the demo stays in your browser’s copy of the example and goes to the people building Faro; the inbox lists it for you alone, marked as kept in this browser, and its status doesn’t change.
 - It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.
 - Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it.
 

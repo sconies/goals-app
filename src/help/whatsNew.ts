@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'feedback-own-sent',
+    date: '2026-11-15',
+    title: 'You see the feedback you sent',
+    points: [
+      'Feedback you send from the demo now shows in Feedback for you, marked as kept in this browser. Before, it went to the people building Faro but never came back to you.',
+      'The inbox is still everyone’s, and only an admin changes a status.',
+    ],
+    articles: ['inbox'],
+  },
+  {
     id: 'fields-import-undo',
     date: '2026-11-15',
     title: 'Undo puts a spreadsheet’s field values back',

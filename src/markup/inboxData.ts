@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import { inboxFeedback, inboxOps, markupsShared } from './backend';
-import type { FeedbackOps, InboxFeedback } from './feedback';
+import { localFeedback, withOwnSent, type FeedbackOps, type InboxFeedback } from './feedback';
 import { newCount } from './inboxList';
 import { undoChange, type Markup, type StatusChange } from './model';
 import type { ListedMarkup, MarkupOps } from './ops';
@@ -63,12 +63,18 @@ export function useInboxData(): InboxData {
       ops.list({ limit: READ }).catch((e: unknown) => { appNow.current.toast(e instanceof Error ? e.message : String(e), 'error'); return [] as ListedMarkup[]; }),
       fbOps ? fbOps.list(READ).catch(() => [] as InboxFeedback[]) : Promise.resolve([] as InboxFeedback[]),
     ]);
-    setMarkups(m); setFeedback(f);
-  }, [ops, fbOps]);
+    // Reading the shared database, the feedback this person sent that is kept only in this browser (the demo's) is
+    // listed too, for them alone: senders see their own (deep dive, 15 Nov).
+    const own = shared ? withOwnSent(f, await localFeedback(here).list(READ), appNow.current.viewer.id) : f;
+    setMarkups(m); setFeedback(own);
+  }, [ops, fbOps, shared, here]);
   useEffect(() => { void reload(); }, [reload]);
 
   const setStatus = useCallback<InboxData['setStatus']>(async (ids, c) => {
     if (!ops) throw new Error('The inbox isn’t ready yet.');
+    // Feedback kept only in this browser has no status to change: it never reached the shared inbox.
+    const here = new Set(feedback.filter((f) => f.onlyHere).map((f) => f.id));
+    ids = { ...ids, feedback: ids.feedback.filter((id) => !here.has(id)) };
     const by = appNow.current.viewer.name, admin = !!appNow.current.viewer.admin;
     const beforeM = new Map((markups ?? []).filter((m) => ids.markups.includes(m.id)).map((m) => [m.id, { status: m.status, fixedIn: m.fixedIn, wontFixReason: m.wontFixReason }]));
     const beforeF = new Map(feedback.filter((f) => ids.feedback.includes(f.id)).map((f) => [f.id, { status: f.status, fixedIn: f.fixedIn, wontFixReason: f.wontFixReason }]));
