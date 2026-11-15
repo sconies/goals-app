@@ -24,7 +24,6 @@ export interface JourneyDoc {
   budget?: number;
   /** Ease-test points this journey isn't scored on. */
   na: string[];
-  line: number;
   /** Who it starts as and where, from its first browser and first address. */
   start: string;
   lines: JourneyLine[];
@@ -648,7 +647,6 @@ export function journeyDocs(r: Repo, modules: Map<string, string> = new Map()): 
       reqs: strs(reqA),
       budget: budgetA && ts.isNumericLiteral(budgetA) ? Number(budgetA.text) : undefined,
       na: strs(naA),
-      line: R.sf.getLineAndCharacterOfPosition(st.getStart(R.sf)).line + 1,
       start: startOf(lines),
       lines,
     });
@@ -724,7 +722,7 @@ export function journeyPage(j: JourneyDoc, up: string, owner: string): string {
     `- **Ease test:** ${j.na.length ? `every point but ${j.na.map((x) => `\`${x}\``).join(', ')}` : 'all ten points'} ([the ease test](${up}core/journeys.md#the-ease-test))`,
     `- **Runs on:** a phone (390 × 844) and a desktop (1440 × 900), the same lines on each unless one says otherwise`,
     `- **Starts:** ${j.start}`,
-    `- **Source:** \`${JOURNEYS_FILE}\`, line ${j.line}`,
+    `- **Source:** \`${JOURNEYS_FILE}\`, the entry for ${j.id}`,
     '',
     '## Steps and checks',
     '',
