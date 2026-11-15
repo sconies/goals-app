@@ -159,6 +159,17 @@ Every journey has a page of its steps and checks (the Id in the table above link
 
 **Where it starts.** “In the demo” is Faro’s example workspace, Platform Engineering, on Thursday 5 November 2026, week 45 unless the line names another day (every demo address carries `?today=2026-11-05`, or that day). It is the workspace [the conformance data](../conformance/workspace.json) is made from, and more: `workspace.json` keeps only what the rules read, and [`demo-extra.json`](../conformance/demo-extra.json) adds what the journeys also read on 5 November (each person’s job title and email, and the change log). Faro builds its demo for the day it is opened, so on a later day the demo has moved on: check-ins planned after 5 November are posted, the story’s later weeks have happened. A journey that runs on another day reads that demo, which the kit doesn’t hold (the journeys that do are [listed below](#journeys-on-another-day)). A fresh browser as someone is that person chosen as the viewer before the app loads (Faro keeps the choice in the browser; a rebuild may take it from a cookie or the address). Faro serves the demo under `/demo` (`/demo/people` is People in the demo); the lines give each address without it. “The real app, its data kept in this browser” is the app at its own addresses with `?store=browser`, starting empty.
 
+### Set-ups a rebuild does its own way
+
+Some journeys set data up without a step, in ways only Faro has (drill 11: U10, U22, U62, U177, U178, Feedback’s U40 to U53). A rebuild does each through a door its server opens only for a test run ([running the journeys](../rebuild/README.md#from-stage-3-on-running-the-journeys)), to the same effect:
+
+- **`window.__goalsStore.load(id)` and `.commit(id, records)`**: read the workspace as the app has it, and save records into it as the app’s own save does (the change log included), with no screen. A rebuild reads and commits through its test door, then reloads the page.
+- **`seedStage`** (Fields’ journeys, U177 and U178): one field, id `fld_stage`, named Stage, a list of Discover, Build and Run, at position 0, made by Amara; Flaky test rate in the main pipelines (`lead-flaky`) holds Build and Base image build time (`ci-docker`) holds Discover, each value’s id `{goal id}:fld_stage`, set by Amara; no change-log entry. Committed under `modules.tags` (`fields`, `fieldValues`).
+- **`fakeSupabase`** (Feedback’s journeys): the inbox’s own store, outside the workspace, answering as a database would: `markups` (each kept with `status` new, and `issue_url`, `fixed_in`, `wont_fix_reason`, `status_by`, `status_at` empty until triaged), `feedback` (one row already there: from Mateo Silva in another workspace, Acme, on `/check-in`, mood meh, “The reason box is too small on a phone”), the triage changes made (`patches` for markups, `fbPatches` for feedback), the pictures uploaded and opened (`uploads`, `pictureReads`), and `signIns`, which must stay 0: the inbox needs no sign-in. A rebuild keeps the same in its inbox store and lets its test door read it back.
+- **`DOWN`**: Faro built with a database address that never answers, so only the fake above does. A rebuild needs no such build: its test door is the database.
+- **Modules off or left out** (`FARO_MODULES_OFF`, `FARO_WITHOUT`): start the app with those modules switched off, or not built; the lines under “If the {module} module is on” are then left out.
+- **Tokens** (U22, U62): a token record saved straight into the store (its id, person, name, who made it and when, never used or revoked; U22’s is `builder: true`, a builder’s token, which the list labels “builder token”). A rebuild commits the same record through its test door; nothing in the app makes a builder’s token.
+
 ## The parts the journeys name
 
 Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (340 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
@@ -245,7 +256,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.goal-edit` | the goal edit | [U149](journeys/U149.md) |
 | `.goal-edit .edit-part` | the edit part in the goal edit | [U136](journeys/U136.md) |
 | `.goal-proposed` | the goal proposed | [U134](../modules/goal-map/journeys/U134.md), [U163](journeys/U163.md) |
-| `.goal-read-back` | New goal’s read-back (the list named “Read back”, a row per sentence, each with its id) | [U137](journeys/U137.md) |
+| `.goal-read-back` | New goal’s read-back (the list named “Read back”, a row per topic, each with its id and label) | [U137](journeys/U137.md) |
 | `.goal-row, .gtable tbody tr, .tree li` | the goal row, or the table row in the tbody in the gtable, or the list item in the tree | [U66](journeys/U66.md) |
 | `.goals-head` | the goals head | [U135](../modules/goal-map/journeys/U135.md) |
 | `.goals-line` | the Goals count line | [U122](journeys/U122.md), [U123](journeys/U123.md), [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U70](journeys/U70.md), [U73](../modules/watching/journeys/U73.md), [U101](journeys/U101.md), [U134](../modules/goal-map/journeys/U134.md), [U153](journeys/U153.md), [U150](journeys/U150.md) |
@@ -370,7 +381,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.reviews-list` | the list of reviews | [U3](../modules/reviews/journeys/U3.md), [U104](../modules/reviews/journeys/U104.md), [U155](../modules/reviews/journeys/U155.md) |
 | `.rhythm-row` | the rhythm row | [U101](journeys/U101.md), [U102](journeys/U102.md) |
 | `.ring:visible` | the ring | [U12](journeys/U12.md), [U13](../modules/reviews/journeys/U13.md) |
-| `.rr-value` | the row’s sentence | [U137](journeys/U137.md) |
+| `.rr-value` | the row’s words (one sentence or more) | [U137](journeys/U137.md) |
 | `.said` | the said | [U3](../modules/reviews/journeys/U3.md) |
 | `.sc-hit, .goal-chart .c-fc, .goal-chart .c-band` | the sc hit, or the c fc in the goal chart, or the c band in the goal chart | [U44](journeys/U44.md) |
 | `.section-links` | the section links | [U70](journeys/U70.md) |
@@ -396,7 +407,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.step-panel` | the “Respond” form the row opens | [U78](journeys/U78.md) |
 | `.step-panel button[type=submit]` | the button in the “Respond” form the row opens | [U77](journeys/U77.md) |
 | `.step-row` | an ask’s row under “Next steps and asks” | [U3](../modules/reviews/journeys/U3.md), [U33](journeys/U33.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md) |
-| `.step-row.is-settled` | an answered or done row under “Next steps and asks” | [U37](journeys/U37.md), [U78](journeys/U78.md) |
+| `.step-row.is-settled` | a row under “Next steps and asks” that is no longer open (answered or done; a withdrawn ask has no row), kept however old it is | [U37](journeys/U37.md), [U78](journeys/U78.md) |
 | `.steps` | the step counter | [U5](journeys/U5.md), [U11](journeys/U11.md), [U49](../modules/reviews/journeys/U49.md), [U54](journeys/U54.md), [U147](journeys/U147.md), [U86](journeys/U86.md) |
 | `.story-row` | the story row | [U33](journeys/U33.md) |
 | `.stream > li` | an entry in the stream | [U79](../modules/reviews/journeys/U79.md) |
@@ -421,8 +432,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.weekpick-is, .weekpick-is-inline` | the weekpick is, or the weekpick is inline | [U18](journeys/U18.md) |
 | `.weekpick.open` | the open week picker | [U109](journeys/U109.md) |
 | `.welcome .btn.primary` | the main button in the welcome | [U97](journeys/U97.md) |
-| `.why-block` | the goal’s “Why” section | [U78](journeys/U78.md) |
-| `.why-block .why-pointer` | the line pointing to Next steps and asks in the goal’s “Why” section | [U78](journeys/U78.md) |
+| `.why-block` | the goal’s Why section, headed “Why” only while the goal has no check-in (after that, by what the latest one says: “Why it will miss without intervention”, “The latest word” and so on) | [U78](journeys/U78.md) |
+| `.why-block .why-pointer` | the line pointing to Next steps and asks in the goal’s Why section, headed “Why” only while the goal has no check-in (after that, by what the latest one says: “Why it will miss without intervention”, “The latest word” and so on) | [U78](journeys/U78.md) |
 | `.ws-body .btn.primary:visible` | the main button in the ws body | [U51](../modules/feedback/journeys/U51.md) |
 | `.ws-facts` | the workspace facts | [U59](journeys/U59.md), [U61](journeys/U61.md), [U62](../modules/ai-access/journeys/U62.md), [U53](../modules/feedback/journeys/U53.md) |
 | `.ws-facts a` | the link in the ws facts | [U59](journeys/U59.md) |
@@ -471,7 +482,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `input[type=file]` | the file chooser | [U5](journeys/U5.md), [U54](journeys/U54.md), [U147](journeys/U147.md) |
 | `legend` | the legend | [U135](../modules/goal-map/journeys/U135.md) |
 | `li` | the list item | [U23](journeys/U23.md) |
-| `li[data-row="who"] .rr-value` | the row’s sentence in the li | [U137](journeys/U137.md) |
+| `li[data-row="who"] .rr-value` | the row’s words (one sentence or more) in the li | [U137](journeys/U137.md) |
 | `main` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U17](journeys/U17.md), [U33](journeys/U33.md), [U36](../modules/reviews/journeys/U36.md), [U37](journeys/U37.md), [U38](journeys/U38.md), [U40](../modules/feedback/journeys/U40.md), [U41](../modules/feedback/journeys/U41.md), [U58](journeys/U58.md), [U44](journeys/U44.md), [U102](journeys/U102.md), [U154](../modules/reviews/journeys/U154.md), [U155](../modules/reviews/journeys/U155.md), [U170](../modules/metrics/journeys/U170.md) |
 | `main .backlink` | the backlink in the main | [U70](journeys/U70.md) |
 | `main .btn.primary` | the main button in the main | [U179](../modules/metrics/journeys/U179.md) |

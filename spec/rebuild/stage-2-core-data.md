@@ -34,8 +34,8 @@ Stage 2’s drill scores the change engine: for each case (rows loaded from a sh
 
 | File | Rows expected | Columns, in this order |
 |---|---|---|
-| `changes.csv` | 135 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves`, `author` |
-| `import.csv` | 70 | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
+| `changes.csv` | 145 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves`, `author` |
+| `import.csv` | 77 | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
 
 - **The cases’ inputs** are in [`change-cases.json`](../conformance/change-cases.json), and the harness puts a copy of it beside the `workspace.json` it hands the command (the same folder): a list of every case `changes.csv` runs (import.csv’s are the first of them), each `{ case, actor, sheet, rows, answers?, given? }` as [the conformance data](../conformance/README.md#the-files) says. Read the cases from there, never from the expected files: in `import.csv` and in `changes.csv`’s row 0 the columns `case`, `actor`, `sheet`, `rows`, `answers` and `given` are those same inputs, written back, and every other column is what the engine gives. Rows are matched by their key columns, columns by name, text exactly.
 

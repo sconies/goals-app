@@ -14,7 +14,9 @@
      stage's files there (stage 1: status.csv, flags.csv, projection.csv, scorecard.csv and checkin.csv), with the columns
      spec/conformance/README.md lists, and exits 0. Beside the copy of workspace.json is change-cases.json: stage 2's
      cases, input only (who loads which rows into which sheet, the answers, what each starts from), and screen-cases.json:
-     stage 3's, input only (the addresses and viewers, the searches, the drafts read back, Home's viewers and days).
+     stage 3's, input only (the addresses and viewers, the searches, the drafts read back, Home's viewers and days), and
+     module-cases.json: the inputs of module files' cases their rows don't carry (metrics.csv's searches and sheet rows,
+     tags.csv's fields, values, filters and questions).
    The edge-case workspace (spec/conformance/edge, its README section says it in full): whenever any of stage 1's files
    is scored, the harness runs <command> a second time, on a copy of edge/workspace.json, writing into
    <rebuild folder>/drill-out/edge, and scores the same files from it against spec/conformance/edge (as edge/status.csv
@@ -32,7 +34,7 @@
    item and a page's name), import.csv (the change engine's kinds, levels and sentences), changes.csv (what a change set
    would save: its counts, and each item with its fields before and after), readback.csv (New goal's
    read-back, stage 3) and home.csv (Home's lead or quiet line) are not part of stage 1,
-   nor is metrics.csv (the metric library's rules 1 to 3, stage 4), nor any other module's file (module-files.json lists
+   nor is metrics.csv (the metric library's rules 1 to 3, its own stage), nor any other module's file (module-files.json lists
    each with its key columns: reviews.csv, tags.csv, watching.csv…): beyond a stage's own files, each is scored only when
    drill.json lists it under "also" ({ "stage": 1, "run": "…", "also": ["find", "goals", "metrics"] }) or --files names it.
 
@@ -42,7 +44,8 @@
      --expected <folder>    the conformance data (default: spec/conformance, found from where this file is). A file or
                             contract the folder doesn't hold (core-only/ has stage 3's four files and no contracts) is
                             left out and named once as not scored, so drill.json's "also" and "contracts" can stay as
-                            they are: `--expected spec/conformance/core-only` scores what core-only holds.
+                            they are: `--expected spec/conformance/core-only` scores what core-only holds. A folder
+                            that has contracts/ but not one drill.json or --contracts names fails (exit 2).
      --timeout 600          seconds the command may take (default 600)
      --contracts search     run only these contracts through the shim
      --json                 print the scores as JSON instead of words
@@ -381,7 +384,7 @@ async function main(argv) {
     // reads its cases from here, never from the expected files.
     // Stage 3's, the screens' cases (screen-cases.json: the addresses, the searches, the drafts, Home's viewers and days),
     // likewise.
-    for (const f of ['change-cases.json', 'screen-cases.json']) if (fs.existsSync(path.join(expectedDir, f))) fs.copyFileSync(path.join(expectedDir, f), path.join(path.dirname(workspace), f));
+    for (const f of ['change-cases.json', 'screen-cases.json', 'module-cases.json']) if (fs.existsSync(path.join(expectedDir, f))) fs.copyFileSync(path.join(expectedDir, f), path.join(path.dirname(workspace), f));
     const cmd = `${m.run} ${quote(workspace)} ${quote(outDir)}`;
     say(`Running in ${target}:\n  ${cmd}`);
     const t0 = Date.now();
@@ -416,11 +419,17 @@ async function main(argv) {
     const all = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort() : [];
     const asked = opt.contracts ?? (Array.isArray(m.contracts) ? m.contracts : all);
     const unknown = asked.filter((n) => !all.includes(n));
-    // A name --contracts gives that the folder's contracts don't have is a typo: say so. Names drill.json lists that a
-    // folder with no such contract lacks (core-only/ has no contracts/ at all) are left out and named once.
-    if (unknown.length && opt.contracts && all.length) { console.error(`No contract ${unknown.join(', ')} in ${dir}; there are ${all.join(', ')}.`); return 2; }
+    // A folder with contracts that lacks a named one (drill.json's "contracts" or --contracts) fails: a typo or a case
+    // slip (Store for store) must never pass by being skipped. Only a folder with no contracts/ at all (core-only/, a
+    // core-only rebuild) leaves drill.json's contracts out, named once.
+    if (unknown.length && all.length) {
+      const why = unknown.map((n) => { const near = all.find((a) => a.toLowerCase() === n.toLowerCase()); return near ? `${n} (the contract is ${near}: names match case)` : n; });
+      const msg = `No contract ${why.join(', ')} in ${dir}; there are ${all.join(', ')}.`;
+      console.error(msg);
+      if (opt.json) console.log(JSON.stringify({ ran, pass: false, error: msg }, null, 2));
+      return 2;
+    }
     if (!all.length) say(`Contracts not run: ${expectedDir} has no contracts folder.`);
-    else if (unknown.length) say(`Not run: contract${unknown.length > 1 ? 's' : ''} ${unknown.join(', ')} (not in ${dir}).`);
     const names = asked.filter((n) => all.includes(n));
     if (names.length) {
       say(`Running the contracts through the shim, in ${target}:\n  ${shim}`);

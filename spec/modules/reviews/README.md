@@ -15,6 +15,7 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `home.lead`, `people.person (with the viewer)`, `features.line`, `features.readBack`, `menu.count`, `writesWhenOff`, `drill` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |
@@ -54,8 +55,8 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 | [U104](journeys/U104.md) | Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet | `evals/journeys.cjs` |
 | [U154](journeys/U154.md) | Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday” | `evals/journeys.cjs` |
 | [U155](journeys/U155.md) | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
-| N1 | Review notes, reviews | `evals/notes/1-reviews.cjs` |
-| N21 | A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays | `evals/notes/21-switched-off.cjs` |
+| [N1](journeys/N1.md) | Review notes, reviews | `evals/notes/1-reviews.cjs` |
+| [N21](journeys/N21.md) | A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays | `evals/notes/21-switched-off.cjs` |
 | [U72](journeys/U72.md) | One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it; Import’s check and its changes have one too, which goes back to Import | `evals/journeys.cjs` |
 
 ## Help

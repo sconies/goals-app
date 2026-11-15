@@ -109,12 +109,25 @@ const SHEET_CASES = (used: { id: string; name: string; unit: string; meaning: st
 const goalsOfMetricIds = (s: Snapshot, cycle: ConformanceWorkspace['cycle'], moment: Date, week: number, live: readonly { id: string }[]) =>
   live.flatMap((m) => goalsOfMetric(s, cycle, moment, week, m.id).map((r) => r.goal.id));
 
+/** Every case's inputs, as data (drill 11, M-1, M-2): the library's asks, and the Metrics sheet's rows. */
+export function metricCases(w: ConformanceWorkspace, asOf: (w: ConformanceWorkspace, moment: Date) => Snapshot) {
+  const s = asOf(w, new Date(w.builtFor));
+  const used = metricsOf(s).find((m) => !m.removedAt && !m.retiredAt && everUsed(m.id, linksOf(s)))!;
+  const spare = metricsOf(s).find((m) => !m.removedAt && !m.retiredAt && !everUsed(m.id, linksOf(s)))!;
+  return {
+    about: 'The inputs of metrics.csv: `find`, each library search (`ask` is how the address writes it, the row’s key; the fields are the search’s); `sheet`, each Metrics sheet case’s rows as a file gives them, loaded by Amara (`used` is the demo’s first metric any goal was ever measured by, `spare` its first that none was); the `goals`, `needs`, `still`, `parts`, `ends`, `measured` and `reading` rows are one per metric (or link) the workspace holds, so they need no inputs here.',
+    find: LIBRARY_ASKS.map((a) => ({ ask: askText(a), ...a })),
+    sheet: { actor: 'amara', used: used.id, spare: spare.id, cases: SHEET_CASES(used, spare) },
+  };
+}
+
 const files: ModuleConformance[] = [{
   file: 'metrics',
   header: HEADER,
   keys: ['rule', 'ask', 'row'],
   about: 'The metric library’s rules ([the library as a place](../modules/metrics/rules.md)), not part of stage 1, scored like find.csv when asked (`"also": ["metrics"]`). Made on the workspace as it stood at `builtFor` (the same `asOf`), with the metric records under `modules.metrics` in workspace.json (`metrics` and `metricLinks`); a link counts while its goal is live then. Four kinds of row, by `rule`: **find** (rule 1), one per search in a fixed list, `ask` the search as `key=value` joined by `&` (`q`, `unit`, `teamId`, `ownerId`, `dir`, `unused`, `sortout`, `sort`; empty for nothing asked), `total` how many match and `ids` every metric id found in order (every page); **goals** (rule 2), for each metric in use by id, a head row (`row` 0: `total` its goals, `summary` the lowest-and-highest line or empty), then one row per goal in order (`row` 1, 2…): `goal` its key, `status` its code, `slice`, `now`, `target`, `vs_plan` and `owner` in words; **needs** (rule 3), for each metric, `needs` the codes in order separated by spaces, empty for none; **still** (rule 6, [defining a metric well](../modules/metrics/rules.md)), for each metric, `still` its line in words (“Fully defined”, or “Still to say: …”); **parts** (rule 7, [for, which part](../modules/metrics/rules.md)), for each metric, `parts` the parts its links in force use, most used first, each in its most used spelling, separated by “ | ”, empty for none. **ends** (rule 10), for each metric, `retire` or `delete`; **reading** ([a reading in a check-in](../modules/metrics/rules.md), NR rule 1), for each goal in force measured by a metric the demo’s number sources read, in goal id order (`row` 1, 2…): `goal` its key, `slice` its team id or `company`, then “ · {part}”, `reading` what the source says for that slice at the moment (“{value} at {ISO time}”, `none`, or `no-slice` when it reads the metric but not that slice) and `state` rule 1’s state with nothing typed, against the goal’s latest check-in by `postedAt`. The demo’s sources are seeded series made from workspace.json’s check-ins (`src/modules/metrics/numbers.ts`, `DEMO_SERIES`): for each slice, the latest check-in value of each week of the goal named, continued one week by the mean step of its last four numbers rounded to whole numbers, plus `add`, less `short` weeks at the end, each measured at 09:00 UTC on its week’s review day. A **goals** row’s `slice` is the team or “The whole company”, then “ · {part}” when the link is for one part. Every other column is empty.',
   rows: (w, kit) => metricRowsOf(w, kit.asOf),
+  cases: (w, kit) => metricCases(w, kit.asOf),
 }];
 
 export default files;

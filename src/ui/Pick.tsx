@@ -8,6 +8,7 @@ import { useApp } from '../app/state';
 import { latestOnly, type FoundRow, type Search, type SearchKind } from '../ports/search';
 import type { Person } from '../domain/types';
 import { Avatar, StatusWord } from './bits';
+import { focusBackLater } from './focusBack';
 
 /** The words for each kind: its name, the field's placeholder when nothing is chosen, and the search's placeholder. */
 const KINDS: Record<string, { thing: string; things: string; find: string }> = {
@@ -160,7 +161,7 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
 
   // The "none" row leads the suggestions; once something is typed, Enter takes the first match, not nothing.
   const options: ({ none: true } | FoundRow)[] = [...(none && !several && !typed ? [{ none: true as const }] : []), ...rows];
-  const close = () => { setOpen(false); setQ(''); requestAnimationFrame(() => opener.current?.focus()); };
+  const close = () => { setOpen(false); setQ(''); focusBackLater(opener); };
   const choose = (o: { none: true } | FoundRow) => {
     if ('none' in o) { onChange([]); close(); return; }
     if (refuse?.(o)) return;

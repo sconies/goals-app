@@ -22,6 +22,8 @@ Found by the full rebuild drill. Wording only; none is fixed here.
 - Demo goal G-48's 141-character name makes an unchanged export refused.
 - An unedited export needs engine fixes to load back (m9).
 - `home.csv` depends on the time zone (Pacific/Auckland).
+- 0v: a goal whose plan hasn't started yet shows a negative number of days without an update.
+- Reviews' switch-off read-back says "1 open next step … on their goals" for one goal (from #547).
 
 ## Build, in order
 

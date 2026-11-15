@@ -1049,7 +1049,7 @@
     {
       "id": "ONE-WATCHING",
       "area": "Watching",
-      "text": "Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block.",
+      "text": "Watching is one place: a Goals scope (/goals?scope=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block.",
       "use": "copy"
     },
     {
@@ -1074,7 +1074,7 @@
     {
       "id": "MARKUP-INBOX",
       "area": "Feedback",
-      "text": "Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule; each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.",
+      "text": "Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone opens it; an admin marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule (only an admin triages: INBOX-TRIAGE); each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.",
       "use": "replace",
       "by": "R1"
     },
@@ -1116,7 +1116,7 @@
     {
       "id": "MCP-FEEDBACK",
       "area": "Feedback",
-      "text": "The AI triages feedback as it does markups (migrations 0028 and 0031). With any token, list_feedback lists every workspace’s feedback, newest first, each with its status (New, In hand, Fixed, Won’t fix), filtered by status or workspace; get_feedback opens one; update_feedback changes its status with the inbox’s rules (fixed names a What’s new entry, won’t fix needs a reason), recorded as the token’s person via the assistant. They go through security-definer functions for tokens (okr_feedback_for_token, okr_feedback_triage_for_token), which refuse a revoked or unknown token and share one change with the inbox (okr_feedback_patch, callable by no key on its own), so no new secret is needed.",
+      "text": "The AI triages feedback as it does markups (migrations 0028 and 0031). With any token, list_feedback lists every workspace’s feedback from the inbox, newest first, each with its status (New, In hand, Fixed, Won’t fix), filtered by status or workspace; get_feedback opens one; update_feedback changes its status with the inbox’s rules (fixed names a What’s new entry, won’t fix needs a reason), recorded as the token’s person via the assistant. They go through security-definer functions for tokens (okr_feedback_for_token, okr_feedback_triage_for_token), which refuse a revoked or unknown token and share one change with the inbox (okr_feedback_patch, callable by no key on its own), so no new secret is needed. Only an admin’s token changes a status. In a build with no inbox store, list_feedback falls back to this workspace’s own feedback, without statuses, for an admin’s token only (“Only admins can read the feedback.”).",
       "use": "replace",
       "by": "R1"
     },

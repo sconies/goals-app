@@ -15,6 +15,7 @@ Module id `ai-access`, in [src/modules/ai-access/](../../../src/modules/ai-acces
 | Old addresses | none |
 | Navigation | none |
 | Places on core screens | none |
+| Drawn for it by the core while it is on | `settings.you`, `people.person (with the viewer)`, `features.line`, `features.readBack` ([what each is](../../rebuild/module-platform.md#what-a-module-needs-that-faros-core-still-draws): Faro’s core code asks whether it is on; a rebuild builds each as a place or hook) |
 | Workspace sections | `/workspace/ai` |
 | Database tables | none |
 | Its own records | none |

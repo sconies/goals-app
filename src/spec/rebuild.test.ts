@@ -78,7 +78,7 @@ fs.writeFileSync(path.join(out, 'changes.csv'), f.changes.replace('saves-stop,1,
     fs.rmSync(rb, { recursive: true, force: true });
   }, 30_000);
 
-  it('runs a rebuild through drill.json, handing it a copy of workspace.json and stage 2’s and stage 3’s cases, never the expected files', () => {
+  it('runs a rebuild through drill.json, handing it a copy of workspace.json stage 2’s and stage 3’s cases and the module files’ cases, never the expected files', () => {
     const rb = fs.mkdtempSync(path.join(os.tmpdir(), 'drill-rebuild-'));
     fs.writeFileSync(path.join(rb, 'drill.json'), JSON.stringify({ stage: 1, run: 'node main.mjs' }));
     fs.writeFileSync(path.join(rb, 'main.mjs'), `import fs from 'node:fs'; import path from 'node:path';
@@ -91,7 +91,7 @@ fs.writeFileSync('seen.json', JSON.stringify([...seen, { near, ws: JSON.parse(fs
     expect(r.status).toBe(1);
     // Twice: on the demo, then on the edge-case workspace (item 11), each a copy on its own, each into its own folder.
     const edge = JSON.parse(fs.readFileSync(path.join(root, 'spec/conformance/edge/workspace.json'), 'utf8')) as { builtFor: string };
-    expect(JSON.parse(fs.readFileSync(path.join(rb, 'seen.json'), 'utf8'))).toEqual([{ near: ['change-cases.json', 'screen-cases.json', 'workspace.json'], ws: w.builtFor, out: 'drill-out' }, { near: ['workspace.json'], ws: edge.builtFor, out: 'edge' }]);
+    expect(JSON.parse(fs.readFileSync(path.join(rb, 'seen.json'), 'utf8'))).toEqual([{ near: ['change-cases.json', 'module-cases.json', 'screen-cases.json', 'workspace.json'], ws: w.builtFor, out: 'drill-out' }, { near: ['workspace.json'], ws: edge.builtFor, out: 'edge' }]);
     expect(r.stdout).toMatch(/^edge\/status\.csv: /m);
     expect(r.stdout).toMatch(/no column .*“kind”/);
     fs.rmSync(rb, { recursive: true, force: true });
@@ -118,8 +118,22 @@ for (const f of ['navigation', 'readback', 'find', 'home']) fs.copyFileSync(path
     const t = drill(rb, '--contracts', 'stor', '--diffs', '0');
     expect(t.status).toBe(2);
     expect(t.stderr).toMatch(/No contract stor in .*; there are /);
+    // So is one drill.json names, when the folder has contracts/ but not that one: never skipped and passed. A case
+    // slip is said as one.
+    fs.writeFileSync(path.join(rb, 'drill.json'), JSON.stringify({ stage: 3, run: 'node main.mjs', shim: 'node shim.mjs', contracts: ['Store'] }));
+    const u = drill(rb, '--diffs', '0');
+    expect(u.status).toBe(2);
+    expect(u.stdout).not.toContain('Not run: contract');
+    expect(u.stderr).toMatch(/No contract Store \(the contract is store: names match case\) in .*; there are /);
+    const j = drill(rb, '--diffs', '0', '--json');
+    expect(j.status).toBe(2);
+    expect(JSON.parse(j.stdout).pass).toBe(false);
+    // Against core-only/, which has no contracts/ at all, the same drill.json leaves them out and passes.
+    const c = drill(rb, '--expected', co, '--diffs', '0');
+    expect(c.stdout).toContain('Contracts not run: ');
+    expect(c.status).toBe(0);
     fs.rmSync(rb, { recursive: true, force: true });
-  }, 60_000);
+  }, 90_000);
 });
 
 describe('rebuild stages', () => {

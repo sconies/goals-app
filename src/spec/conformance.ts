@@ -73,6 +73,9 @@ export interface ModuleConformance {
   /** What the file holds, for the conformance README: Markdown, one paragraph. */
   about: string;
   rows(w: ConformanceWorkspace, kit: { asOf: typeof asOf }): string[][];
+  /** Each case's inputs as data (drill 11, M-1, T-1: they were only in the expected rows), written to
+      module-cases.json under the file's name, which the harness copies beside workspace.json. */
+  cases?(w: ConformanceWorkspace, kit: { asOf: typeof asOf }): unknown;
 }
 /** The modules' conformance files in this build. */
 export const MODULE_FILES: (ModuleConformance & { module: string })[] = MODULE_CONFORMANCE.flatMap((m) => m.part.map((c) => ({ ...c, module: m.id })));
@@ -361,6 +364,8 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
   const theirs = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
   const rheas = s.goals.filter((x) => x.ownerId === 'rhea').slice(0, 5);
   const lastOf = theirs[theirs.length - 1]!;
+  const personName = (id: string) => s.people.find((p) => p.id === id)?.name ?? id;
+  const teamName = (id: string | null | undefined) => s.teams.find((t) => t.id === id)?.name ?? '';
   const afterWrapUp = new Date(Date.parse(cycleDates(w.cycle).wrapUpCloses) + 2 * 86_400_000).toISOString();
   return [
     { case: 'required-empty', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' }] },
@@ -442,6 +447,16 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'past-stage-setup-answered', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Rota agreed', 'Owner email': 'ines@example.com', Team: 'CI/CD', Type: 'milestone', Stages: 'Draft@2; Agreed@6; Live@50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } }, answers: { 'past-stage:goals:stages:': 'from-now' } },
     // A cycle that has ended can't be corrected by any door (review of #326): a changed number for a past week is refused.
     { case: 'ended-cycle', actor: 'amara', sheet: 'checkIns', rows: [{ ID: lastOf.id, 'Goal ID': lastOf.goalId, Week: String(lastOf.week), 'Next step': 'Corrected after the year closed' }], given: { at: afterWrapUp } },
+    // A workbook loaded back as it was exported (drill 11, stage 9: M9-3): a whole Goals row that says Stop is a change
+    // only where a cell differs from the goal; an unchanged People sheet from someone who isn't an admin changes no one;
+    // example rows are left out, never read as new; a name over 80 characters that wasn't edited is not asked about.
+    { case: 'stop-whole-row', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Goal: g('G-14').title, Owner: personName(g('G-14').ownerId), Team: teamName(g('G-14').teamId), Action: 'Stop', Reason: 'No longer needed this year.' }] },
+    { case: 'stop-row-changed', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Goal: 'A different name', Action: 'Stop', Reason: 'No longer needed this year.' }] },
+    { case: 'people-unchanged-not-admin', actor: 'tunde', sheet: 'people', rows: s.people.filter((p) => !p.leftAt).slice(0, 3).map((p) => ({ ID: p.id, Name: p.name, Team: teamName(p.teamId), Admin: p.admin ? 'yes' : 'no' })) },
+    { case: 'people-one-changed-not-admin', actor: 'tunde', sheet: 'people', rows: s.people.filter((p) => !p.leftAt).slice(0, 3).map((p, k) => ({ ID: p.id, Name: k === 1 ? `${p.name} Jr` : p.name, Team: teamName(p.teamId), Admin: p.admin ? 'yes' : 'no' })) },
+    { case: 'example-row', actor: 'amara', sheet: 'goals', rows: [{ Action: 'Example', Goal: 'An example goal', Owner: 'Rhea Kapoor', Unit: '%', Start: '10', Target: '50' }, fresh({})] },
+    { case: 'long-name-unedited', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-48', Goal: g('G-48').title }] },
+    { case: 'long-name-edited', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-48', Goal: `${g('G-48').title}, and the weekend` }] },
     { case: 'as-recorded', actor: 'amara', sheet: 'checkIns', rows: [{ Goal: 'Cache hit rate', Week: '20', Value: '12', Call: 'On track' }], given: { mode: 'create', sheets: { goals: [{ Goal: 'Cache hit rate', 'Owner email': 'ines@example.com', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50', 'Plan from week': '1', 'Due week': '40' }], people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
   ];
 }

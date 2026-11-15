@@ -54,6 +54,24 @@ const rules: Rule[] = [
           return lines(r).filter((l) => /accepted risk|Check-ins are still due/.test(l)).join(' | ');
         },
       },
+      {
+        given: 'Every line of the read-back (drill 11, G5): 6 people, 2 live reviews and one ended, 3 things said or marked in them (changes of entity review or decision), 1 open next step and 2 open questions raised in a review, no accepted risk, due Thursday.',
+        then: 'Reviews leaves the menu, and Home’s “Next review”. | 2 reviews stay in the record, with the 3 things said or marked in them. Each goal’s History still shows them. | 1 open next step agreed in a review stays open on their goals and on Home. | 2 questions waiting for a review stay open; they no longer name a session. | Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time. | Nothing is deleted. Switch Reviews back on and every review is as it was.',
+        run: () => {
+          const r = switchOffReadBack({ people: Array.from({ length: 6 }, () => ({})), reviews: [{ endedAt: null, removedAt: null }, { endedAt: null, removedAt: null }, { endedAt: '2026-10-01', removedAt: null }] as never, changes: [{ entity: 'review' }, { entity: 'decision' }, { entity: 'decision' }, { entity: 'goal' }],
+            asks: [{ kind: 'action', status: 'open', reviewId: 'r1' }, { kind: 'question', status: 'open', reviewId: 'r1' }, { kind: 'question', status: 'open', reviewId: 'r2' }, { kind: 'question', status: 'open', reviewId: null }] as never, dueDay: words(false, []).day, goals: [{ id: 'a' }], decisions: [] });
+          return lines(r).join(' | ');
+        },
+      },
+      {
+        given: 'The same with one of each (drill 11: the singular forms).',
+        then: 'Reviews leaves the menu, and Home’s “Next review”. | 1 review stays in the record, with the 1 thing said or marked in it. Each goal’s History still shows it. | 1 open next step agreed in a review stays open on their goals and on Home. | 1 question waiting for a review stays open; it no longer names a session. | 1 accepted risk stays on its goal, as it was said. No new one can be accepted while Reviews is off. | Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time. | Nothing is deleted. Switch Reviews back on and every review is as it was.',
+        run: () => {
+          const r = switchOffReadBack({ people: [{}], reviews: [{ endedAt: null, removedAt: null }] as never, changes: [{ entity: 'decision' }],
+            asks: [{ kind: 'action', status: 'open', reviewId: 'r1' }, { kind: 'question', status: 'open', reviewId: 'r1' }] as never, dueDay: words(false, []).day, goals: [{ id: 'a' }], decisions: [{ goalId: 'a', kind: 'note', note: acceptNote('Supplier slip'), removedAt: null }] });
+          return lines(r).join(' | ');
+        },
+      },
     ],
   },
 ];
