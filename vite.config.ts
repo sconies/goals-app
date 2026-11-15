@@ -5,8 +5,9 @@ import { faroHelpIndex } from './vite.helpIndex.ts';
 
 export default defineConfig({
   plugins: [react(), faroModules(), faroHelpIndex()],
-  // The import's worker plans a module's own sheet (MI: Metrics) with that module's records, read through the registry.
-  worker: { plugins: () => [faroModules()] },
+  // The import's worker reads the modules' records (a module's own Goals columns, TG2) and loads their readers when it
+  // needs them: the same registry, and chunks it can load (it is started as a module worker).
+  worker: { format: 'es', plugins: () => [faroModules()] },
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
     // Node by default (quicker to start); a test that needs a browser says so: // @vitest-environment jsdom.

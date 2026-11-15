@@ -103,13 +103,16 @@ export function GoalsScreen() {
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, opens, loaded, mapHere]);
-  const scope: Scope = hasScope(params.get('scope') as Scope) ? (params.get('scope') as Scope) : opens;
+  // An old `show=` address is read as what it means from the first draw, not only once the effect above has rewritten
+  // it: on a slow phone the page drew the opening tab (say Watching) in between (F5 L&T 2 on /goals?show=teams).
+  const asked = params.has('show') && !params.get('scope') ? new URLSearchParams(movedGoals(params.toString(), opens, hasScope)?.search ?? params.toString()) : params;
+  const scope: Scope = hasScope(asked.get('scope') as Scope) ? (asked.get('scope') as Scope) : opens;
   useEffect(() => { if (params.get('scope')) prefs.set(app.ws.id, app.viewer.id, 'goals-scope', scope); }, [scope, params, prefs, app.ws.id, app.viewer.id]);
   const scopeTab = everyScope.find((t) => t.id === scope)!;
   const scopeTabs = drawnTabs.some((t) => t.id === scope) ? drawnTabs : everyScope.filter((t) => t.id === scope || drawnTabs.includes(t));
   const inScope = useMemo(() => new Set(scopeTab.ids), [scopeTab]);
-  const group: Group = (GROUPS.some(([k]) => k === params.get('group')) ? params.get('group') : ownGroup(scope)) as Group;
-  const switchOn = params.get('attention') === '1' || !!params.get('needs');
+  const group: Group = (GROUPS.some(([k]) => k === asked.get('group')) ? asked.get('group') : ownGroup(scope)) as Group;
+  const switchOn = asked.get('attention') === '1' || !!params.get('needs');
   const show: Show = switchOn ? 'attention' : group === 'tree' ? 'outcomes' : group === 'team' ? 'teams' : group === 'level' ? 'levels' : scope === 'watching' ? 'watching' : 'mine';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
   const [layout, setLayout] = useLayout(mapHere);

@@ -1,7 +1,7 @@
 /* The data tables' layouts: which columns each table shows, in what order and how wide, with its search, filters and
    sort. A layout can be kept as a named table view (a saved view whose query starts with table=), opened again later,
    and the table exported exactly as it shows. The app's Data screen and the AI assistant's tools both use these. */
-import { KEY_COLUMNS, type Cell, type SheetKind } from './columns';
+import { headersOf, KEY_COLUMNS, type Cell, type SheetKind } from './columns';
 import type { Table } from './export';
 import { applyTable, filterEntries, parseFilters, parseSort, type PropFilter, type TableSort } from './tableFilter';
 
@@ -78,7 +78,9 @@ export function visibleColumns(table: DataTable, head: readonly string[], cols: 
     for (const c of always) if (!rest.includes(c)) rest.splice(Math.min(rest.length, Math.max(0, head.indexOf(c) - 1)), 0, c);
   } else {
     const pick = t.defaults;
-    rest = head.filter((c) => has(c) && (!pick || pick.includes(c) || always.includes(c)));
+    // A module's own column (Fields' Stage on Goals) shows too: the core's sheet doesn't have it, so it was asked for.
+    const core = pick ? new Set(headersOf(KIND_OF[table])) : null;
+    rest = head.filter((c) => has(c) && (!pick || pick.includes(c) || always.includes(c) || !core!.has(c)));
   }
   return [...(head.includes(t.name) ? [t.name] : []), ...new Set(rest)];
 }

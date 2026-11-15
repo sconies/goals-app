@@ -39,6 +39,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-sheet'],
   },
   {
+    id: 'goal-fields-filters',
+    date: '2026-11-14',
+    title: 'Find goals by your own fields, and keep them in spreadsheets',
+    points: [
+      'Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. The filter line says “Stage is Build”, and a saved view keeps it.',
+      'Data’s Goals table and every exported Goals sheet have a column for each field. Change a cell and load the file back to change the goal’s value.',
+      'A value a list doesn’t hold is asked about once, however many rows say it. Only an admin can add it to the list.',
+      'An AI assistant can find goals by their fields too.',
+    ],
+    articles: ['fields', 'goals-filters', 'import'],
+  },
+  {
     id: 'moment-fixed-as-of-its-week',
     date: '2026-11-14',
     title: 'A target reached stays reached in History',
