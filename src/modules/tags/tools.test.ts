@@ -70,5 +70,34 @@ describe('fields tools', () => {
       expect(r.content[0]!.text).toBe(`Fields is switched off in Platform Engineering, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`);
     }
     expect(valueOf(off.data(), 'lead-flaky', liveFields(off.data())[0]!.id)).toBe('Build');
+    // find_goals' fields filter says the same sentence; a link's f.<field id> is no filter while it is off.
+    const f = await off.call('find_goals', { fields: { Stage: 'Build' } });
+    expect(f.isError).toBe(true);
+    expect(f.content[0]!.text).toBe('Fields is switched off in Platform Engineering, so find_goals’ fields filter can’t be used there. An admin can switch it on in Workspace, under Features.');
+    const param = `f.${liveFields(off.data())[0]!.id}=Build`;
+    const all = ((await off.call('find_goals', { limit: 200 })).structuredContent as { total: number }).total;
+    expect(((await off.call('find_goals', { query: param, limit: 200 })).structuredContent as { total: number }).total).toBe(all);
+  });
+});
+
+describe('find_goals’ fields (TG2, rule 3)', () => {
+  it('finds goals by a list field’s values, Not set among them, as Goals’ filter and its link do', async () => {
+    const a = await setup('amara');
+    await a.call('save_field', { name: 'Stage', kind: 'list', values: ['Discover', 'Build', 'Run'] });
+    await a.call('save_field', { name: 'Notes', kind: 'text' });
+    await a.call('set_goal_fields', { goal_id: 'lead-flaky', fields: { Stage: 'Build' } });
+    await a.call('set_goal_fields', { goal_id: 'ci-docker', fields: { Stage: 'Run' } });
+    const ids = async (args: object) => ((await a.call('find_goals', { limit: 200, ...args })).structuredContent as { goals: { id: string }[] }).goals.map((g) => g.id).sort();
+    expect(await ids({ fields: { stage: 'build' } })).toEqual(['lead-flaky']);
+    expect(await ids({ fields: { Stage: 'Build, Run' } })).toEqual(['ci-docker', 'lead-flaky']);
+    expect(await ids({ fields: { Stage: ['Run'] } })).toEqual(['ci-docker']);
+    const all = await ids({});
+    expect((await ids({ fields: { Stage: 'Not set' } })).length).toBe(all.length - 2);
+    // The same goals as the Goals link with the same filter.
+    const id = liveFields(a.data())[0]!.id;
+    expect(await ids({ query: `/goals?f.${id}=Build,Run` })).toEqual(['ci-docker', 'lead-flaky']);
+    expect((await a.call('find_goals', { fields: { Stage: 'Operate' } })).content[0]!.text).toBe('“Operate” isn’t one of Stage’s values: Discover, Build or Run. Or Not set, for goals with no value.');
+    expect((await a.call('find_goals', { fields: { Notes: 'x' } })).content[0]!.text).toBe('Notes is free text, so it can’t filter goals: only a list field can.');
+    expect((await a.call('find_goals', { fields: { Region: 'EU' } })).content[0]!.text).toBe('There’s no field called Region. Fields: Stage, Notes.');
   });
 });

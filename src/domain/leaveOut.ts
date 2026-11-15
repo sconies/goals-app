@@ -4,12 +4,11 @@
    into it, and goals and Takes-over cells that name a new person left out. Pure: no screen, network or database code. */
 import { fold } from './problemLevels';
 import type { Sheet } from './problemLevels';
-import type { Rec, Tables } from './sheets';
+import { rowsOfSheet, sheetsIn, withSheetRows, type Rec, type Tables } from './sheets';
 
 export interface RowRef { sheet: Sheet; row: number }
 export interface DependentRow extends RowRef { because: string }
 
-const KEY: Record<Sheet, keyof Tables> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
 const v = (r: Rec, k: string) => (r[k] ?? '').trim();
 const rowOf = (r: Rec, i: number) => Number(r.__row ?? i + 2);
 
@@ -26,7 +25,7 @@ export function leaveOut(tables: Tables, rows: readonly RowRef[], isNew: IsNew =
   const out = new Set(rows.map((x) => `${x.sheet}:${x.row}`));
   const also: DependentRow[] = [];
   const add = (sheet: Sheet, row: number, because: string) => { const k = `${sheet}:${row}`; if (out.has(k)) return false; out.add(k); also.push({ sheet, row, because }); return true; };
-  const list = (sheet: Sheet) => (tables[KEY[sheet]] ?? []).map((r, i) => ({ r, row: rowOf(r, i) }));
+  const list = (sheet: Sheet) => (rowsOfSheet(tables, sheet) ?? []).map((r, i) => ({ r, row: rowOf(r, i) }));
   const goals = list('Goals');
   const people = list('People');
   const checkIns = list('Check-ins');
@@ -50,10 +49,7 @@ export function leaveOut(tables: Tables, rows: readonly RowRef[], isNew: IsNew =
     for (const c of checkIns) if ((tag && fold(v(c.r, 'goal ref')) === tag) || (title && !v(c.r, 'goal ref') && !v(c.r, 'goal key') && !v(c.r, 'goal id') && fold(v(c.r, 'goal')) === title)) add('Check-ins', c.row, `it is a check-in for Goals row ${row}`);
     for (const g of goals) if (((tag && fold(v(g.r, 'feeds into ref')) === tag) || (title && !v(g.r, 'feeds into ref') && !v(g.r, 'feeds into key') && fold(v(g.r, 'feeds into')) === title)) && add('Goals', g.row, `Feeds into names Goals row ${row}`)) queue.push(g);
   }
-  const kept: Tables = {};
-  for (const sheet of Object.keys(KEY) as Sheet[]) {
-    const t = tables[KEY[sheet]];
-    if (t) kept[KEY[sheet]] = t.filter((r, i) => !out.has(`${sheet}:${rowOf(r, i)}`));
-  }
+  let kept: Tables = {};
+  for (const sheet of sheetsIn(tables)) kept = withSheetRows(kept, sheet, rowsOfSheet(tables, sheet)!.filter((r, i) => !out.has(`${sheet}:${rowOf(r, i)}`)));
   return { tables: kept, also };
 }

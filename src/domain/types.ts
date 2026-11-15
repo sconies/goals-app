@@ -309,6 +309,8 @@ export interface ImportUndo {
       carried goals. */
   watches?: Id[];
   modules?: { module: string; key: string; ids: Id[] }[];
+  /** A module's own sheet (MI): each of its rows the import added or changed, as it was before (null: added). */
+  moduleRows?: { module: string; key: string; rows: { id: Id; before: unknown }[] }[];
 }
 
 /**

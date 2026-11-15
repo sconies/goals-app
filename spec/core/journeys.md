@@ -84,6 +84,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | [U163](journeys/U163.md) | A baseline and nothing else yet (GB): as Tunde, New goal’s measure step with a Baseline of 0.42 USD and no Target offers “No target agreed yet? Propose it with just the baseline”; Check reads “A number at 0.42 USD now. No target is set yet”, and Propose goal saves it with no target; its page says “Target not set” with Set the target as its one primary and no status shape; Set the target opens Change it, and once 0.30 is saved it can be made active |  | `GOAL-NO-TARGET` `GOAL-PROPOSED` | 22 | `evals/journeys.cjs` |
 | [U171](journeys/U171.md) | A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track |  | `GUARDRAILS` | 24 | `evals/journeys.cjs` |
 | [U176](journeys/U176.md) | The admin’s workspace line on Home, drawn: in a workspace with 12 people and one admin, Rosa’s Home has a block headed with the workspace’s name, “{n} things to sort out” with the first one’s sentence and “See them”; See them opens About, whose To sort out list has the same {n}; a member sees none of it, and a two-person workspace just set up has none either |  | `HOME-LEADER` | 5 | `evals/journeys.cjs` |
+| [U179](journeys/U179.md) | Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read |  | `METRIC-SHEET` | 8 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -162,7 +163,7 @@ Every journey has a page of its steps and checks (the Id in the table above link
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (338 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (340 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -475,6 +476,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `li[data-row="who"] .rr-value` | the rr value in the li | [U137](journeys/U137.md) |
 | `main` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U17](journeys/U17.md), [U33](journeys/U33.md), [U36](../modules/reviews/journeys/U36.md), [U37](journeys/U37.md), [U38](journeys/U38.md), [U40](../modules/feedback/journeys/U40.md), [U41](../modules/feedback/journeys/U41.md), [U58](journeys/U58.md), [U44](journeys/U44.md), [U102](journeys/U102.md), [U154](../modules/reviews/journeys/U154.md), [U155](../modules/reviews/journeys/U155.md), [U170](../modules/metrics/journeys/U170.md) |
 | `main .backlink` | the backlink in the main | [U70](journeys/U70.md) |
+| `main .btn.primary` | the main button in the main | [U179](journeys/U179.md) |
 | `main .gkey` | the gkey in the main | [U65](journeys/U65.md) |
 | `main .status-shape[data-status="unmeasured"]` | the status shape in the main | [U170](../modules/metrics/journeys/U170.md) |
 | `main a` | the a in the main | [U81](../modules/metrics/journeys/U81.md) |
@@ -486,6 +488,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `main h1, .focus h1, h1` | the part `main h1, .focus h1, h1` | [U71](journeys/U71.md) |
 | `main h1, main .goals-sr-title` | the part `main h1, main .goals-sr-title` | [U70](journeys/U70.md) |
 | `main li, main tr` | the part `main li, main tr` | [U98](journeys/U98.md) |
+| `main table` | the table in the main | [U177](../modules/tags/journeys/U177.md) |
 | `section` | the section | [U8](../modules/watching/journeys/U8.md) |
 | `section.board-col[aria-label="Proposed, 1"]` | the part `section.board-col[aria-label="Proposed, 1"]` | [U134](../modules/goal-map/journeys/U134.md) |
 | `section.getting-started` | the getting started | [U97](journeys/U97.md), [U86](journeys/U86.md) |

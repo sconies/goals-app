@@ -155,6 +155,7 @@ No arguments.
 | `state` | one of `active`, `proposed`, `stopped` | no | active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter). |
 | `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
 | `offset` | integer | no | How many matching goals to skip, for the next page (as “more” says). |
+| `fields` | object | no | Goals with these values of the workspace’s own list fields (list_fields), by name: {"Stage": "Build, Run"}; "Not set" for none. Free text can’t filter. |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -229,6 +230,23 @@ No arguments.
       "type": "integer",
       "minimum": 0,
       "description": "How many matching goals to skip, for the next page (as “more” says)."
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "description": "Goals with these values of the workspace’s own list fields (list_fields), by name: {\"Stage\": \"Build, Run\"}; \"Not set\" for none. Free text can’t filter."
     }
   }
 }
@@ -1607,6 +1625,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `plan` | list of object | no | Rows for the Plan sheet: Key (or ID), Start and "Week N" columns. |
 | `check_ins` | list of object | no | Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in. |
 | `people` | list of object | no | Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left. |
+| `metrics` | list of object | no | Rows for the Metrics sheet, with the same columns as the export. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back. |
 | `reason` | string | no | Why plans are changing, for any plan change that needs one. |
 | `confirm` | boolean | no | True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan). |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
@@ -1646,6 +1665,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
         "type": "object"
       },
       "description": "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Rows for the Metrics sheet, with the same columns as the export. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back."
     },
     "reason": {
       "type": "string",
@@ -1698,6 +1724,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “… should be a list of rows.”
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
@@ -1705,7 +1732,6 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
-- “… should be a list of rows.”
 
 **Does the same as:** [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 

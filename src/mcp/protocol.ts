@@ -1,6 +1,7 @@
 /* The Model Context Protocol over HTTP, stateless: each POST carries JSON-RPC messages and gets JSON back.
    Implements initialize, ping, tools/list and tools/call, and one prompt (prompts/list, prompts/get): review_inbox,
    which an assistant such as Claude Code offers as a command, for anyone to triage the inbox in one step. */
+import { loadGoalExtras } from '../core/records';
 import { callTool, TOOLS, type McpContext, type ToolResult } from './tools';
 import { isStale, STALE_RERUNS } from '../ports/store';
 
@@ -39,6 +40,8 @@ export async function handle(msg: unknown, context: McpContextOf, trace?: TraceT
   const m = msg as Rpc;
   if (!m || m.jsonrpc !== '2.0' || typeof m.method !== 'string') return fail((m as Rpc)?.id ?? null, -32600, 'Invalid request');
   const isNote = m.id === undefined;
+  // What modules add to Goals (Fields' filters and columns) is loaded once, before any tool is listed or run.
+  await loadGoalExtras();
   switch (m.method) {
     case 'initialize': {
       const asked = String(m.params?.protocolVersion ?? '');

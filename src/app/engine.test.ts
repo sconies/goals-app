@@ -12,6 +12,8 @@ const ALLOWED = new Set([
   'src/domain/importer.ts',
   'src/mcp/tools.ts',
   'src/spec/conformance.ts',
+  // The metric library's conformance rows run the Metrics sheet's cases (MI); only the spec reads them (virtual:faro-modules/conformance).
+  'src/modules/metrics/conformance.ts',
   'src/spec/rules.ts',
   // The change engine page's table of sentences reads the kinds the engine gives the goal form's words (node only).
   'src/spec/engineWords.ts',

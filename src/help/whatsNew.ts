@@ -27,6 +27,30 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metrics-sheet-in',
+    date: '2026-11-14',
+    title: 'Import metrics from a spreadsheet',
+    points: [
+      'The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.',
+      'Leave ID empty to add a metric; give its ID, or its name, to change one. Action retires one, with a Reason, or brings one back.',
+      'The same questions as the metric’s form are asked once, and one Undo puts every row back. AI tools can send the same rows to bulk_change.',
+      'It carries where each metric sits and how far to trust it: Part of, How it relates, Confidence and How it could be gamed, out and back in.',
+    ],
+    articles: ['metric-sheet'],
+  },
+  {
+    id: 'goal-fields-filters',
+    date: '2026-11-14',
+    title: 'Find goals by your own fields, and keep them in spreadsheets',
+    points: [
+      'Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. The filter line says “Stage is Build”, and a saved view keeps it.',
+      'Data’s Goals table and every exported Goals sheet have a column for each field. Change a cell and load the file back to change the goal’s value.',
+      'A value a list doesn’t hold is asked about once, however many rows say it. Only an admin can add it to the list.',
+      'An AI assistant can find goals by their fields too.',
+    ],
+    articles: ['fields', 'goals-filters', 'import'],
+  },
+  {
     id: 'moment-fixed-as-of-its-week',
     date: '2026-11-14',
     title: 'A target reached stays reached in History',

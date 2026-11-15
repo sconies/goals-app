@@ -2,7 +2,7 @@
    the app. `npm run export-format` writes it; evals/format.eval.ts fails when the file isn't current. */
 import {
   CALL_WORDS, CAUSE_WORDS, emptyText, fieldTable, GOAL_ACTION_WORDS, KEY_COLUMNS, LEVEL_WORDS, PERSON_ACTION_WORDS, RECOVERY_WORDS, requiredLine, requiredText, ROLE_WORD, roleLoaded, SHAPE_WORDS, SHEETS, START_HERE,
-  TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, type FillKind, type Words,
+  TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, FILL_SHEETS, type FillKind, type Words,
 } from './columns';
 import { STATUS, withCode } from './vocabulary';
 import type { ModuleSheet } from './records';
@@ -48,7 +48,7 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
   ];
   for (const { x: sheet, keys } of sheets) {
     out.push(`## ${sheet.name}`, '', `One row per ${sheet.rowIs}. ${sheet.about}${sheet.loaded ? '' : ' Not loaded back.'}`, '');
-    if (sheet.loaded) {
+    if (sheet.loaded && (FILL_SHEETS as readonly string[]).includes(sheet.kind)) {
       // The field table: what a new row needs, the format, an example and what an empty cell does, then the meaning.
       const kind = sheet.kind as FillKind;
       const table = fieldTable(kind);
@@ -60,7 +60,8 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
       }
     } else {
       out.push('| Column | Kind | What it means | When loaded back |', '|---|---|---|---|');
-      for (const c of sheet.columns) out.push(`| ${cell(c.header)} | ${ROLE_WORD[c.role]} | ${cell(c.means)} | Not loaded back |`);
+      // A module's own sheet loads back by its module's planner (MI: Metrics): each column says what it does then.
+      for (const c of sheet.columns) out.push(`| ${cell(c.header)} | ${ROLE_WORD[c.role]} | ${cell(c.means)} | ${sheet.loaded ? cell(roleLoaded(c)) : 'Not loaded back'} |`);
     }
     out.push('', `Always written by a table from Data: ${keys.join(', ')}.`, '');
   }

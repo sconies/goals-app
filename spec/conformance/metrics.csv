@@ -108,3 +108,18 @@ measured,metric_mttr,0,,,,,,,,,,,,,,,measured,,
 measured,metric_queue-wait,0,,,,,,,,,,,,,,,measured,,
 reading,metric_ci-time,1,,,G-18,,company,,,,,,,,,,,20 at 2026-11-05T09:00:00.000Z,fresh
 reading,metric_queue-wait,1,,,G-14,,cicd · main branch pipelines,,,,,,,,,,,8 at 2026-11-05T09:00:00.000Z,fresh
+sheet,adds,1,1,,,,,,,,,1 new metric,,,,,,,saves
+sheet,changes-caveats,1,1,,,,,,,,,1 metric changed,,,,,,,saves
+sheet,unknown-id,1,0,,,,,,,,,No changes,"Must fix: ID “metric_nope” isn’t a metric in this workspace. Leave ID empty to add a new metric, or use an ID from an export.",,,,,,refused
+sheet,name-twice,1,1,,,,,,,,,1 new metric,Must fix: Rows 2 and 3 are both called “Queue depth”. A metric’s name is used once.,,,,,,refused
+sheet,direction-unread,1,0,,,,,,,,,No changes,Must fix: Direction says “sideways”. Use Higher is better or Lower is better.,,,,,,refused
+sheet,unit-on-used,1,0,,,,,,,,,No changes,"Must fix: It is in hours and 1 goal is measured by it. A file can’t change its unit: change it on the metric’s page, where its goals are shown first.",,,,,,refused
+sheet,meaning-on-used,1,0,,,,,,,,,No changes,Check: Lead time for changes: 1 goal is measured by it. Is it still the same number?,,,,,,refused
+sheet,retire-no-reason,1,0,,,,,,,,,No changes,"Must fix: Say why it is retired, in the Reason column. Its goals will show this.",,,,,,refused
+sheet,retire,1,1,,,,,,,,,1 metric changed,,,,,,,saves
+sheet,bring-back-in-use,1,0,,,,,,,,,No changes,Must fix: Bring back: CI compute cost per pipeline run isn’t retired.,,,,,,refused
+sheet,structure,1,1,,,,,,,,,1 metric changed,,,,,,,saves
+sheet,structure-loop,1,1,,,,,,,,,1 metric changed,Must fix: Choose another parent: it’s already under this one.,,,,,,refused
+sheet,level-no-parent,1,0,,,,,,,,,No changes,"Must fix: Say what it is a component of: choose its parent, or leave the level empty.",,,,,,refused
+sheet,relates-unread,1,0,,,,,,,,,No changes,"Must fix: How it relates says “sibling”. Use Component, Driver, Control or Breakdown, or leave it empty. | Must fix: Confidence says “sure”. Use High, Medium or Low, or leave it empty.",,,,,,refused
+sheet,parent-unknown,1,0,,,,,,,,,No changes,"Must fix: Part of says “No such metric”, which isn’t a metric in this workspace. Give the name or ID of a metric in the library or on an earlier row, or leave it empty.",,,,,,refused

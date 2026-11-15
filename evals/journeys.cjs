@@ -4918,7 +4918,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
-  await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
+  await see(p, 'Read Goals, Plan, Check-ins, People and Metrics', 'the preview does not say which sheets it read');
   await h.checkpoint('import preview');
   await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
@@ -7434,6 +7434,97 @@ journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as A
   await p.context().close();
 }, []);
 
+/** Fields' journeys (TG2): Stage (Discover, Build, Run) saved straight into the demo, with Flaky test rate in Build and
+    Base image build time in Discover, as an admin would have set them; the page reloaded to read it. */
+async function seedStage(p) {
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  await p.evaluate(async () => {
+    const at = new Date().toISOString();
+    const field = { id: 'fld_stage', name: 'Stage', kind: 'list', options: ['Discover', 'Build', 'Run'], position: 0, createdBy: 'amara', createdAt: at, retiredAt: null, retiredBy: null };
+    const v = (goalId, value) => ({ id: `${goalId}:fld_stage`, goalId, fieldId: 'fld_stage', value, setBy: 'amara', setAt: at });
+    await window.__goalsStore.commit('platform-org', { modules: { tags: { fields: [field], fieldValues: [v('lead-flaky', 'Build'), v('ci-docker', 'Discover')] } }, changes: [] });
+  });
+  await p.reload();
+}
+
+journey('U177', ['TAGS-FILTER', 'SAVED-VIEWS'], 'Goals filtered by a workspace’s own field (TG2): as Amara, with Stage on two goals, the Filters sheet has a Stage row (Discover · Build · Run · Not set); ticking Build lists Flaky test rate and not Base image build time, the filter line says “Stage is Build” with Remove, and the address carries it; saved as a view “Building”, plain Goals and then the view bring the same goals back, and Data’s Goals table has a Stage column', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await seedStage(p);
+  await p.goto(url('/goals?scope=all'));
+  await h.inView(p.getByRole('button', { name: /^Filter(s| and sort)/ }), 'entry', 'Filters');
+  await h.click(p.getByRole('button', { name: /^Filter(s| and sort)/ }));
+  const sheet = p.getByRole('dialog', { name: 'Filter goals' });
+  const row = sheet.getByRole('group', { name: 'Stage' });
+  await row.waitFor();
+  const words = (await row.innerText()).replace(/\s+/g, ' ').trim();
+  h.set('parity', /Stage.*Discover.*Build.*Run.*Not set/.test(words), `the Stage row says “${words}”`);
+  await h.click(row.getByLabel('Build'));
+  await h.checkpoint('filters');
+  await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
+  const remove = p.getByRole('button', { name: 'Remove the filter Stage is Build' });
+  await remove.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('attention', await remove.isVisible(), 'the filter line does not say “Stage is Build” with Remove');
+  await see(p, 'Flaky test rate in the main pipelines', 'the goal in Build is not listed');
+  // Fields' filters load once the workspace has a field (not with the first download): the list narrows when they have.
+  const listed = async () => { await p.locator('main').getByText('Base image build time').first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}); return (await p.locator('main').innerText()).includes('Base image build time'); };
+  h.set('progress', !(await listed()) && /[?&]f\.fld_stage=Build/.test(p.url()), `the goal in Discover is listed, or the address (${p.url()}) does not carry the filter`);
+  await h.checkpoint('filtered');
+  // Saved as a view: the parameter goes with it, and the view brings the goals back.
+  await viewsAction(h, p, 'Save this view…');
+  const save = p.getByRole('dialog', { name: 'Save this view' });
+  await h.fill(save.getByLabel('Name'), 'Building');
+  await h.click(save.getByRole('button', { name: 'Save view' }));
+  await save.waitFor({ state: 'hidden' });
+  const s = await h.snapshot();
+  h.set('logged', (s.views ?? []).some((v) => v.name === 'Building' && v.params.includes('f.fld_stage=Build') && !v.deletedAt), 'the view was not saved with the Stage filter');
+  await p.goto(url('/goals?scope=all'));
+  await see(p, 'Base image build time', 'plain Goals does not list every goal');
+  await openSaved(h, p, /Building/);
+  await see(p, 'Flaky test rate in the main pipelines', 'opening the view does not list the goal in Build');
+  const back = p.getByRole('button', { name: 'Remove the filter Stage is Build' });
+  await back.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('finish', !(await listed()) && await back.isVisible(), 'the view did not bring the Stage filter back');
+  // Data's Goals table: a column per live field.
+  await p.goto(url('/data?t=goals'));
+  await p.locator('main table').first().waitFor();
+  h.set('errors', (await p.locator('main table thead').first().innerText()).includes('Stage'), 'Data’s Goals table has no Stage column');
+  await p.context().close();
+});
+
+journey('U178', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await seedStage(p);
+  await p.goto(url('/data/import'));
+  await h.inView(p.getByRole('button', { name: 'Download the workbook' }), 'entry', 'Download the workbook');
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the workbook' }))]);
+  const file = path.join(require('os').tmpdir(), `u176-${Date.now()}.xlsx`);
+  await download.saveAs(file);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
+  await see(p, 'Nothing would change', 'the workbook loaded straight back changes something', 15000);
+  h.set('parity', !(await p.locator('main').innerText()).includes('the column Stage'), 'the file line says Stage is a column nothing reads');
+  await h.checkpoint('round trip');
+  const s0 = await h.snapshot();
+  const g = (id) => s0.goals.find((x) => x.id === id);
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('stages.csv', `Key,Goal,Stage\n${g('lead-flaky').key},${g('lead-flaky').title},Operate\n${g('ci-docker').key},${g('ci-docker').title},operate\n`));
+  const ask = 'Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?';
+  await see(p, ask, 'a value Stage doesn’t hold is not asked about');
+  // One question for both rows: one answer to give (the group's sentence may also be its example).
+  h.set('attention', (await p.getByRole('radio', { name: 'Add “Operate” to Stage' }).count()) === 1, 'the value is asked about more than once');
+  await h.checkpoint('asked');
+  await h.click(p.getByRole('radio', { name: 'Add “Operate” to Stage' }));
+  await h.click(p.getByRole('button', { name: /^Save 2 changes/ }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const vals = s.modules?.tags?.fieldValues ?? [];
+  const f = (s.modules?.tags?.fields ?? []).find((x) => x.id === 'fld_stage');
+  h.set('finish', !!f && f.options.includes('Operate') && ['lead-flaky', 'ci-docker'].every((id) => vals.some((v) => v.goalId === id && v.value === 'Operate')), 'Operate was not added, or the goals are not in it');
+  h.set('logged', s.changes.some((c) => c.entity === 'field' && c.goalId === 'lead-flaky' && c.summary === 'Stage: Build → Operate' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Spreadsheet')), 'History does not say “Stage: Build → Operate” via the spreadsheet');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+});
 journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only, Settings has no “Your MCP tokens” and the inbox’s Connect Claude says it is switched off, with a link to Features; switched back on, the section is back after Access', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
@@ -7862,6 +7953,50 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
   await p.context().close();
 }, ['parity', 'entry']);
+journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const file = (name, rows) => csvFile(name, 'ID,Metric,Unit,Direction,Caveats,Action,Reason\n' + rows.join('\n') + '\n');
+  await p.goto(url('/data/import'));
+  const live = (await h.snapshot()).modules.metrics.metrics.filter((m) => !m.removedAt && !m.retiredAt);
+  const [before, other] = live;
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file('metrics.csv', [
+    `,Retried test share ${device},%,Lower is better,,,`,
+    `${before.id},${before.name},${before.unit},${before.direction === 'lower' ? 'Lower is better' : 'Higher is better'},Read with the release calendar.,,`,
+    `,Queue depth ${device},jobs,Lower is better,,,`,
+    `,Queue depth ${device},jobs,Lower is better,,,`,
+    `${other.id},,,,,Retire,`,
+  ]));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, `Rows 4 and 5 are both called “Queue depth ${device}”. A metric’s name is used once.`, 'a name used twice is not a Must fix');
+  await see(p, 'Say why it is retired, in the Reason column. Its goals will show this.', 'retiring without a reason is not a Must fix');
+  h.set('errors', true);
+  // The way in is Import's own (U95): the Metrics sheet comes in through the same door as every other sheet.
+  h.set('entry', true);
+  await h.checkpoint('must fix');
+  await see(p, '2 new metrics, 1 metric changed.', 'the preview does not count the metrics');
+  await h.click(p.getByRole('button', { name: 'Leave these 2 rows out and save the rest' }));
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Leave them out' }));
+  h.set('one-action', (await p.locator('main .btn.primary').count()) === 1, 'the preview has more than one primary action');
+  await h.click(p.getByRole('button', { name: 'Save 3 changes' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  await see(p, '2 new metrics, 1 metric changed', 'the saved import does not count the metrics');
+  const s = await h.snapshot();
+  const ms = s.modules.metrics.metrics;
+  h.set('finish', ms.some((m) => m.name === `Retried test share ${device}` && m.ownerId === 'amara') && ms.find((m) => m.id === before.id).caveats === 'Read with the release calendar.' && !ms.find((m) => m.id === other.id).retiredAt, 'the metrics were not saved as the file said');
+  await p.goto(url('/metrics'));
+  await see(p, `Retried test share ${device}`, 'the new metric is not in the library');
+  h.set('progress', true);
+  // The Metric library off: the file is read, its Metrics sheet said once and not read.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.getByRole('checkbox', { name: /^Metric/ }));
+  await see(p, 'Metric library is off in', 'the Metric library does not switch off');
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file('metrics-off.csv', [`,Cache warm share ${device},%,Higher is better,,,`]));
+  await see(p, 'Metric library is off in', 'the import does not say the Metrics sheet was not read');
+  await see(p, 'so the Metrics sheet was not read.', 'the import does not say the Metrics sheet was not read');
+  h.set('attention', !(await h.snapshot()).modules.metrics.metrics.some((m) => m.name === `Cache warm share ${device}`), 'a Metrics sheet was read with the Metric library off');
+  await p.context().close();
+}, ['parity', 'logged']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
