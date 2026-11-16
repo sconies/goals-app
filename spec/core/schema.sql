@@ -807,6 +807,59 @@ CREATE UNIQUE INDEX okr_people_ws_email ON faro.okr_people USING btree (workspac
 
 -- 42 functions; 34 run with their owner's rights (security definer).
 
+CREATE OR REPLACE FUNCTION faro.modules_off_check(ws text, p jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
+ SET search_path TO 'faro', 'pg_temp'
+AS $function$
+declare
+  off text[];
+  wsname text;
+  hit text;
+  sentence constant text := '%s is switched off in %s. An admin can switch it on in Workspace, Features.';
+begin
+  select coalesce(w.modules_off, '{}'), w.name into off, wsname from okr_workspaces w where w.id = ws;
+  -- The switches this save leaves in force.
+  if jsonb_typeof(p->'workspace_modules_off') = 'array' then
+    off := array(select jsonb_array_elements_text(p->'workspace_modules_off'));
+  end if;
+  if coalesce(cardinality(off), 0) = 0 then return; end if;
+
+  -- A change logged to a switched-off module's own kind of record.
+  select e.module_name into hit
+    from jsonb_array_elements(case jsonb_typeof(p->'changes') when 'array' then p->'changes' else '[]'::jsonb end) c
+    join module_entities e on e.entity = c->>'entity'
+    where e.module = any (off) limit 1;
+  if hit is not null then raise exception using errcode = 'P0001', message = format(sentence, hit, wsname); end if;
+
+  -- Reviews' records (src/domain/reviewWrites.ts writesReviews).
+  if 'reviews' = any (off) and (
+    (jsonb_typeof(p->'decisions') = 'array' and jsonb_array_length(p->'decisions') > 0)
+    or exists (select 1 from jsonb_array_elements(case jsonb_typeof(p->'reviews') when 'array' then p->'reviews' else '[]'::jsonb end) r
+               where not exists (select 1 from okr_reviews v where v.workspace_id = ws and v.id = r->>'id'))
+    or exists (select 1 from jsonb_array_elements(case jsonb_typeof(p->'goals') when 'array' then p->'goals' else '[]'::jsonb end) g
+               where coalesce(g->>'proposed_in', '') <> ''
+                 and g->>'proposed_in' is distinct from (select s.proposed_in from okr_goals s where s.workspace_id = ws and s.id = g->>'id'))
+    or exists (select 1 from jsonb_array_elements(case jsonb_typeof(p->'requests') when 'array' then p->'requests' else '[]'::jsonb end) a
+               where coalesce(a->>'review_id', '') <> ''
+                 and a->>'review_id' is distinct from (select s.review_id from okr_requests s where s.workspace_id = ws and s.id = a->>'id'))
+  ) then
+    raise exception using errcode = 'P0001', message = format(sentence, 'Reviews', wsname);
+  end if;
+
+  -- Watching's records (src/domain/watchWrites.ts writesWatches): a watch stopped by its id, or watches and nothing else.
+  if 'watching' = any (off) and (
+    (jsonb_typeof(p->'unwatch') = 'array' and jsonb_array_length(p->'unwatch') > 0)
+    or (jsonb_typeof(p->'watches') = 'array' and jsonb_array_length(p->'watches') > 0
+        and not exists (select 1 from jsonb_each(p) k
+                        where k.key not in ('changes', 'watches', 'expect')
+                          and ((jsonb_typeof(k.value) = 'array' and jsonb_array_length(k.value) > 0)
+                               or (jsonb_typeof(k.value) = 'object' and k.value <> '{}'::jsonb))))
+  ) then
+    raise exception using errcode = 'P0001', message = format(sentence, 'Watching', wsname);
+  end if;
+end $function$;
+
 CREATE OR REPLACE FUNCTION faro.okr_builder_token_create(ws text, person text, token_name text)
  RETURNS text
  LANGUAGE plpgsql
@@ -907,7 +960,7 @@ AS $function$
 begin
   if not exists (select 1 from okr_workspaces where id = ws) then raise exception 'no workspace %', ws using errcode = 'P0001'; end if;
   perform okr_same_workspace(ws, payload);
-  perform okr_modules_off_check(ws, payload);
+  perform modules_off_check(ws, payload);
   perform okr_check_expectations(ws, payload->'expect');
   perform okr_write(ws, payload);
 end $function$;
@@ -1200,59 +1253,6 @@ CREATE OR REPLACE FUNCTION faro.okr_markups_raised(ws text, person text)
 AS $function$
   select m.id, m.status, m.fixed_in from okr_markups m where m.workspace_id = ws and m.person_id = person and not m.demo order by m.created_at desc limit 200
 $function$;
-
-CREATE OR REPLACE FUNCTION faro.okr_modules_off_check(ws text, p jsonb)
- RETURNS void
- LANGUAGE plpgsql
- SET search_path TO 'faro', 'pg_temp'
-AS $function$
-declare
-  off text[];
-  wsname text;
-  hit text;
-  sentence constant text := '%s is switched off in %s. An admin can switch it on in Workspace, Features.';
-begin
-  select coalesce(w.modules_off, '{}'), w.name into off, wsname from okr_workspaces w where w.id = ws;
-  -- The switches this save leaves in force.
-  if jsonb_typeof(p->'workspace_modules_off') = 'array' then
-    off := array(select jsonb_array_elements_text(p->'workspace_modules_off'));
-  end if;
-  if coalesce(cardinality(off), 0) = 0 then return; end if;
-
-  -- A change logged to a switched-off module's own kind of record.
-  select e.module_name into hit
-    from jsonb_array_elements(case jsonb_typeof(p->'changes') when 'array' then p->'changes' else '[]'::jsonb end) c
-    join module_entities e on e.entity = c->>'entity'
-    where e.module = any (off) limit 1;
-  if hit is not null then raise exception using errcode = 'P0001', message = format(sentence, hit, wsname); end if;
-
-  -- Reviews' records (src/domain/reviewWrites.ts writesReviews).
-  if 'reviews' = any (off) and (
-    (jsonb_typeof(p->'decisions') = 'array' and jsonb_array_length(p->'decisions') > 0)
-    or exists (select 1 from jsonb_array_elements(case jsonb_typeof(p->'reviews') when 'array' then p->'reviews' else '[]'::jsonb end) r
-               where not exists (select 1 from okr_reviews v where v.workspace_id = ws and v.id = r->>'id'))
-    or exists (select 1 from jsonb_array_elements(case jsonb_typeof(p->'goals') when 'array' then p->'goals' else '[]'::jsonb end) g
-               where coalesce(g->>'proposed_in', '') <> ''
-                 and g->>'proposed_in' is distinct from (select s.proposed_in from okr_goals s where s.workspace_id = ws and s.id = g->>'id'))
-    or exists (select 1 from jsonb_array_elements(case jsonb_typeof(p->'requests') when 'array' then p->'requests' else '[]'::jsonb end) a
-               where coalesce(a->>'review_id', '') <> ''
-                 and a->>'review_id' is distinct from (select s.review_id from okr_requests s where s.workspace_id = ws and s.id = a->>'id'))
-  ) then
-    raise exception using errcode = 'P0001', message = format(sentence, 'Reviews', wsname);
-  end if;
-
-  -- Watching's records (src/domain/watchWrites.ts writesWatches): a watch stopped by its id, or watches and nothing else.
-  if 'watching' = any (off) and (
-    (jsonb_typeof(p->'unwatch') = 'array' and jsonb_array_length(p->'unwatch') > 0)
-    or (jsonb_typeof(p->'watches') = 'array' and jsonb_array_length(p->'watches') > 0
-        and not exists (select 1 from jsonb_each(p) k
-                        where k.key not in ('changes', 'watches', 'expect')
-                          and ((jsonb_typeof(k.value) = 'array' and jsonb_array_length(k.value) > 0)
-                               or (jsonb_typeof(k.value) = 'object' and k.value <> '{}'::jsonb))))
-  ) then
-    raise exception using errcode = 'P0001', message = format(sentence, 'Watching', wsname);
-  end if;
-end $function$;
 
 CREATE OR REPLACE FUNCTION faro.okr_same_workspace(ws text, p jsonb)
  RETURNS void
@@ -1796,6 +1796,8 @@ grant insert (retired_at, retired_by, retired_why, replaced_by, marks, measureme
 grant select (retired_at, retired_by, retired_why, replaced_by, marks, measurement, measurement_note, level, parent_id, confidence, gaming, calculation, time_window, source_link, source_query, source_owner_id, refresh_note, calc_changed_by, calc_changed_at, baselines, verification, verify_attempts, lapse, verifiers, handover, to_confirm) on okr_metrics to anon;
 grant update (retired_at, retired_by, retired_why, replaced_by, marks, measurement, measurement_note, level, parent_id, confidence, gaming, calculation, time_window, source_link, source_query, source_owner_id, refresh_note, calc_changed_by, calc_changed_at, baselines, verification, verify_attempts, lapse, verifiers, handover, to_confirm) on okr_metrics to anon;
 
+revoke execute on function modules_off_check(ws text, p jsonb) from public;
+grant execute on function modules_off_check(ws text, p jsonb) to anon;
 revoke execute on function okr_builder_token_create(ws text, person text, token_name text) from public;
 grant execute on function okr_builder_token_create(ws text, person text, token_name text) to authenticated;
 revoke execute on function okr_builder_token_revoke(token_id text) from public;
@@ -1823,8 +1825,6 @@ grant execute on function okr_markup_new_id() to anon;
 grant execute on function okr_markup_triage_for_token(hash text, mid text, patch jsonb) to anon;
 grant execute on function okr_markups_for_token(hash text, ws text, st text, lim integer) to anon;
 grant execute on function okr_markups_raised(ws text, person text) to anon;
-revoke execute on function okr_modules_off_check(ws text, p jsonb) from public;
-grant execute on function okr_modules_off_check(ws text, p jsonb) to anon;
 grant execute on function okr_telemetry_allowed(ws text) to anon;
 revoke execute on function okr_telemetry_nightly() from public;
 revoke execute on function okr_telemetry_prune(keep_days integer) from public;
