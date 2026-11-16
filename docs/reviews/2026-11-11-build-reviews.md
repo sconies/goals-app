@@ -323,7 +323,7 @@ Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, after
 | #576 MQ2 part 4c: verifying, Measured by with the stage, a goal on a Draft metric | MQ2 (session …QjRG9q19) | 0 | 2 | 1 |
 | #577 MQ2 part 4d: the stage on a review’s agenda, the similar-metric card, Metrics from day one, and the review fixes | MQ2 (session …QjRG9q19) | 0 | 1 | 1 |
 | #578 #577’s review: `get_metric` names the source’s owner as verifying reads it; the agenda’s year, the History verb, the card’s heading | MQ2 (session …QjRG9q19) | 0 | 0 | 0 |
-| #579 Drill bugs 1/3: the database checks a workspace’s switches in `okr_commit` and `okr_token_create` (0058); a leaver passes nothing of a switched-off module | Drill bugs (session …NX6NXBs2f) | 0 | 0 | 1 |
+| #579 Drill bugs 1/3: the database checks a workspace’s switches in `okr_commit` and `okr_token_create` (0058); a leaver passes nothing of a switched-off module | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
