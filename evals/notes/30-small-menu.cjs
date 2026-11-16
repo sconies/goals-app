@@ -75,7 +75,8 @@ module.exports = {
           await open.click();
           await p.waitForURL(/\/metrics(\?|$)/, { timeout: 8000 }).catch(() => {});
           check(/\/metrics(\?|$)/.test(p.url()), `Open Metric library led to ${p.url()}, not /metrics`);
-          check(await p.locator('.features-block input[aria-label="Metric library"]').count() === 0, 'clicking Open Metric library stayed on Features');
+          // The URL changes before the page is drawn: wait for Features to go (with the CPU slowed 4× it takes a moment).
+          check(await p.locator('.features-block').first().waitFor({ state: 'detached', timeout: 8000 }).then(() => true, () => false), 'clicking Open Metric library stayed on Features');
         }
       } catch (e) {
         fails.push(`no metrics: crashed (${String(e.message || e).split('\n')[0]})`);
