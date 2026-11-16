@@ -59,7 +59,7 @@ Beside the places, a module may add:
 - **Records** in the same save as the core’s (stage 2), and what the core’s own records need in that save when the module is switched off or on (the metric library lets go of the goals it held to no number, and holds them again).
 - **A reader for a core AI tool’s part** (post_check_in’s `reading_confirmed` and `different_because` ask the metric library’s reader): with the module off, the tool says the module’s sentence.
 
-**A Home card is not required.** `home.blocks` is a place like any other: a module that has something for Home draws it there, and while it is off nothing is drawn. No installed module draws one today; “no Home card” in a module’s switched-off criteria means none of its own, where it has one. Reviews’, Watching’s and the Wrap-up’s leads on Home are still the core’s, asking whether the module is on.
+**A Home card is not required.** `home.blocks` is a place like any other: a module that has something for Home draws it there, and while it is off nothing is drawn. Today Metric library draws one.; “no Home card” in a module’s switched-off criteria means none of its own, where it has one. Reviews’, Watching’s and the Wrap-up’s leads on Home are still the core’s, asking whether the module is on.
 
 ### What a module needs that Faro’s core still draws
 
@@ -105,7 +105,7 @@ Each one’s facts in full, as data, are in [`modules.json`](modules.json): ever
 | AI access (`ai-access`) | Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights. | beyond | — | — | 0 | — | `ai` | — | 3 |
 | Feedback (`feedback`) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. | beyond | — | — | 1 | — | — | — | 8 |
 | Goal map (`goal-map`) | See every goal and what feeds it on one canvas, with the path the risk runs along. | tools | — | — | 0 | — | — | — | 0 |
-| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 4 | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 9 |
+| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 6 | `home.blocks`, `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 9 |
 | Reviews (`reviews`) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | together | — | — | 7 | — | — | — | 7 |
 | Spreadsheets (`spreadsheets`) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | tools | — | — | 5 | `data.tools`, `goals.tools`, `help.article` | — | — | 2 |
 | Fields (`tags`) | Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by. | tools | — | — | 0 | `goal.sections` | `fields` | field, field value | 3 |

@@ -8109,6 +8109,57 @@ journey('U181', ['METRIC-STAGE', 'METRICS-LIBRARY'], 'Stages in the library and 
   await see(p.locator('.metric-top'), 'Defined', 'the page does not read Defined after the change');
   await p.context().close();
 }, []);
+/* MQ2 sketches 3, 4 and 9 (journeys 1, 6 and 7 of docs/design/mq2/journeys.html): defining, a team's baseline, a quarter's baselines. */
+journey('U182', ['METRIC-STAGE', 'METRIC-BASELINES'], 'Defining and baselines: as Rhea, Flaky test rate’s form shows it as a ratio with its numerator and denominator, says “To reach Defined, still needed: 1 of 10” (the link), and pasting the link and saving makes it Defined; as Marisol, adding a Build & Release baseline to Change failure rate lists it beside the company’s, still Verified; as Daniel in a quarter’s first week, Home says 1 of his metrics has no baseline for Oct–Dec, and Take this quarter’s baselines fills CI pipeline time from its source and saves it for Jul–Sep 2026', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/flaky-rate/edit'));
+  const still = p.locator('[data-part="Still needed"]');
+  await h.inView(still, 'entry', 'To reach Defined, still needed');
+  await see(still, 'To reach Defined, still needed: 1 of 10', 'the form does not count what is still needed');
+  h.set('attention', (await p.getByRole('button', { name: /^Ratio/ }).getAttribute('aria-pressed')) === 'true' && (await p.getByLabel('Numerator: Counts').inputValue()).length > 5, 'the form does not show the ratio and its numerator');
+  await h.fill(p.getByLabel('Link to the report or query'), 'https://ci-analytics.example.com/tests/flaky-rate');
+  await see(still, 'All 10 parts are said', 'the box does not say every part is said once the link is in');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const sheet = p.getByRole('dialog');
+  if (await sheet.count()) await h.click(sheet.getByRole('button', { name: /^(Change the source|Save these changes|Save changes)$/ }).first());
+  await p.waitForURL((u) => /\/metrics\/flaky-rate$/.test(u.pathname));
+  await see(p.locator('.metric-top'), 'Defined', 'Flaky test rate is not Defined after the link was added');
+  await h.checkpoint('defined');
+  // Marisol adds a team slice's baseline (journey 7): beside the company's, and the stage stays Verified.
+  await p.evaluate((k) => localStorage.setItem(k, 'marisol'), 'goals-app-viewer:platform-org');
+  await p.goto(url('/metrics/cfr'));
+  await h.click(p.getByRole('link', { name: 'Add a baseline for a team' }));
+  await pickIn(p, /^Slice\b/, 'build', /Build & Release/);
+  await h.fill(p.getByLabel('Value'), '9.4');
+  await h.fill(p.getByLabel('Period it covers'), 'Aug–Oct 2026');
+  await h.fill(p.getByLabel('How it was taken'), 'Four Keys query, the team’s services');
+  await h.click(p.getByRole('button', { name: 'Add baseline' }));
+  await p.waitForURL((u) => /\/metrics\/cfr$/.test(u.pathname));
+  const bl = p.locator('[data-part="Baselines"]');
+  await see(bl, 'Build & Release', 'the team’s baseline is not listed');
+  await see(bl, 'Company', 'the company’s baseline went');
+  await see(p.locator('.metric-top'), 'Verified', 'adding a baseline changed the stage');
+  await h.checkpoint('team baseline');
+  // Daniel, in the first week of a quarter (journey 6): Home asks, and the readings fill the figure.
+  await p.evaluate((k) => localStorage.setItem(k, 'daniel'), 'goals-app-viewer:platform-org');
+  await p.goto(BASE + '/demo/?today=2026-10-05');
+  const home = p.locator('[data-part="Baselines due"]');
+  await see(home, '1 of your metrics has no baseline for Oct–Dec', 'Home does not ask for this quarter’s baselines');
+  await h.click(home.getByRole('link', { name: 'Take this quarter’s baselines' }));
+  const row = p.locator('.metric-take-row', { hasText: 'CI pipeline time on main (p90)' });
+  await see(row, 'Read from CI analytics', 'the figure is not read from the source');
+  const read = await row.getByRole('textbox').inputValue();
+  await h.click(p.getByRole('button', { name: 'Confirm 1 baseline' }));
+  await p.waitForURL((u) => /\/metrics$/.test(u.pathname));
+  const s1 = await h.snapshot();
+  const ci = (s1.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_ci-time');
+  const now = (ci?.baselines ?? []).find((b) => !b.replacedAt && !b.teamId);
+  h.set('progress', !!now && now.period === 'Jul–Sep 2026' && String(now.value) === read, `CI pipeline time’s company baseline is ${now ? `${now.value} for ${now.period}` : 'missing'}, read ${read}`);
+  h.set('logged', (s1.changes ?? []).some((c) => c.entity === 'metric' && c.entityId === 'metric_ci-time'), 'the change log has no line for the baseline');
+  h.set('finish', true);
+  h.set('errors', true);
+  await p.context().close();
+}, []);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));

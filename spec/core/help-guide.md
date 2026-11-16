@@ -1369,7 +1369,7 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
 
 `metric-quality`, from the metrics module. How far a metric can be trusted: whether its definition is complete, and whether someone other than its owner has reproduced its figure.
 
-Routes: `/metrics`, `/metrics/:metricId`. Screens: `MetricQuality`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
+Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metrics/baselines`. Screens: `MetricQuality`, `DefineFields`, `BaselineForms`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
 
 #### The three stages
 
@@ -1389,6 +1389,22 @@ Routes: `/metrics`, `/metrics/:metricId`. Screens: `MetricQuality`. Requirements
 - Then the calculation’s parts (a ratio’s numerator and denominator, each with what it counts, its filters and what it leaves out), the source with a link to the exact report, its baselines per slice, and the verification: who, when, the figure they reproduced against the stored one, and their note.
 - When something needs answering, an outlined box at the top says so: Verified taken away by a change (what changed, who, when and why), a figure someone couldn’t reproduce, a new owner to confirm, or a rewording to confirm.
 - On a phone the parts stack with ÷ between them, baselines become pairs, and the verification note folds to Read the note.
+
+#### Defining a metric
+
+- On a metric’s form, What is measured is one of Count, Sum, Value, Duration, Ratio or Other or composite, and How it is aggregated is Total, Mean, Median, a percentile (pXX) or Latest. A ratio asks for a numerator and a denominator, each with what it counts, its filters and what it leaves out; Other asks for the formula in words.
+- The window is a point in time, rolling a number of days, per week, month or quarter, or cumulative since a date. The source takes a link to the exact report or query, and the query itself if you like.
+- Above the button, a box counts what is still needed to reach Defined (“still needed: 1 of 10”), each with why it matters. Saving is always allowed: the metric becomes Defined by itself once nothing is left.
+
+#### Adding a baseline
+
+- On a metric’s page, under Baselines, Add a baseline (or Add a baseline for a team) asks for the slice (the whole company or a team, and optionally a part), the value, the period it covers, the day you took it and how.
+- The form says which goals measured for that slice start from it. Goals already running keep their start values.
+
+#### Taking this quarter’s baselines
+
+- In a quarter’s first week, Home tells the owner of any metric how many of theirs have no baseline for the quarter, with Take this quarter’s baselines.
+- It lists each of your metrics and slices with the figure read from its source for the quarter just ended. Change a figure and say why; a Gap metric is skipped. Confirm saves them all and moves the old ones to History. No metric changes stage.
 
 #### Verifying a metric
 

@@ -3,6 +3,7 @@
    owns or a team's goals use on their pages. Its facts are in module.json. */
 import { lazy, Suspense, type ComponentType } from 'react';
 import type { AppModule } from '../../core/app';
+import { useApp } from '../../app/state';
 import { measuredByFilter, metricFinder, metricsToSortOut } from './finder';
 
 /* The library's screens, and its bits on other pages, load when first shown (the bundle budget, scripts/check-bundle.mjs). */
@@ -25,6 +26,18 @@ const CheckInNumber = ((props: object) => <Suspense fallback={null}><LazyCheckIn
 const LazyTableReadings = lazy(() => import('./CheckInNumber').then((m) => ({ default: m.CheckInTableReadings as ComponentType<object> })));
 const CheckInTableReadings = ((props: object) => <Suspense fallback={null}><LazyTableReadings {...props} /></Suspense>) as unknown as typeof import('./CheckInNumber').CheckInTableReadings;
 const GoalMetric = later('GoalMetric');
+// MQ2's baseline screens (sketches 4 and 9), and Home's line in a quarter's first week: loaded only when shown.
+const AddBaseline = lazy(() => import('./BaselineForms').then((m) => ({ default: m.AddBaseline })));
+const TakeBaselines = lazy(() => import('./BaselineForms').then((m) => ({ default: m.TakeBaselines })));
+const LazyHomeBaselines = lazy(() => import('./BaselineForms').then((m) => ({ default: m.HomeBaselines })));
+/** Home asks for this quarter's baselines only in its first week, and only of someone who owns a metric. */
+function HomeBaselines() {
+  const app = useApp();
+  const d = new Date(app.stamp());
+  const firstWeek = d.getUTCMonth() % 3 === 0 && d.getUTCDate() <= 7;
+  const owns = ((app.snapshot.modules?.metrics?.metrics ?? []) as { ownerId: string; removedAt?: string | null }[]).some((m) => m.ownerId === app.viewer.id && !m.removedAt);
+  return firstWeek && owns ? <Suspense fallback={null}><LazyHomeBaselines /></Suspense> : null;
+}
 const PersonMetrics = later('PersonMetrics');
 const TeamMetrics = later('TeamMetrics');
 
@@ -38,11 +51,14 @@ const metrics: AppModule = {
   routes: [
     { path: '/metrics', element: <MetricsLibrary />, title: 'Metrics' },
     { path: '/metrics/new', element: <MetricForm />, focus: true, title: 'Add a metric' },
+    { path: '/metrics/baselines', element: <TakeBaselines />, focus: true, title: 'Take this quarter’s baselines' },
     { path: '/metrics/:metricId', element: <MetricPage />, title: 'Metrics' },
+    { path: '/metrics/:metricId/baseline', element: <AddBaseline />, focus: true, title: 'Add a baseline' },
     { path: '/metrics/:metricId/edit', element: <MetricForm />, focus: true, title: 'Change a metric' },
   ],
   navigation: [{ id: 'metrics', to: '/metrics', label: 'Metrics', icon, group: 'lookup' }],
   places: {
+    'home.blocks': HomeBaselines,
     'goal.facts': GoalMeasuredBy,
     'goal.measure': MeasuredBy,
     'goal.sections': GoalMetric,

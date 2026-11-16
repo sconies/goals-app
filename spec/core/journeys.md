@@ -172,7 +172,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (353 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (356 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -325,7 +325,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.metric-sortout` | the metric sortout | [U170](../modules/metrics/journeys/U170.md) |
 | `.metric-stage-menu > summary` | the summary in the metric stage menu | [U181](../modules/metrics/journeys/U181.md) |
 | `.metric-structure` | the metric structure | [U172](../modules/metrics/journeys/U172.md) |
-| `.metric-top` | the metric top | [U181](../modules/metrics/journeys/U181.md) |
+| `.metric-take-row` | the metric take row | [U182](../modules/metrics/journeys/U182.md) |
+| `.metric-top` | the metric top | [U181](../modules/metrics/journeys/U181.md), [U182](../modules/metrics/journeys/U182.md) |
 | `.mg-status svg[data-status]` | the svg in the mg status | [U81](../modules/metrics/journeys/U81.md) |
 | `.mk-form` | the mk form | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
 | `.mk-ink-layer` | the mk ink layer | [U42](../modules/feedback/journeys/U42.md) |
@@ -454,7 +455,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-check="similar"]` | the part `[data-check="similar"]` | [U180](../modules/metrics/journeys/U180.md) |
 | `[data-check="why"]` | the part `[data-check="why"]` | [U146](../modules/metrics/journeys/U146.md) |
 | `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
-| `[data-part="Baselines"]` | the “Baselines” part | [U181](../modules/metrics/journeys/U181.md) |
+| `[data-part="Baselines due"]` | the “Baselines due” part | [U182](../modules/metrics/journeys/U182.md) |
+| `[data-part="Baselines"]` | the “Baselines” part | [U181](../modules/metrics/journeys/U181.md), [U182](../modules/metrics/journeys/U182.md) |
 | `[data-part="Calculation"]` | the “Calculation” part | [U181](../modules/metrics/journeys/U181.md) |
 | `[data-part="Changed since"]` | the “Changed since” part | [U124](journeys/U124.md) |
 | `[data-part="Checked in this week"]` | the “Checked in this week” part | [U102](journeys/U102.md) |
@@ -467,6 +469,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-part="No check-in this week"]` | the “No check-in this week” part | [U102](journeys/U102.md) |
 | `[data-part="No longer Verified"]` | the “No longer Verified” part | [U181](../modules/metrics/journeys/U181.md) |
 | `[data-part="Source"] a[href^="http"]` | the a in the “Source” part | [U181](../modules/metrics/journeys/U181.md) |
+| `[data-part="Still needed"]` | the “Still needed” part | [U182](../modules/metrics/journeys/U182.md) |
 | `[data-part="Stopped goals"]` | the “Stopped goals” part | [U150](journeys/U150.md) |
 | `[data-part="Stopped goals"] li` | the list item in the “Stopped goals” part | [U150](journeys/U150.md) |
 | `[data-part="The workspace’s line"]` | the “The workspace’s line” part | [U176](journeys/U176.md) |
@@ -549,6 +552,7 @@ These journeys open the demo on a day other than Thursday 5 November 2026. Faro 
 - [U163](journeys/U163.md): Wednesday 11 November 2026
 - [U150](journeys/U150.md): Wednesday 11 November 2026
 - [U148](journeys/U148.md): Wednesday 25 November 2026
+- [U182](../modules/metrics/journeys/U182.md): Monday 5 October 2026
 
 ## The ease test
 

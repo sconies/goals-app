@@ -136,7 +136,9 @@
     "routes": [
       "/metrics",
       "/metrics/new",
+      "/metrics/baselines",
       "/metrics/:metricId",
+      "/metrics/:metricId/baseline",
       "/metrics/:metricId/edit"
     ],
     "redirects": [
@@ -152,6 +154,7 @@
       "waitsFor": "metrics"
     },
     "places": [
+      "home.blocks",
       "goal.facts",
       "goal.measure",
       "goal.sections",
@@ -248,6 +251,7 @@
       "U179",
       "U180",
       "U181",
+      "U182",
       "U161",
       "U72"
     ],
@@ -325,6 +329,15 @@
         "save_metric",
         "verify_metric",
         "save_baselines"
+      ],
+      "DefineFields": [
+        "save_metric",
+        "get_metric"
+      ],
+      "BaselineForms": [
+        "save_baselines",
+        "get_metric",
+        "list_metrics"
       ]
     }
   },

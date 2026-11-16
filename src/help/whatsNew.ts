@@ -35,7 +35,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”. Baselines are kept per team, with History; a changed figure needs a reason.',
       'A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between.',
       'When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.',
-      'Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it, and says in an outlined box when something needs answering.',
+      'Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source.',
       'The AI assistant does all of it too: list_metrics, get_metric, save_metric and link_goal_metric show and take the new parts, and save_baselines and verify_metric are new.',
     ],
     articles: ['metric-quality', 'check-in'],
