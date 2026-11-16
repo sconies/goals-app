@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `9aa56d1f` (#569, which closes #567’s high, probed again; no highs open; #567’s four mediums are with planning since 02:50 UTC, 16 Nov; the MQ2 builder is now session_012kbr92MEwSBMnnQ1Pis1ae), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. Mediums open: #567’s four. The newest state is under “The reviewer of 16 November” at the end of the log.
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `9d178cdd` (#570; no highs open; one medium open, #570’s: the import’s preview still shows none of the Metrics sheet’s notes, with planning since 03:50 UTC, 16 Nov; the MQ2 builder is session_012kbr92MEwSBMnnQ1Pis1ae and its fix session session_012kbr8zsQ79a5BvahcmAa4s), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. #567’s four mediums are answered by #570: three closed, one still open as #570’s. The newest state is under “The reviewer of 16 November” at the end of the log.
 
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.
@@ -316,6 +316,7 @@ Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning t
 | #568 Core: a module’s sheets load on demand | core (session …nQ1Pis1ae) | 0 | 0 | 0 |
 | #567 MQ2 part 3: a goal’s own rhythm, a leaver’s metrics, the sheet’s calculation columns | MQ2 (session …nQ1Pis1ae) | 1 | 4 | 1 |
 | #569 An edited goal keeps its monthly rhythm (#567’s high) | MQ2 (session …nQ1Pis1ae) | 0 | 0 | 0 |
+| #570 #567’s four mediums: the sheet asks before a lapse, a leaver’s metrics through the People sheet, the aggregate, the pages | MQ2 fixes (session …BvahcmAa4s) | 0 | 1 | 1 |
 
 **High findings, and where each stands**
 
@@ -2748,7 +2749,7 @@ One high, two mediums, one low.
 
 ## The reviewer of 16 November (session …nAc52AT), from #566
 
-Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `9aa56d1f` (#569, which closes #567’s high, probed again; no highs open; #567’s four mediums are with planning since 02:50 UTC, 16 Nov; the MQ2 builder is now session_012kbr92MEwSBMnnQ1Pis1ae). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. Mediums open: #567’s four.
+Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `9d178cdd` (#570; no highs open; one medium open, #570’s: the import’s preview still shows none of the Metrics sheet’s notes, with planning since 03:50 UTC, 16 Nov; the MQ2 builder is session_012kbr92MEwSBMnnQ1Pis1ae and its fix session session_012kbr8zsQ79a5BvahcmAa4s). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. #567’s four mediums are answered by #570: three closed, one still open as #570’s.
 
 ### #566 The metric form asks the similar-metric and lapse questions its save asks (MQ2 build, merged 16 Nov)
 
@@ -2805,3 +2806,17 @@ Read at `9aa56d1f` against #567’s high; the first probe run again, with two mo
 - As read: the import lays the built goal over the stored one (`builtOver`: every key the build doesn’t decide is kept) and carrying into a new year copies the goal whole, so neither drops the field. Neither was run.
 
 No findings.
+
+### #570 #567’s four mediums (MQ2 fix session …BvahcmAa4s, merged 16 Nov)
+
+Read at `9d178cdd` against #567’s mediums; `sheetPlan.test.ts` and `problemLevels.test.ts` pass here (86 tests), its three `[#567 review]` tests among them. A Sonnet subagent walked the import on a production build as Amara, demo of 5 November, with a pasted Metrics table (`metric_deploys`’ Window to 14 days, and a new “Zebra widgets shipped”); I read its quoted screen text, not a screenshot.
+
+- **Medium 1 (the sheet lapses Verified unasked): closed, walked.** The preview asks ““Production deploys per day” is Verified. Changing the window takes it back to Defined…” with “Change it, and lapse Verified” and “Leave these rows out”, and Save waits for it. Answered, it saves; left out, nothing can be saved.
+- **Medium 2 (the People sheet’s Left): closed, by its test and as read.** The leaving context now carries `records` and the module rows as the file leaves them; the passed metrics join the import’s commit and its Undo. Not run by me beyond the test.
+- **Medium 3 (the aggregate): closed, by its test and as read.** `percentile` and `per` are deleted before the new aggregate is laid on.
+- **Medium 4 (the pages): partly.** “A Stage column” is gone from both pages, and Help now says linking a Draft “through the AI assistant” says what it needs. The preview is the medium below.
+
+No highs, one medium, one low.
+
+- **Medium. The import’s preview still shows none of the Metrics sheet’s notes.** #570 draws `counts.records[].notes` in `Preview` (`src/ui/Preview.tsx`), which only the Data tables render (`src/screens/DataTables.tsx`), and those never carry a module’s sheet. The import’s check is `src/modules/spreadsheets/Check.tsx`, unchanged. On screen, with a new metric that lands as Draft in the pasted rows: the page text has no “Stages”, “Draft” or “needs” anywhere, before or after the question is answered; the new row is only “1 new metric”. Help (“Before anything is saved, the preview says how many would be Draft, Defined and Verified…”), What’s new and `module.json` still say it does. Checked by hand: the one importer of `Preview`.
+- **Low.** The lapse’s question is printed twice in the preview, once as the group and once as the row. After “Leave these rows out” on the only row it says “The file has its headers but no rows”. After the lapse the metric’s History says only “changed the metric”, and the page shows neither the lapse nor the new window (the screens are part 4). The question’s column is named by guess (Window, Source link, else How aggregated), so a changed Counts points at How aggregated. Walked or read.
