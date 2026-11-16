@@ -3,6 +3,7 @@
 import { lazy, Suspense, type ComponentType } from 'react';
 import type { AppModule, PlaceProps } from '../../core/app';
 import { ExportTheseGoals } from './ExportButton';
+import { loadModuleSheets } from '../../core/records';
 
 /* Import and the Data menu carry the reader, the writer and the column rules: they load when first shown, not on a first
    visit (the bundle budget, scripts/check-bundle.mjs). "Export these goals" is drawn with Goals, so nothing above the
@@ -18,8 +19,10 @@ const FieldTable = lazy(() => import('./ColumnsHelp').then((m) => ({ default: m.
 const ColumnsHelp = (p: PlaceProps['help.article']) => (p.article === 'columns' ? <Suspense fallback={null}><FieldTable {...p} /></Suspense> : null);
 
 // Import, its preview and its changes load when opened (the bundle budget, scripts/check-bundle.mjs).
-const LazyImport = lazy(() => import('./Import').then((m) => ({ default: m.Import })));
-const LazyCheck = lazy(() => import('./Check').then((m) => ({ default: m.Check })));
+// Import and its preview read the modules' sheets as they draw (the export, the header check), so they load with them.
+const withSheets = <T,>(screen: Promise<T>) => Promise.all([screen, loadModuleSheets()]).then(([m]) => m);
+const LazyImport = lazy(() => withSheets(import('./Import')).then((m) => ({ default: m.Import })));
+const LazyCheck = lazy(() => withSheets(import('./Check')).then((m) => ({ default: m.Check })));
 const LazyChanges = lazy(() => import('./Changes').then((m) => ({ default: m.Changes })));
 const LazyImported = lazy(() => import('./Imported').then((m) => ({ default: m.Imported })));
 const LazyPastImports = lazy(() => import('./PastImports').then((m) => ({ default: m.PastImports })));

@@ -3,7 +3,7 @@
    so instead of running. */
 import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../../domain/export';
 import { sheetNamesWith, START_HERE } from '../../domain/columns';
-import { exportOn, MODULE_SHEETS } from '../../core/records';
+import { exportOn, loadModuleSheets, MODULE_SHEET_REFS } from '../../core/records';
 import { exportedTable, TABLE_ORDER, TABLES } from '../../domain/tableLayout';
 import type { ToolDef } from '../../mcp/tools';
 import { layoutFrom, sheetOf } from '../../mcp/workTools';
@@ -11,10 +11,11 @@ import { layoutFrom, sheetOf } from '../../mcp/workTools';
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const ids = (description: string) => ({ type: 'array', items: { type: 'string' }, description });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
-/** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
-const csvFormats = (sheets: Parameters<typeof sheetNamesWith>[0], reviews = true) => sheetNamesWith(sheets, reviews).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
+/** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… The modules'
+    sheets by name only (their refs), so the schema needs none of them loaded. */
+const csvFormats = (sheets: readonly string[], reviews = true) => sheetNamesWith(sheets, reviews).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
 /** Every format this build has, for the tool's schema; a workspace with a module (or Reviews) switched off has fewer (F2, RS1). */
-const CSV_FORMATS = csvFormats(MODULE_SHEETS);
+const CSV_FORMATS = csvFormats(MODULE_SHEET_REFS.map((r) => r.name));
 
 const tools: ToolDef[] = [
   {
@@ -25,9 +26,10 @@ const tools: ToolDef[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       // What this workspace's exports hold (F2, RS1): a module that's off adds no sheet; with Reviews off, no Notes.
+      await loadModuleSheets();
       const on = exportOn(ctx.ws);
       const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, ...on };
-      const formats = csvFormats(on.sheets, on.reviews);
+      const formats = csvFormats(on.sheets.map((sh) => sh.spec.name), on.reviews);
       if (a.format === 'json') { const j = toJson(x); return { data: j, text: JSON.stringify(j) }; }
       if (a.format === 'brief') return { text: aiBrief(x) };
       const sheet = formats.find(([f]) => f === a.format)?.[1];

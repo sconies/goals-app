@@ -3,7 +3,7 @@
    screens: the app, the MCP server, the stores and the spec all read it. A module left out of the build
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
-import type { GoalExtras, ModuleGoalColumns, ModuleRecords, ModuleRows, ModuleSheet } from '../domain/records';
+import type { GoalExtras, ModuleGoalColumns, ModuleRecords, ModuleRows, ModuleSheet, ModuleSheetRef } from '../domain/records';
 import type { ModuleSheetHead } from '../domain/sheets';
 import { isModuleOn, moduleById, modulesOn } from './registry';
 
@@ -37,8 +37,34 @@ export const GOAL_PREFIXES = MODULE_RECORDS.flatMap((m) => (m.goalExtras?.prefix
 export const goalSheetsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleGoalColumns[] =>
   goalExtrasOf(modulesOn(ws).on).flatMap((x) => (x.sheet ? [x.sheet] : []));
 
-/** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
-export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
+/** The workbook's sheets the modules add (domain/export), in module id order, as their records name them: every module in
+    this build. Each sheet's columns and rows load on demand (loadModuleSheets), so the first download carries none. */
+export const MODULE_SHEET_REFS: readonly (ModuleSheetRef & { module: string })[] = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).map((r) => Object.assign(r, { module: m.module })));
+
+let sheetsLoading: Promise<void> | null = null;
+/** Loads every module sheet not loaded yet, keeping each on its ref. Every door that reads a module sheet's columns or rows
+    awaits this first: the export (Export, Data's downloads, the MCP export tool), the file reader's headers
+    (sheetHeadsFor: a file, a paste, the import's check) and the engine (loadSheetPlanners). Loaded once. */
+export function loadModuleSheets(): Promise<void> {
+  if (MODULE_SHEET_REFS.every((r) => r.sheet)) return Promise.resolve();
+  sheetsLoading ??= Promise.all(MODULE_SHEET_REFS.filter((r) => !r.sheet).map(async (r) => {
+    const sheet = await r.load();
+    if (sheet.spec.name !== r.name) throw new Error(`The ${r.module} module names its sheet ${r.name}, but the sheet it loads is ${sheet.spec.name}.`);
+    r.sheet = sheet;
+  })).then(() => undefined, (e) => { sheetsLoading = null; throw e; });
+  return sheetsLoading;
+}
+/** Whether every module sheet has loaded: the screens that read them draw once it has. */
+export const moduleSheetsLoaded = () => MODULE_SHEET_REFS.every((r) => r.sheet);
+
+/** A ref's loaded sheet: said plainly when a door forgot to await loadModuleSheets, never an export without it. */
+const loadedSheet = (r: ModuleSheetRef & { module: string }): ModuleSheet => {
+  if (!r.sheet) throw new Error(`The ${r.name} sheet (${r.module}) hasn't loaded: await loadModuleSheets() before reading it.`);
+  return r.sheet;
+};
+
+/** The workbook's sheets the modules add, loaded: every module in this build. Await loadModuleSheets first. */
+export const moduleSheets = (): readonly ModuleSheet[] => MODULE_SHEET_REFS.map(loadedSheet);
 
 /** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
     carries. A module that's off, switched off itself or off because something it needs is (fix item F5), keeps its rows
@@ -52,26 +78,34 @@ export const recordsOf = (records: readonly ModuleRecords[], on: ReadonlySet<str
 
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
     any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
-export const sheetsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleSheet[] =>
-  recordsOn(ws).flatMap((m) => m.sheets ?? []);
+export const sheetsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleSheet[] => {
+  const on = modulesOn(ws).on;
+  return MODULE_SHEET_REFS.filter((r) => on.has(r.module)).map(loadedSheet);
+};
 
 /** What a workspace's exports hold, for every door that writes one (the Export sheet, Import's "Export everything", the
     preview's worked-out check, the Data tables, the MCP export tool): the sheets of the modules switched on there (F2),
     and whether Reviews is on (RS1, Reviews switch spec 5): with it off the workbook has no Notes sheet and Asks no Review
-    column. Spread into workbook()'s input, so the rule lives here once. */
+    column. Spread into workbook()'s input, so the rule lives here once. Await loadModuleSheets first. */
 export const exportOn = (ws: { modulesOff?: readonly string[] } | null | undefined): { sheets: readonly ModuleSheet[]; goalColumns: readonly ModuleGoalColumns[]; reviews: boolean } =>
   ({ sheets: sheetsOn(ws), goalColumns: goalSheetsOn(ws), reviews: isModuleOn(ws, 'reviews') });
 
 /** The modules' sheets as the file reader knows them (MI): each with whether it loads back and, when its module is off
-    in this workspace, the module's name, so the sheet is said once as not read ("Metric library is off in …"). */
+    in this workspace, the module's name, so the sheet is said once as not read ("Metric library is off in …"). Await
+    loadModuleSheets first. */
 export const sheetHeadsFor = (ws: { modulesOff?: readonly string[] } | null | undefined): ModuleSheetHead[] =>
-  MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).map((sh) => ({
-    name: sh.spec.name, columns: sh.spec.columns, loaded: sh.spec.loaded && !!(sh.plan || sh.loadPlan), ...(sh.has ? { has: sh.has } : {}),
-    off: isModuleOn(ws, m.module) ? null : moduleById(m.module)?.name ?? m.module,
-  })));
+  MODULE_SHEET_REFS.map((r) => {
+    const sh = loadedSheet(r);
+    return {
+      name: sh.spec.name, columns: sh.spec.columns, loaded: sh.spec.loaded && !!(sh.plan || sh.loadPlan), ...(sh.has ? { has: sh.has } : {}),
+      off: isModuleOn(ws, r.module) ? null : moduleById(r.module)?.name ?? r.module,
+    };
+  });
 
 /** Loads every module sheet's planner not loaded yet (MI): each door that runs the engine on a file with a module's own
-    sheet awaits this first (the import's reader, its worker, bulk_change). Loaded once, kept on the sheet. */
+    sheet awaits this first (the import's reader, its worker, bulk_change). Loads the sheets first. Loaded once, kept on
+    the sheet. */
 export async function loadSheetPlanners(): Promise<void> {
-  await Promise.all(MODULE_SHEETS.filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => { sh.plan = await sh.loadPlan!(); }));
+  await loadModuleSheets();
+  await Promise.all(moduleSheets().filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => { sh.plan = await sh.loadPlan!(); }));
 }
