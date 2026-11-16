@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 import { useApp } from '../../app/state';
 import { useWidth } from '../../ui/useWidth';
 import { StageMark } from './stageMark';
-import { calcWords, differenceWords, liveBaselines, onDay, refreshWords, stageOf, whyCantVerify, windowWords, type Stage } from './rulesQuality';
+import { calcWords, differenceWords, liveBaselines, mayConfirmReword, onDay, refreshWords, stageOf, whyCantVerify, windowWords, type Stage } from './rulesQuality';
 import { sourceOwnerName } from './rulesVerify';
 import { directionWords, metricPath, ownerName } from './rulesLibrary';
 import { canEditMetric, type Metric } from './rules';
@@ -101,8 +101,8 @@ export function QualityNotices({ metric: m, st }: { metric: Metric; st: Stage })
       {m.toConfirm && (
         <section className="metric-box stack" role="note" aria-labelledby="metric-reword" data-part="Rewording to confirm">
           <h2 className="metric-box-head" id="metric-reword">The {m.toConfirm.what.join(' and ')} {m.toConfirm.what.length > 1 ? 'were' : 'was'} reworded</h2>
-          <p>{nameOf(app, m.toConfirm.by)} reworded them on {onDay(m.toConfirm.at)}. It stays Verified; {nameOf(app, m.toConfirm.verifier)}, who verified it, is asked to confirm the new words mean the same.</p>
-          {app.viewer.id === m.toConfirm.verifier && app.viewer.id !== m.toConfirm.by && <div className="row"><button type="button" className="btn" onClick={() => void run('confirmMetricReword', { metricId: m.id })}>They mean the same</button></div>}
+          <p>{nameOf(app, m.toConfirm.by)} reworded them on {onDay(m.toConfirm.at)}. It stays Verified; {nameOf(app, m.toConfirm.verifier)}, who verified it, is asked to confirm the new words mean the same; an admin may confirm it too, never whoever reworded it.</p>
+          {mayConfirmReword(m.toConfirm, app.viewer) && <div className="row"><button type="button" className="btn" onClick={() => void run('confirmMetricReword', { metricId: m.id })}>They mean the same</button></div>}
         </section>
       )}
     </>

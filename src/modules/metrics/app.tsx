@@ -17,6 +17,7 @@ function later<K extends keyof Places>(name: K): Places[K] {
   return ((props: object) => <Suspense fallback={null}><Lazy {...props} /></Suspense>) as unknown as Places[K];
 }
 const GoalMeasuredBy = later('GoalMeasuredBy');
+const ReviewRowMetric = later('ReviewRowMetric');
 // "Measured by" in the goal forms (ML2): loaded when a form first shows it.
 const LazyMeasuredBy = lazy(() => import('./MeasuredBy').then((m) => ({ default: m.MeasuredBy as ComponentType<object> })));
 const MeasuredBy = ((props: object) => <Suspense fallback={null}><LazyMeasuredBy {...props} /></Suspense>) as unknown as typeof import('./MeasuredBy').MeasuredBy;
@@ -64,6 +65,7 @@ const metrics: AppModule = {
     'goal.facts': GoalMeasuredBy,
     'goal.measure': MeasuredBy,
     'goal.sections': GoalMetric,
+    'review.row': ReviewRowMetric,
     'people.person': PersonMetrics,
     'people.team': TeamMetrics,
     'checkin.number': CheckInNumber,

@@ -42,7 +42,7 @@ const help: Article[] = [
       { heading: 'What it needs', list: [
         'In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.',
         'Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.',
-        'A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.',
+        'A Defined or Verified metric’s page says “Fully defined” under its title. A Draft one says what it still needs to reach Defined: “Still needs: a window, a source link.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.',
       ] },
       { heading: 'Must fix and Check', list: [
         'A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.',
@@ -299,6 +299,8 @@ const help: Article[] = [
         'A Draft metric can still measure a goal, and the goal keeps working. Linking one through the AI assistant says what it still needs.',
         'In Measured by, Defined and Verified metrics come first, each with its window and how often it refreshes; a Draft one says what it still needs. Adding a metric there asks only its name, unit and direction: it starts as Draft, to finish on its page.',
         'A goal measured by a Draft metric shows “Measured by a Draft metric” with the warning mark, what isn’t set yet and See what’s missing. Its status works as normal. Wherever the goal names its metric, the stage and refresh come with it.',
+        'In a review, each goal’s row on the agenda has one quiet line under it: its metric, the stage and how often it refreshes (“Change failure rate · Verified 3 Nov · Refreshed weekly”), or “Draft metric” with the warning mark. Nothing in a review changes a metric: the meeting asks, and owners change things afterwards.',
+        'Adding a metric shows any similar one already in the library first, as a card: its name and stage, what it means, where it comes from, who owns it and how many goals it measures. Use this one opens it; It’s different, carry on adds yours. The same check runs on a spreadsheet import and through the AI assistant.',
       ] },
       { heading: 'When a metric’s owner leaves', list: [
         'When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change.',
@@ -311,7 +313,7 @@ const help: Article[] = [
     routes: ['/metrics', '/metrics/:metricId', '/metrics/:metricId/baseline', '/metrics/baselines', '/metrics/:metricId/verify'],
     screens: ['MetricQuality', 'DefineFields', 'BaselineForms', 'VerifyForm'],
     reqs: ['METRIC-STAGE', 'METRIC-VERIFY', 'METRIC-BASELINES'],
-    keywords: ['define', 'aggregated', 'percentile', 'take this quarter', 'monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
+    keywords: ['define', 'aggregated', 'percentile', 'take this quarter', 'review', 'agenda', 'similar', 'monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
     related: ['metric-define', 'metric-structure', 'metrics'],
   },
 ];

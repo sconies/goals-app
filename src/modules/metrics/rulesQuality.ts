@@ -248,6 +248,10 @@ export function stageOf(m: Metric, o: { now: string; ownerIsHere: boolean; nameO
 
 /* ---------- what lapses Verified, and what asks to confirm ---------- */
 
+/** Who may confirm a rewording (MQ2): the last verifier or an admin, never whoever reworded it, an admin included. */
+export const mayConfirmReword = (t: { by: Id; verifier: Id }, actor: { id: Id; admin?: boolean }) => actor.id !== t.by && (actor.id === t.verifier || !!actor.admin);
+
+
 const norm = (v: string | undefined | null) => (v ?? '').trim().replace(/\s+/g, ' ');
 const sameParts = (a: MetricPart | undefined, b: MetricPart | undefined, k: 'counts' | 'filters' | 'excludes') => norm(a?.[k]) === norm(b?.[k]);
 const sameWindow = (a: MetricWindow | null | undefined, b: MetricWindow | null | undefined) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);

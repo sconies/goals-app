@@ -33,12 +33,12 @@ export const WHATS_NEW: NewsEntry[] = [
     points: [
       'Every metric now has a stage. It is Defined once its definition is complete, with a link to the report its number comes from. It is Verified once someone other than its owner has reproduced its figure.',
       'A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”. Baselines are kept per team, with History; a changed figure needs a reason.',
-      'A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between.',
-      'When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.',
+      'A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between. A review’s agenda says under each goal what measures it, its stage and its refresh, or “Draft metric” with the warning mark.',
+      'Adding a metric shows a similar one already in the library first, as a card, with Use this one. When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.',
       'Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source. Verify a metric from its page, and pick Defined metrics first in Measured by.',
       'The AI assistant does all of it too: list_metrics, get_metric, save_metric and link_goal_metric show and take the new parts, and save_baselines and verify_metric are new.',
     ],
-    articles: ['metric-quality', 'check-in'],
+    articles: ['metric-quality', 'check-in', 'reviews'],
   },
   {
     id: 'feedback-own-sent',

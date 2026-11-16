@@ -6,7 +6,7 @@ import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { canEditMetric, live, log, metricRows, no, type Metric } from './rules';
-import { baselineProblems, differenceWords, onDay, QUALITY_LIMITS, stageOf, storedFigure, whyCantVerify, withBaselines, type BaselineInput } from './rulesQuality';
+import { baselineProblems, differenceWords, mayConfirmReword, onDay, QUALITY_LIMITS, stageOf, storedFigure, whyCantVerify, withBaselines, type BaselineInput } from './rulesQuality';
 import type { MetricVerification } from './types';
 
 const nameOf = (x: ActionContext, id: string | null | undefined) => x.snapshot.people.find((p) => p.id === id)?.name ?? 'someone who has left';
@@ -101,8 +101,9 @@ export function confirmReword(x: ActionContext, metricId: string): Commit {
   const m = live(x, metricId);
   if (!m.toConfirm) no(`“${m.name}” has no rewording to confirm.`);
   // Whoever reworded it never confirms their own rewording, an admin included (#564 review, medium 1).
-  if (m.toConfirm!.by === x.actor.id) no(`You reworded it, so someone else confirms it: ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or another admin.`);
-  if (m.toConfirm!.verifier !== x.actor.id && !x.actor.admin) no(`Only ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or an admin can confirm the rewording.`);
+  if (!mayConfirmReword(m.toConfirm!, x.actor)) no(m.toConfirm!.by === x.actor.id
+    ? `You reworded it, so someone else confirms it: ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or another admin.`
+    : `Only ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or an admin can confirm the rewording.`);
   const { toConfirm: _t, ...rest } = m;
   return { ...metricRows({ metrics: [{ ...rest, updatedAt: x.now }] }), changes: [log(x, { entityId: m.id, action: 'edited', summary: `${nameOf(x, x.actor.id)} confirmed the reworded ${m.toConfirm!.what.join(' and ')} of “${m.name}”: still Verified`, diffs: [] })] };
 }

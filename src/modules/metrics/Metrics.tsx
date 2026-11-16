@@ -12,7 +12,7 @@ import { MeasureMark } from './measureMark';
 import { StageMark } from './stageMark';
 import { CalcFields, StillNeeded, WindowField } from './DefineFields';
 import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
-import { calcWords, missingLine, onDay, QUALITY_LIMITS, windowWords, type MetricStage } from './rulesQuality';
+import { calcWords, missingLine, onDay, QUALITY_LIMITS, windowWords, type DefinedPart, type MetricStage, type Stage } from './rulesQuality';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -235,7 +235,7 @@ function MetricRow({ row, wide, sortout, needs }: { row: LibraryRow; wide: boole
       {wide
         ? <span className="hint">{sub}{measurementOf(m) !== 'measured' && <> · <MeasureMark k={measurementOf(m)} /></>}{m.retiredAt ? ' · retired' : ''}</span>
         // A phone: one line, the stage first, then what a Draft needs, or the refresh and window.
-        : <span className="hint metric-phone-line"><StageMark k={st.stage} /> · {st.stage === 'draft' ? missingLine(st.missing) : `${m.refresh ? REFRESH_LABEL[m.refresh] : 'Refresh not said'} · ${windowWords(m.timeWindow)}`}{m.retiredAt ? ' · retired' : ''}</span>}
+        : <span className="hint metric-phone-line"><StageMark k={st.stage} />{sortout && st.stage === 'draft' ? '' : ' · '}{st.stage === 'draft' ? (sortout ? '' : missingLine(st.missing)) : `${m.refresh ? REFRESH_LABEL[m.refresh] : 'Refresh not said'} · ${windowWords(m.timeWindow)}`}{m.retiredAt ? ' · retired' : ''}</span>}
     </span>
   );
   const whyCell = <span className="metric-why">{(reasons.length ? reasons : needs ? [{ words: needs, who: null }] : []).map((r, i) => <span key={i} className="metric-needs"><WarnMark />{r.words}</span>)}</span>;
@@ -323,7 +323,7 @@ export function MetricPage() {
         <div className="stack" style={{ gap: 4, minWidth: 0 }}>
           <h1 className="title-xl">{m.name}</h1>
           <QualityTop metric={m} st={st} />
-          <span className="hint">{decimalsWords(m.decimals).replace(/^./, (x) => x.toUpperCase())} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} />}</span>
+          <span className="hint">{decimalsWords(m.decimals).replace(/^./, (x) => x.toUpperCase())} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} st={st} />}</span>
         </div>
         {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
         {rows.length > 0 && <Link className={retired ? 'btn' : 'btn primary'} to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
@@ -404,8 +404,13 @@ export function MetricPage() {
 
 /** Rule 1's line under a metric's title: “Fully defined”, or what it still needs to say. For its owner and admins each item
     opens the form at its field. Words only: never a number or a bar. */
-function StillLine({ metric: m, links }: { metric: Metric; links: boolean }) {
+function StillLine({ metric: m, links, st }: { metric: Metric; links: boolean; st: Stage }) {
   const app = useApp();
+  // A Draft says the parts MQ2's Defined still needs, each opening the form at its field (#571 review: a Draft page
+  // said “Fully defined” beside its stage, since rule 6's line asks less than Defined does).
+  if (st.stage === 'draft') return (
+    <span className="metric-still">Still needs: {st.missing.map((x, i) => <span key={x.part}>{i ? ', ' : ''}{links ? <Link to={`${metricPath(m)}/edit?field=${PART_FIELD[x.part]}`}>{x.words}</Link> : x.words}</span>)}.</span>
+  );
   const s = lineOf(app.snapshot, m);
   if (!links || s.full) return <span className="metric-still">{s.line}</span>;
   const to = (f: string) => `${metricPath(m)}/edit?field=${f}`;
@@ -416,6 +421,9 @@ function StillLine({ metric: m, links }: { metric: Metric; links: boolean }) {
     </span>
   );
 }
+
+/** The form's field for each part Defined needs (DefineFields.tsx and the form's own ids). */
+const PART_FIELD: Record<DefinedPart, string> = { meaning: 'meaning', calculation: 'calculation', scope: 'calculation', unit: 'unit', direction: 'direction', window: 'window', source: 'sourceLink', sourceOwner: 'sourceOwner', refresh: 'refresh', owner: 'owner' };
 
 /** Who changed a metric last: the latest change logged for it, else whoever added it. */
 function lastChangedBy(changes: readonly { entity: string; entityId: string; actorId: string; at: string; goalId: string | null }[], m: Metric): string {
@@ -756,6 +764,7 @@ export function MetricForm() {
     const a = answered[f];
     if (a && a.at === valueOf(f)) return <div data-said={f}><CheckSaid onChange={() => setAnswered((x) => { const y = { ...x }; delete y[f]; return y; })}>{said(f)}</CheckSaid></div>;
     if (!shows(f)) return null;
+    if (f === 'similar') return <SimilarCheck c={c} waiting={waiting} onAnswer={(choice) => answer(c, choice)} />;
     return (
       <div className={'level-block level-check metric-check' + (waiting ? ' level-alert' : '')} role="group" aria-labelledby={`metric-check-${f}`} tabIndex={-1} data-check={f}>
         <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
@@ -1001,5 +1010,31 @@ function ChangeReadBack(p: {
       <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={p.onKeep}>Keep it as it was</button><button type="button" className="btn primary big-btn" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button></div>
     </div>
     </Sheet>
+  );
+}
+
+/** MQ2 sketch 12: adding a metric shows the similar one first, as a card: its name and stage, its meaning, where it
+    comes from, who owns it and how many goals it measures, with Use this one and It’s different, carry on. The words
+    of the check (rulesDefine.ts) stay the card's label, so the import and MCP say the same. */
+function SimilarCheck({ c, waiting, onAnswer }: { c: MetricCheck; waiting: boolean; onAnswer: (choice: string) => void }) {
+  const app = useApp();
+  const id = c.answers.find((a) => a.choice.startsWith('use:'))?.choice.slice(4);
+  const row = id ? findMetrics(libraryReads(app.snapshot, app.stamp()), { size: 100_000 }).rows.find((r) => r.metric.id === id) : undefined;
+  if (!row) return null;
+  const m = row.metric;
+  const n = row.goalIds.length;
+  const from = [m.source.trim(), row.owner ?? '', `measures ${n} ${n === 1 ? 'goal' : 'goals'}`].filter(Boolean).join(' · ');
+  return (
+    <div className={'level-block level-check metric-check metric-similar' + (waiting ? ' level-alert' : '')} role="group" aria-labelledby="metric-check-similar" aria-describedby="metric-similar-card" tabIndex={-1} data-check="similar">
+      <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
+      <strong id="metric-check-similar" className="level-q">1 similar metric in the library</strong>
+      <div id="metric-similar-card" className="metric-box stack" data-part="Similar metric">
+        <p className="metric-box-head metric-similar-name"><Link to={metricPath(m)} target="_blank" rel="noreferrer">{m.name}</Link> <StageMark k={row.stage.stage} /></p>
+        {m.meaning.trim() && <p className="small">{m.meaning.trim()}</p>}
+        <p className="small hint">{from}</p>
+      </div>
+      <span className="level-actions">{c.answers.map((x) => <button key={x.choice} type="button" className="btn" onClick={() => onAnswer(x.choice)}>{x.label}</button>)}</span>
+      <span className="small hint">Matched on name, source and meaning. The same check runs on a spreadsheet import and through MCP.</span>
+    </div>
   );
 }

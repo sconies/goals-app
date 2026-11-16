@@ -245,3 +245,15 @@ describe('adding a metric: similar ones first (MQ2)', () => {
     expect(Q.similarMetrics({ id: 'x', name: 'Coffee cups', source: 'Kitchen', meaning: 'Cups poured' }, M.metricsOf(buildPlatformOrg(today)))).toEqual([]);
   });
 });
+
+describe('who may confirm a rewording (#571 review)', () => {
+  const t = { by: 'pavel', verifier: 'amara' };
+  it('lets the last verifier, or any admin, confirm it', () => {
+    expect(Q.mayConfirmReword(t, { id: 'amara' })).toBe(true);
+    expect(Q.mayConfirmReword(t, { id: 'lane', admin: true })).toBe(true);
+  });
+  it('never lets whoever reworded it confirm it, an admin included, nor anyone else', () => {
+    expect(Q.mayConfirmReword(t, { id: 'pavel', admin: true })).toBe(false);
+    expect(Q.mayConfirmReword(t, { id: 'yuki' })).toBe(false);
+  });
+});

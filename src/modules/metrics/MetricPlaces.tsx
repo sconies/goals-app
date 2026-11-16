@@ -39,6 +39,26 @@ export function GoalMeasuredBy({ goal }: PlaceProps['goal.facts']) {
   );
 }
 
+/** review.row (MQ2 journey 9): one quiet line under a goal's agenda row, so a review can see whether to trust the number:
+    "Change failure rate · Verified 3 Nov · Refreshed weekly", or "Mean time to detect · Draft metric" with the warning
+    mark. Read-only: nothing in a review changes a metric. Nothing for a goal no metric measures, or a retired one. */
+export function ReviewRowMetric({ goal }: PlaceProps['review.row']) {
+  const app = useApp();
+  const m = measureOf(app.snapshot, goal);
+  if (!m || m.retired) return null;
+  const st = stageNowOf(app, m.metric);
+  const v = st.stage === 'verified' ? m.metric.verification : null;
+  const stage = st.stage === 'draft' ? null : v ? `Verified ${shortDay(v.at)}` : STAGE_LABEL[st.stage];
+  return (
+    <p className="agenda-line" data-part="Metric" data-stage={st.stage}>
+      <span>{m.metric.name}</span>
+      {stage ? <span>· {stage} · {refreshWords({ refresh: m.metric.refresh, refreshNote: '' })}</span> : <span className="metric-needs"><WarnMark />Draft metric</span>}
+    </p>
+  );
+}
+/** "3 Nov": the day and month, as a review's line says it. */
+const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
 /** goal.sections: the metric that measures the goal, for which slice, what it means, and the other goals it measures.
     The place sits inside About this goal (after its facts), so this is a part of About with its own small heading, not
     a section of the page with a rule of its own. */

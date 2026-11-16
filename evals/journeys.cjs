@@ -8216,6 +8216,50 @@ journey('U183', ['METRIC-VERIFY', 'METRIC-STAGE', 'METRICS-MEASURED-BY'], 'Verif
   h.set('logged', true);
   await p.context().close();
 }, []);
+/* MQ2 part 4d: the stage where decisions are made (journey 9), sketch 12's similar card, and #571's review. */
+journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a review: as Amara, the Reliability weekly’s agenda shows under Change failure rate “Change failure rate · Verified … · Refreshed …”, and under Mean time to detect “Draft metric” with the warning mark, never a status shape and nothing to change; Mean time to detect’s page says what it still needs, never “Fully defined”; To sort out keeps each name readable; adding “Production deploys a day” from the DORA dashboard shows the similar Verified metric as a card, and Use this one opens it', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/reviews/reliability'));
+  await p.locator('.review-home').waitFor();
+  const shows = p.locator('summary').filter({ hasText: /^Show \d+ goals?$/ });
+  for (let i = 0; i < await shows.count(); i++) await h.click(shows.nth(i));
+  const lineOf = (name) => p.locator('.agenda > li').filter({ has: p.locator('.agenda-row', { hasText: name }) }).first().locator('.agenda-line');
+  const cfr = lineOf('Change failure rate');
+  await see(cfr, /^Change failure rate\s*· Verified \d{1,2} \w{3} · Refreshed \w+/, 'the agenda does not say Change failure rate is Verified, when and how often it refreshes');
+  h.set('entry', true);
+  const mttd = lineOf('Mean time to detect');
+  await see(mttd, 'Draft metric', 'the agenda does not say Mean time to detect is measured by a Draft metric');
+  h.set('progress', (await mttd.locator('svg').count()) === 1 && (await mttd.locator('svg[data-status]').count()) === 0 && (await p.locator('.agenda-line').locator('button, input, a').count()) === 0, 'the Draft line has no warning mark, uses a status shape, or a line offers something to change');
+  await h.checkpoint('agenda');
+  // #571 review: a Draft's page says what it still needs, each opening the form at its field.
+  await p.goto(url('/metrics/mttd'));
+  const still = p.locator('.metric-still');
+  await see(still, /^Still needs: /, 'a Draft metric’s page does not say what it still needs');
+  h.set('attention', !/Fully defined/.test(await still.innerText()) && (await still.getByRole('link').count()) >= 1, 'a Draft metric’s page says “Fully defined”, or its needs open nothing');
+  // #571 review: a phone's To sort out keeps each name on as few lines as it needs (not pressed to a word a line).
+  await p.goto(url('/metrics?view=sortout'));
+  const names = p.locator('.metric-row .metric-name');
+  await names.first().waitFor();
+  const widths = await names.evaluateAll((ns) => ns.map((n) => n.getBoundingClientRect().width));
+  h.set('honest', widths.every((w) => w >= 140), `To sort out’s names are pressed thin: ${widths.map((w) => Math.round(w)).join(', ')} px`);
+  await h.checkpoint('sort out');
+  // Sketch 12: the similar metric as a card, before anything is added.
+  await p.goto(url('/metrics/new'));
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Production deploys a day');
+  await h.fill(p.getByLabel('Source', { exact: true }), 'DORA dashboard (Four Keys)');
+  await h.fill(p.getByLabel('Unit', { exact: true }), 'deploys');
+  const card = p.locator('[data-check="similar"]');
+  await see(card, '1 similar metric in the library', 'the similar metric is not asked about');
+  await see(card.locator('[data-part="Similar metric"]'), /Production deploys per day\s*Verified/, 'the card does not name the similar metric with its stage');
+  await see(card, 'Pavel Novák', 'the card does not say who owns the similar metric');
+  h.set('honest', (await card.getByRole('button', { name: 'It’s different, carry on' }).count()) === 1, 'the card has no It’s different, carry on');
+  await h.click(card.getByRole('button', { name: 'Use this one' }));
+  await p.waitForURL((u) => /\/metrics\/deploys$/.test(u.pathname));
+  h.set('finish', true);
+  h.set('errors', true);
+  h.set('logged', true);
+  await p.context().close();
+}, []);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
