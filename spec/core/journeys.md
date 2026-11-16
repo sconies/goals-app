@@ -82,6 +82,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | [U163](journeys/U163.md) | A baseline and nothing else yet (GB): as Tunde, New goal’s measure step with a Baseline of 0.42 USD and no Target offers “No target agreed yet? Propose it with just the baseline”; Check reads “A number at 0.42 USD now. No target is set yet”, and Propose goal saves it with no target; its page says “Target not set” with Set the target as its one primary and no status shape; Set the target opens Change it, and once 0.30 is saved it can be made active |  | `GOAL-NO-TARGET` `GOAL-PROPOSED` | 22 | `evals/journeys.cjs` |
 | [U171](journeys/U171.md) | A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track |  | `GUARDRAILS` | 24 | `evals/journeys.cjs` |
 | [U176](journeys/U176.md) | The admin’s workspace line on Home, drawn: in a workspace with 12 people and one admin, Rosa’s Home has a block headed with the workspace’s name, “{n} things to sort out” with the first one’s sentence and “See them”; See them opens About, whose To sort out list has the same {n}; a member sees none of it, and a two-person workspace just set up has none either |  | `HOME-LEADER` | 5 | `evals/journeys.cjs` |
+| [U180](journeys/U180.md) | The metric form asks every Check its save asks (#564 review, high): as Amara, adding “Daily releases to production” with the same meaning and source as Production deploys per day shows the similar metric’s Check with Use this one and It’s different, carry on, and carrying on adds it; as Pavel, changing the source of the Verified Production deploys per day asks once whether to lapse Verified, and answering it lets the change save, Defined after |  | `METRIC-STAGE` `METRIC-VERIFY` | 13 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -172,7 +173,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (342 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (344 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -200,7 +201,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.changes` | the changes | [U7](../modules/watching/journeys/U7.md) |
 | `.changes .change` | the change in the changes | [U7](../modules/watching/journeys/U7.md) |
 | `.changes > li` | the list item in the changes | [U31](../modules/watching/journeys/U31.md) |
-| `.check-said` | the check said | [U83](../modules/metrics/journeys/U83.md) |
+| `.check-said` | the check said | [U83](../modules/metrics/journeys/U83.md), [U180](journeys/U180.md) |
 | `.ci-corrected` | the ci corrected | [U142](journeys/U142.md) |
 | `.ci-moment` | the ci moment | [U151](journeys/U151.md) |
 | `.ci-reading-block` | the reading of the number in the check-in | [U156](../modules/metrics/journeys/U156.md), [U157](../modules/metrics/journeys/U157.md), [U158](../modules/metrics/journeys/U158.md), [U159](../modules/metrics/journeys/U159.md), [U161](../modules/metrics/journeys/U161.md) |
@@ -444,9 +445,11 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.ws-sort-row` | the ws sort row | [U176](journeys/U176.md) |
 | `.ws-sort-row[data-need="only-admin"]` | the ws sort row | [U61](journeys/U61.md) |
 | `[aria-labelledby=res-l] button[aria-pressed=true]` | the button | [U10](../modules/wrap-up/journeys/U10.md) |
+| `[data-check="lapse"]` | the part `[data-check="lapse"]` | [U180](journeys/U180.md) |
 | `[data-check="meaning"]` | the part `[data-check="meaning"]` | [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="name"]` | the part `[data-check="name"]` | [U83](../modules/metrics/journeys/U83.md), [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="part"]` | the part `[data-check="part"]` | [U160](../modules/metrics/journeys/U160.md), [U146](../modules/metrics/journeys/U146.md) |
+| `[data-check="similar"]` | the part `[data-check="similar"]` | [U180](journeys/U180.md) |
 | `[data-check="why"]` | the part `[data-check="why"]` | [U146](../modules/metrics/journeys/U146.md) |
 | `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
 | `[data-part="Changed since"]` | the “Changed since” part | [U124](journeys/U124.md) |

@@ -256,9 +256,12 @@ const help: Article[] = [
         'If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.',
       ] },
       { heading: 'What takes Verified away', list: [
-        'Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. The reason you give is kept.',
+        'Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. On the metric’s form the question sits above Save changes: Change it, and lapse Verified. The reason you give is kept.',
         'Rewording a filter or an exclusion asks the last verifier to confirm instead. Baselines, the owner and caveats change nothing.',
         'A new source marks the baselines taken from the old one, so you can retake them, and the charts of its goals show the week the source changed.',
+      ] },
+      { heading: 'Adding a metric like one already here', list: [
+        'When the name, source and meaning of a new metric look like one already in the library, the form asks first, under the name: Use this one opens that metric instead; It’s different, carry on adds yours.',
       ] },
       { heading: 'Baselines per slice', list: [
         'A baseline belongs to the whole company or to a team (and optionally one part). Give its value, the period it covers, the day you took it and how.',
