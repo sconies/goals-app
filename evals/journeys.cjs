@@ -8219,7 +8219,7 @@ journey('U183', ['METRIC-VERIFY', 'METRIC-STAGE', 'METRICS-MEASURED-BY'], 'Verif
   await p.context().close();
 }, []);
 /* MQ2 part 4d: the stage where decisions are made (journey 9), sketch 12's similar card, and #571's review. */
-journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a review: as Amara, the Reliability weekly’s agenda shows under Change failure rate “Change failure rate · Verified … · Refreshed …”, and under Mean time to detect “Draft metric” with the warning mark, never a status shape and nothing to change; Mean time to detect’s page says what it still needs, never “Fully defined”; To sort out keeps each name readable; adding “Production deploys a day” from the DORA dashboard shows the similar Verified metric as a card, and Use this one opens it', 12, async (h, device) => {
+journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a review: as Amara, the Reliability weekly’s agenda shows under Change failure rate “Change failure rate · Verified … · Refreshed …”, and under Mean time to detect “Draft metric” with the warning mark, never a status shape and nothing to change; Mean time to detect’s page says what it still needs, never “Fully defined”; To sort out keeps each name readable; adding “Deploy frequency” from the DORA dashboard, meaning the same thing, shows the similar Verified metric as a card, and Use this one opens it', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/reviews/reliability'));
   await p.locator('.review-home').waitFor();
@@ -8257,9 +8257,13 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   await p.goto(url('/metrics'));
   // Sketch 12: the similar metric as a card, before anything is added.
   await p.goto(url('/metrics/new'));
-  await h.fill(p.getByLabel('Name', { exact: true }), 'Production deploys a day');
+  // Sketch 12's case: another name for the same number, from the same source and meaning the same thing.
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy frequency');
+  await h.fill(p.getByLabel(/What it means and how/), 'Successful production deploys on a working day, averaged over 28 days.');
   await h.fill(p.getByLabel('Source', { exact: true }), 'DORA dashboard (Four Keys)');
   await h.fill(p.getByLabel('Unit', { exact: true }), 'deploys');
+  // The form asks its Checks once Add is pressed (as U180 does); nothing is added while one is open.
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
   const card = p.locator('[data-check="similar"]');
   await see(card, '1 similar metric in the library', 'the similar metric is not asked about');
   await see(card.locator('[data-part="Similar metric"]'), /Production deploys per day\s*Verified/, 'the card does not name the similar metric with its stage');
