@@ -3660,8 +3660,10 @@ journey('U69', ['NAV-WHERE'], 'A page says where it is: each address has its own
   await h.checkpoint('titles');
   // Six goals, six titles.
   const titles = new Set();
-  for (const g of ['ns-lead', 'lead-mq', 'cost-rightsize', 'mttr-oncall', 'ci-docker', 'rel-cfr']) { await p.goto(url('/goals/' + g)); await p.waitForFunction(() => !document.title.startsWith('Goals'), null, { timeout: 5000 }).catch(() => {}); titles.add(await p.title()); }
-  h.set('finish', titles.size === 6, `six goals gave ${titles.size} titles: ${[...titles].join(' | ')}`);
+  // Six goals that exist (rel-cfr didn't: its "Goal not found" title passed for a goal's own; drill, 15 Nov).
+  for (const g of ['ns-lead', 'lead-mq', 'cost-rightsize', 'mttr-oncall', 'ci-docker', 'vuln-autofix']) { await p.goto(url('/goals/' + g)); await p.waitForFunction(() => !document.title.startsWith('Goals'), null, { timeout: 5000 }).catch(() => {}); titles.add(await p.title()); }
+  const missing = [...titles].filter((t) => /not found/i.test(t));
+  h.set('finish', titles.size === 6 && !missing.length, `six goals gave ${titles.size} titles: ${[...titles].join(' | ')}`);
   h.set('progress', true); h.set('errors', true); h.set('parity', true); h.set('one-action', true);
   await p.context().close();
 }, ['logged']);
@@ -7562,6 +7564,8 @@ journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara swit
   await p.locator('.page').first().waitFor();
   await see(p, 'Settings');
   if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  // …nor a link to it under “On this page” (drill, 15 Nov).
+  if (await p.getByRole('navigation', { name: 'On this page' }).getByRole('link', { name: 'Your MCP tokens' }).count()) fail('Settings’ “On this page” still links to “Your MCP tokens” with AI access off');
   // The inbox's Connect Claude says it is off, and gives no set-up for a server that refuses every call (review of #504).
   await p.goto(url('/feedback'));
   const inbox = p.locator('#inbox');

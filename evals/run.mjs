@@ -120,7 +120,9 @@ function scenarios() {
 }
 
 // Vite itself, not through npx: killing npx left the server it started running (and holding its port) after a run.
-const VITE = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js');
+// Found from the root up, as Node finds a package, not only in the root's own node_modules (drill, 15 Nov).
+const VITE = createRequire(import.meta.url)('./viteBin.cjs').viteBin(root);
+if (!VITE) { console.error('Vite isn’t installed here or in any folder above it: run npm install first.'); process.exit(2); }
 const running = new Set();
 const serve = (port, dir) => {
   const s = spawn(process.execPath, [VITE, 'preview', '--port', String(port), '--strictPort', ...(dir ? ['--outDir', dir] : [])], { cwd: root, stdio: 'ignore' });
