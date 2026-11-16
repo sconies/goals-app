@@ -298,6 +298,8 @@ export function saveMetric(x: ActionContext, input: MetricInput & { id?: string;
   const before = input.id ? live(x, input.id) : null;
   if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? 'the metric’s owner'} or an admin can change this metric.`);
   if (before?.retiredAt) no(`“${before.name}” is retired. Bring it back before changing it.`);
+  // Naming who may verify it is an admin's, at every door: the form, the sheet and the AI tools (#564 review, medium 2).
+  if (input.verifiers !== undefined && !x.actor.admin && [...new Set(input.verifiers)].sort().join() !== [...(before?.verifiers ?? [])].sort().join()) no('Only an admin can name a metric’s verifiers.');
   const m = metricFrom(input, before, x);
   const problems = metricProblems(m, x.snapshot);
   if (problems.length) no(problems.join(' '));

@@ -36,7 +36,17 @@ const ACTION_WORDS: Record<string, 'retire' | 'back'> = { retire: 'retire', 'bri
 
 /** The fields a row gives that differ from the metric as it is (nothing given: nothing differs). The calculation and the
     window are compared by what they say. */
-const said = (v: unknown) => (typeof v === 'string' ? v.trim() : v && typeof v === 'object' ? JSON.stringify(v) : v ?? null);
+const canon = (v: unknown): unknown => {
+  if (typeof v === 'string') return v.trim() || undefined;
+  if (Array.isArray(v)) return v.map(canon);
+  if (v && typeof v === 'object') {
+    const o = Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon((v as Record<string, unknown>)[k])]).filter(([, x]) => x !== undefined && x !== null));
+    return Object.keys(o).length ? o : undefined;
+  }
+  return v ?? undefined;
+};
+/** A field as it says, whatever the order of its keys or its empty parts: an export loaded back changes nothing. */
+const said = (v: unknown) => JSON.stringify(canon(v) ?? null);
 const differs = (before: Metric, input: MetricInput) => (Object.keys(input) as (keyof MetricInput)[]).some((k) => said(before[k]) !== said(input[k]));
 
 /* MQ2's columns (sheet.ts): the calculation's, the words each takes, and how a cell is read. */

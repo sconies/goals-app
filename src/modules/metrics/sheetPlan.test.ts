@@ -48,6 +48,10 @@ describe('the Metrics sheet in and out (MI)', () => {
     expect(must(cs)).toEqual([]);
     expect(cs.items.filter((x) => x.sheet === 'Metrics')).toEqual([]);
     expect(cs.unchangedBy.Metrics).toBe(read.tables.modules!.Metrics!.length);
+    // MQ2: the calculation and window read back as they are, so a member who owns none of them is refused nothing.
+    const member = plan(read.tables, { actor: 'tunde' });
+    expect(must(member)).toEqual([]);
+    expect(member.items.filter((x) => x.sheet === 'Metrics')).toEqual([]);
   });
 
   it('adds a metric, changes one, and one Undo puts both back', () => {

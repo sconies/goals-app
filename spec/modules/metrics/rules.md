@@ -1018,6 +1018,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - verifying (MQ2) › "Couldn’t reproduce" keeps the attempt, leaves the stage, and goes on To sort out until answered
 - lapsing (MQ2) › a new window asks first (lapse: go), then drops to Defined with the reason kept
 - lapsing (MQ2) › a reworded exclusion asks the last verifier to confirm instead; Verified stands
+- lapsing (MQ2) › never lets whoever reworded it confirm their own rewording, an admin included (#564 review, medium 1)
 - lapsing (MQ2) › baselines, the owner and caveats never lapse it
 - baselines per slice (MQ2) › need all four parts; a new figure for the same period needs a reason; the old one moves to History
 - baselines per slice (MQ2) › a figure changed from the one read carries its reason into how it was taken

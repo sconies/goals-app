@@ -7060,7 +7060,7 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await p.context().close();
 }, []);
 
-journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; a metric goals use offers Retire, not Delete, and deleting one no goal used says so and Undo puts it back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left', 20, async (h, device) => {
+journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; a metric goals use offers Retire, not Delete, and deleting one no goal used says so and Undo puts it back. As Tunde the page has none of these and says who can change it. As Amara, marking its owner as left passes the metric to his team’s new lead to confirm, and About counts no metric with no owner', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/new'));
   await h.fill(p.getByLabel('Name', { exact: true }), 'CI cost per pipeline run');
@@ -7116,7 +7116,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await see(t, 'Rhea Kapoor or an admin can change this.', 'the page does not say who can change it');
   h.set('errors', offered === 0, `Tunde was offered ${offered} ways to change a metric he doesn’t own`);
   await t.context().close();
-  // An admin: About says a metric has no owner once its owner has left.
+  // An admin marks the owner as left: his metric passes to his lead to confirm (MQ2), so About counts no metric with no owner.
   const a = h.use(await newPage(device, 'amara'));
   await a.goto(url('/people'));
   await h.fill(a.getByPlaceholder('Find by name, job title or team'), 'Mateo');
@@ -7124,13 +7124,15 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await h.click(a.getByRole('button', { name: 'Mark as left…' }));
   const dlg = a.getByRole('dialog', { name: 'Mark Mateo Fernández as left' });
   await pickIn(dlg, /^Who takes over Mateo’s \d+ goals?/, 'marisol', /Marisol Duarte/);
+  await see(dlg, 'passes to Marisol Duarte, to confirm.', 'the sheet does not say his metric passes to the lead');
   await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
   await see(a, 'Mateo Fernández is marked as left');
+  const sa = await h.snapshot();
+  const mttr = (sa.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_mttr');
+  h.set('parity', mttr?.ownerId === 'marisol' && mttr?.handover?.from === 'mateo', `his metric is owned by ${mttr?.ownerId}, handover ${JSON.stringify(mttr?.handover ?? null)}`);
   await a.goto(url('/workspace'));
-  const row = a.getByRole('list', { name: 'To sort out' });
-  await see(row, '1 metric has no owner', 'About does not say a metric has no owner');
-  await h.click(row.getByRole('link', { name: 'See them' }));
-  await a.waitForURL(/\/metrics\?sortout=1/);
+  await a.getByRole('heading', { level: 1 }).first().waitFor();
+  h.set('attention', (await a.getByText(/metrics? ha(s|ve) no owner/).count()) === 0, 'About counts a metric with no owner after its owner’s metrics passed to the lead');
   await a.context().close();
 }, []);
 

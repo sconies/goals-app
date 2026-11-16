@@ -1604,6 +1604,7 @@ From the [metrics](../modules/metrics/README.md) module.
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
 - ““…” is retired. Bring it back before changing it.”
+- “Only an admin can name a metric’s verifiers.”
 - “Answer … first: …”
 - “… … measured by … in …. A metric in … is a different number: add it as a new metric and move goals to it, or retire this one. If “…” is only a new label for the same numbers, say so (relabel).”
 - “Say whether it is still the same number.”

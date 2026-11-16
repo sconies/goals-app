@@ -5708,6 +5708,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “There’s no metric called or with the ID …. Use list_metrics.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - ““…” has no rewording to confirm.”
+- “You reworded it, so someone else confirms it: … (who last verified it) or another admin.”
 - “Only … (who last verified it) or an admin can confirm the rewording.”
 - ““…” is retired. Bring it back before verifying it.”
 - “The outcome is “verified” or “couldnt_reproduce”.”

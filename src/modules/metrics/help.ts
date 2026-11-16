@@ -257,7 +257,7 @@ const help: Article[] = [
       ] },
       { heading: 'What takes Verified away', list: [
         'Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. The reason you give is kept.',
-        'Rewording a filter or an exclusion asks the last verifier to confirm instead. Baselines, the owner and caveats change nothing.',
+        'Rewording a filter or an exclusion asks the last verifier to confirm instead (or another admin, never whoever reworded it). Baselines, the owner and caveats change nothing.',
         'A new source marks the baselines taken from the old one, so you can retake them, and the charts of its goals show the week the source changed.',
       ] },
       { heading: 'Baselines per slice', list: [
