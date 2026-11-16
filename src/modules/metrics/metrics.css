@@ -206,3 +206,11 @@
 /* Measured by: a metric's second line wraps, so a Draft's "Not fully defined yet: needs …" and the rhythm it would set
    are read before it is chosen (#576 review: the line was cut with an ellipsis). */
 .measured-by .pick-detail { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* The worked example at the top of the metric form: folded away, one question and its answer to a row. */
+.metric-example summary { cursor: pointer; }
+.metric-example-list { display: grid; gap: var(--s1); margin: var(--s2) 0 0; }
+.metric-example-list > div { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: var(--s2); }
+.metric-example-list dt { color: var(--muted); }
+.metric-example-list dd { margin: 0; }
+@media (max-width: 560px) { .metric-example-list > div { grid-template-columns: 1fr; gap: 0; } }

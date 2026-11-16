@@ -10,7 +10,7 @@
 import './qualityHooks';
 import { MeasureMark } from './measureMark';
 import { StageMark } from './stageMark';
-import { CalcFields, StillNeeded, WindowField } from './DefineFields';
+import { CalcFields, MetricExample, StillNeeded, WindowField } from './DefineFields';
 import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
 import { calcWords, missingLine, onDay, QUALITY_LIMITS, windowWords, type DefinedPart, type MetricStage, type Stage } from './rulesQuality';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
@@ -832,7 +832,8 @@ export function MetricForm() {
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div ref={top}><h1 className="qtitle big">{live ? `Change ${live.name}` : 'Add a metric'}</h1></div>
         {restored && <div className="restored small" role="status">Picked up what you hadn’t saved. <button type="button" className="linkish" onClick={() => { clearDraft(); window.location.reload(); }}>Start again</button></div>}
-        {text('name', 'Name', METRIC_LIMITS.name, undefined, /metric a name|already a metric|keep the name/i)}
+        <MetricExample />
+        {text('name', 'Name', METRIC_LIMITS.name, 'What people call it, as goals will show it: Build time, Weekly active teams', /metric a name|already a metric|keep the name/i)}
         <div className="metric-unit-row">
           {text('unit', 'Unit', METRIC_LIMITS.unit, 'As it follows a number: hours, %, USD, deploys', /unit/i)}
           <div className="field" id="metric-decimals">
@@ -847,6 +848,7 @@ export function MetricForm() {
           <div className={'seg' + (about(/which way/i, 'direction').length ? ' invalid' : '')} role="group" aria-labelledby="metric-direction-l" aria-invalid={about(/which way/i, 'direction').length ? true : undefined}>
             {(['lower', 'higher'] as const).map((k) => <button key={k} type="button" aria-pressed={d.direction === k} onClick={() => { set({ direction: k }); leave('direction')(); }}>{DIRECTION_LABEL[k]}</button>)}
           </div>
+          <span className="hint">Build time: lower is better. Weekly active teams: higher is better.</span>
           {err(/which way/i, 'direction')}
         </div>
         <div className="field" id="metric-meaning">
@@ -863,7 +865,7 @@ export function MetricForm() {
         </fieldset>
         <fieldset className="metric-later stack" style={{ gap: 'var(--s3)' }}>
           <legend className="label">Where the number comes from · can be said later</legend>
-          {text('source', 'Source', METRIC_LIMITS.text, undefined, undefined, 'A dashboard, a query, a report')}
+          {text('source', 'Source', METRIC_LIMITS.text, 'Where someone would go to read the number for themselves.', undefined, 'A dashboard, a query, a report')}
           <div className="field" id="metric-sourceLink">
             <label className="field"><span className="field-label">Link to the report or query</span>
               <input className="input" type="url" maxLength={QUALITY_LIMITS.link} value={d.sourceLink ?? ''} placeholder="Paste a link" onChange={(e) => set({ sourceLink: e.target.value })} />
@@ -873,7 +875,7 @@ export function MetricForm() {
           <details className="metric-query-field"><summary className="small">Add the query <span className="hint">optional</span></summary>
             <label className="field"><span className="field-label">Query</span><textarea className="input" rows={3} maxLength={QUALITY_LIMITS.query} value={d.sourceQuery ?? ''} onChange={(e) => set({ sourceQuery: e.target.value })} /></label>
           </details>
-          {text('sourceOwner', 'Who owns that source', METRIC_LIMITS.text, undefined, undefined, 'A team or a person')}
+          {text('sourceOwner', 'Who owns that source', METRIC_LIMITS.text, 'Who to ask when the number looks wrong or stops updating.', undefined, 'A team or a person')}
           <div className="field" id="metric-refresh">
             <label className="field"><span className="field-label">How often it refreshes</span>
               <select className="input" value={d.refresh} onChange={(e) => set({ refresh: e.target.value as MetricRefresh | '' })}>
@@ -881,6 +883,7 @@ export function MetricForm() {
                 {REFRESHES.map((r) => <option key={r} value={r}>{REFRESH_LABEL[r]}</option>)}
               </select>
             </label>
+            {!d.refresh && <span className="hint">How often the source gets a new number. Goals measured by it can’t check in more often than this.</span>}
             {d.refresh && <label className="field"><span className="field-label">When in the period <span className="hint">optional</span></span><input className="input" maxLength={QUALITY_LIMITS.refreshNote} value={d.refreshNote ?? ''} placeholder="Mondays" onChange={(e) => set({ refreshNote: e.target.value })} /></label>}
             {slow && <span className="hint">A goal measured by this checks in {d.refresh === 'monthly' ? 'monthly' : 'quarterly'}, after each refresh.</span>}
           </div>
@@ -919,6 +922,7 @@ export function MetricForm() {
           </div>
           <label className="field" id="metric-gaming-field"><span className="field-label">How it could be gamed</span>
             <textarea className="input" rows={2} maxLength={GAMING_MAX} value={d.gaming ?? ''} placeholder="Deploying tiny changes to raise the count without shipping more" onChange={(e) => set({ gaming: e.target.value })} />
+            <span className="hint">How the number could get better without the real thing getting better. Saying it helps reviewers spot it.</span>
             {err(/gamed/i)}
           </label>
         </fieldset>
@@ -931,6 +935,7 @@ export function MetricForm() {
           <label className="field"><span className="field-label">Caveats <span className="hint">optional</span></span>
             <textarea className="input" rows={2} maxLength={METRIC_LIMITS.text} value={d.caveats} onChange={(e) => set({ caveats: e.target.value })} />
           </label>
+          <span className="hint">What a reader should know before trusting a change: a known gap, a holiday dip, a change in how it’s counted.</span>
         </div>
         {/* Anything else the rule says (a length, decimals), together above the button. */}
         {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>)}</div>}
