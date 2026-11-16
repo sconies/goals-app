@@ -133,6 +133,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what is asked (rule 3) › asks whether a stage already past is done; either answer is an answer
 - what is asked (rule 3) › asks nothing about a field with a Must fix
 - what is asked (rule 3) › holds a step until its questions are answered, after its Must fix (rule 4)
+- saving (rule 7) › keeps a goal’s own check-in rhythm through an ordinary edit (#567 review, high)
 - saving (rule 7) › saves a north star Tunde adds for Amara, with the next key and its History entry
 - saving (rule 7) › refuses a question not yet answered, in its words; confirm answers them all
 - saving (rule 7) › refuses what must be fixed, in its words

@@ -4,7 +4,7 @@
 import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
-import { blankGoal, decimalsFor, type GoalDraft } from './goal';
+import { blankGoal, decimalsFor, draftOf, type GoalDraft } from './goal';
 import { checksContext, formNeed, goalChecks, goalMustFix, openLine, planGoal, planSpanOf, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext, sameNamedIn } from './goalEntry';
 import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { numberAsTyped } from './numbers';
@@ -185,6 +185,15 @@ describe('saving (rule 7)', () => {
   const snapshot = scopeToCycle(full, cycle);
   let n = 0;
   const as = (who: string): ActionContext => ({ snapshot, cycle, week: currentWeek(cycle, today), actor: full.people.find((p) => p.id === who)!, now: today.toISOString(), newId: (p) => `${p}_t${++n}` });
+
+  it('keeps a goal’s own check-in rhythm through an ordinary edit (#567 review, high)', () => {
+    // Cloud cost is measured by a monthly metric, so it checks in monthly; renaming it is no reason to go weekly.
+    const g = snapshot.goals.find((x) => x.id === 'ns-cost')!;
+    expect(g.checkInRhythm).toBe('monthly');
+    const out = planGoal(as('bjorn'), { goalId: g.id, draft: { ...draftOf(g), title: `${g.title} (edited)` }, confirm: true });
+    expect(out.goal.checkInRhythm).toBe('monthly');
+    expect(out.commit?.goals?.find((x) => x.id === g.id)?.checkInRhythm).toBe('monthly');
+  });
 
   it('saves a north star Tunde adds for Amara, with the next key and its History entry', () => {
     // Amara is in another team than CI/CD: asked first, and the answer is kept in History as "Checked".

@@ -632,8 +632,12 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   // #376: a batch row without it would write NULL over the stored column).
   const kept = existing ? { ...(existing.proposedIn ? { proposedIn: existing.proposedIn } : {}), ...(existing.proposedBy ? { proposedBy: existing.proposedBy } : {}) } : {};
   const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id, ...((i.proposedIn ?? existing?.proposedIn) ? { proposedIn: i.proposedIn ?? existing!.proposedIn } : {}) } : kept;
-  // The hold is the goal's own, set by what measures it, not by the form: a save keeps it (MS review, medium 3).
-  const held = existing?.unmeasuredSince ? { unmeasuredSince: existing.unmeasuredSince } : {};
+  // The hold and the check-in rhythm are the goal's own, set by what measures it, not by the form: a save keeps them (MS
+  // review, medium 3; #567 review, high: an edited goal on a monthly metric stayed monthly).
+  const held = {
+    ...(existing?.unmeasuredSince ? { unmeasuredSince: existing.unmeasuredSince } : {}),
+    ...(existing?.checkInRhythm ? { checkInRhythm: existing.checkInRhythm } : {}),
+  };
   const goal: Goal = existing ? { ...built, pending: null, ...state, ...held } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
   const needsReason = !proposing && !!existing && checkIns.length > 0 && planChanged(existing, goal);
   if (needsReason && (i.reason ?? '').trim().length < MIN_REASON) throw new NotAllowed(REASON_EMPTY);
