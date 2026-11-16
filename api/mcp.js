@@ -8129,9 +8129,11 @@ function setModule(x, ws, modules, id, on) {
 		return p ? [p] : [];
 	});
 	const goals = parts.flatMap((p) => p.goals ?? []);
+	const rows = parts.reduce((acc, p) => p.modules ? applyModuleRows(acc, p.modules) : acc, void 0);
 	return {
 		modulesOff: off,
 		...goals.length ? { goals } : {},
+		...rows ? { modules: rows } : {},
 		changes: [{
 			id: x.newId("chg"),
 			at: x.now,
@@ -17624,6 +17626,7 @@ var init_sheetRef = __esmMin((() => {
 init_rulesStructure();
 init_actions();
 init_rulesMeasured();
+init_removal();
 init_rules$1();
 init_sheetRef();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
@@ -17767,76 +17770,125 @@ var metricLinkFromRow = (r) => ({
 	...when$2("removedAt", r.removed_at),
 	...who$1("removedBy", r.removed_by)
 });
-var records$3 = {
-	records: [{
-		name: "metric",
-		key: METRICS_KEY,
-		table: "okr_metrics",
-		removable: true,
-		toRow: metricToRow,
-		fromRow: metricFromRow,
-		order: (a, b) => a.createdAt.localeCompare(b.createdAt),
-		carry: (rows) => rows.filter((m) => !m.removedAt),
-		removed: {
-			label: "Metric",
-			name: (m) => m.name,
-			restore(x, m) {
-				const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-				if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-				const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
-				const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
-				return {
-					...metricRows({
-						metrics: [{
-							...m,
-							removedAt: null,
-							removedBy: null,
-							updatedAt: x.now
-						}],
-						...back.length ? { metricLinks: back.map((l) => ({
-							...l,
-							removedAt: null,
-							removedBy: null
-						})) } : {}
-					}),
-					changes: [{
-						id: x.newId("chg"),
-						at: x.now,
-						actorId: x.actor.id,
-						goalId: null,
-						entity: "metric",
-						entityId: m.id,
-						action: "restored",
-						summary: `Restored the metric “${m.name}”${back.length ? `, measuring ${back.length} ${back.length === 1 ? "goal" : "goals"} again` : ""}`,
-						diffs: [{
-							field: "Metric",
-							from: "—",
-							to: m.name
-						}]
+var metric = {
+	name: "metric",
+	key: METRICS_KEY,
+	table: "okr_metrics",
+	removable: true,
+	toRow: metricToRow,
+	fromRow: metricFromRow,
+	order: (a, b) => a.createdAt.localeCompare(b.createdAt),
+	carry: (rows) => rows.filter((m) => !m.removedAt),
+	removed: {
+		label: "Metric",
+		name: (m) => m.name,
+		restore(x, m) {
+			const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+			if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
+			const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
+			const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
+			return {
+				...metricRows({
+					metrics: [{
+						...m,
+						removedAt: null,
+						removedBy: null,
+						updatedAt: x.now
+					}],
+					...back.length ? { metricLinks: back.map((l) => ({
+						...l,
+						removedAt: null,
+						removedBy: null
+					})) } : {}
+				}),
+				changes: [{
+					id: x.newId("chg"),
+					at: x.now,
+					actorId: x.actor.id,
+					goalId: null,
+					entity: "metric",
+					entityId: m.id,
+					action: "restored",
+					summary: `Restored the metric “${m.name}”${back.length ? `, measuring ${back.length} ${back.length === 1 ? "goal" : "goals"} again` : ""}`,
+					diffs: [{
+						field: "Metric",
+						from: "—",
+						to: m.name
 					}]
-				};
-			}
+				}]
+			};
 		}
-	}, {
-		name: "metric link",
-		key: LINKS_KEY,
-		table: "okr_goal_metrics",
-		removable: false,
-		toRow: metricLinkToRow,
-		fromRow: metricLinkFromRow,
-		carry: (rows, scope) => {
-			const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
-			return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
+	}
+};
+var goalMetric = {
+	name: "metric link",
+	key: LINKS_KEY,
+	table: "okr_goal_metrics",
+	removable: false,
+	toRow: metricLinkToRow,
+	fromRow: metricLinkFromRow,
+	carry: (rows, scope) => {
+		const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
+		return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
+	},
+	follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({
+		...l,
+		id: copies.get(l.goalId),
+		goalId: copies.get(l.goalId),
+		removedAt: null,
+		removedBy: null
+	})),
+	goalOf: (l) => l.goalId
+};
+/** MQ2: the metrics someone owns pass to `toId`, each to confirm under "To sort out"; the stage doesn't change (a
+handover isn't an edit of the calculation). Null when they own none. */
+function passMetrics(x, personId, toId) {
+	const s = x.full ?? x.snapshot;
+	const mine = metricsOf(s).filter((m) => m.ownerId === personId && !m.removedAt);
+	if (!mine.length) return null;
+	const name = (id) => s.people.find((p) => p.id === id)?.name ?? "someone";
+	const moved = mine.map((m) => ({
+		...m,
+		ownerId: toId,
+		handover: {
+			from: personId,
+			at: x.now,
+			why: `${name(personId)} left`
 		},
-		follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({
-			...l,
-			id: copies.get(l.goalId),
-			goalId: copies.get(l.goalId),
-			removedAt: null,
-			removedBy: null
+		updatedAt: x.now
+	}));
+	return {
+		...metricRows({ metrics: moved }),
+		changes: moved.map((m) => log$1(x, {
+			entityId: m.id,
+			action: "edited",
+			summary: `Passed “${m.name}” to ${name(toId)} to confirm, as ${name(personId)} left`,
+			diffs: [{
+				field: "Owner",
+				from: name(personId),
+				to: `${name(toId)} (to confirm)`
+			}]
 		})),
-		goalOf: (l) => l.goalId
-	}],
+		lines: moved.map((m) => `The metric “${m.name}” passes to ${name(toId)}, to confirm.`)
+	};
+}
+/** Switched on again (#579 review): someone marked as left while the library was off still owns their metrics, as
+leaving skipped it then (`whatPasses`). Each passes to their lead now, as leaving would have passed it (`leadOf`). */
+function passLeftBehind(x) {
+	const s = x.full ?? x.snapshot;
+	const owners = new Set(metricsOf(s).filter((m) => !m.removedAt).map((m) => m.ownerId));
+	const parts = s.people.filter((p) => owners.has(p.id) && (p.leftAt || p.removedAt)).flatMap((p) => {
+		const o = passMetrics(x, p.id, leadOf(x, p, null));
+		return o ? [o] : [];
+	});
+	if (!parts.length) return null;
+	return {
+		...metricRows({ metrics: parts.flatMap((o) => metricsOf(o)) }),
+		changes: parts.flatMap((o) => o.changes)
+	};
+}
+var records$3 = {
+	records: [metric, goalMetric],
 	sheets: [metricsSheetRef()],
 	measures: (s, goalId) => {
 		const l = linkOf(s, goalId);
@@ -17856,38 +17908,16 @@ var records$3 = {
 	},
 	switched: (x, on) => {
 		const s = x.full ?? x.snapshot;
-		return heldOnSwitch(x, on, metricsOf(s), linksOf(s));
-	},
-	personLeft: (x, personId, toId) => {
-		const s = x.full ?? x.snapshot;
-		const mine = metricsOf(s).filter((m) => m.ownerId === personId && !m.removedAt);
-		if (!mine.length) return null;
-		const name = (id) => s.people.find((p) => p.id === id)?.name ?? "someone";
-		const moved = mine.map((m) => ({
-			...m,
-			ownerId: toId,
-			handover: {
-				from: personId,
-				at: x.now,
-				why: `${name(personId)} left`
-			},
-			updatedAt: x.now
-		}));
+		const held = heldOnSwitch(x, on, metricsOf(s), linksOf(s));
+		const passed = on ? passLeftBehind(x) : null;
+		if (!held && !passed) return null;
 		return {
-			...metricRows({ metrics: moved }),
-			changes: moved.map((m) => log$1(x, {
-				entityId: m.id,
-				action: "edited",
-				summary: `Passed “${m.name}” to ${name(toId)} to confirm, as ${name(personId)} left`,
-				diffs: [{
-					field: "Owner",
-					from: name(personId),
-					to: `${name(toId)} (to confirm)`
-				}]
-			})),
-			lines: moved.map((m) => `The metric “${m.name}” passes to ${name(toId)}, to confirm.`)
+			...held ? { goals: held.goals } : {},
+			...passed ? { modules: passed.modules } : {},
+			changes: [...held?.changes ?? [], ...passed?.changes ?? []]
 		};
 	},
+	personLeft: (x, personId, toId) => passMetrics(x, personId, toId),
 	goalColumns: [{
 		param: "metric",
 		fill: (s) => {
@@ -18960,7 +18990,8 @@ var _virtual_faro_modules_default = [
 				"verify_metric",
 				"get_metric",
 				"list_metrics"
-			]
+			],
+			"HomeVerify": ["list_metrics", "get_metric"]
 		}
 	},
 	{
@@ -22735,7 +22766,8 @@ var help$5 = [
 				list: [
 					"An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source. A source owner typed as a team’s or a person’s exact name counts as that team or person.",
 					"On a Defined metric’s page, Verify this metric (or Verify again, once a change took Verified away) opens the form. Open the source link and tick that you did, then give the period, the figure you got from it and a note. Faro shows the difference from the baseline it has for that period, or else the latest reading, in the metric’s own unit, without judging it. Mark as Verified, or Couldn’t reproduce.",
-					"If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out."
+					"If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.",
+					"If any metric on To verify is yours to verify, Home says how many under Metrics to verify (“2 metrics to verify”) and names the three due soonest, each opening its page. More than three adds a link to the rest in the library’s To verify. Nothing shows when none is yours, or while the Metric library is off."
 				]
 			},
 			{
@@ -22772,7 +22804,7 @@ var help$5 = [
 			},
 			{
 				heading: "When a metric’s owner leaves",
-				list: ["When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change."]
+				list: ["When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change.", "Someone marked as left while the Metric library was off keeps their metrics until it is switched on again; then each passes to their lead in the same way."]
 			},
 			{
 				heading: "Many metrics at once",
@@ -22790,7 +22822,8 @@ var help$5 = [
 			"MetricQuality",
 			"DefineFields",
 			"BaselineForms",
-			"VerifyForm"
+			"VerifyForm",
+			"HomeVerify"
 		],
 		reqs: [
 			"METRIC-STAGE",
@@ -26510,7 +26543,7 @@ var WHATS_NEW = [
 			"A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”. Baselines are kept per team, with History; a changed figure needs a reason.",
 			"A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between. A review’s agenda says under each goal what measures it, its stage and its refresh, or “Draft metric” with the warning mark.",
 			"Adding a metric shows a similar one already in the library first, as a card, with Use this one. When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.",
-			"Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source. Verify a metric from its page, and pick Defined metrics first in Measured by.",
+			"Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source. Verify a metric from its page, and pick Defined metrics first in Measured by. Home tells anyone who may verify a metric how many are waiting for them (“2 metrics to verify”).",
 			"The AI assistant does all of it too: list_metrics, get_metric, save_metric and link_goal_metric show and take the new parts, and save_baselines and verify_metric are new."
 		],
 		articles: [
@@ -31061,6 +31094,7 @@ function goalsByStatus(statuses) {
 // src/modules/metrics/reads.ts
 init_rules$1();
 init_rulesDefine();
+init_rulesVerify();
 init_checkReads();
 /** The running cycle's live goals: not removed, not stopped. */
 var liveGoals = (s) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
@@ -31088,7 +31122,6 @@ function proposedOfMetric(s, metricId) {
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 // src/modules/metrics/rulesReading.ts
-init_rulesVerify();
 init_reading();
 init_thresholds();
 /** How long a source has to answer before the step treats it as unreachable. */
@@ -31397,6 +31430,7 @@ init_actions();
 init_via();
 init_rules$1();
 init_rulesQuality();
+init_rulesVerify();
 var str$7 = (description, extra = {}) => ({
 	type: "string",
 	description,

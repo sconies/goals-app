@@ -524,9 +524,11 @@ export function setModule(x: ActionContext, ws: { id: string; modulesOff?: strin
   const ids = new Set([id, ...modules.filter((k) => also.includes(k.name)).map((k) => k.id)]);
   const parts = (x.records ?? []).filter((r) => ids.has(r.module)).flatMap((r) => { const p = r.switched?.(x, on); return p ? [p] : []; });
   const goals = parts.flatMap((p) => p.goals ?? []);
+  const rows = parts.reduce<ModuleRows | undefined>((acc, p) => (p.modules ? applyModuleRows(acc, p.modules) : acc), undefined);
   return {
     modulesOff: off,
     ...(goals.length ? { goals } : {}),
+    ...(rows ? { modules: rows } : {}),
     changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited',
       summary: `${on ? 'Switched on' : 'Switched off'} ${name}${also.length ? `, and with it ${also.join(', ')}` : ''}`,
       diffs: [{ field: name, from: on ? 'Off' : 'On', to: on ? 'On' : 'Off' }] }, ...parts.flatMap((p) => p.changes)],

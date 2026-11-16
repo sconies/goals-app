@@ -2,10 +2,11 @@
    (docs/design/architecture.md, 4.4). The screens, the AI tools and the conformance rows all make their rows here, so
    the rules read the same rows wherever they run. */
 import { summariseAll } from '../../domain/summary';
-import type { Cycle, Snapshot } from '../../domain/types';
+import type { Cycle, Person, Snapshot } from '../../domain/types';
 import { linksOf, metricsOf, ownerName, type Metric } from './rules';
 import { stillToSay } from './rulesDefine';
-import { metricGoals, type LibraryReads, type MetricGoalRow } from './rulesLibrary';
+import { metricGoals, toVerifyFor, type LibraryReads, type LibraryRow, type MetricGoalRow } from './rulesLibrary';
+import { sourceOwnerName } from './rulesVerify';
 
 /** The running cycle's live goals: not removed, not stopped. */
 const liveGoals = (s: Pick<Snapshot, 'goals'>) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
@@ -13,6 +14,11 @@ const liveGoals = (s: Pick<Snapshot, 'goals'>) => s.goals.filter((g) => !g.remov
 /** Rule 1's and rule 3's rows: every metric and link, the cycle's live goal ids, the people, and now. */
 export function libraryReads(s: Snapshot, now: string): LibraryReads {
   return { metrics: metricsOf(s), links: linksOf(s), goalIds: new Set(liveGoals(s).map((g) => g.id)), people: s.people, now };
+}
+
+/** The metrics this person may verify now, from "To verify" (journey 3): what their Home counts. */
+export function toVerifyOf(s: Snapshot, now: string, viewer: Pick<Person, 'id' | 'teamId' | 'admin'>): LibraryRow[] {
+  return toVerifyFor(libraryReads(s, now), viewer, { teams: s.teams, sourceOwnerName: (m) => sourceOwnerName(s, m) });
 }
 
 /** Rule 2 for one metric: its goals' summary rows (domain/summary), side by side. */

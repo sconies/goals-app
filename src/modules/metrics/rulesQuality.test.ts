@@ -285,3 +285,22 @@ describe('the source’s owner, by its name when no id is stored (#576 review)',
     expect(Q.sourceOwnerIdOf({ sourceOwnerId: null, sourceOwner: 'The data team' } as never, teams)).toBeNull();
   });
 });
+
+describe('a verifier’s Home line (MQ2 journey 3)', () => {
+  it('counts the metrics on To verify that this person may verify, never one they own or last changed', async () => {
+    const { toVerifyOf } = await import('./reads');
+    const full = buildPlatformOrg(today);
+    const s = scope(full, currentCycle(full.cycles, today)!);
+    const at = '2026-11-05T13:00:00Z';
+    const who = (id: string) => full.people.find((p) => p.id === id)!;
+    const amara = toVerifyOf(s, at, who('amara'));
+    // Amara, an admin, may verify every metric on To verify that she doesn't own and didn't last change.
+    expect(amara.map((r) => r.metric.name)).toContain('CI pipeline time on main (p90)');
+    expect(amara.every((r) => r.stage.toVerify && r.metric.ownerId !== 'amara' && r.metric.calcChangedBy !== 'amara')).toBe(true);
+    // Daniel owns CI pipeline time, so it is never his to verify.
+    expect(toVerifyOf(s, at, who('daniel')).map((r) => r.metric.id)).not.toContain('metric_ci-time');
+    // Someone who is neither an admin, in a source's owner nor a named verifier has nothing to verify.
+    const plain = full.people.find((p) => !p.admin && !p.leftAt && !M.metricsOf(full).some((m) => (m.verifiers ?? []).includes(p.id) || m.sourceOwnerId === p.id || m.sourceOwnerId === p.teamId || full.teams.some((t) => (t.id === m.sourceOwnerId || t.name === m.sourceOwner) && (t.id === p.teamId || t.leadId === p.id))));
+    if (plain) expect(toVerifyOf(s, at, plain)).toEqual([]);
+  });
+});

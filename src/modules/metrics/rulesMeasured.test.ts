@@ -249,4 +249,29 @@ describe('someone leaving passes their metrics to their lead (MQ2)', () => {
     expect(c.modules).toBeUndefined();
     expect(c.changes.some((ch) => ch.entity === 'metric')).toBe(false);
   });
+
+  it('passes the metrics of someone who left while it was off to their lead once it is switched on again (#579 review)', async () => {
+    const { markPersonLeft, leadOf } = await import('../../domain/removal');
+    const w = world();
+    const admin = w.full.people.find((p) => p.admin && p.id !== 'rhea')!;
+    const rhea = w.full.people.find((p) => p.id === 'rhea')!;
+    const other = w.full.people.find((p) => p.id !== 'rhea' && p.id !== admin.id && !p.leftAt)!;
+    const mods = [{ id: 'metrics', name: 'Metric library', needs: [] as string[] }];
+    const before = M.metricsOf(w.full).filter((m) => m.ownerId === 'rhea' && !m.removedAt);
+    expect(before.length).toBeGreaterThan(0);
+    w.apply(setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws' }, mods, 'metrics', false));
+    w.apply(markPersonLeft({ ...w.x(admin.id), records: MODULE_RECORDS, modulesOff: ['metrics'] }, 'rhea', { goalsTo: other.id, asksTo: other.id }));
+    expect(M.metricsOf(w.full).filter((m) => m.ownerId === 'rhea' && !m.removedAt)).toHaveLength(before.length);
+    const x = { ...w.x(admin.id), records: MODULE_RECORDS };
+    const lead = leadOf(x, rhea, null);
+    const on = setModule(x, { id: 'ws', modulesOff: ['metrics'] }, mods, 'metrics', true)!;
+    w.apply(on);
+    const after = M.metricsOf(w.full).filter((m) => before.some((b) => b.id === m.id));
+    expect(after.map((m) => [m.ownerId, m.handover?.from])).toEqual(before.map(() => [lead, 'rhea']));
+    expect(on.changes.filter((ch) => ch.entity === 'metric').map((ch) => ch.summary)).toHaveLength(before.length);
+    // Switched on again with nothing left behind, nothing more passes.
+    w.apply(setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws' }, mods, 'metrics', false));
+    const again = setModule({ ...w.x(admin.id), records: MODULE_RECORDS }, { id: 'ws', modulesOff: ['metrics'] }, mods, 'metrics', true)!;
+    expect(again.changes.some((ch) => ch.entity === 'metric')).toBe(false);
+  });
 });
