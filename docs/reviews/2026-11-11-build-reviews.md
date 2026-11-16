@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `25067735` (#566), which closes #564’s high, walked. Mediums open: #564’s two (fix on MQ2 part 3, draft #567) and #566’s one (U180 isn’t in the metric library’s `module.json` journeys). The newest state is under “The reviewer of 16 November” at the end of the log.
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `0fb6c6e1` (#568, no findings; before it #566), which closes #564’s high, walked. Mediums open: #564’s two (fix on MQ2 part 3, draft #567) and #566’s one (U180 isn’t in the metric library’s `module.json` journeys). The newest state is under “The reviewer of 16 November” at the end of the log.
 
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.
@@ -313,6 +313,7 @@ Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning t
 | #563 MQ2 part 1: metric quality columns (0056) | MQ2 | 0 | 1 | 0 |
 | #564 MQ2 part 2: the metric quality rules and MCP (0057) | MQ2 | 1 | 2 | 1 |
 | #566 The metric form asks the similar-metric and lapse questions (#564’s high) | MQ2 | 0 | 1 | 3 |
+| #568 Core: a module’s sheets load on demand | core (session …nQ1Pis1ae) | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2745,7 +2746,7 @@ One high, two mediums, one low.
 
 ## The reviewer of 16 November (session …nAc52AT), from #566
 
-Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `25067735` (#566). #564’s high is closed. Mediums open: #564’s two (their fix is on MQ2 part 3, draft #567, which waits on a core PR that loads sheets lazily) and #566’s one, sent to planning at 01:05 UTC, 16 Nov.
+Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `0fb6c6e1` (#568, no findings; before it #566). #564’s high is closed. Mediums open: #564’s two (their fix is on MQ2 part 3, draft #567, which waits on a core PR that loads sheets lazily) and #566’s one, sent to planning at 01:05 UTC, 16 Nov.
 
 ### #566 The metric form asks the similar-metric and lapse questions its save asks (MQ2 build, merged 16 Nov)
 
@@ -2760,3 +2761,12 @@ No highs, one medium, three lows.
 
 - **Medium. U180, the journey that guards this fix, isn’t in the metric library’s journey list, so a change to the form doesn’t run it before a merge.** `evals/touches.cjs` runs a module’s `module.json` `journeys` for a change in its folder; `src/modules/metrics/module.json` ends at U179. Run: `touches(['src/modules/metrics/Metrics.tsx'])` and the same for `rulesSave.ts` and `rulesDefine.ts` return 22 ids without U180. So `evals:changed` and PR CI don’t run it for parts 3 and 4, which rewrite this form; only the full suite after the merge does. A full run of a build without the Metric library would also run it and fail (the map’s F6, again); the “without metrics” job runs the core journeys only, so CI is green. The fix is the one id in `module.json`, and `npm run spec`.
 - **Low.** The lapse Check is answered once for the form (`valueOf('lapse')` is `''`): answer it for the source, then change the direction too, and “You said: change it, and lapse Verified.” stays without asking about the direction (the rule takes the one answer for both, so nothing is refused). The Check names two changes as “Changing the source, the direction takes it back”. It tells Pavel, the owner making the change, “Pavel Novák is told” (and nothing tells anyone: #564’s low). Walked.
+
+### #568 Core: a module’s sheets load on demand (core, session …nQ1Pis1ae, merged 16 Nov)
+
+Read at `0fb6c6e1`: the diff by me, then every reader of a module sheet followed to its load (`sheetsOn`, `exportOn`, `sheetHeadsFor`, `moduleSheets`, `workbook`, `readTables`), since reading one before `loadModuleSheets` now throws. A Sonnet subagent built it, walked the doors cold on a production build and ran five journeys; none of it was looked at again by me.
+
+- As read: the Export sheet, Data’s menu, Import and its check load the sheets with their own chunk; the file reader, the worker (through `loadSheetPlanners`), the MCP export and `bulk_change`, the spec and the format check await it. The Data tables no longer ask for module sheets and never showed one. The engine reads a planner through `sheet?.plan`, so an unloaded sheet there is skipped, not thrown. `sheetsOn` now goes through `modulesOn`, which is the map’s F5 for sheets.
+- As run (subagent): the entry chunk and its preloads don’t hold the Metrics sheet’s columns. Cold, as Amara, demo of 5 November: Goals’ export and Data’s “Everything” each save a workbook with a Metrics sheet of 13 rows; a pasted Metrics row with new Caveats reads as “1 metric changed”; the exported workbook loaded back reads “Nothing would change” over 2,604 rows. No console or page errors. U19, U20, U95, U178 and U179 pass at phone and desktop size, at full speed. The 274 to 266 KB figure was not measured here.
+
+No findings.
