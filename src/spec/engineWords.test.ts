@@ -22,3 +22,18 @@ describe('every sentence the change engine can say (rebuild drill, stage 2, gap 
     expect(missing).toEqual([]);
   });
 });
+
+describe('a goal’s name has no longest length (drill, 15 Nov: G-48)', () => {
+  it('lists no “characters or fewer” Must fix on Goals, which a rebuild applied to demo goal G-48’s 141-character name', () => {
+    const said = engineSentences(process.cwd());
+    expect(said.filter((s) => /characters or fewer/.test(s.words) && /goal/i.test(s.sheet)).map((s) => `${s.sheet}: ${s.words}`)).toEqual([]);
+  });
+  it('still refuses a workspace name over 80 characters, and no goal name for its length', async () => {
+    const { workspaceNameProblem, nameProblem } = await import('../domain/thresholds');
+    const { buildPlatformOrg } = await import('../data/platformOrg/generate');
+    const long = buildPlatformOrg(new Date('2026-11-05T12:00:00Z')).goals.find((g) => g.key === 'G-48')!.title;
+    expect(long.length).toBe(141);
+    expect(nameProblem(long, 'goal')).toBeNull();
+    expect(workspaceNameProblem('x'.repeat(83))).toBe('Keep the name to 80 characters or fewer: it has 83.');
+  });
+});

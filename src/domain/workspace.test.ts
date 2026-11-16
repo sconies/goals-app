@@ -8,7 +8,7 @@ import { currentCycle, scopeToCycle } from './cycle';
 import { currentWeek } from './plan';
 import { cycleStanding, leaveWorkspace } from './removal';
 import { adminsLine, cycleLine, cycleWhen, workspaceName, workspaceNeeds, yearLine } from './workspaceAttention';
-import { MAX_WORKSPACE_NAME, nameLength, nameProblem } from './thresholds';
+import { MAX_WORKSPACE_NAME, nameLength, nameProblem, workspaceNameProblem } from './thresholds';
 import type { Snapshot } from './types';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -53,8 +53,8 @@ describe('a workspace’s name (backlog WS)', () => {
   it('says the limit while typing near it, and refuses a longer name instead of cutting it', () => {
     expect(nameLength('Platform')).toBeNull();
     expect(nameLength('x'.repeat(MAX_WORKSPACE_NAME - 5))).toBe(`${MAX_WORKSPACE_NAME - 5} of ${MAX_WORKSPACE_NAME} characters`);
-    expect(nameProblem('x'.repeat(MAX_WORKSPACE_NAME), 'workspace')).toBeNull();
-    expect(nameProblem('x'.repeat(MAX_WORKSPACE_NAME + 3), 'workspace')).toBe(`Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has ${MAX_WORKSPACE_NAME + 3}.`);
+    expect(workspaceNameProblem('x'.repeat(MAX_WORKSPACE_NAME))).toBeNull();
+    expect(workspaceNameProblem('x'.repeat(MAX_WORKSPACE_NAME + 3))).toBe(`Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has ${MAX_WORKSPACE_NAME + 3}.`);
     // Goals have no such limit here.
     expect(nameProblem('x'.repeat(120), 'goal')).toBeNull();
   });

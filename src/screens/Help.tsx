@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { historyStep } from '../domain/find';
 import { CountLine, ListSearch, NoneFound } from '../ui/ListBar';
-import { ARTICLES, GROUPS, articleById as anyArticle, articleWords, searchGuide, type Article } from '../help/guide';
+import { ARTICLES, GROUPS, articleById as anyArticle, articleWords, searchGuide, sectionsShown, articleShown, type Article } from '../help/guide';
 import { nearMiss } from '../domain/find';
 import { Place, useModules } from '../core/app';
 
@@ -34,11 +34,13 @@ import { raisedBy } from '../markup/backend';
 import { raisedIn, raisedText, type Raised } from '../markup/model';
 
 function ArticleRow({ a }: { a: Article }) {
+  const { on } = useModules();
+  const shown = articleShown(a, on);
   return (
     <li className="help-row">
       <Link to={'/help/' + a.id} className="help-row-link">
-        <span className="help-row-title">{a.title}</span>
-        <span className="help-row-sum">{a.summary}</span>
+        <span className="help-row-title">{shown.title}</span>
+        <span className="help-row-sum">{shown.summary}</span>
       </Link>
     </li>
   );
@@ -96,7 +98,7 @@ export function HelpArticle() {
   const shown = useShown();
   const found = anyArticle(id);
   const a = shown(found) ? found : undefined;
-  const { installed } = useModules();
+  const { installed, on } = useModules();
   const groupTitle = useGroupTitle();
   // A switched-off module's article is hidden, and its address says so (FT2, N21).
   const offModule = !a && found?.module ? installed.find((m) => m.id === found.module) : undefined;
@@ -116,12 +118,12 @@ export function HelpArticle() {
       <BackLink to="/help" label="Help" />
       <div className="page-head">
         <span className="eyebrow">{group && groupTitle(group)}</span>
-        <h1 className="title-xl">{a.title}</h1>
-        <p className="help-lead">{a.summary}</p>
+        <h1 className="title-xl">{articleShown(a, on).title}</h1>
+        <p className="help-lead">{articleShown(a, on).summary}</p>
       </div>
       <Place name="help.article" article={a.id} />
       {a.id === 'status' && <StatusLegend kind="key" statuses={['on', 'risk', 'off', 'stale', 'done']} className="help-key" wordClass="strong" label="Status shapes" />}
-      {a.sections.map((s) => (
+      {sectionsShown(a, on).map((s) => (
         <section key={s.heading} className="help-section">
           <h2 className="h2">{s.heading}</h2>
           {s.text?.map((t) => <p key={t}>{t}</p>)}
