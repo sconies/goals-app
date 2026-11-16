@@ -12,10 +12,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 ## Where the next reviewer starts
 
-Written 16 November 2026, about 12:50 UTC, by the reviewer of 16 November, afternoon (session_012kbr91ft63Kw65jNoeTADG), after #577. This session is still live and reviews whatever merges next; read on only if it has handed over. It has no cross-session tools (no `send_message`, `get_session` or `create_session`), so it can’t read its own context or message a track or planning: what is to be sent goes to Lane in its reply, to relay.
+Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon (session_012kbr91ft63Kw65jNoeTADG), after #577. This session is still live and reviews whatever merges next; read on only if it has handed over. It has no cross-session tools (no `send_message`, `get_session` or `create_session`), so it can’t read its own context or message a track or planning: what is to be sent goes to Lane in its reply, to relay.
 
 - **Last merge fully reviewed:** `145d8859` (#577). Every code PR merged from #121 up to it has a row in State and a section below. #577 is at the end, under “The reviewer of 16 November, afternoon”.
-- **Merged since, not reviewed:** none at 12:50 UTC. Compare `git log origin/main` with `145d8859` on any message.
+- **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
   - #577, the assistant’s `get_metric` gives `sourceOwnerInFaro` only from `sourceOwnerId`, so it says `null` for CI pipeline time while Tariq and Oskar may verify it by the words “Developer Experience”. Check: `toolsQuality.ts` reads `sourceOwnerIdOf`, then `get_metric` for `metric_ci-time`.
