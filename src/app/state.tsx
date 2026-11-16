@@ -652,7 +652,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     const stamp = () => new Date(clock().getTime() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
-    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS });
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS, modulesOff: (workspacesNow.current.find((w) => w.id === ws.id) ?? ws).modulesOff ?? [] });
     const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     /** The same, on another load of this workspace: the latest, when a stale save runs again (AX6). The viewer acts as
         they are there now. Someone no longer among the people here (marked as left or deleted since) can't act at all:

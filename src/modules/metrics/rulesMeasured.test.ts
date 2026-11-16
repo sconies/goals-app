@@ -236,4 +236,17 @@ describe('someone leaving passes their metrics to their lead (MQ2)', () => {
     expect(after.map(st)).toEqual(before.map(st));
     expect(c.changes.filter((ch) => ch.entity === 'metric').map((ch) => ch.summary)[0]).toMatch(/^Passed “.+” to .+ to confirm, as Rhea .+ left$/);
   });
+
+  it('passes nothing while the library is switched off: the metrics stay as they are (the database refuses a metric’s change then, 0058)', async () => {
+    const { markPersonLeft, whatPasses } = await import('../../domain/removal');
+    const w = world();
+    const admin = w.full.people.find((p) => p.admin && p.id !== 'rhea')!;
+    const rhea = w.full.people.find((p) => p.id === 'rhea')!;
+    const other = w.full.people.find((p) => p.id !== 'rhea' && p.id !== admin.id && !p.leftAt)!;
+    const x = { ...w.x(admin.id), records: MODULE_RECORDS, modulesOff: ['metrics'] };
+    expect(whatPasses(x, rhea, other.id)).toEqual([]);
+    const c = markPersonLeft(x, 'rhea', { goalsTo: other.id, asksTo: other.id });
+    expect(c.modules).toBeUndefined();
+    expect(c.changes.some((ch) => ch.entity === 'metric')).toBe(false);
+  });
 });

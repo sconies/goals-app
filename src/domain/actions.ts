@@ -39,6 +39,9 @@ export interface ActionContext {
   full?: Snapshot;
   /** The feature modules' records in this build (core/records), for the rules that move a module's rows with a goal. */
   records?: readonly ModuleRecords[];
+  /** The modules switched off in this workspace: what a module would pass on from someone leaving is skipped while it
+      is off, its records staying as they are (the database refuses a module's own change while it is off, 0058). */
+  modulesOff?: readonly string[];
 }
 
 /** A rule says no: the message says why, in words the person (or their assistant) can act on. */
