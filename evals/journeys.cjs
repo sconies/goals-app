@@ -8243,6 +8243,15 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   const widths = await names.evaluateAll((ns) => ns.map((n) => n.getBoundingClientRect().width));
   h.set('honest', widths.every((w) => w >= 140), `To sort out’s names are pressed thin: ${widths.map((w) => Math.round(w)).join(', ')} px`);
   await h.checkpoint('sort out');
+  // #574 review: the form's window fits the screen, and a window pressed off is counted as missing.
+  await p.goto(url('/metrics/ci-time/edit'));
+  const rolling = p.locator('#metric-window').getByRole('button', { name: 'Rolling' });
+  await rolling.waitFor();
+  const wide = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  h.set('honest', wide <= 1, `the metric form is ${wide}px wider than the screen`);
+  await h.click(rolling);
+  await see(p.locator('[data-part="Still needed"]'), /To reach Defined, still needed: 1 of 10[\s\S]*window/i, 'a window pressed off is not counted as still needed');
+  await p.goto(url('/metrics'));
   // Sketch 12: the similar metric as a card, before anything is added.
   await p.goto(url('/metrics/new'));
   await h.fill(p.getByLabel('Name', { exact: true }), 'Production deploys a day');
