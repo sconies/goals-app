@@ -1434,6 +1434,7 @@ Requirements: `METRIC-SHEET`.
 - A Part of that would put a metric under itself, or a How it relates with no Part of, is refused in the words of the metric’s form.
 - A name one letter from a metric already here asks whether the row is that metric or a new one.
 - Changing what a metric goals use means, or where its number comes from, asks “Is it still the same number?”; if the number changes, say why in Reason. A file can’t change the unit of a metric goals use: change it on the metric’s page.
+- After the counts, the check page says each metric’s stage after loading, a new metric that looks like one already in the library, and what each Draft metric still needs.
 - Nothing is saved until every question is answered. The toast after saving has Undo, and the import stays under Past imports, where Undo puts every row back.
 
 #### When metrics are switched off
