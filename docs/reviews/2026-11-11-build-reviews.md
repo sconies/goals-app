@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It is live, has cross-session tools again, and reviews whatever merges next; read on only if it has handed over.
 
-- **Last merge fully reviewed:** `d0f5c794` (#579). #581 and #582 from the drill-bugs track are to follow. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #579 are at the end, under “The reviewer of 16 November, afternoon”.
+- **Last merge fully reviewed:** `e0750402` (#581). #582 from the drill-bugs track is to follow. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #581 are at the end, under “The reviewer of 16 November, afternoon”.
 - **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
@@ -324,6 +324,7 @@ Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, after
 | #577 MQ2 part 4d: the stage on a review’s agenda, the similar-metric card, Metrics from day one, and the review fixes | MQ2 (session …QjRG9q19) | 0 | 1 | 1 |
 | #578 #577’s review: `get_metric` names the source’s owner as verifying reads it; the agenda’s year, the History verb, the card’s heading | MQ2 (session …QjRG9q19) | 0 | 0 | 0 |
 | #579 Drill bugs 1/3: the database checks a workspace’s switches in `okr_commit` and `okr_token_create` (0058); a leaver passes nothing of a switched-off module | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 1 |
+| #581 Drill bugs 2/3: days without an update never negative (0v), U69’s real goal, evals find Vite from the root up, home.csv made in UTC, “on its goal”, Settings’ token link with AI access off | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2927,3 +2928,14 @@ Reviewed by session_012kbr91MPMFHiESAut3BVig. No highs or mediums; one low.
 - **Low:** someone marked as left while a module is off now passes nothing of it (`removal.ts` filters `x.modulesOff`), and nothing catches up when the module is switched back on: their metrics stay owned by a person who has left, and the reviews they were in still list them. Reviews’ `personLeft` only rewrites stored reviews, which 0058 doesn’t refuse, so skipping it there wasn’t needed. A left owner shows as “Left” (#570), so this is visible, not broken.
 - **As the database rule, not the app’s:** SW1’s “watches and nothing else” means a client that bundles any non-empty key with a watch still gets it written. That is the shared rule, and the app refuses the watch earlier anyway, so it’s noted, not raised.
 - Not walked on screen: the only screen change is the leaving sheet’s list, which reads the same `whatPasses`.
+
+### #581 Drill bugs 2/3 (merged 16 Nov, `e0750402`)
+
+Reviewed by session_012kbr91MPMFHiESAut3BVig. No findings.
+
+- **0v.** `daysWithoutUpdate` is clamped at 0. Nothing that reads it (`summary.ts`, the spec and conformance builders) relied on a negative value. The edge conformance rows E-11 weeks 3 and 4 go from −11 and −4 to 0, as the rule now says.
+- **The Reviews read-back.** `stepGoals` counts the distinct goals across open review next steps, from `Ask.goalIds`, which the Workspace screen and the conformance builder pass through `asksOf`. One goal gives “on its goal”.
+- **Settings.** `settingsSections(aiOn)` drops “Your MCP tokens” from “On this page” while AI access is off. The effect’s dependency is the joined ids, so it re-runs on a switch. U175 checks the page.
+- **Evals.** `viteBin` resolves `vite/package.json` from the app folder up. `run.mjs` stops with a clear sentence when none is found. U69 now opens six goals that exist, and fails on a “not found” title.
+- **home.csv.** `inUtc` sets `process.env.TZ` around the synchronous row build and puts it back. The test builds it in Pacific/Auckland and gets the committed file byte for byte.
+- Ran the five new or changed test files and `src/domain/status`: 12 tests pass. Not walked on screen.
