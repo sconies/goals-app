@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 import { useApp } from '../../app/state';
 import { useWidth } from '../../ui/useWidth';
 import { StageMark } from './stageMark';
-import { calcWords, differenceWords, liveBaselines, onDay, refreshWords, stageOf, whyCantVerify, windowWords, type Stage } from './rulesQuality';
+import { calcWords, differenceWords, liveBaselines, mayConfirmReword, onDay, refreshWords, stageOf, whyCantVerify, windowWords, type Stage } from './rulesQuality';
 import { sourceOwnerName } from './rulesVerify';
 import { directionWords, metricPath, ownerName } from './rulesLibrary';
 import { canEditMetric, type Metric } from './rules';
@@ -27,7 +27,7 @@ export function stageFor(app: App, m: Metric): Stage {
 
 /** Whether the viewer may verify the metric now, and if not, why (null: they may). */
 export function refusalFor(app: App, m: Metric, st: Stage): string | null {
-  return whyCantVerify(m, app.viewer, { stage: st.stage, teams: app.snapshot.teams, sourceOwnerName: sourceOwnerName(app.snapshot, m) });
+  return whyCantVerify(m, app.viewer, { stage: st.stage, teams: app.snapshot.teams, people: app.snapshot.people, sourceOwnerName: sourceOwnerName(app.snapshot, m) });
 }
 
 /** The line under a metric's name: its stage, refresh, window, and unit with which way is better (sketch 2). */
@@ -100,9 +100,9 @@ export function QualityNotices({ metric: m, st }: { metric: Metric; st: Stage })
       )}
       {m.toConfirm && (
         <section className="metric-box stack" role="note" aria-labelledby="metric-reword" data-part="Rewording to confirm">
-          <h2 className="metric-box-head" id="metric-reword">The {m.toConfirm.what.join(' and ')} {m.toConfirm.what.length > 1 ? 'were' : 'was'} reworded</h2>
-          <p>{nameOf(app, m.toConfirm.by)} reworded them on {onDay(m.toConfirm.at)}. It stays Verified; {nameOf(app, m.toConfirm.verifier)}, who verified it, is asked to confirm the new words mean the same.</p>
-          {app.viewer.id === m.toConfirm.verifier && app.viewer.id !== m.toConfirm.by && <div className="row"><button type="button" className="btn" onClick={() => void run('confirmMetricReword', { metricId: m.id })}>They mean the same</button></div>}
+          <h2 className="metric-box-head" id="metric-reword">{rewordHead(m.toConfirm.what)}</h2>
+          <p>{nameOf(app, m.toConfirm.by)} reworded them on {onDay(m.toConfirm.at)}. It stays Verified; {nameOf(app, m.toConfirm.verifier)}, who verified it, is asked to confirm the new words mean the same; an admin may confirm it too, never whoever reworded it.</p>
+          {mayConfirmReword(m.toConfirm, app.viewer) && <div className="row"><button type="button" className="btn" onClick={() => void run('confirmMetricReword', { metricId: m.id })}>They mean the same</button></div>}
         </section>
       )}
     </>
@@ -231,3 +231,9 @@ export function Verification({ metric: m, st }: { metric: Metric; st: Stage }) {
     </section>
   );
 }
+
+/** "The filters were reworded": each part as stored ("the filters"), so no second "the" (#574 review, low). */
+const rewordHead = (what: readonly string[]) => {
+  const w = what.map((x) => x.replace(/^the\s+/i, '')).join(' and ');
+  return `The ${w} ${what.length > 1 || /s$/.test(w) ? 'were' : 'was'} reworded`;
+};

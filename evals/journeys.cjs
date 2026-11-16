@@ -7625,7 +7625,7 @@ journey('U176', ['HOME-LEADER'], 'The admin’s workspace line on Home, drawn: i
   await p.context().close();
 }, ['entry', 'one-action', 'a11y', 'logged']);
 
-journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
+journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what it still needs to reach Defined in words, never a number; adding the source, its owner and the refresh takes them off the line. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.
   await p.goto(url('/metrics'));
@@ -7670,7 +7670,8 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   await p.getByRole('heading', { level: 1, name: 'Deploy sucess rate' }).waitFor();
   const still = p.locator('.metric-head .metric-still');
-  await see(still, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'the page does not say what is still to say');
+  // MQ2 (#571 review): a Draft's page says what it still needs to reach Defined, in the stage's words.
+  await see(still, /^Still needs: .*its source, with a link to the report or query, who owns the source, how often it refreshes\.$/, 'the page does not say what is still to say');
   const words = await still.innerText();
   h.set('attention', !/\d/.test(words) && (await p.locator('.metric-head progress, .metric-head meter, .metric-head [role="progressbar"]').count()) === 0, `the line is a score: “${words}”`);
   const address = new URL(p.url()).pathname.replace(/^\/demo/, '');
@@ -7679,19 +7680,19 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await p.evaluate((k) => localStorage.setItem(k, 'tunde'), viewerKey);
   await p.goto(url(address));
   const his = p.locator('.metric-head .metric-still');
-  await see(his, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'Tunde does not see the line');
+  await see(his, /^Still needs: .*who owns the source, how often it refreshes\.$/, 'Tunde does not see the line');
   h.set('parity', (await his.getByRole('link').count()) === 0, 'Tunde is offered links to change a metric he doesn’t own');
   await p.evaluate((k) => localStorage.setItem(k, 'rhea'), viewerKey);
   await p.goto(url(address));
   await still.waitFor();
-  // Each item opens the form at its field; with the three said, it is Fully defined.
-  await h.click(still.getByRole('link', { name: 'where the number comes from' }));
+  // Each item opens the form at its field; with the source, its owner and the refresh said, they leave the line.
+  await h.click(still.getByRole('link', { name: 'its source, with a link to the report or query' }));
   await p.waitForURL(/\/edit\?field=source/);
   await h.fill(p.getByLabel('Source', { exact: true }), 'Release dashboard');
   await h.fill(p.getByLabel('Who owns that source'), 'Release engineering');
   await p.getByLabel('How often it refreshes').selectOption('daily');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
-  await see(p.locator('.metric-head .metric-still'), 'Fully defined', 'the page does not say Fully defined');
+  await see(p.locator('.metric-head .metric-still'), /^Still needs: (?!.*(who owns the source|how often it refreshes)).*\.$/, 'the page still asks for the source’s owner or the refresh once they are said');
   const s = await h.snapshot();
   const added = (s.changes ?? []).filter((c) => c.entity === 'metric' && /Deploy sucess rate/.test(c.summary)).map((c) => c.action);
   h.set('logged', added.includes('created') && added.includes('edited'), `the change log has ${added.join(', ') || 'nothing'} for the new metric`);
@@ -8024,7 +8025,8 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   await h.fill(p.getByLabel('Source', { exact: true }), deploys?.source ?? '');
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   const similar = p.locator('[data-check="similar"]');
-  await see(similar, 'There’s a similar metric in the library: “Production deploys per day”', 'the similar metric’s Check is not on the form');
+  // Sketch 12: the similar metric as a card, with its name and stage.
+  await see(similar, /1 similar metric in the library[\s\S]*Production deploys per day/, 'the similar metric’s Check is not on the form');
   h.set('errors', (await similar.getByRole('button', { name: 'Use this one' }).count()) === 1, 'the similar Check has no Use this one');
   await h.click(similar.getByRole('button', { name: 'It’s different, carry on' }));
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
@@ -8212,6 +8214,64 @@ journey('U183', ['METRIC-VERIFY', 'METRIC-STAGE', 'METRICS-MEASURED-BY'], 'Verif
   const firstDraft = named.findIndex((o) => /\bDraft\b/.test(o));
   const lastDefined = named.map((o) => /\b(Defined|Verified)\b/.test(o)).lastIndexOf(true);
   h.set('finish', named.length >= 2 && (firstDraft === -1 || firstDraft > lastDefined) && named.every((o) => /Refreshed \w+/.test(o) && /(Rolling|Per |Point|Cumulative|Not said)/.test(o)), `Measured by lists: ${named.join(' | ')}`);
+  h.set('errors', true);
+  h.set('logged', true);
+  await p.context().close();
+}, []);
+/* MQ2 part 4d: the stage where decisions are made (journey 9), sketch 12's similar card, and #571's review. */
+journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a review: as Amara, the Reliability weekly’s agenda shows under Change failure rate “Change failure rate · Verified … · Refreshed …”, and under Mean time to detect “Draft metric” with the warning mark, never a status shape and nothing to change; Mean time to detect’s page says what it still needs, never “Fully defined”; To sort out keeps each name readable; adding “Deploy frequency” from the DORA dashboard, meaning the same thing, shows the similar Verified metric as a card, and Use this one opens it', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/reviews/reliability'));
+  await p.locator('.review-home').waitFor();
+  // Every part of the agenda, folded or not: Show n goals and Reviewed · n (the demo has reviewed Change failure rate).
+  const folded = p.locator('details:not([open]) > summary');
+  while (await folded.count()) await h.click(folded.first());
+  const lineOf = (name) => p.locator('.agenda > li').filter({ has: p.locator('.agenda-row', { hasText: name }) }).first().locator('.agenda-line');
+  const cfr = lineOf('Change failure rate');
+  await see(cfr, /^Change failure rate\s*· Verified \d{1,2} \w{3} · Refreshed \w+/, 'the agenda does not say Change failure rate is Verified, when and how often it refreshes');
+  h.set('entry', true);
+  const mttd = lineOf('Mean time to detect');
+  await see(mttd, 'Draft metric', 'the agenda does not say Mean time to detect is measured by a Draft metric');
+  h.set('progress', (await mttd.locator('svg').count()) === 1 && (await mttd.locator('svg[data-status]').count()) === 0 && (await p.locator('.agenda-line').locator('button, input, a').count()) === 0, 'the Draft line has no warning mark, uses a status shape, or a line offers something to change');
+  await h.checkpoint('agenda');
+  // #571 review: a Draft's page says what it still needs, each opening the form at its field.
+  await p.goto(url('/metrics/mttd'));
+  const still = p.locator('.metric-still');
+  await see(still, /^Still needs: /, 'a Draft metric’s page does not say what it still needs');
+  h.set('attention', !/Fully defined/.test(await still.innerText()) && (await still.getByRole('link').count()) >= 1, 'a Draft metric’s page says “Fully defined”, or its needs open nothing');
+  // #571 review: a phone's To sort out keeps each name on as few lines as it needs (not pressed to a word a line).
+  await p.goto(url('/metrics?view=sortout'));
+  const names = p.locator('.metric-row .metric-name');
+  await names.first().waitFor();
+  const widths = await names.evaluateAll((ns) => ns.map((n) => n.getBoundingClientRect().width));
+  h.set('honest', widths.every((w) => w >= 140), `To sort out’s names are pressed thin: ${widths.map((w) => Math.round(w)).join(', ')} px`);
+  await h.checkpoint('sort out');
+  // #574 review: the form's window fits the screen, and a window pressed off is counted as missing.
+  await p.goto(url('/metrics/ci-time/edit'));
+  const rolling = p.locator('#metric-window').getByRole('button', { name: 'Rolling' });
+  await rolling.waitFor();
+  const wide = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  h.set('honest', wide <= 1, `the metric form is ${wide}px wider than the screen`);
+  await h.click(rolling);
+  await see(p.locator('[data-part="Still needed"]'), /To reach Defined, still needed: 1 of 10[\s\S]*window/i, 'a window pressed off is not counted as still needed');
+  await p.goto(url('/metrics'));
+  // Sketch 12: the similar metric as a card, before anything is added.
+  await p.goto(url('/metrics/new'));
+  // Sketch 12's case: another name for the same number, from the same source and meaning the same thing.
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy frequency');
+  await h.fill(p.getByLabel(/What it means and how/), 'Successful production deploys on a working day, averaged over 28 days.');
+  await h.fill(p.getByLabel('Source', { exact: true }), 'DORA dashboard (Four Keys)');
+  await h.fill(p.getByLabel('Unit', { exact: true }), 'deploys');
+  // The form asks its Checks once Add is pressed (as U180 does); nothing is added while one is open.
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  const card = p.locator('[data-check="similar"]');
+  await see(card, '1 similar metric in the library', 'the similar metric is not asked about');
+  await see(card.locator('[data-part="Similar metric"]'), /Production deploys per day\s*Verified/, 'the card does not name the similar metric with its stage');
+  await see(card, 'Pavel Novák', 'the card does not say who owns the similar metric');
+  h.set('honest', (await card.getByRole('button', { name: 'It’s different, carry on' }).count()) === 1, 'the card has no It’s different, carry on');
+  await h.click(card.getByRole('button', { name: 'Use this one' }));
+  await p.waitForURL((u) => /\/metrics\/deploys$/.test(u.pathname));
+  h.set('finish', true);
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();

@@ -42,6 +42,7 @@ A place is a spot on a core screen that draws whatever the modules that are on p
 | `help.article` | A Help article, under its title, before its sections | the article’s id, so a module draws only in its own article |
 | `checkin.number` | The check-in, under the number field | the goal and week, the field’s value and `setValue`, last week’s number, what the latest check-in recorded of a source, and `onReading` (the reading to post, which the check-in’s rule checks again) |
 | `checkin.table` | The one-table check-in, under the table | the table’s goals, and `onReadings` (fresh readings by goal) |
+| `review.row` | A review’s agenda, one quiet line under a goal’s row | the goal (read-only: nothing in a review changes what measures it) |
 
 Every part is also given who is looking (the viewer), the workspace and which modules are on: Faro’s parts read them from the app’s state, so the table names only what is particular to the place; a rebuild that draws on the server passes them in. Watch and Watched by, “Owners don’t need to watch…”, Make an MCP token (for admins), a review’s walk and Wrap up this goal all turn on who is looking.
 
@@ -105,7 +106,7 @@ Each one’s facts in full, as data, are in [`modules.json`](modules.json): ever
 | AI access (`ai-access`) | Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights. | beyond | — | — | 0 | — | `ai` | — | 3 |
 | Feedback (`feedback`) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. | beyond | — | — | 1 | — | — | — | 8 |
 | Goal map (`goal-map`) | See every goal and what feeds it on one canvas, with the path the risk runs along. | tools | — | — | 0 | — | — | — | 0 |
-| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 7 | `home.blocks`, `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 9 |
+| Metric library (`metrics`) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | tools | — | Metrics | 7 | `home.blocks`, `goal.facts`, `goal.measure`, `goal.sections`, `review.row`, `people.person`, `people.team`, `checkin.number`, `checkin.table` | — | metric, metric link | 9 |
 | Reviews (`reviews`) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | together | — | — | 7 | — | — | — | 7 |
 | Spreadsheets (`spreadsheets`) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | tools | — | — | 5 | `data.tools`, `goals.tools`, `help.article` | — | — | 2 |
 | Fields (`tags`) | Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by. | tools | — | — | 0 | `goal.sections` | `fields` | field, field value | 3 |

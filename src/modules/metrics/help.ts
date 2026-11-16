@@ -9,7 +9,7 @@ const help: Article[] = [
     group: 'you',
     after: 'people',
     sections: [
-      { heading: 'What it’s for', text: ['A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone.'] },
+      { heading: 'What it’s for', text: ['A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone, from a workspace’s first day while the Metric library is switched on. With no metric yet, its page says what one is for, with Add a metric.'] },
       { heading: 'How to use it', list: [
         'The library lists every metric A to Z, 50 a page. Each row says its unit, which way is better and who owns it, and its goals by status, worst first, or “No goals yet”.',
         'Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Retired metrics only; To sort out is on the stage control above the list. Sort by Best stage first (the default), A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.',
@@ -42,7 +42,7 @@ const help: Article[] = [
       { heading: 'What it needs', list: [
         'In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.',
         'Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.',
-        'A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.',
+        'A Defined or Verified metric’s page says “Fully defined” under its title. A Draft one says what it still needs to reach Defined: “Still needs: a window, a source link.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.',
       ] },
       { heading: 'Must fix and Check', list: [
         'A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.',
@@ -276,7 +276,7 @@ const help: Article[] = [
         'It lists each of your metrics and slices with the figure read from its source for the quarter just ended. Change a figure and say why; a Gap metric is skipped. Confirm saves them all and moves the old ones to History. No metric changes stage.',
       ] },
       { heading: 'Verifying a metric', list: [
-        'An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.',
+        'An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source. A source owner typed as a team’s or a person’s exact name counts as that team or person.',
         'On a Defined metric’s page, Verify this metric (or Verify again, once a change took Verified away) opens the form. Open the source link and tick that you did, then give the period, the figure you got from it and a note. Faro shows the difference from the baseline it has for that period, or else the latest reading, in the metric’s own unit, without judging it. Mark as Verified, or Couldn’t reproduce.',
         'If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.',
       ] },
@@ -299,6 +299,8 @@ const help: Article[] = [
         'A Draft metric can still measure a goal, and the goal keeps working. Linking one through the AI assistant says what it still needs.',
         'In Measured by, Defined and Verified metrics come first, each with its window and how often it refreshes; a Draft one says what it still needs. Adding a metric there asks only its name, unit and direction: it starts as Draft, to finish on its page.',
         'A goal measured by a Draft metric shows “Measured by a Draft metric” with the warning mark, what isn’t set yet and See what’s missing. Its status works as normal. Wherever the goal names its metric, the stage and refresh come with it.',
+        'In a review, each goal’s row on the agenda has one quiet line under it: its metric, the stage and how often it refreshes (“Change failure rate · Verified 3 Nov · Refreshed weekly”), or “Draft metric” with the warning mark. Nothing in a review changes a metric: the meeting asks, and owners change things afterwards.',
+        'Adding a metric shows any similar one already in the library first, as a card: its name and stage, what it means, where it comes from, who owns it and how many goals it measures. Use this one opens it; It’s different, carry on adds yours. The same check runs on a spreadsheet import and through the AI assistant.',
       ] },
       { heading: 'When a metric’s owner leaves', list: [
         'When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change.',
@@ -311,7 +313,7 @@ const help: Article[] = [
     routes: ['/metrics', '/metrics/:metricId', '/metrics/:metricId/baseline', '/metrics/baselines', '/metrics/:metricId/verify'],
     screens: ['MetricQuality', 'DefineFields', 'BaselineForms', 'VerifyForm'],
     reqs: ['METRIC-STAGE', 'METRIC-VERIFY', 'METRIC-BASELINES'],
-    keywords: ['define', 'aggregated', 'percentile', 'take this quarter', 'monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
+    keywords: ['define', 'aggregated', 'percentile', 'take this quarter', 'review', 'agenda', 'similar', 'monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
     related: ['metric-define', 'metric-structure', 'metrics'],
   },
 ];

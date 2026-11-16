@@ -31,6 +31,7 @@ export const PLACE_WORDS: Record<PlaceName, { where: string; given: string }> = 
   'help.article': { where: 'A Help article, under its title, before its sections', given: 'the article’s id, so a module draws only in its own article' },
   'checkin.number': { where: 'The check-in, under the number field', given: 'the goal and week, the field’s value and `setValue`, last week’s number, what the latest check-in recorded of a source, and `onReading` (the reading to post, which the check-in’s rule checks again)' },
   'checkin.table': { where: 'The one-table check-in, under the table', given: 'the table’s goals, and `onReadings` (fresh readings by goal)' },
+  'review.row': { where: 'A review’s agenda, one quiet line under a goal’s row', given: 'the goal (read-only: nothing in a review changes what measures it)' },
 };
 
 /**

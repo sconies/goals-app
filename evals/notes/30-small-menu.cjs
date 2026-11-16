@@ -1,14 +1,15 @@
 /* N30: small workspaces, rows and tabs that wait (SM1, rule 1). [SMALL-MENU] In the demo the menu is unchanged (it has a
    metric, so Metrics is a row). On Goals no tab but All is the same list as All, a tab is drawn only with goals in it,
    and every hidden scope's address still opens: ?scope=team (to All when My team waits) and ?scope=watching. In a
-   workspace with no metric the Metrics row waits (and Workspace → Features offers Open Metric library instead, 16 Nov), also when you switch to it from one that has a metric without the
-   page reloading (build review of #461: the row once followed you there). */
+   workspace with no metric the Metrics row is drawn all the same (Lane, 16 Nov: Metrics is in the menu from a
+   workspace's first day), also when you switch to it from one that has a metric without the page reloading, and its
+   empty page says how to add the first metric with one primary action. */
 const PEOPLE = ['rhea', 'tunde', 'oskar', 'hamid', 'grace'];
 
 module.exports = {
   id: 'N30',
   area: 'shell',
-  title: 'Small workspaces: a tab or a module’s row waits until it has something in it, and every address still opens',
+  title: 'Small workspaces: a tab waits until it has something in it, Metrics is in the menu from the first day, and every address still opens',
   reqs: ['SMALL-MENU'],
   async run({ open, url, browser }) {
     const fails = [];
@@ -32,7 +33,7 @@ module.exports = {
         }
       } finally { await c.close(); }
     }
-    // A workspace with no metric: no Metrics row, whether opened afresh or switched to from one with metrics.
+    // A workspace with no metric: the Metrics row all the same, whether opened afresh or switched to from one with metrics.
     {
       const base = url('/').replace(/\/demo\/.*$/, '');
       const live = (p) => base + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=2026-11-05';
@@ -64,20 +65,17 @@ module.exports = {
         await p.waitForFunction(() => localStorage.getItem('goals-live-workspace') === 'ws_bare', null, { timeout: 8000 }).catch(() => {});
         await p.locator('.page-head').first().waitFor();
         await p.waitForTimeout(300);
-        check(await metricsRow() === 0, 'switched from a workspace with metrics to one with none, the Metrics row followed');
+        check(await metricsRow() > 0, 'switched from a workspace with metrics to one with none, the Metrics row went');
         await p.reload(); await p.locator('.page-head').first().waitFor();
-        check(await metricsRow() === 0, 'a workspace with no metric has a Metrics row');
-        // The admin's way in while the row waits (spec 2.3): Features says so and opens the Metric library.
+        check(await metricsRow() > 0, 'a fresh workspace with Metrics on and no metric has no Metrics row in the menu');
+        // Nothing waits, so Features offers no separate way in; the empty library says how to add the first metric.
         await p.goto(live('/workspace/features')); await p.locator('.features-block').first().waitFor();
-        const open = p.locator('.features-block .feature-check', { hasText: 'Metric library' }).getByRole('link', { name: 'Open Metric library' });
-        check(await open.count() === 1, 'a workspace with no metric: Features offers no way in to the Metric library (Open Metric library)');
-        if (await open.count() === 1) {
-          await open.click();
-          await p.waitForURL(/\/metrics(\?|$)/, { timeout: 8000 }).catch(() => {});
-          check(/\/metrics(\?|$)/.test(p.url()), `Open Metric library led to ${p.url()}, not /metrics`);
-          // The URL changes before the page is drawn: wait for Features to go (with the CPU slowed 4× it takes a moment).
-          check(await p.locator('.features-block').first().waitFor({ state: 'detached', timeout: 8000 }).then(() => true, () => false), 'clicking Open Metric library stayed on Features');
-        }
+        check(await p.locator('.features-block').getByRole('link', { name: 'Open Metric library' }).count() === 0, 'Features still offers Open Metric library, though Metrics is in the menu');
+        await p.locator('.side a.nav', { hasText: 'Metrics' }).first().click();
+        await p.waitForURL(/\/metrics(\?|$)/, { timeout: 8000 }).catch(() => {});
+        await p.getByText('No metrics yet').first().waitFor({ timeout: 8000 }).catch(() => {});
+        const primaries = await p.locator('main .btn.primary').allInnerTexts();
+        check(primaries.length === 1 && /Add a metric/.test(primaries[0] || ''), `the empty library's primary actions: ${JSON.stringify(primaries)} (want only Add a metric)`);
       } catch (e) {
         fails.push(`no metrics: crashed (${String(e.message || e).split('\n')[0]})`);
       } finally { await c.close(); }

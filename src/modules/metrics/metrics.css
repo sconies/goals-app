@@ -127,7 +127,9 @@
 .metric-list:not(.metric-list-wide) .metric-row { grid-template-columns: minmax(0, 1fr) auto; }
 .metric-phone-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .metric-phone-line .stage-mark { font-size: inherit; vertical-align: -2px; }
-.metric-list:not(.metric-list-wide) .metric-row .metric-why, .metric-list:not(.metric-list-wide) .metric-row .metric-why ~ .metric-side { grid-column: 2 / -1; align-items: flex-start; text-align: left; }
+/* A phone's To sort out row: the name, then each reason and the goals on lines of their own, the full width (#571 review:
+   a long reason took the second column and pressed the name to a word a line). The phone line says only the stage. */
+.metric-list:not(.metric-list-wide) .metric-row .metric-why, .metric-list:not(.metric-list-wide) .metric-row .metric-why ~ .metric-side { grid-column: 1 / -1; align-items: flex-start; text-align: left; }
 .metric-cols, .metric-row-wide { display: grid; grid-template-columns: 96px minmax(0, 2.4fr) 80px 120px minmax(0, 1fr) minmax(120px, auto); column-gap: var(--s3); }
 .metric-cols-sortout, .metric-row-sortout { grid-template-columns: 96px minmax(0, 1.6fr) minmax(0, 1.8fr) minmax(0, 0.9fr) minmax(110px, auto); }
 .metric-cols { padding: 0 var(--s2) 6px; color: var(--muted); font-weight: 600; }
@@ -195,3 +197,12 @@
 .metric-take-fields { display: flex; flex-direction: column; gap: 6px; }
 .metric-take-row > p { margin: 0; }
 @media (max-width: 620px) { .metric-take-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* The form's aggregate and window choices wrap within the column on a phone (#574 review: at 390 px "Cumulative since
+   a date" and "Latest" ran off the screen). */
+.metric-seg { display: flex; flex-wrap: wrap; max-width: 100%; }
+.metric-seg button { flex: 0 1 auto; min-width: 0; white-space: normal; text-align: left; }
+
+/* Measured by: a metric's second line wraps, so a Draft's "Not fully defined yet: needs …" and the rhythm it would set
+   are read before it is chosen (#576 review: the line was cut with an ellipsis). */
+.measured-by .pick-detail { white-space: normal; overflow: visible; text-overflow: clip; }

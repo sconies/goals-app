@@ -52,6 +52,9 @@ export interface PlaceProps {
         included. New goal's Check reads it this way, so a reload there, or a team changed since, saves what is said. */
     quiet?: boolean;
   };
+  /** A review's agenda, one quiet line under a goal's row: a fact the meeting should trust or question about the goal's
+      number (the metric's stage and refresh, MQ2 journey 9). Read-only: nothing in a review changes a metric. */
+  'review.row': { goal: Goal };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
   /** A team's page in People, after its people: what the module knows about the team. */

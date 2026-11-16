@@ -172,7 +172,8 @@ export function partSaid(m: Metric, part: DefinedPart, ownerIsHere: boolean): bo
       return c.measure === 'ratio' ? partHas(c.numerator, 'scope') && partHas(c.denominator, 'scope') : partHas(c.part, 'scope');
     case 'unit': return said(m.unit);
     case 'direction': return m.direction === 'higher' || m.direction === 'lower';
-    case 'window': return !!m.timeWindow && WINDOW_KINDS.includes(m.timeWindow.kind);
+    // A rolling window needs its days, a cumulative one its date (#574 review): a kind alone isn't a window.
+    case 'window': { const w = m.timeWindow; return !!w && WINDOW_KINDS.includes(w.kind) && (w.kind !== 'rolling' || w.days > 0) && (w.kind !== 'cumulative' || !!w.since) && (w.kind !== 'period' || PERIODS.includes(w.period)); }
     case 'source': return said(m.source) && said(m.sourceLink);
     case 'sourceOwner': return said(m.sourceOwner);
     case 'refresh': return m.refresh != null;
@@ -248,6 +249,10 @@ export function stageOf(m: Metric, o: { now: string; ownerIsHere: boolean; nameO
 
 /* ---------- what lapses Verified, and what asks to confirm ---------- */
 
+/** Who may confirm a rewording (MQ2): the last verifier or an admin, never whoever reworded it, an admin included. */
+export const mayConfirmReword = (t: { by: Id; verifier: Id }, actor: { id: Id; admin?: boolean }) => actor.id !== t.by && (actor.id === t.verifier || !!actor.admin);
+
+
 const norm = (v: string | undefined | null) => (v ?? '').trim().replace(/\s+/g, ' ');
 const sameParts = (a: MetricPart | undefined, b: MetricPart | undefined, k: 'counts' | 'filters' | 'excludes') => norm(a?.[k]) === norm(b?.[k]);
 const sameWindow = (a: MetricWindow | null | undefined, b: MetricWindow | null | undefined) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -281,21 +286,31 @@ export function qualityChanges(before: Metric, after: Metric): { lapses: string[
 /* ---------- who may verify ---------- */
 
 /** Whether someone is in the source's owner: the person named, or a member or the lead of the team named. */
-export const inSourceOwner = (m: Pick<Metric, 'sourceOwnerId'>, p: Pick<Person, 'id' | 'teamId'>, teams: readonly Pick<Team, 'id' | 'leadId'>[]) =>
-  !!m.sourceOwnerId && (m.sourceOwnerId === p.id || p.teamId === m.sourceOwnerId || teams.some((t) => t.id === m.sourceOwnerId && t.leadId === p.id));
+/** Who owns a metric's source in Faro: the team or person named by id, else the team or person whose name its source
+    owner's words are exactly (case aside), so a source owner typed on the form counts (#576 review). Null for none. */
+export function sourceOwnerIdOf(m: Pick<Metric, 'sourceOwnerId' | 'sourceOwner'>, teams: readonly Pick<Team, 'id' | 'name'>[], people: readonly Pick<Person, 'id' | 'name'>[] = []): Id | null {
+  if (m.sourceOwnerId) return m.sourceOwnerId;
+  const w = norm(m.sourceOwner).toLowerCase();
+  if (!w) return null;
+  return teams.find((t) => norm(t.name).toLowerCase() === w)?.id ?? people.find((p) => norm(p.name).toLowerCase() === w)?.id ?? null;
+}
+export const inSourceOwner = (m: Pick<Metric, 'sourceOwnerId' | 'sourceOwner'>, p: Pick<Person, 'id' | 'teamId'>, teams: readonly Pick<Team, 'id' | 'leadId' | 'name'>[], people: readonly Pick<Person, 'id' | 'name'>[] = []) => {
+  const owner = sourceOwnerIdOf(m, teams, people);
+  return !!owner && (owner === p.id || p.teamId === owner || teams.some((t) => t.id === owner && t.leadId === p.id));
+};
 
 /**
  * Who may verify (MQ2): anyone but the metric's owner and whoever last changed its calculation, window or source; and
  * then an admin, someone in the source's owner, or a verifier an admin named. Null when they may; otherwise why not, in
  * words that say who can instead. A Draft can't be verified (it isn't fully defined), nor a Gap (nothing to reproduce).
  */
-export function whyCantVerify(m: Metric, actor: Pick<Person, 'id' | 'teamId' | 'admin'>, o: { stage: MetricStage; teams: readonly Pick<Team, 'id' | 'leadId' | 'name'>[]; sourceOwnerName: string }): string | null {
+export function whyCantVerify(m: Metric, actor: Pick<Person, 'id' | 'teamId' | 'admin'>, o: { stage: MetricStage; teams: readonly Pick<Team, 'id' | 'leadId' | 'name'>[]; people?: readonly Pick<Person, 'id' | 'name'>[]; sourceOwnerName: string }): string | null {
   const instead = `Ask an admin${o.sourceOwnerName ? `, someone in ${o.sourceOwnerName} (the source owner)` : ''} or a named verifier.`;
   if (m.ownerId === actor.id) return `You own this metric, so someone else must verify it. ${instead}`;
   if (m.calcChangedBy === actor.id) return `You last changed its calculation, window or source, so someone else must verify it. ${instead}`;
   if (o.stage === 'draft') return 'It isn’t fully defined yet, so there is nothing agreed to verify. Its owner finishes the definition first.';
   if (m.measurement === 'gap') return 'It isn’t measured yet, so there is no figure to reproduce.';
-  if (actor.admin || inSourceOwner(m, actor, o.teams) || (m.verifiers ?? []).includes(actor.id)) return null;
+  if (actor.admin || inSourceOwner(m, actor, o.teams, o.people) || (m.verifiers ?? []).includes(actor.id)) return null;
   return `Only an admin, someone in the source’s owner or a verifier an admin named can verify it. ${instead}`;
 }
 

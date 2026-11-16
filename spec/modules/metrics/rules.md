@@ -1025,6 +1025,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - baselines per slice (MQ2) › a new source flags the baselines in force as taken from the old source, to retake
 - adding a metric: similar ones first (MQ2) › finds one on name, or on source and meaning, and offers “Use this one”
 - adding a metric: similar ones first (MQ2) › says nothing for a metric unlike any in the library
+- who may confirm a rewording (#571 review) › lets the last verifier, or any admin, confirm it
+- who may confirm a rewording (#571 review) › never lets whoever reworded it confirm it, an admin included, nor anyone else
+- a window is said only when it is whole (#574 review) › needs a rolling window’s days and a cumulative one’s date
+- the source’s owner, by its name when no id is stored (#576 review) › lets someone in the team the words name, or its lead, verify
+- the source’s owner, by its name when no id is stored (#576 review) › names nobody for words that match no team or person
 
 #### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
 

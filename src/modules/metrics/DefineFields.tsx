@@ -10,6 +10,8 @@ import type { MetricAggregate, MetricCalc, MetricMeasure, MetricPart, MetricWind
 const MEASURE_HINT: Record<MetricMeasure, string> = { count: 'How many things', sum: 'Adds an amount up', value: 'A score or reading', duration: 'Time between two events', ratio: 'One over another', other: 'A formula in words' };
 const WINDOW_LABEL: Record<MetricWindow['kind'], string> = { point: 'Point in time', rolling: 'Rolling', period: 'Per period', cumulative: 'Cumulative since a date' };
 const empty: MetricPart = { counts: '', filters: '', excludes: '' };
+/** A mean's "per": each event, or per day, week or month (and one stored another way, kept as it is). */
+const PER_CHOICES = (per?: string): [string, string][] => [['', 'Each event'], ...[...new Set(['day', 'week', 'month', ...(per ? [per] : [])])].map((p): [string, string] => [p, `Per ${p}`])];
 
 /** The calculation's two fields and its parts. */
 export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undefined; onChange: (c: MetricCalc | null) => void }) {
@@ -22,6 +24,12 @@ export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undef
     else onChange({ ...base, ...(c?.percentile ? { percentile: c.percentile } : {}), part: c?.part ?? (c?.numerator ? { ...c.numerator } : { ...empty }) });
   };
   const set = (patch: Partial<MetricCalc>) => c && onChange({ ...c, ...patch });
+  // A new aggregate keeps nothing of the old one's (#574 review): a percentile only for Percentile, "per" only for Mean.
+  const aggregateTo = (k: MetricAggregate) => {
+    if (!c) return;
+    const { percentile: _p, per: _per, ...rest } = c;
+    onChange({ ...rest, aggregate: k, ...(k === 'percentile' ? { percentile: c.percentile ?? 90 } : {}), ...(k === 'mean' && c.per ? { per: c.per } : {}) });
+  };
   return (
     <div className="stack metric-define" style={{ gap: 'var(--s3)' }} id="metric-calculation">
       <div className="field"><span className="field-label" id="metric-measure-l">What is measured</span>
@@ -35,9 +43,16 @@ export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undef
       </div>
       {c && c.measure !== 'ratio' && c.measure !== 'other' && (
         <div className="field"><span className="field-label" id="metric-agg-l">How it is aggregated</span>
-          <div className="seg" role="group" aria-labelledby="metric-agg-l">
-            {AGGREGATES.map((k) => <button key={k} type="button" aria-pressed={c.aggregate === k} onClick={() => set({ aggregate: k as MetricAggregate, ...(k === 'percentile' && !c.percentile ? { percentile: 90 } : {}) })}>{k === 'percentile' ? 'Percentile (pXX)' : cap(AGGREGATE_LABEL[k])}</button>)}
+          <div className="seg metric-seg" role="group" aria-labelledby="metric-agg-l">
+            {AGGREGATES.map((k) => <button key={k} type="button" aria-pressed={c.aggregate === k} onClick={() => aggregateTo(k as MetricAggregate)}>{k === 'percentile' ? 'Percentile (pXX)' : cap(AGGREGATE_LABEL[k])}</button>)}
           </div>
+          {c.aggregate === 'mean' && (
+            <div className="field metric-per"><span className="field-label" id="metric-per-l">Per</span>
+              <div className="seg metric-seg" role="group" aria-labelledby="metric-per-l">
+                {PER_CHOICES(c.per).map(([v, label]) => <button key={v} type="button" aria-pressed={(c.per ?? '') === v} onClick={() => onChange(v ? { ...c, per: v } : (({ per: _x, ...r }) => r)(c))}>{label}</button>)}
+              </div>
+            </div>
+          )}
           {c.aggregate === 'percentile' && (
             <label className="field metric-pct"><span className="field-label">Percentile</span>
               <input className="input" type="number" min={1} max={99} value={c.percentile ?? ''} onChange={(e) => set({ percentile: Number(e.target.value) || undefined })} />
@@ -87,7 +102,7 @@ export function WindowField({ w, onChange }: { w: MetricWindow | null | undefine
   const to = (k: MetricWindow['kind']): MetricWindow => (k === 'point' ? { kind: 'point' } : k === 'rolling' ? { kind: 'rolling', days: w?.kind === 'rolling' ? w.days : 28 } : k === 'period' ? { kind: 'period', period: w?.kind === 'period' ? w.period : 'month' } : { kind: 'cumulative', since: w?.kind === 'cumulative' ? w.since : '' });
   return (
     <div className="field" id="metric-window"><span className="field-label" id="metric-window-l">Window</span>
-      <div className="seg" role="group" aria-labelledby="metric-window-l">
+      <div className="seg metric-seg" role="group" aria-labelledby="metric-window-l">
         {(['point', 'rolling', 'period', 'cumulative'] as const).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => onChange(kind === k ? null : to(k))}>{WINDOW_LABEL[k]}</button>)}
       </div>
       {w?.kind === 'rolling' && <label className="field metric-days"><span className="field-label">Days</span><input className="input" type="number" min={1} max={3660} value={w.days || ''} onChange={(e) => onChange({ kind: 'rolling', days: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>}
