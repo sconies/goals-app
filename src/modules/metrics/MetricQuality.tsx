@@ -13,8 +13,8 @@ import { directionWords, metricPath, ownerName } from './rulesLibrary';
 import { canEditMetric, type Metric } from './rules';
 import type { MetricBaseline, MetricPart } from './types';
 
-/* The forms these sections lead to (verify, add a baseline) come in the next part of MQ2's screens. */
-export const FORMS = { verify: false, baseline: true };
+/** The forms these sections lead to (verify, add a baseline). */
+export const FORMS = { verify: true, baseline: true };
 
 /** Below this width the page's tables become label and value pairs (sketch 8). */
 const NARROW = 560;

@@ -29,6 +29,7 @@ const GoalMetric = later('GoalMetric');
 // MQ2's baseline screens (sketches 4 and 9), and Home's line in a quarter's first week: loaded only when shown.
 const AddBaseline = lazy(() => import('./BaselineForms').then((m) => ({ default: m.AddBaseline })));
 const TakeBaselines = lazy(() => import('./BaselineForms').then((m) => ({ default: m.TakeBaselines })));
+const VerifyForm = lazy(() => import('./VerifyForm').then((m) => ({ default: m.VerifyForm })));
 const LazyHomeBaselines = lazy(() => import('./BaselineForms').then((m) => ({ default: m.HomeBaselines })));
 /** Home asks for this quarter's baselines only in its first week, and only of someone who owns a metric. */
 function HomeBaselines() {
@@ -54,6 +55,7 @@ const metrics: AppModule = {
     { path: '/metrics/baselines', element: <TakeBaselines />, focus: true, title: 'Take this quarter’s baselines' },
     { path: '/metrics/:metricId', element: <MetricPage />, title: 'Metrics' },
     { path: '/metrics/:metricId/baseline', element: <AddBaseline />, focus: true, title: 'Add a baseline' },
+    { path: '/metrics/:metricId/verify', element: <VerifyForm />, focus: true, title: 'Verify a metric' },
     { path: '/metrics/:metricId/edit', element: <MetricForm />, focus: true, title: 'Change a metric' },
   ],
   navigation: [{ id: 'metrics', to: '/metrics', label: 'Metrics', icon, group: 'lookup' }],

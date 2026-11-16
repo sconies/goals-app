@@ -9,6 +9,7 @@ import { placesText } from '../../domain/numbers';
 import type { GoalKind } from '../../domain/types';
 import { decimalsWords, directionWords, findMetrics, liveLinks, ownerName, type LibraryReads } from './rulesLibrary';
 import type { Metric } from './types';
+import { missingLine, refreshWords, rhythmFor, STAGE_LABEL, stageOf, windowWords } from './rulesQuality';
 
 /* ---------- rule 5: what a chosen metric sets on a goal form ---------- */
 
@@ -59,15 +60,23 @@ export const FROM_METRIC_NOTE = 'A goal measured by a metric uses its unit and i
 
 /* ---------- the metric finder ---------- */
 
-/** A metric's row in find-and-pick and Find: its name, then "{unit} · {direction} · {owner}". */
-export function metricRow(r: Pick<LibraryReads, 'people'>, m: Metric): FoundRow {
-  return { kind: 'metric', id: m.id, name: m.name, detail: [m.unit, directionWords(m.direction), ownerName(r.people, m) ?? 'no owner'].join(' · ') };
+/** A metric's row in find-and-pick and Find (MQ2 sketch 7): its name, then "{stage} · {unit} · {window} · {refresh} ·
+    {owner}"; a Draft says what it still needs and that a goal on it shows a warning, and a monthly or quarterly metric
+    that its goals check in after each refresh. */
+export function metricRow(r: Pick<LibraryReads, 'people' | 'now'>, m: Metric): FoundRow {
+  const owner = ownerName(r.people, m);
+  const st = stageOf(m, { now: r.now, ownerIsHere: !!owner });
+  const rhythm = rhythmFor(m.refresh);
+  const draft = st.stage === 'draft' ? ` · Not fully defined yet: ${missingLine(st.missing)}. A goal on it shows a warning until it is.` : '';
+  const checks = rhythm ? ` Check-ins would be ${rhythm}, after each refresh.` : '';
+  return { kind: 'metric', id: m.id, name: m.name, detail: `${[STAGE_LABEL[st.stage], m.unit, directionWords(m.direction), windowWords(m.timeWindow), refreshWords(m), owner ?? 'no owner'].join(' · ')}${draft}${checks}` };
 }
 
 /** The metrics a search finds (rule 1's words), a page at a time: `after` is where the last page ended. */
 export function searchMetrics(r: LibraryReads, ask: SearchAsk): SearchAnswer {
   const size = Math.min(200, Math.max(1, ask.size ?? 50));
-  const all = findMetrics(r, { q: ask.q, size: Number.MAX_SAFE_INTEGER });
+  // Defined and Verified first (MQ2 sketch 7): a Draft can be picked, after them.
+  const all = findMetrics(r, { q: ask.q, size: Number.MAX_SAFE_INTEGER, sort: 'stage' });
   const from = Math.max(0, Number(ask.after ?? 0) || 0);
   const rows = all.rows.slice(from, from + size).map((x) => metricRow(r, x.metric));
   return { total: all.total, rows, next: from + size < all.total ? String(from + size) : null };

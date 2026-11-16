@@ -156,7 +156,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
       const out = await app.run('saveMetric', { name: adding.name, unit: adding.unit, direction: (adding.direction || undefined) as MetricDirection, meaning: adding.meaning, decimals: dp, ownerId: app.viewer.id, answers: addAnswers }) as { metric: Metric };
       setAddAnswers({});
       setAdding(null);
-      app.toast(`Added ${out.metric.name}. Say more about it on its page when you can.${first ? ` ${MENU_NOW}` : ''}`);
+      app.toast(`Added ${out.metric.name} as Draft. Finish defining it on its page when you can.${first ? ` ${MENU_NOW}` : ''}`);
       pickMetric(out.metric);
     } catch (e) {
       setAddErr(e instanceof Error ? e.message : 'It couldn’t be added just now.');
@@ -183,7 +183,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
               {(['lower', 'higher'] as const).map((k) => <button key={k} type="button" aria-pressed={adding.direction === k} onClick={() => setAdding({ ...adding, direction: k })}>{DIRECTION_LABEL[k]}</button>)}
             </div>
           </div>
-          <label className="field"><span className="field-label">What it means <span className="hint">optional</span></span><input className="input" value={adding.meaning} maxLength={2000} onChange={(e) => setAdding({ ...adding, meaning: e.target.value })} /></label>
+          <p className="small hint">Only the name, unit and direction for now: it starts as Draft, and you finish defining it on its page later. Your goal shows a warning until then, and keeps working.</p>
           {addOpen.map((c) => <LinkQuestion key={c.field} c={{ field: c.field, kind: 'check', words: c.words, answers: c.answers }} onAnswer={(choice) => answerAdd(c.field, choice)} />)}
           {addErr && <span className="hint tone-off" role="alert">{addErr}</span>}
           <div className="row"><button type="button" className="btn" disabled={busy} onClick={() => void addIt()}>{busy ? 'Adding…' : 'Add this metric'}</button><button type="button" className="btn ghost" onClick={() => { setAdding(null); setAddAnswers({}); }}>Cancel</button></div>
