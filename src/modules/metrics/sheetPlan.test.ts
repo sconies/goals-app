@@ -241,6 +241,52 @@ describe('the Metrics sheet in and out (MI)', () => {
     expect(same.commit).not.toBeNull();
   });
 
+  it('[#567 review] a change that takes a Verified metric back to Defined is asked, and the answer kept as why', () => {
+    const v = metricsOf(full).find((m) => m.id === 'metric_deploys')!;
+    expect(v.verification?.outcome).toBe('verified');
+    const row = { ID: v.id, Window: v.timeWindow?.kind === 'rolling' && v.timeWindow.days === 7 ? 'Rolling 14 days' : 'Rolling 7 days' };
+    const asked = plan(metricsTable([row]));
+    const q = asked.groups.find((g) => g.kind === 'lapses-verified')!;
+    expect(q.title).toMatch(/is Verified\. Changing .* takes it back to Defined/);
+    expect(asked.commit).toBeNull();
+    const done = plan(metricsTable([row]), { answers: { [q.id]: { choice: 'go' } } });
+    const after = metricsOf(applyCommit(full, done.commit!)).find((m) => m.id === v.id)!;
+    expect(after.verification).toBeFalsy();
+    expect(after.lapse?.why).toBe('Loaded from the Metrics sheet: Change it, and lapse Verified.');
+    const said = plan(metricsTable([{ ...row, Reason: 'The dashboard now counts a week.' }]), { answers: { [q.id]: { choice: 'go' } } });
+    expect(metricsOf(applyCommit(full, said.commit!)).find((m) => m.id === v.id)!.lapse?.why).toBe('The dashboard now counts a week.');
+  });
+
+  it('[#567 review] a new How aggregated replaces the old one whole: no percentile or per is kept', () => {
+    const p90 = applyCommit(full, plan(metricsTable([{ ID: spare.id, 'What is measured': 'Duration', 'How aggregated': 'p90' }])).commit!);
+    const median = plan(metricsTable([{ ID: spare.id, 'How aggregated': 'Median' }]), { snap: p90 });
+    const m = metricsOf(applyCommit(p90, median.commit!)).find((x) => x.id === spare.id)!;
+    expect(m.calculation).toMatchObject({ aggregate: 'median' });
+    expect(m.calculation?.percentile).toBeUndefined();
+    const perDay = applyCommit(full, plan(metricsTable([{ ID: spare.id, 'What is measured': 'Count', 'How aggregated': 'mean per day' }])).commit!);
+    const mean = plan(metricsTable([{ ID: spare.id, 'How aggregated': 'Mean' }]), { snap: perDay });
+    expect(mean.items.filter((x) => x.sheet === 'Metrics')).toHaveLength(1);
+    const after = metricsOf(applyCommit(perDay, mean.commit!)).find((x) => x.id === spare.id)!;
+    expect(after.calculation).toMatchObject({ aggregate: 'mean' });
+    expect(after.calculation?.per).toBeUndefined();
+  });
+
+  it('[#567 review] the People sheet’s Left passes a leaver’s metrics on, in the same commit and Undo', () => {
+    const yuki = full.people.find((p) => p.id === 'yuki')!;
+    const theirs = metricsOf(full).filter((m) => m.ownerId === yuki.id && !m.removedAt);
+    expect(theirs.map((m) => m.id)).toContain('metric_mttd');
+    const amara = full.people.find((p) => p.id === 'amara')!;
+    const cs = plan({ people: [{ email: yuki.email!, action: 'Left', 'takes over': amara.email!, __row: '2' }] });
+    expect(must(cs)).toEqual([]);
+    const after = applyCommit(full, cs.commit!);
+    const mttd = metricsOf(after).find((m) => m.id === 'metric_mttd')!;
+    expect(mttd.ownerId).not.toBe(yuki.id);
+    expect(mttd.handover?.from).toBe(yuki.id);
+    expect(cs.commit!.changes.some((c) => /^Passed “.*” to .* to confirm, as Yuki/.test(c.summary))).toBe(true);
+    const back = applyCommit(after, undoImport(as(after, at(1)), importOf(cs)).commit);
+    expect(metricsOf(back).find((m) => m.id === 'metric_mttd')!.ownerId).toBe(yuki.id);
+  });
+
   it('a metric the actor may not change says whose it is', () => {
     const theirs = live.find((m) => m.ownerId !== 'tunde')!;
     const cs = plan(metricsTable([{ ID: theirs.id, Caveats: 'Mine now.' }]), { actor: 'tunde' });

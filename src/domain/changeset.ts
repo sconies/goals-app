@@ -1759,9 +1759,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   const reviewsBefore = new Map<string, Review>();
   if (removals.length || leaving.length) {
     const written = new Set(ciOut.map((o) => o.id));
+    // The modules' records go with it, and their rows as this file leaves them, so someone leaving passes on what a
+    // module holds of theirs (ModuleRecords.personLeft: their metrics), as the People page does (#567 review).
+    const plannedRows = planned.reduce<ModuleRows | undefined>((m, p) => applyModuleRows(m, p.result.commit.modules), undefined);
+    const rowsNow = (base: ModuleRows | undefined) => applyModuleRows(applyModuleRows(base, plannedRows), moduleOut) ?? {};
     const xOf = (): ActionContext => ({
-      snapshot: { ...s, people: [...people.values()], teams: [...teams.values()], goals: [...work.values()], checkIns: [...s.checkIns.filter((c) => !written.has(c.id)), ...ciOut], requests: requestsNow(), reviews: s.reviews.map((v) => reviewsOut.get(v.id) ?? v) },
-      cycle, week, actor, now, newId, ...(input.full ? { full: input.full, allGoals: input.full.goals } : {}),
+      snapshot: { ...s, modules: rowsNow(s.modules), people: [...people.values()], teams: [...teams.values()], goals: [...work.values()], checkIns: [...s.checkIns.filter((c) => !written.has(c.id)), ...ciOut], requests: requestsNow(), reviews: s.reviews.map((v) => reviewsOut.get(v.id) ?? v) },
+      cycle, week, actor, now, newId, ...(input.full ? { full: { ...input.full, modules: rowsNow(input.full.modules) }, allGoals: input.full.goals } : {}),
+      ...(input.records ? { records: input.records } : {}),
     });
     const merge = (c: Commit) => {
       for (const g of c.goals ?? []) {
@@ -1772,6 +1777,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       for (const r of c.requests ?? []) reqOut.set(r.id, r);
       for (const p of c.people ?? []) { if (!peopleTouched.has(p.id)) peopleTouched.set(p.id, { before: savedPerson.get(p.id) ?? null, row: 0 }); people.set(p.id, p); peopleOut.set(p.id, p); }
       for (const v of c.reviews ?? []) { if (!reviewsBefore.has(v.id)) reviewsBefore.set(v.id, s.reviews.find((x) => x.id === v.id)!); reviewsOut.set(v.id, v); }
+      // What a module passes on (a leaver's metrics) goes with the module's own rows on Goals: one commit, one Undo.
+      if (c.modules) moduleOut = applyModuleRows(moduleOut, c.modules);
       for (const t of c.teams ?? []) { if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, { before: savedTeam.get(t.id) ?? null, row: 0 }); teams.set(t.id, t); teamsOut.set(t.id, t); }
       changes.push(...c.changes);
     };
