@@ -9,7 +9,7 @@ const help: Article[] = [
     group: 'you',
     after: 'people',
     sections: [
-      { heading: 'What it’s for', text: ['A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone.'] },
+      { heading: 'What it’s for', text: ['A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone, from a workspace’s first day while the Metric library is switched on. With no metric yet, its page says what one is for, with Add a metric.'] },
       { heading: 'How to use it', list: [
         'The library lists every metric A to Z, 50 a page. Each row says its unit, which way is better and who owns it, and its goals by status, worst first, or “No goals yet”.',
         'Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Retired metrics only; To sort out is on the stage control above the list. Sort by Best stage first (the default), A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.',

@@ -41,6 +41,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-quality', 'check-in', 'reviews'],
   },
   {
+    id: 'metrics-from-day-one',
+    date: '2026-11-16',
+    title: 'Metrics is in the menu from the first day',
+    points: [
+      'Metrics is now in the menu whenever the Metric library is switched on, in a new workspace too. Before, it waited for the first metric, so a new workspace had no way in from the menu.',
+      'Its empty page says what a metric is for, with one button: Add a metric.',
+    ],
+    articles: ['metrics'],
+  },
+  {
     id: 'feedback-own-sent',
     date: '2026-11-15',
     title: 'Your own feedback, and the steps it can carry',

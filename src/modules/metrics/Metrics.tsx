@@ -32,7 +32,6 @@ import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
-import { MENU_NOW } from './names';
 import type { MetricCalc, MetricMeasurement, MetricWindow } from './types';
 import { decimalsWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, stageCounts, summaryLine, unitsInUse, type LibraryAsk, type LibraryRow, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
@@ -206,8 +205,9 @@ export function MetricsLibrary() {
 const pageParams = (params: URLSearchParams, page: number) => { const n = new URLSearchParams(params); if (page > 1) n.set('page', String(page)); else n.delete('page'); return n.toString(); };
 
 function EmptyLibrary() {
-  // Small workspaces 2.4: says when you'd want one; its button is a plain one, not the page's primary.
-  return <EmptyResult title="No metrics yet" action={<Link className="btn" to="/metrics/new">Add a metric</Link>}>You don’t need one until two goals share a number. Then say what it means once, here, and both goals mean the same thing.</EmptyResult>;
+  // Small workspaces 2.4, and Lane, 16 Nov: Metrics is in the menu from the first day, so its empty page says calmly
+  // how to add the first metric, with the page's one primary action.
+  return <EmptyResult title="No metrics yet" action={<Link className="btn primary" to="/metrics/new">Add a metric</Link>}>A metric says once what a number means, where it comes from and who owns it. Add one when a goal is measured by a number, and every goal that shares it means the same thing.</EmptyResult>;
 }
 
 type StageView = 'all' | MetricStage | 'verify' | 'sortout';
@@ -796,13 +796,12 @@ export function MetricForm() {
     try {
       // The answers go with the save: the action asks the same Checks and refuses while one is open.
       const answers = Object.fromEntries(checks.flatMap((c) => (answered[c.field] && answered[c.field]!.at === valueOf(c.field) ? [[c.field, answered[c.field]!.choice]] : [])));
-      const first = !live && !metricsOf(app.snapshot).some((m) => !m.removedAt);
       // A change says so with Undo (the action's `said`), which takes back its marks too; adding one says it here.
       const name = d.name.trim() || live?.name || '';
       const said = live ? (marking || unitIs === 'label' ? `Changed ${name}. ${plural(linked.length, 'goal says', 'goals say')} so.` : `Saved ${name}`) : undefined;
       const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(question ? { comparable, relabel: unitIs === 'label', ...(why.trim() ? { reason: why.trim() } : {}) } : {}) } : {}) }, said ? { said } : {}) as { metric: Metric; commit: unknown };
       clearDraft();
-      if (!live) app.toast(`Added ${out.metric.name}${first ? `. ${MENU_NOW}` : ''}`);
+      if (!live) app.toast(`Added ${out.metric.name}`);
       else if (!out.commit) app.toast(`Saved ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
     } catch { setBusy(false); }

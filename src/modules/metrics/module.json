@@ -22,9 +22,6 @@
   "navigation": [
     "Metrics"
   ],
-  "menu": {
-    "waitsFor": "metrics"
-  },
   "places": [
     "home.blocks",
     "goal.facts",
