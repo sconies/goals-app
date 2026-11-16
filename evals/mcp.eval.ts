@@ -52,6 +52,25 @@ async function as(personId: string, today = TODAY, start?: Snapshot, modulesOff:
 const viaMcp = (s: Snapshot) => s.changes.at(-1)!.diffs.some((d) => d.field === 'Via' && d.to === 'MCP');
 
 describe('AI assistants can do what the person can', () => {
+  it('[METRIC-BASELINES] save_baselines keeps a baseline per slice with its value, period, day and how; a new figure for the same period needs a reason, and the old one moves to History', async () => {
+    const b = await as('bjorn');
+    const base = { value: 0.64, period: 'Jul–Sep 2026', taken_on: '2026-10-02', how: 'FinOps report, Q3 tab' };
+    const bad = await b.call('save_baselines', { metric: 'Cloud cost per 1,000 requests', baselines: [{ ...base, how: '' }] });
+    expect(bad.error).toBe(true);
+    const ok = await b.call('save_baselines', { metric: 'Cloud cost per 1,000 requests', baselines: [base, { ...base, team: 'sre', value: 0.7 }] });
+    expect(ok.error, ok.text).toBe(false);
+    const again = await b.call('save_baselines', { metric: 'Cloud cost per 1,000 requests', baselines: [{ ...base, value: 0.61 }] });
+    expect(again.error).toBe(true);
+    expect(again.text).toMatch(/^Say why the figure for Jul–Sep 2026/);
+    expect((await b.call('save_baselines', { metric: 'Cloud cost per 1,000 requests', baselines: [{ ...base, value: 0.61, reason: 'The Q3 tab double-counted September.' }] })).error).toBe(false);
+    const m = ((b.data().modules?.metrics?.metrics ?? []) as { id: string; baselines?: { teamId: string | null; value: number; replacedAt?: string | null; replacedWhy?: string }[] }[]).find((x) => x.id === 'metric_cost-per-request')!;
+    const company = (m.baselines ?? []).filter((x) => x.teamId === null);
+    expect(company.filter((x) => !x.replacedAt).map((x) => x.value)).toEqual([0.61]);
+    expect(company.some((x) => x.value === 0.64 && x.replacedAt && x.replacedWhy === 'The Q3 tab double-counted September.')).toBe(true);
+    expect((m.baselines ?? []).some((x) => x.teamId === 'sre' && x.value === 0.7 && !x.replacedAt)).toBe(true);
+    expect(viaMcp(b.data())).toBe(true);
+  });
+
   it(R('every action in the app has a tool, and every tool the app’s parity map names exists'), () => {
     const names = new Set(TOOLS.map((t) => t.name));
     for (const [action, e] of Object.entries(ACTIONS)) {
