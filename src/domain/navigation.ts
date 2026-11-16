@@ -294,3 +294,14 @@ export function rowDrawn(waitsFor: string | undefined, rows: readonly unknown[] 
   if (!waitsFor) return true;
   return (rows ?? []).some((r) => !(r as { removedAt?: string | null }).removedAt);
 }
+
+/**
+ * Small workspaces, rule 1 (SM1, spec 2.3): Workspace → Features is the way in to a module whose menu row is waiting.
+ * Gives back the module's first page while it waits for a first record and has none ("Metric library · on · nothing in
+ * it yet · Open"); null when its row is drawn or it waits for nothing.
+ */
+export function waitingWayIn(facts: { routes: readonly string[]; menu?: { waitsFor?: string } }, rows: readonly unknown[] | undefined): string | null {
+  const key = facts.menu?.waitsFor;
+  if (!key || rowDrawn(key, rows)) return null;
+  return facts.routes.find((r) => !r.includes(':')) ?? null;
+}

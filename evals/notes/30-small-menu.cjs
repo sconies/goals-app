@@ -1,7 +1,7 @@
 /* N30: small workspaces, rows and tabs that wait (SM1, rule 1). [SMALL-MENU] In the demo the menu is unchanged (it has a
    metric, so Metrics is a row). On Goals no tab but All is the same list as All, a tab is drawn only with goals in it,
    and every hidden scope's address still opens: ?scope=team (to All when My team waits) and ?scope=watching. In a
-   workspace with no metric the Metrics row waits, also when you switch to it from one that has a metric without the
+   workspace with no metric the Metrics row waits (and Workspace → Features offers Open Metric library instead, 16 Nov), also when you switch to it from one that has a metric without the
    page reloading (build review of #461: the row once followed you there). */
 const PEOPLE = ['rhea', 'tunde', 'oskar', 'hamid', 'grace'];
 
@@ -67,6 +67,17 @@ module.exports = {
         check(await metricsRow() === 0, 'switched from a workspace with metrics to one with none, the Metrics row followed');
         await p.reload(); await p.locator('.page-head').first().waitFor();
         check(await metricsRow() === 0, 'a workspace with no metric has a Metrics row');
+        // The admin's way in while the row waits (spec 2.3): Features says so and opens the Metric library.
+        await p.goto(live('/workspace/features')); await p.locator('.features-block').first().waitFor();
+        const open = p.locator('.features-block .feature-check', { hasText: 'Metric library' }).getByRole('link', { name: 'Open Metric library' });
+        check(await open.count() === 1, 'a workspace with no metric: Features offers no way in to the Metric library (Open Metric library)');
+        if (await open.count() === 1) {
+          await open.click();
+          await p.waitForURL(/\/metrics(\?|$)/, { timeout: 8000 }).catch(() => {});
+          check(/\/metrics(\?|$)/.test(p.url()), `Open Metric library led to ${p.url()}, not /metrics`);
+          // The URL changes before the page is drawn: wait for Features to go (with the CPU slowed 4× it takes a moment).
+          check(await p.locator('.features-block').first().waitFor({ state: 'detached', timeout: 8000 }).then(() => true, () => false), 'clicking Open Metric library stayed on Features');
+        }
       } catch (e) {
         fails.push(`no metrics: crashed (${String(e.message || e).split('\n')[0]})`);
       } finally { await c.close(); }

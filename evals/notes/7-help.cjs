@@ -103,12 +103,15 @@ module.exports = {
         fail(/What’s new/.test(await p.locator('.help-news').innerText().catch(() => '')) && (await p.locator('.help-news').innerText()).includes(LATEST), `[HELP-GUIDE] ${w}: no What’s new link with the latest title`);
         // Search.
         const box = p.getByRole('searchbox', { name: 'Find in Help' });
-        await box.fill('dark mode'); await p.waitForTimeout(200);
+        // Waits for the list to settle on Settings, not a fixed 200 ms (it raced at 390 with the CPU slowed 4×, 16 Nov).
+        await box.fill('dark mode');
+        await p.waitForFunction(() => document.querySelector('.help-row-title')?.textContent?.trim() === 'Settings', null, { timeout: 3000 }).catch(() => {});
         const firstHit = await p.locator('.help-row-title').first().innerText().catch(() => '');
         fail(firstHit === 'Settings', `[HELP-GUIDE] ${w}: “dark mode” finds “${firstHit}” first`);
         fail(/[?&]q=dark/.test(p.url()), `[HELP-GUIDE] ${w}: the search is not in the link`);
-        await box.fill('plan change reason'); await p.waitForTimeout(200);
-        fail((await p.locator('.help-row-title').allInnerTexts()).includes('Changing a goal or its plan'), `[HELP-GUIDE] ${w}: “plan change reason” misses Changing a goal or its plan`);
+        // Waits for the row, not a fixed 200 ms, as below (it failed at 390 with the CPU slowed 4×, 16 Nov).
+        await box.fill('plan change reason');
+        fail(await p.locator('.help-row-title', { hasText: /^Changing a goal or its plan$/ }).first().waitFor({ timeout: 3000 }).then(() => true, () => false), `[HELP-GUIDE] ${w}: “plan change reason” misses Changing a goal or its plan`);
         // Waits for the message rather than a fixed 200 ms: with the CPU slowed 4× on a phone page the list can still be
         // redrawing then (it failed once that way on the MQ2 gate, 15 Nov).
         await box.fill('xylophone');

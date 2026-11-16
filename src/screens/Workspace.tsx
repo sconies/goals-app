@@ -33,6 +33,7 @@ import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
+import { waitingWayIn } from '../domain/navigation';
 import { STATUS, WORKSPACE_MEANS } from '../domain/vocabulary';
 import { aiAccessOn, reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
 import { aiAccessAsks, aiAccessInUse, aiAccessOffLines, aiAccessOnLines, aiAccessReadBack, watchingAsks, watchingOffLines, watchingOffReadBack, wrapUpAsks, wrapUpOffLines, wrapUpOffReadBack } from '../domain/switchOff';
@@ -598,6 +599,7 @@ function Features() {
   // Switching off asks first for a feature that owns something to keep (spec 4.2); otherwise it acts at once.
   // AI access asks both ways while tokens are kept: off names what stops, on names what works again (SW2).
   const asks = (id: string, to: boolean) => (to ? is.ai(id) && aiAccessAsks(ai) : is.reviews(id) || (is.watching(id) && watchingAsks(watch)) || (is.wrapUp(id) && wrapUpAsks(wrap)) || (is.ai(id) && aiAccessAsks(ai)));
+  const wayIn = (m: (typeof installed)[number]) => (on.has(m.id) && m.menu?.waitsFor ? waitingWayIn(m, s.modules?.[m.id]?.[m.menu.waitsFor]) : null);
   const row = (m: (typeof installed)[number]) => {
     const why = off.get(m.id);
     const switched = (app.ws.modulesOff ?? []).includes(m.id);
@@ -608,6 +610,8 @@ function Features() {
           <span>{m.name}</span>
           <span className="hint">{m.summary}</span>
           {says && <span className="hint">{says}</span>}
+          {/* SM1: a module whose menu row waits for its first record is reached from here until then (spec 2.3). */}
+          {wayIn(m) && <span className="hint">Nothing in it yet, so it isn’t in the menu. <Link to={wayIn(m)!}>Open {m.name}</Link></span>}
           {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on.</span>}
         </span>
         {/* The state in a word beside the switch, never only its position (WR4, P6). */}
