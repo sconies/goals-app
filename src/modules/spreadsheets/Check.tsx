@@ -197,6 +197,7 @@ export function Check() {
       {problem && <p className="hint tone-off" role="alert">{problem}</p>}
 
       <Counts cs={cs} base={base} read={read.read} />
+      <SheetNotes cs={cs} />
 
       {(must.length > 0 || answeredMust.length > 0) && (
         <section className="stack import-section" aria-labelledby="must-fix">
@@ -273,6 +274,19 @@ function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name:
         <tbody>{rows.map((r) => <tr key={r.sheet}><th scope="row">{r.sheet}</th>{[r.read, r.added, r.changed, r.stopped, r.unchanged, r.must, r.check].map((v, i) => <td key={i} className="num">{v.toLocaleString('en-GB')}</td>)}</tr>)}</tbody>
       </table>
       <ul className="import-counts-lines">{rows.map((r) => <li key={r.sheet}>{sentence(r)}</li>)}</ul>
+    </section>
+  );
+}
+
+/** What a module's own sheet says loading it would do, after the counts (the Metrics sheet: the stages after loading,
+    a new metric like one already in the library, each Draft metric's missing parts). The same lines as the Data
+    tables' preview (Preview.tsx) and bulk_change's dry run (#570 review). */
+function SheetNotes({ cs }: { cs: ChangeSet }) {
+  const notes = (cs.counts.records ?? []).flatMap((r) => r.notes ?? []);
+  if (!notes.length) return null;
+  return (
+    <section className="stack import-section" aria-label="What loading it does">
+      <ul className="issue-list">{notes.map((x, i) => <li key={i}><span>{x}</span></li>)}</ul>
     </section>
   );
 }
