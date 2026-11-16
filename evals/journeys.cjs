@@ -8004,6 +8004,55 @@ journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file 
   h.set('attention', !(await h.snapshot()).modules.metrics.metrics.some((m) => m.name === `Cache warm share ${device}`), 'a Metrics sheet was read with the Metric library off');
   await p.context().close();
 }, ['parity', 'logged']);
+
+journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every Check its save asks (#564 review, high): as Amara, adding “Daily releases to production” with the same meaning and source as Production deploys per day shows the similar metric’s Check with Use this one and It’s different, carry on, and carrying on adds it; as Pavel, changing the source of the Verified Production deploys per day asks once whether to lapse Verified, and answering it lets the change save, Defined after', 13, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/metrics/metric_deploys'));
+  await p.getByRole('heading', { level: 1 }).first().waitFor();
+  const s0 = await h.snapshot();
+  const deploys = (s0.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_deploys');
+  await p.goto(url('/metrics/new'));
+  h.set('entry', true);
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Daily releases to production');
+  await h.fill(p.getByLabel('Unit', { exact: true }), 'deploys');
+  await h.click(p.getByRole('button', { name: 'Higher is better' }));
+  await h.fill(p.getByLabel(/What it means and how/), deploys?.meaning ?? '');
+  await h.fill(p.getByLabel('Source', { exact: true }), deploys?.source ?? '');
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  const similar = p.locator('[data-check="similar"]');
+  await see(similar, 'There’s a similar metric in the library: “Production deploys per day”', 'the similar metric’s Check is not on the form');
+  h.set('errors', (await similar.getByRole('button', { name: 'Use this one' }).count()) === 1, 'the similar Check has no Use this one');
+  await h.click(similar.getByRole('button', { name: 'It’s different, carry on' }));
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await p.getByRole('heading', { level: 1, name: 'Daily releases to production' }).waitFor();
+  await h.checkpoint('added');
+  // Pavel owns the Verified metric: a new source asks once whether to lapse Verified, then saves through the read-back.
+  const viewerKey = 'goals-app-viewer:platform-org';
+  await p.evaluate((k) => localStorage.setItem(k, 'pavel'), viewerKey);
+  await p.goto(url('/metrics/metric_deploys/edit'));
+  await h.fill(p.getByLabel('Source', { exact: true }), 'Deploy events warehouse');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const lapse = p.locator('[data-check="lapse"]');
+  await see(lapse, '“Production deploys per day” is Verified.', 'the lapse Check is not on the form');
+  h.set('attention', (await lapse.getByRole('button', { name: 'Change it, and lapse Verified' }).count()) === 1, 'the lapse Check has no answer to give');
+  await h.click(lapse.getByRole('button', { name: 'Change it, and lapse Verified' }));
+  await see(p.locator('.check-said'), 'You said: change it, and lapse Verified.', 'the answered lapse Check does not close to one line');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const sheet = p.getByRole('dialog');
+  if (await sheet.count()) {
+    const same = sheet.getByLabel(/Same number, better words/);
+    if (await same.count()) await same.check();
+    const go = sheet.getByRole('button', { name: /^(Change the source|Save these changes|Save changes)$/ });
+    await h.click(go.first());
+  }
+  await p.waitForURL((u) => /\/metrics\/[^/]+$/.test(u.pathname) && !/\/edit$/.test(u.pathname));
+  const s1 = await h.snapshot();
+  const after = (s1.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_deploys');
+  h.set('progress', after?.source === 'Deploy events warehouse' && !after?.verification, `the change did not save, or Verified did not lapse (source ${after?.source}, verification ${after?.verification ? 'kept' : 'gone'})`);
+  h.set('logged', (s1.changes ?? []).some((c) => c.entity === 'metric' && c.entityId === 'metric_deploys' && c.action === 'edited'), 'the change log has no edit of the metric');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));

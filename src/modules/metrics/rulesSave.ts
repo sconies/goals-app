@@ -32,7 +32,7 @@ export function openChecks(x: ActionContext, input: SaveMetricInput): { input: S
 }
 
 /** MQ2: a change that would take a Verified metric back to Defined is asked once (answer `lapse: "go"`), at every door. */
-export function lapseChecks(x: ActionContext, before: Metric | null, typed: Metric): MetricCheck[] {
+export function lapseChecks(x: Pick<ActionContext, 'snapshot' | 'now'>, before: Metric | null, typed: Metric): MetricCheck[] {
   if (!before || !standsVerified(before, x.now)) return [];
   const { lapses } = qualityChanges(before, typed);
   if (!lapses.length) return [];

@@ -1385,9 +1385,13 @@ Routes: `/metrics`, `/metrics/:metricId`. Requirements: `METRIC-STAGE`, `METRIC-
 
 #### What takes Verified away
 
-- Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. The reason you give is kept.
+- Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. On the metric’s form the question sits above Save changes: Change it, and lapse Verified. The reason you give is kept.
 - Rewording a filter or an exclusion asks the last verifier to confirm instead (or another admin, never whoever reworded it). Baselines, the owner and caveats change nothing.
 - A new source marks the baselines taken from the old one, so you can retake them, and the charts of its goals show the week the source changed.
+
+#### Adding a metric like one already here
+
+- When the name, source and meaning of a new metric look like one already in the library, the form asks first, under the name: Use this one opens that metric instead; It’s different, carry on adds yours.
 
 #### Baselines per slice
 

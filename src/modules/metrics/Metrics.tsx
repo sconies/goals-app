@@ -35,6 +35,7 @@ import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } fro
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
+import { lapseChecks } from './rulesSave';
 import { readWhen } from '../../domain/readingWords';
 import { checkInsFor } from '../../domain/status';
 import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
@@ -663,7 +664,9 @@ export function MetricForm() {
   // A Must fix under its field (spec 2.1): outlined on every side and washed, the warning mark and “Must fix”.
   const err = (re: RegExp, k?: string) => about(re, k).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>);
   // Rule 1's questions (rulesDefine.ts): a close name, a unit spelt another way, a share that doesn't say out of what.
-  const checks = metricChecks({ id: live?.id ?? '', name: d.name, unit: d.unit, meaning: d.meaning }, live, checkReads(app.snapshot));
+  // The same Checks the save asks (rulesSave openChecks), so none is refused unseen: MQ2's similar metric (on name, source
+  // and meaning) and the lapse of a Verified metric too (#564 review, high).
+  const checks = [...metricChecks({ id: live?.id ?? '', name: d.name, unit: d.unit, meaning: d.meaning, source: d.source }, live, checkReads(app.snapshot)), ...(live ? lapseChecks({ snapshot: app.snapshot, now: app.stamp() }, live, next) : [])];
   const valueOf = (f: CheckField) => (f === 'similar' ? `${d.name}|${d.source}|${d.meaning}` : f === 'lapse' ? '' : d[f]).trim();
   const open = checks.filter((c) => !(answered[c.field] && answered[c.field]!.at === valueOf(c.field)));
   const shownChecks = open.filter((c) => shows(c.field));
@@ -685,7 +688,7 @@ export function MetricForm() {
     // The question closes to one line: its Change takes the focus, so it isn't lost to the page (#281's review).
     window.setTimeout(() => document.querySelector<HTMLElement>(`[data-said="${c.field}"] button`)?.focus(), 0);
   };
-  const said = (f: CheckField) => (f === 'name' ? 'You said: mine is different.' : f === 'unit' ? `You said: keep “${d.unit.trim()}”.` : 'You said: it’s right as written.');
+  const said = (f: CheckField) => (f === 'name' || f === 'similar' ? 'You said: mine is different.' : f === 'unit' ? `You said: keep “${d.unit.trim()}”.` : f === 'lapse' ? 'You said: change it, and lapse Verified.' : 'You said: it’s right as written.');
   const checkFor = (f: CheckField) => {
     const c = checks.find((x) => x.field === f);
     if (!c) return null;
@@ -743,6 +746,7 @@ export function MetricForm() {
       {re && err(re, k)}
       {k === 'name' && retiredSame && <Link className="small" to={metricPath(retiredSame)}>Open {retiredSame.name} to bring it back</Link>}
       {(k === 'name' || k === 'unit') && checkFor(k)}
+      {k === 'name' && checkFor('similar')}
     </div>
   );
   const owner = app.person(d.ownerId);
@@ -851,6 +855,7 @@ export function MetricForm() {
             onSave={() => void save(true)} onClose={() => setAsking(false)} onKeep={() => { setAsking(false); setComparable(undefined); setUnitIs(undefined); setWhy(''); setWhyTried(false); set({ unit: live.unit, direction: live.direction, meaning: live.meaning, source: live.source, decimals: live.decimals }); }} />
         )}
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
+          {checkFor('lapse')}
           {count && <p className="small metric-count" role="status">{count}</p>}
           <p className="small metric-still">{still.line}</p>
         </div>

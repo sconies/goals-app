@@ -172,7 +172,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (342 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (344 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -200,7 +200,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.changes` | the changes | [U7](../modules/watching/journeys/U7.md) |
 | `.changes .change` | the change in the changes | [U7](../modules/watching/journeys/U7.md) |
 | `.changes > li` | the list item in the changes | [U31](../modules/watching/journeys/U31.md) |
-| `.check-said` | the check said | [U83](../modules/metrics/journeys/U83.md) |
+| `.check-said` | the check said | [U83](../modules/metrics/journeys/U83.md), [U180](../modules/metrics/journeys/U180.md) |
 | `.ci-corrected` | the ci corrected | [U142](journeys/U142.md) |
 | `.ci-moment` | the ci moment | [U151](journeys/U151.md) |
 | `.ci-reading-block` | the reading of the number in the check-in | [U156](../modules/metrics/journeys/U156.md), [U157](../modules/metrics/journeys/U157.md), [U158](../modules/metrics/journeys/U158.md), [U159](../modules/metrics/journeys/U159.md), [U161](../modules/metrics/journeys/U161.md) |
@@ -444,9 +444,11 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.ws-sort-row` | the ws sort row | [U176](journeys/U176.md) |
 | `.ws-sort-row[data-need="only-admin"]` | the ws sort row | [U61](journeys/U61.md) |
 | `[aria-labelledby=res-l] button[aria-pressed=true]` | the button | [U10](../modules/wrap-up/journeys/U10.md) |
+| `[data-check="lapse"]` | the part `[data-check="lapse"]` | [U180](../modules/metrics/journeys/U180.md) |
 | `[data-check="meaning"]` | the part `[data-check="meaning"]` | [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="name"]` | the part `[data-check="name"]` | [U83](../modules/metrics/journeys/U83.md), [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="part"]` | the part `[data-check="part"]` | [U160](../modules/metrics/journeys/U160.md), [U146](../modules/metrics/journeys/U146.md) |
+| `[data-check="similar"]` | the part `[data-check="similar"]` | [U180](../modules/metrics/journeys/U180.md) |
 | `[data-check="why"]` | the part `[data-check="why"]` | [U146](../modules/metrics/journeys/U146.md) |
 | `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
 | `[data-part="Changed since"]` | the “Changed since” part | [U124](journeys/U124.md) |
