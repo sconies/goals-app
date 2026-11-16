@@ -7960,7 +7960,7 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
   await p.context().close();
 }, ['parity', 'entry']);
-journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 8, async (h, device) => {
+journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds two metrics and changes another’s caveats is counted “2 new metrics, 1 metric changed”, and the check page says the stages after loading and that the new metric is Draft with what it needs, a row with the name of the row above and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   const file = (name, rows) => csvFile(name, 'ID,Metric,Unit,Direction,Caveats,Action,Reason\n' + rows.join('\n') + '\n');
   await p.goto(url('/data/import'));
@@ -7981,6 +7981,10 @@ journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file 
   h.set('entry', true);
   await h.checkpoint('must fix');
   await see(p, '2 new metrics, 1 metric changed.', 'the preview does not count the metrics');
+  // The sheet's own notes on the check page, as on the Data tables' preview (#570 review): the stages after loading,
+  // and a new metric that names only its unit and direction is Draft, with what it still needs.
+  await see(p, 'Stages after loading:', 'the import does not say the stages after loading');
+  await see(p, `“Retried test share ${device}” is Draft: it needs a meaning`, 'the import does not say what a Draft metric still needs');
   await h.click(p.getByRole('button', { name: 'Leave these 2 rows out and save the rest' }));
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Leave them out' }));
   h.set('one-action', (await p.locator('main .btn.primary').count()) === 1, 'the preview has more than one primary action');
