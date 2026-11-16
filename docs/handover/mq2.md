@@ -37,33 +37,32 @@ Lane approved MQ2 on 15 Nov. The decisions are in the MQ2 row of `docs/backlog.m
 5. A goal's rhythm is a goal column (`check_in_rhythm`), filled in from the metric's refresh, like `unmeasured_since`.
 6. A monthly or quarterly goal is due by its period's last due day (Faro doesn't know the refresh day), and goes quiet after two periods (62 or 184 days). The demo's two goals on monthly metrics (cloud cost, developer satisfaction) now check in monthly, so the demo shows it.
 
-## Next (16 Nov, after #568 and #567)
+## Next (16 Nov, part 4 under way)
 
-1. **Check #567 has merged** (auto-merge, once planning says so). If its CI is red, fix that first.
-2. **Part 4, the screens**, branched from main once #567 is in. Keep all screen code in lazy chunks loaded only on the metrics routes and places, and keep the quality rules behind `qualityHooks.ts` (planning, 15 Nov). The new MQ2 words that must load with records live in `qualityWords.ts`. The first download has about 7 KB of room: measure after each screen with `npx vite build --manifest && node scripts/check-bundle.mjs`. Build `api/mcp.js` in the main checkout, not a worktree (a worktree build differs).
+Part 4 is three PRs, A first, each merged with auto-merge when green:
+- **A: PR #571** (`claude/mq2-screens-a`), open with auto-merge on. When it merges, send its number to the reviewer.
+- **B** is `claude/mq2-screens-b` (one commit on A), and **C** is `claude/mq2-screens-c` (B, then C, then this note). Once #571 merges: merge main into B, run `npm run spec`, `npm run build:mcp` and the gate (`evals:changed` covers U182), open B with auto-merge, then the same for C (U183). The B and C commits have passed typecheck and unit tests; U182 and U183 haven't run under the gate yet.
+- Gate notes from A: F6, N18 and `clock.test.tsx` fail under the parallel full suite's load and pass alone. U105 caught a real one: the page's Source section had been labelled "Source", so it was found by the form field's `getByLabel('Source')` (fixed in A).
+
+- **A, the library and a metric's page** (sketches 1, 2, 6, 8, 11): `stageMark.tsx` (the three-step shape with its word), `MetricQuality.tsx` (top line, the outlined boxes for a lapse, a failed attempt, a handover and a rewording, the calculation, the source, baselines, the verification). The library sorts best stage first and has the stage control with counts. `findMetrics`' `sortout` now joins rule 3's needs and `sortOutOf` (list_metrics' `sort_out` uses it). New actions: `verifyMetric`, `saveBaselines`, `confirmMetricOwner`, `confirmMetricReword`, `answerMetricAttempt` (rulesVerify.ts loads on first use). Journey U181.
+- **B, defining and baselines** (sketches 3, 4, 9): `DefineFields.tsx` on the metric form (two-field calculation with its parts, structured window, source link and query, "To reach Defined, still needed: n of 10"), `BaselineForms.tsx` (`/metrics/:id/baseline`, `/metrics/baselines`, and Home's line in a quarter's first week through `home.blocks`). `lastQuarter` spells its own months (Chromium says "Sept"). Journey U182.
+- **C, verifying, the picker and the goal** (sketches 5, 7, 10): `VerifyForm.tsx` (`/metrics/:id/verify`), Measured by rows with stage, window and refresh, Defined and Verified first (`rulesMeasure.metricRow`, `searchMetrics`), quick add asking only name, unit and direction, and the Draft warning in `GoalMetric` (goal.sections) with the stage and refresh in `GoalMeasuredBy` (goal.facts). Journey U183.
+
+First download after C: 269 KB of 275. Every screen file loads lazily.
 
 ## Still to build
 
-### Part 4: the screens (sketches 1–12)
-- **Library:** stage column, step shape plus word, a segmented filter with counts, Refresh and Window columns, and To verify and To sort out.
-- **Metric page:** the top line (stage · refresh · window · direction), calculation parts, source, baselines per slice with History, the verification record, the failed-attempt and lapse boxes (full outline, never a side stripe), and the phone layout (sketch 8).
-- **Forms:** the define form (two-field calculation, structured window, "To reach Defined, still needed: n of 10"), the add-a-baseline form, the verify form with the difference shown, and "Take this quarter's baselines" (from readings; reason on a changed figure).
-- **Picker:** Measured by lists Defined and Verified first, with window and refresh on each option. Quick add asks only name, unit and direction.
-- **Goal page:** the Draft warning, through the goal places (`goal.measure`, `goal.facts`), not the core. It also shows on review agenda rows, through a named place if none fits.
-- **Add a metric:** the similar-metric check (the form asks it since #566; part 4 gives it the sketch's look).
-- **Home:** "n of your metrics have no baseline for Oct–Dec".
+### Part 4, what's left
+- **Review agenda rows** (journey 9): one quiet line under a goal's row, "Change failure rate · Verified 3 Nov · refreshed weekly", and "Draft metric" with the warning mark. Reviews has no place for it: add a named place (for example `review.row`) to `src/core/module.ts` PLACES and `src/core/app.tsx`, render it on the agenda row, document it in `docs/architecture.md` and the module map, and fill it from MetricPlaces. It touches the core, so the full suite runs.
+- **Sketch 12's look for the similar-metric check**: the form asks it since #566 (`data-check="similar"`); give it the sketch's card (the similar metric's stage, meaning, source, owner and goals, with Use this one and It's different, carry on).
+- **#570's medium** (from planning, 16 Nov): the import's check screen (`src/modules/spreadsheets/Check.tsx`) shows none of the Metrics sheet's stage notes; #570 drew them only in `src/ui/Preview.tsx` (the Data tables). Show the stage counts and each Draft row's needs on Check.tsx, with a journey step that fails on main (a pasted Metrics table whose new metric lands as Draft). Fits C or a small PR of its own; send its number to the reviewer.
+- "n metrics to verify" on a verifier's Home (journey 3) is not in the sketches' list; ask planning before building it.
 
-Each needs:
-- design rules P6: the step shape is its own; no stripes, pills or emoji;
-- a journey per screen, from `journeys.html`;
-- Help sections;
-- a What's new entry;
-- the parity map in `module.json`;
-- the rebuild exit lines.
+Each needs P6 (no stripes, pills or emoji), a journey, Help, the What's new `metric-quality` entry, the parity map and the rebuild exit lines.
 
 ## How to run it
 - Read `CLAUDE.md`.
 - Mechanical work goes to Sonnet subagents: eval runs, `npm run spec`, `npm run build:mcp`, merging main and resolving What's new.
 - Report merges, failures and decisions Lane must make to planning (`session_012kbr91eefh4gwCAztBncNT`).
-- Send each merged PR number to the build reviewer (`session_012kbr8yEo9vztTkpARWNy66`).
+- Send each merged PR number to the build reviewer (`session_012kbr8yhSnbewc3YnAc52AT`).
 - Hand over at about 300k tokens of context.
