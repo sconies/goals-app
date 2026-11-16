@@ -52,7 +52,7 @@ async function as(personId: string, today = TODAY, start?: Snapshot, modulesOff:
 const viaMcp = (s: Snapshot) => s.changes.at(-1)!.diffs.some((d) => d.field === 'Via' && d.to === 'MCP');
 
 describe('AI assistants can do what the person can', () => {
-  it('[METRIC-BASELINES] save_baselines keeps a baseline per slice with its value, period, day and how; a new figure for the same period needs a reason, and the old one moves to History', async () => {
+  it.skipIf(!isModuleOn(null, 'metrics'))('[METRIC-BASELINES] save_baselines keeps a baseline per slice with its value, period, day and how; a new figure for the same period needs a reason, and the old one moves to History', async () => {
     const b = await as('bjorn');
     const base = { value: 0.64, period: 'Jul–Sep 2026', taken_on: '2026-10-02', how: 'FinOps report, Q3 tab' };
     const bad = await b.call('save_baselines', { metric: 'Cloud cost per 1,000 requests', baselines: [{ ...base, how: '' }] });
