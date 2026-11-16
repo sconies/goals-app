@@ -11,7 +11,7 @@ import './qualityHooks';
 import { MeasureMark } from './measureMark';
 import { StageMark } from './stageMark';
 import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
-import { calcWords, missingLine, onDay, refreshWords, windowWords, type MetricStage } from './rulesQuality';
+import { calcWords, missingLine, onDay, windowWords, type MetricStage } from './rulesQuality';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -163,9 +163,11 @@ export function MetricsLibrary() {
           {!narrow && teamMenu}
           <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filters{parts.length ? ` · ${parts.length}` : ''}</button>
           {!narrow && sortMenu}
+          {/* On a phone the stage control folds into a menu beside Filters, so the first metric stays near the top. */}
+          {narrow && !retired && <MenuButton className="metric-stage-menu" label="Stage" display={`${views.find(([k]) => k === view)![1]} ${views.find(([k]) => k === view)![2]}`} items={views.map(([k, l, n]) => ({ label: `${l} ${n}`, current: view === k, onClick: () => pickView(k) }))} />}
         </ListBar>
       )}
-      {live > 0 && !retired && (
+      {live > 0 && !retired && !narrow && (
         <div className="seg metric-stages" role="group" aria-label="Stage">
           {views.map(([k, l, n]) => <button key={k} type="button" aria-pressed={view === k} onClick={() => pickView(k)}>{l} <span className="metric-stage-n">{n}</span></button>)}
         </div>
@@ -229,8 +231,10 @@ function MetricRow({ row, wide, sortout, needs }: { row: LibraryRow; wide: boole
   const name = (
     <span className="metric-text">
       <span className="metric-name">{m.name}</span>
-      <span className="hint">{sub}{measurementOf(m) !== 'measured' && <> · <MeasureMark k={measurementOf(m)} /></>}{m.retiredAt ? ' · retired' : ''}</span>
-      {!wide && !sortout && <span className="hint">{refreshWords(m)} · {windowWords(m.timeWindow)} · {owner ? `owned by ${owner}` : 'no owner'}</span>}
+      {wide
+        ? <span className="hint">{sub}{measurementOf(m) !== 'measured' && <> · <MeasureMark k={measurementOf(m)} /></>}{m.retiredAt ? ' · retired' : ''}</span>
+        // A phone: one line, the stage first, then what a Draft needs, or the refresh and window.
+        : <span className="hint metric-phone-line"><StageMark k={st.stage} /> · {st.stage === 'draft' ? missingLine(st.missing) : `${m.refresh ? REFRESH_LABEL[m.refresh] : 'Refresh not said'} · ${windowWords(m.timeWindow)}`}{m.retiredAt ? ' · retired' : ''}</span>}
     </span>
   );
   const whyCell = <span className="metric-why">{(reasons.length ? reasons : needs ? [{ words: needs, who: null }] : []).map((r, i) => <span key={i} className="metric-needs"><WarnMark />{r.words}</span>)}</span>;
@@ -238,7 +242,7 @@ function MetricRow({ row, wide, sortout, needs }: { row: LibraryRow; wide: boole
   if (sortout) {
     return (
       <Link className={wide ? 'metric-row metric-row-wide metric-row-sortout' : 'metric-row'} to={metricPath(m)}>
-        <StageMark k={st.stage} />
+        {wide && <StageMark k={st.stage} />}
         {name}
         {whyCell}
         {wide ? whoCell : null}
@@ -248,7 +252,7 @@ function MetricRow({ row, wide, sortout, needs }: { row: LibraryRow; wide: boole
   }
   return (
     <Link className={wide ? 'metric-row metric-row-wide' : 'metric-row'} to={metricPath(m)}>
-      <StageMark k={st.stage} />
+      {wide && <StageMark k={st.stage} />}
       {name}
       {wide && <span className="small">{m.refresh ? REFRESH_LABEL[m.refresh] : 'Not said'}</span>}
       {wide && <span className="small">{windowWords(m.timeWindow)}</span>}

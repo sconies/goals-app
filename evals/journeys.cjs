@@ -8058,8 +8058,13 @@ journey('U181', ['METRIC-STAGE', 'METRICS-LIBRARY'], 'Stages in the library and 
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/metrics'));
   await p.locator('.metric-row').first().waitFor();
+  // A computer shows the stage control above the list; a phone folds it into a Stage menu beside Filters.
+  const menu = p.locator('.metric-stage-menu > summary');
+  const phone = (await menu.count()) > 0;
   const stages = p.getByRole('group', { name: 'Stage' });
-  await h.inView(stages, 'entry', 'The stage control');
+  const openStages = async () => { if (phone) await h.click(menu); };
+  await h.inView(phone ? menu : stages, 'entry', 'The stage control');
+  await openStages();
   const said = (await stages.innerText()).replace(/\s+/g, ' ');
   h.set('progress', /All 13/.test(said) && /Verified 3/.test(said) && /Defined 5/.test(said) && /Draft 5/.test(said), `the stage control says “${said}”`);
   const first = p.locator('.metric-row').first();
@@ -8068,7 +8073,8 @@ journey('U181', ['METRIC-STAGE', 'METRICS-LIBRARY'], 'Stages in the library and 
   await h.click(stages.getByRole('button', { name: /^Draft/ }));
   await see(p.locator('.count-line'), '5 metrics, most goals first.', 'Draft does not list five metrics, most goals first');
   const drafts = await p.locator('.metric-row').evaluateAll((rs) => rs.map((r) => r.innerText.replace(/\s+/g, ' ')));
-  h.set('errors', drafts.length === 5 && drafts.every((t) => /^Draft/.test(t) && /needs /.test(t)), `a Draft row does not say what it needs: ${drafts.join(' | ')}`);
+  h.set('errors', drafts.length === 5 && drafts.every((t) => /\bDraft\b/.test(t) && /needs /.test(t)), `a Draft row does not say what it needs: ${drafts.join(' | ')}`);
+  await openStages();
   await h.click(stages.getByRole('button', { name: /^To sort out/ }));
   await see(p.locator('.metric-row', { hasText: 'Flaky test rate' }), 'Add a link to the report or query', 'To sort out does not say what Flaky test rate needs');
   await h.checkpoint('library');

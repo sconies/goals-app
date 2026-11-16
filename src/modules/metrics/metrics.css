@@ -124,7 +124,9 @@
 .metric-stages { flex-wrap: wrap; }
 .metric-stage-n { font-variant-numeric: tabular-nums; color: var(--muted); margin-left: 2px; }
 .metric-row > .stage-mark { padding-top: 1px; }
-.metric-list:not(.metric-list-wide) .metric-row { grid-template-columns: 84px minmax(0, 1fr) auto; }
+.metric-list:not(.metric-list-wide) .metric-row { grid-template-columns: minmax(0, 1fr) auto; }
+.metric-phone-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metric-phone-line .stage-mark { font-size: inherit; vertical-align: -2px; }
 .metric-list:not(.metric-list-wide) .metric-row .metric-why, .metric-list:not(.metric-list-wide) .metric-row .metric-why ~ .metric-side { grid-column: 2 / -1; align-items: flex-start; text-align: left; }
 .metric-cols, .metric-row-wide { display: grid; grid-template-columns: 96px minmax(0, 2.4fr) 80px 120px minmax(0, 1fr) minmax(120px, auto); column-gap: var(--s3); }
 .metric-cols-sortout, .metric-row-sortout { grid-template-columns: 96px minmax(0, 1.6fr) minmax(0, 1.8fr) minmax(0, 0.9fr) minmax(110px, auto); }

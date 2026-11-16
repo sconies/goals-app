@@ -172,7 +172,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (352 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (353 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -323,6 +323,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.metric-retired` | the metric retired | [U106](../modules/metrics/journeys/U106.md) |
 | `.metric-row` | the metric row | [U81](../modules/metrics/journeys/U81.md), [U181](../modules/metrics/journeys/U181.md) |
 | `.metric-sortout` | the metric sortout | [U170](../modules/metrics/journeys/U170.md) |
+| `.metric-stage-menu > summary` | the summary in the metric stage menu | [U181](../modules/metrics/journeys/U181.md) |
 | `.metric-structure` | the metric structure | [U172](../modules/metrics/journeys/U172.md) |
 | `.metric-top` | the metric top | [U181](../modules/metrics/journeys/U181.md) |
 | `.mg-status svg[data-status]` | the svg in the mg status | [U81](../modules/metrics/journeys/U81.md) |
