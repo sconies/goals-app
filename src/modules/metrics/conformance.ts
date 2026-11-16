@@ -27,7 +27,7 @@ export const LIBRARY_ASKS: LibraryAsk[] = [
   // MT3: the retired ones, listed apart (the library's ?retired=1).
   { retired: true },
   // MQ2: by stage, and the verifiers' queue.
-  { stage: 'verified' }, { stage: 'draft' }, { toVerify: true },
+  { stage: 'verified' }, { stage: 'draft' }, { toVerify: true }, { sort: 'stage' },
 ];
 /** An ask as the address writes it: "q=min lower&unit=%", in a fixed order; empty for nothing asked. */
 const askText = (a: LibraryAsk) => (['q', 'unit', 'teamId', 'ownerId', 'dir', 'unused', 'sortout', 'retired', 'stage', 'toVerify', 'sort'] as const).filter((k) => a[k] !== undefined).map((k) => `${k}=${String(a[k])}`).join('&');

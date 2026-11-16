@@ -6,7 +6,7 @@
    Pure, as src/domain is: each takes only the rows it reads (the metrics, the links, the cycle's live goal ids, the
    people), never the whole workspace, and no clock (`now` is given). Statuses, "now", targets and the gap to plan come
    from the core's goal summary (domain/summary, domain/scorecard), never worked out again here. */
-import { stageOf, type MetricStage } from './rulesQuality';
+import { sortOutOf, stageOf, type MetricStage, type SortOut, type Stage } from './rulesQuality';
 import { measurementOf } from './rulesMeasured';
 import { fold, textMatches } from '../../domain/find';
 import { placesText } from '../../domain/numbers';
@@ -99,8 +99,9 @@ export const needsLine = (needs: readonly MetricNeed[]) => (!needs.length ? '' :
 
 /* ---------- rule 1: finding metrics ---------- */
 
-export type LibrarySort = 'name' | 'goals' | 'changed';
-export const LIBRARY_SORTS: [LibrarySort, string][] = [['name', 'A to Z'], ['goals', 'Most goals first'], ['changed', 'Changed lately']];
+export type LibrarySort = 'stage' | 'name' | 'goals' | 'changed';
+export const LIBRARY_SORTS: [LibrarySort, string][] = [['stage', 'Best stage first'], ['name', 'A to Z'], ['goals', 'Most goals first'], ['changed', 'Changed lately']];
+const STAGE_RANK: Record<MetricStage, number> = { verified: 0, defined: 1, draft: 2 };
 
 /** What someone asks the library for: the address's `?q=`, `?unit=`, `?team=`, `?owner=`, `?dir=`, `?unused=1`, `?sortout=1`, `?sort=`, `?page=`. */
 export interface LibraryAsk {
@@ -124,7 +125,7 @@ export interface LibraryAsk {
 }
 
 /** One metric as the library lists it: the metric, its owner's name (null: none, or left), the goals it measures now, and what it needs. */
-export interface LibraryRow { metric: Metric; owner: string | null; goalIds: string[]; needs: MetricNeed[] }
+export interface LibraryRow { metric: Metric; owner: string | null; goalIds: string[]; needs: MetricNeed[]; stage: Stage; sortOut: SortOut[] }
 export interface LibraryPage { total: number; page: number; pages: number; from: number; to: number; rows: LibraryRow[] }
 
 /**
@@ -138,24 +139,24 @@ export function findMetrics(r: LibraryReads, ask: LibraryAsk = {}): LibraryPage 
   const size = ask.size ?? LIBRARY_PAGE;
   const rows: LibraryRow[] = r.metrics.filter((m) => !m.removedAt && (ask.retired ? !!m.retiredAt : !m.retiredAt)).map((m) => {
     const links = liveLinks(r, m.id);
-    return { metric: m, owner: ownerName(r.people, m), goalIds: links.map((l) => l.goalId), needs: metricNeeds(m, r), links };
-  }).filter(({ metric: m, owner, links, needs }) => {
+    const owner = ownerName(r.people, m);
+    const stage = stageOf(m, { now: r.now, ownerIsHere: !!owner, nameOf: (id) => nameIn(r, id) });
+    return { metric: m, owner, goalIds: links.map((l) => l.goalId), needs: metricNeeds(m, r), stage, sortOut: sortOutOf(m, { stage, nameOf: (id) => nameIn(r, id) }), links };
+  }).filter(({ metric: m, owner, links, needs, stage: st, sortOut }) => {
     if (ask.q?.trim() && !textMatches([m.name, m.unit, directionWords(m.direction), owner ?? '', m.meaning, m.source].join(' '), ask.q)) return false;
     if (ask.unit && fold(m.unit) !== fold(ask.unit)) return false;
     if (ask.teamId && !links.some((l) => (ask.teamId === 'company' ? l.teamId == null : l.teamId === ask.teamId))) return false;
     if (ask.ownerId && m.ownerId !== ask.ownerId) return false;
     if (ask.dir && m.direction !== ask.dir) return false;
     if (ask.unused && links.length) return false;
-    if (ask.sortout && !needs.length) return false;
-    if (ask.stage || ask.toVerify) {
-      const st = stageOf(m, { now: r.now, ownerIsHere: !!owner });
-      if (ask.stage && st.stage !== ask.stage) return false;
-      if (ask.toVerify && !st.toVerify) return false;
-    }
+    if (ask.sortout && !needs.length && !sortOut.length) return false;
+    if (ask.stage && st.stage !== ask.stage) return false;
+    if (ask.toVerify && !st.toVerify) return false;
     return true;
   }).map(({ links: _, ...row }) => row);
   const byName = (a: LibraryRow, b: LibraryRow) => fold(a.metric.name).localeCompare(fold(b.metric.name));
-  rows.sort(ask.sort === 'goals' ? (a, b) => b.goalIds.length - a.goalIds.length || byName(a, b)
+  rows.sort(ask.sort === 'stage' ? (a, b) => STAGE_RANK[a.stage.stage] - STAGE_RANK[b.stage.stage] || byName(a, b)
+    : ask.sort === 'goals' ? (a, b) => b.goalIds.length - a.goalIds.length || byName(a, b)
     : ask.sort === 'changed' ? (a, b) => b.metric.updatedAt.localeCompare(a.metric.updatedAt) || byName(a, b)
     : byName);
   const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -163,6 +164,15 @@ export function findMetrics(r: LibraryReads, ask: LibraryAsk = {}): LibraryPage 
   const from = rows.length ? (page - 1) * size + 1 : 0;
   const to = Math.min(rows.length, page * size);
   return { total: rows.length, page, pages, from, to, rows: rows.slice(from ? from - 1 : 0, to) };
+}
+
+const nameIn = (r: Pick<LibraryReads, 'people'>, id: string) => r.people.find((p) => p.id === id)?.name ?? 'someone who has left';
+
+/** MQ2 sketch 1: how many of the library's metrics (live, not retired) are at each stage, to verify and to sort out. */
+export function stageCounts(r: LibraryReads): { all: number; verified: number; defined: number; draft: number; toVerify: number; sortout: number } {
+  const rows = findMetrics(r, { size: Number.MAX_SAFE_INTEGER }).rows;
+  const n = (f: (x: LibraryRow) => boolean) => rows.filter(f).length;
+  return { all: rows.length, verified: n((x) => x.stage.stage === 'verified'), defined: n((x) => x.stage.stage === 'defined'), draft: n((x) => x.stage.stage === 'draft'), toVerify: n((x) => x.stage.toVerify), sortout: n((x) => x.needs.length > 0 || x.sortOut.length > 0) };
 }
 
 /* ---------- rule 2: a metric's goals ---------- */

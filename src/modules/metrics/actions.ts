@@ -10,7 +10,12 @@
    | `unretireMetric`   | `{ metricId }`                          | the commit; with Undo            |
    | `mergeMetrics`     | `{ fromId, intoId, why? }`              | the commit; with Undo (admins)   |
    | `linkGoalMetric`   | `{ goalId, metricId, teamId, part?, reason? }` | the commit, or null (no change)  |
-   | `unlinkGoalMetric` | `{ goalId }`                            | the commit, or null; with Undo   | */
+   | `unlinkGoalMetric` | `{ goalId }`                            | the commit, or null; with Undo   |
+   | `verifyMetric`     | `{ metricId, period, figure, note, openedLink, outcome, reading? }` | the commit; says what happened (MQ2) |
+   | `saveBaselines`    | `{ metricId, baselines: BaselineInput[] }` | the commit; says what happened (MQ2) |
+   | `confirmMetricOwner` | `{ metricId }`                        | the commit (the new owner confirms a handover) |
+   | `confirmMetricReword` | `{ metricId }`                       | the commit (the last verifier confirms a rewording) |
+   | `answerMetricAttempt` | `{ metricId, note }`                 | the commit (the owner answers a “Couldn’t reproduce”) | */
 import type { ModuleAction, ModuleActions, RunContext } from '../../app/actions';
 import { NotAllowed } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
@@ -29,6 +34,13 @@ const link = (): Link => { if (!linking) throw new Error('Linking hasn’t loade
 type LinkInput = { goalId: string; metricId: string; teamId: string | null; part?: string; reason?: string };
 
 const said = (c: Commit) => c.changes[0]!.summary;
+/* MQ2's verifying, baselines and confirmations (rulesVerify.ts) load on their first use, never with the first download. */
+type Verify = typeof import('./rulesVerify');
+let verifying: Verify | null = null;
+const loadVerify = async () => { verifying ??= await import('./rulesVerify'); };
+const verify = (): Verify => { if (!verifying) throw new Error('Verifying hasn’t loaded yet: call ready() first.'); return verifying; };
+type VerifyIn = { metricId: string } & import('./rulesVerify').VerifyInput;
+type BaselinesIn = { metricId: string; baselines: import('./rulesQuality').BaselineInput[] };
 /** A goal by id or key: this cycle's, then any cycle's, then one stopped (as the core's actions find one). */
 const goalOf = (x: RunContext, id: string): Goal =>
   findGoal(x.snapshot.goals, id) ?? (x.allGoals && findGoal(x.allGoals, id)) ?? (x.snapshot.archive && findGoal(x.snapshot.archive.goals, id)) ?? (() => { throw new NotAllowed('That goal no longer exists. Reload to see the latest.'); })();
@@ -42,6 +54,11 @@ const actions = {
   retireMetric: { ready: loadLink, run: (x, i: { metricId: string; why: string; replacedBy?: string | null }) => link().retireMetric(x, i.metricId, i.why, i.replacedBy ?? null), said, confirmed: true, tools: ['retire_metric'] } satisfies ModuleAction<{ metricId: string; why: string; replacedBy?: string | null }, Commit>,
   unretireMetric: { ready: loadLink, run: (x, i: { metricId: string }) => link().unretireMetric(x, i.metricId), said, tools: ['retire_metric'] } satisfies ModuleAction<{ metricId: string }, Commit>,
   mergeMetrics: { ready: loadLink, run: (x, i: { fromId: string; intoId: string; why?: string }) => link().mergeMetrics(x, i.fromId, i.intoId, i.why ?? ''), said, confirmed: true, tools: ['merge_metrics'] } satisfies ModuleAction<{ fromId: string; intoId: string; why?: string }, Commit>,
+  verifyMetric: { ready: loadVerify, run: (x, i: VerifyIn) => { const { metricId, ...rest } = i; return verify().verifyMetric(x, metricId, rest).commit; }, said, tools: ['verify_metric'] } satisfies ModuleAction<VerifyIn, Commit>,
+  saveBaselines: { ready: loadVerify, run: (x, i: BaselinesIn) => verify().saveBaselines(x, i.metricId, i.baselines).commit, said, tools: ['save_baselines'] } satisfies ModuleAction<BaselinesIn, Commit>,
+  confirmMetricOwner: { ready: loadVerify, run: (x, i: { metricId: string }) => verify().confirmOwner(x, i.metricId), said, tools: ['save_metric'] } satisfies ModuleAction<{ metricId: string }, Commit>,
+  confirmMetricReword: { ready: loadVerify, run: (x, i: { metricId: string }) => verify().confirmReword(x, i.metricId), said, tools: ['save_metric'] } satisfies ModuleAction<{ metricId: string }, Commit>,
+  answerMetricAttempt: { ready: loadVerify, run: (x, i: { metricId: string; note: string }) => verify().answerAttempt(x, i.metricId, i.note), said, tools: ['save_metric'] } satisfies ModuleAction<{ metricId: string; note: string }, Commit>,
 } satisfies ModuleActions;
 
 export default actions;

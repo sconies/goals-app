@@ -81,6 +81,10 @@
       {
         "ask": "toVerify=true",
         "toVerify": true
+      },
+      {
+        "ask": "sort=stage",
+        "sort": "stage"
       }
     ],
     "sheet": {

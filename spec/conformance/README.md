@@ -45,7 +45,7 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [import.csv](import.csv) (stage 2) | 77 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
 | [changes.csv](changes.csv) (stage 2) | 145 | case of the change engine, then one per item it would save | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves`, `author` |
 | [readback.csv](readback.csv) (stage 3) | 6 | draft New goal reads back | `case`, `viewer`, `draft`, `rows`, `after` |
-| [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 140 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs`, `still`, `parts`, `ends`, `measured`, `reading`, `state`, `stage`, `missing` |
+| [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 141 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs`, `still`, `parts`, `ends`, `measured`, `reading`, `state`, `stage`, `missing` |
 | [reviews.csv](reviews.csv) (the reviews module, not stage 1) | 91 | rule and what it is asked | `rule`, `week`, `reviews`, `held`, `by`, `after`, `on_time`, `flag`, `risks`, `due_day` |
 | [tags.csv](tags.csv) (the tags module, not stage 1) | 25 | rule and what it is asked | `rule`, `case`, `field`, `typed`, `kept`, `problem` |
 | [watching.csv](watching.csv) (the watching module, not stage 1) | 63 | rule and what it is asked | `rule`, `person`, `watches`, `covers`, `people`, `see_through` |

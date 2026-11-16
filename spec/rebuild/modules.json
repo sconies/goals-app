@@ -247,6 +247,7 @@
       "U170",
       "U179",
       "U180",
+      "U181",
       "U161",
       "U72"
     ],
@@ -317,6 +318,13 @@
         "post_check_in",
         "get_goal",
         "get_metric"
+      ],
+      "MetricQuality": [
+        "get_metric",
+        "list_metrics",
+        "save_metric",
+        "verify_metric",
+        "save_baselines"
       ]
     }
   },

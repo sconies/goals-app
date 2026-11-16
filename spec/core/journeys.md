@@ -172,7 +172,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (344 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (352 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -211,7 +211,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.coach` | the coach | [U39](../modules/goal-map/journeys/U39.md), [U27](journeys/U27.md) |
 | `.coach-ring` | the coach ring | [U31](../modules/watching/journeys/U31.md), [U27](journeys/U27.md), [U29](journeys/U29.md) |
 | `.connect` | the connect | [U42](../modules/feedback/journeys/U42.md), [U175](../modules/ai-access/journeys/U175.md) |
-| `.count-line` | the count line | [U35](journeys/U35.md), [U64](journeys/U64.md), [U92](journeys/U92.md), [U52](../modules/feedback/journeys/U52.md) |
+| `.count-line` | the count line | [U35](journeys/U35.md), [U64](journeys/U64.md), [U92](journeys/U92.md), [U52](../modules/feedback/journeys/U52.md), [U181](../modules/metrics/journeys/U181.md) |
 | `.count-line[role="status"]` | the count line | [U64](journeys/U64.md), [U92](journeys/U92.md) |
 | `.cycles-block` | the cycles block | [U51](../modules/feedback/journeys/U51.md), [U166](../modules/wrap-up/journeys/U166.md) |
 | `.dash-review` | the dash review | [U104](../modules/reviews/journeys/U104.md) |
@@ -321,9 +321,10 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.metric-need-list` | the metric need list | [U83](../modules/metrics/journeys/U83.md) |
 | `.metric-readback` | the metric readback | [U106](../modules/metrics/journeys/U106.md) |
 | `.metric-retired` | the metric retired | [U106](../modules/metrics/journeys/U106.md) |
-| `.metric-row` | the metric row | [U81](../modules/metrics/journeys/U81.md) |
+| `.metric-row` | the metric row | [U81](../modules/metrics/journeys/U81.md), [U181](../modules/metrics/journeys/U181.md) |
 | `.metric-sortout` | the metric sortout | [U170](../modules/metrics/journeys/U170.md) |
 | `.metric-structure` | the metric structure | [U172](../modules/metrics/journeys/U172.md) |
+| `.metric-top` | the metric top | [U181](../modules/metrics/journeys/U181.md) |
 | `.mg-status svg[data-status]` | the svg in the mg status | [U81](../modules/metrics/journeys/U81.md) |
 | `.mk-form` | the mk form | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md) |
 | `.mk-ink-layer` | the mk ink layer | [U42](../modules/feedback/journeys/U42.md) |
@@ -400,6 +401,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.side:visible .nav-group, .tabbar:visible a` | the nav group in the side, or the link in the tabbar | [U67](../modules/reviews/journeys/U67.md) |
 | `.side:visible, .tabbar:visible` | the menu (the sidebar on a computer, the tab bar on a phone) | [U54](journeys/U54.md), [U65](journeys/U65.md), [U59](journeys/U59.md), [U61](journeys/U61.md), [U176](journeys/U176.md) |
 | `.stage` | the stage | [U93](journeys/U93.md) |
+| `.stage-mark` | the stage mark | [U181](../modules/metrics/journeys/U181.md) |
 | `.stagelist` | the stagelist | [U6](journeys/U6.md) |
 | `.status-shape` | a status shape | [U134](../modules/goal-map/journeys/U134.md), [U163](journeys/U163.md), [U150](journeys/U150.md) |
 | `.status-shape, .chip` | a status shape, or the chip | [U57](journeys/U57.md) |
@@ -444,13 +446,15 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.ws-sort-row` | the ws sort row | [U176](journeys/U176.md) |
 | `.ws-sort-row[data-need="only-admin"]` | the ws sort row | [U61](journeys/U61.md) |
 | `[aria-labelledby=res-l] button[aria-pressed=true]` | the button | [U10](../modules/wrap-up/journeys/U10.md) |
-| `[data-check="lapse"]` | the part `[data-check="lapse"]` | [U180](../modules/metrics/journeys/U180.md) |
+| `[data-check="lapse"]` | the part `[data-check="lapse"]` | [U180](../modules/metrics/journeys/U180.md), [U181](../modules/metrics/journeys/U181.md) |
 | `[data-check="meaning"]` | the part `[data-check="meaning"]` | [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="name"]` | the part `[data-check="name"]` | [U83](../modules/metrics/journeys/U83.md), [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="part"]` | the part `[data-check="part"]` | [U160](../modules/metrics/journeys/U160.md), [U146](../modules/metrics/journeys/U146.md) |
 | `[data-check="similar"]` | the part `[data-check="similar"]` | [U180](../modules/metrics/journeys/U180.md) |
 | `[data-check="why"]` | the part `[data-check="why"]` | [U146](../modules/metrics/journeys/U146.md) |
 | `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
+| `[data-part="Baselines"]` | the “Baselines” part | [U181](../modules/metrics/journeys/U181.md) |
+| `[data-part="Calculation"]` | the “Calculation” part | [U181](../modules/metrics/journeys/U181.md) |
 | `[data-part="Changed since"]` | the “Changed since” part | [U124](journeys/U124.md) |
 | `[data-part="Checked in this week"]` | the “Checked in this week” part | [U102](journeys/U102.md) |
 | `[data-part="Checked in this week"] .ciq-row` | a goal’s row in the check-in’s list in the “Checked in this week” part | [U102](journeys/U102.md) |
@@ -460,10 +464,13 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-part="In each goal’s check-in"]` | the “In each goal’s check-in” part | [U161](../modules/metrics/journeys/U161.md) |
 | `[data-part="Last time"]` | the “Last time” part | [U148](journeys/U148.md) |
 | `[data-part="No check-in this week"]` | the “No check-in this week” part | [U102](journeys/U102.md) |
+| `[data-part="No longer Verified"]` | the “No longer Verified” part | [U181](../modules/metrics/journeys/U181.md) |
+| `[data-part="Source"] a[href^="http"]` | the a in the “Source” part | [U181](../modules/metrics/journeys/U181.md) |
 | `[data-part="Stopped goals"]` | the “Stopped goals” part | [U150](journeys/U150.md) |
 | `[data-part="Stopped goals"] li` | the list item in the “Stopped goals” part | [U150](journeys/U150.md) |
 | `[data-part="The workspace’s line"]` | the “The workspace’s line” part | [U176](journeys/U176.md) |
 | `[data-part="This week’s main action"]` | the “This week’s main action” part | [U103](../modules/reviews/journeys/U103.md) |
+| `[data-part="Verification"]` | the “Verification” part | [U181](../modules/metrics/journeys/U181.md) |
 | `[data-part="Your team"]` | the “Your team” part | [U123](journeys/U123.md) |
 | `#feeds .pinned` | the pinned in the feeds | [U33](journeys/U33.md) |
 | `#history` | the History section | [U6](journeys/U6.md), [U142](journeys/U142.md), [U103](../modules/reviews/journeys/U103.md), [U79](../modules/reviews/journeys/U79.md), [U174](../modules/tags/journeys/U174.md) |
@@ -511,6 +518,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `select` | the select | [U77](journeys/U77.md) |
 | `svg` | the svg | [U158](../modules/metrics/journeys/U158.md) |
 | `svg.measure-shape` | the measure shape | [U170](../modules/metrics/journeys/U170.md) |
+| `svg.stage-shape` | the stage shape | [U181](../modules/metrics/journeys/U181.md) |
 | `svg[data-status]` | the svg | [U146](../modules/metrics/journeys/U146.md), [U106](../modules/metrics/journeys/U106.md) |
 | `tbody tr` | the table row in the tbody | [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
 | `td.hcell` | the hcell | [U38](journeys/U38.md) |

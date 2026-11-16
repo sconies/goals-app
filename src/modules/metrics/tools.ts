@@ -142,14 +142,14 @@ const tools: ToolDef[] = [
         const team = a.team == null || a.team === '' ? undefined : /^(the )?(whole )?company$/i.test(String(a.team).trim()) ? 'company' : sliceOf(ctx, a.team) ?? undefined;
         const ask: L.LibraryAsk = {
           q: String(a.search ?? ''), unit: a.unit ? String(a.unit) : undefined, teamId: team, ownerId: a.owner ? personOf(ctx, a.owner) : undefined,
-          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: false, retired: a.retired === true,
+          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: a.sort_out === true, retired: a.retired === true,
           ...(STAGES.includes(a.stage as MetricStage) ? { stage: a.stage as MetricStage } : {}), ...(a.to_verify === true ? { toVerify: true } : {}), size: 100_000,
           sort: a.sort === 'goals' || a.sort === 'changed' ? a.sort : 'name', page: typeof a.page === 'number' ? a.page : 1,
         };
-        // sort_out reads the library's needs (rule 3) and MQ2's loose ends together, then pages as the list does.
+        // sort_out is the library's: rule 3's needs and MQ2's loose ends together (findMetrics), then pages as the list does.
         const all = L.findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
         const q = new Map(all.rows.map((r) => [r.metric.id, qualityData(ctx, r.metric)]));
-        const kept = a.sort_out === true ? all.rows.filter((r) => r.needs.length || q.get(r.metric.id)!.sortOut.length) : all.rows;
+        const kept = all.rows;
         const pageN = Math.min(Math.max(1, typeof a.page === 'number' ? Math.floor(a.page) : 1), Math.max(1, Math.ceil(kept.length / L.LIBRARY_PAGE)));
         const found = { total: kept.length, page: pageN, pages: Math.max(1, Math.ceil(kept.length / L.LIBRARY_PAGE)), rows: kept.slice((pageN - 1) * L.LIBRARY_PAGE, pageN * L.LIBRARY_PAGE) };
         const statusOf = (id: string) => { const g = ctx.snapshot.goals.find((x) => x.id === id); return g ? goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status : null; };

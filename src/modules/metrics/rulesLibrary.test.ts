@@ -37,7 +37,8 @@ describe('rule 1: finding metrics', () => {
   });
   it('keeps those no goal uses, and those with something to sort out', () => {
     expect(names({ unused: true })).toEqual(['CI compute cost per pipeline run']);
-    expect(names({ sortout: true })).toEqual(['CI compute cost per pipeline run']);
+    // Rule 3's needs and MQ2's loose ends (sortOutOf) together: the unused one, and the four other Drafts.
+    expect(names({ sortout: true })).toEqual(['CI compute cost per pipeline run', 'Developer satisfaction (pulse)', 'Flaky test rate', 'Mean time to detect', 'Remote build cache hit rate']);
     expect(names({ ownerId: 'ethan' })).toEqual(['CI compute cost per pipeline run']);
     expect(names({ dir: 'higher' })).toEqual(['Developer satisfaction (pulse)', 'Production deploys per day', 'Remote build cache hit rate']);
   });

@@ -109,6 +109,9 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Change or remove a metric | Its owner, or an admin | [`saveMetric`](../../../src/modules/metrics/rules.ts), [`saveMetricAsked`](../../../src/modules/metrics/rulesSave.ts), [`removeMetric`](../../../src/modules/metrics/rules.ts), [`canEditMetric`](../../../src/modules/metrics/rules.ts) |
 | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retireMetric`](../../../src/modules/metrics/rulesChange.ts), [`unretireMetric`](../../../src/modules/metrics/rulesChange.ts) |
 | Merge one metric into another in the same unit (MT3) | Admins | [`mergeMetrics`](../../../src/modules/metrics/rulesChange.ts) |
+| Verify a metric, or record that its figure couldn’t be reproduced (MQ2) | An admin, someone in the source’s owning team, or a named verifier; never its owner or whoever last changed its calculation, window or source | [`verifyMetric`](../../../src/modules/metrics/rulesVerify.ts) |
+| Set a metric’s baselines, or answer a “Couldn’t reproduce” (MQ2) | Its owner, or an admin | [`saveBaselines`](../../../src/modules/metrics/rulesVerify.ts), [`answerAttempt`](../../../src/modules/metrics/rulesVerify.ts) |
+| Confirm a metric passed on when its owner left, or a reworded filter (MQ2) | The new owner; the last verifier (or another admin), never whoever reworded it | [`confirmOwner`](../../../src/modules/metrics/rulesVerify.ts), [`confirmReword`](../../../src/modules/metrics/rulesVerify.ts) |
 | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`linkGoalMetric`](../../../src/modules/metrics/rulesLink.ts), [`unlinkGoalMetric`](../../../src/modules/metrics/rules.ts), [`canLinkGoal`](../../../src/modules/metrics/rules.ts) |
 
 ### Fields

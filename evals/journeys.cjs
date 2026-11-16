@@ -6079,7 +6079,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
 }, ['logged']);
 
 /* The metric library as a place (ML1, docs/design/metrics/spec.md): the library in the menu, a page per metric. */
-journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
+journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics, best stage first; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'oskar'));
   await p.goto(url('/'));
   await navTo(h, p, 'Metrics');
@@ -6088,7 +6088,7 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   const find = p.getByPlaceholder('Find by name, unit, owner or meaning');
   await h.inView(find, 'entry', 'Find a metric');
   const count = (await p.locator('.count-line').innerText()).trim();
-  h.set('progress', count === '13 metrics, A to Z.' && (await p.locator('.metric-row .metric-name').first().innerText()) === 'Change failure rate', `the library’s count line says “${count}”`);
+  h.set('progress', count === '13 metrics, best stage first.' && (await p.locator('.metric-row .metric-name').first().innerText()) === 'Change failure rate', `the library’s count line says “${count}”`);
   await h.checkpoint('library');
   await h.fill(find, 'queue');
   await see(p, /^\d+ metrics? match(es)?\.$/, 'a search for “queue” does not say how many match');
@@ -8051,6 +8051,56 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   h.set('progress', after?.source === 'Deploy events warehouse' && !after?.verification, `the change did not save, or Verified did not lapse (source ${after?.source}, verification ${after?.verification ? 'kept' : 'gone'})`);
   h.set('logged', (s1.changes ?? []).some((c) => c.entity === 'metric' && c.entityId === 'metric_deploys' && c.action === 'edited'), 'the change log has no edit of the metric');
   h.set('finish', true);
+  await p.context().close();
+}, []);
+/* MQ2 sketches 1, 2, 6 and 11 (journeys 2, 3, 9 and 11 of docs/design/mq2/journeys.html): the library by stage and a metric's page. */
+journey('U181', ['METRIC-STAGE', 'METRICS-LIBRARY'], 'Stages in the library and on a metric’s page: as Amara, Metrics shows each metric’s stage first as the step shape and its word, best stage first; the stage control counts All 13, Verified 3, Defined 5 and Draft 5; Draft lists the five, most goals first, each saying what it needs; To sort out says what’s needed and who; Change failure rate’s page reads Verified · Refreshed weekly · Rolling 28 days, with its numerator and denominator, its source link, its company baseline and Amara’s verification; as Pavel, changing Production deploys per day’s source takes it back to Defined, and its page names the change in an outlined box', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/metrics'));
+  await p.locator('.metric-row').first().waitFor();
+  const stages = p.getByRole('group', { name: 'Stage' });
+  await h.inView(stages, 'entry', 'The stage control');
+  const said = (await stages.innerText()).replace(/\s+/g, ' ');
+  h.set('progress', /All 13/.test(said) && /Verified 3/.test(said) && /Defined 5/.test(said) && /Draft 5/.test(said), `the stage control says “${said}”`);
+  const first = p.locator('.metric-row').first();
+  const mark = first.locator('.stage-mark');
+  h.set('attention', (await mark.count()) === 1 && (await mark.locator('svg.stage-shape').count()) === 1 && (await mark.innerText()).trim() === 'Verified', `the first row’s stage is “${await mark.innerText().catch(() => '')}”, not the shape and Verified`);
+  await h.click(stages.getByRole('button', { name: /^Draft/ }));
+  await see(p.locator('.count-line'), '5 metrics, most goals first.', 'Draft does not list five metrics, most goals first');
+  const drafts = await p.locator('.metric-row').evaluateAll((rs) => rs.map((r) => r.innerText.replace(/\s+/g, ' ')));
+  h.set('errors', drafts.length === 5 && drafts.every((t) => /^Draft/.test(t) && /needs /.test(t)), `a Draft row does not say what it needs: ${drafts.join(' | ')}`);
+  await h.click(stages.getByRole('button', { name: /^To sort out/ }));
+  await see(p.locator('.metric-row', { hasText: 'Flaky test rate' }), 'Add a link to the report or query', 'To sort out does not say what Flaky test rate needs');
+  await h.checkpoint('library');
+  await p.goto(url('/metrics/cfr'));
+  await p.getByRole('heading', { level: 1, name: 'Change failure rate' }).waitFor();
+  const top = (await p.locator('.metric-top').innerText()).replace(/\s+/g, ' ');
+  h.set('finish', /Verified/.test(top) && /Refreshed weekly/.test(top) && /Rolling 28 days/.test(top) && /lower is better/.test(top), `the top line says “${top}”`);
+  await see(p.locator('[data-part="Calculation"]'), 'Numerator', 'the page does not show the numerator');
+  await see(p.locator('[data-part="Calculation"]'), 'Denominator', 'the page does not show the denominator');
+  h.set('logged', (await p.locator('[data-part="Source"] a[href^="http"]').count()) === 1, 'the source has no link to its report');
+  await see(p.locator('[data-part="Baselines"]'), 'Company', 'the company baseline is not listed');
+  await see(p.locator('[data-part="Verification"]'), 'Verified by Amara Nwosu', 'the verification record is not shown');
+  await h.checkpoint('metric');
+  // Pavel changes the source of the Verified Production deploys per day (journey 5): it lapses to Defined, and says why.
+  await p.evaluate((k) => localStorage.setItem(k, 'pavel'), 'goals-app-viewer:platform-org');
+  await p.goto(url('/metrics/metric_deploys/edit'));
+  await h.fill(p.getByLabel('Source', { exact: true }), 'Deploy pipeline events');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.locator('[data-check="lapse"]').getByRole('button', { name: 'Change it, and lapse Verified' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const sheet = p.getByRole('dialog');
+  if (await sheet.count()) {
+    const same = sheet.getByLabel(/Same number, better words/);
+    if (await same.count()) await same.check();
+    await h.click(sheet.getByRole('button', { name: /^(Change the source|Save these changes|Save changes)$/ }).first());
+  }
+  await p.waitForURL((u) => /\/metrics\/[^/]+$/.test(u.pathname));
+  const box = p.locator('[data-part="No longer Verified"]');
+  await see(box, 'No longer Verified: the source changed', 'the lapse is not named on the page');
+  const outline = await box.evaluate((e) => { const c = getComputedStyle(e); return [c.borderTopWidth, c.borderRightWidth, c.borderBottomWidth, c.borderLeftWidth]; });
+  h.set('attention', new Set(outline).size === 1 && outline[0] !== '0px', `the lapse box is not a full outline (${outline.join(' ')})`);
+  await see(p.locator('.metric-top'), 'Defined', 'the page does not read Defined after the change');
   await p.context().close();
 }, []);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
