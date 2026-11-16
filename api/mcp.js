@@ -14989,6 +14989,15 @@ function qualityChanges(before, after) {
 		sourceChanged
 	};
 }
+/** Whether someone is in the source's owner: the person named, or a member or the lead of the team named. */
+/** Who owns a metric's source in Faro: the team or person named by id, else the team or person whose name its source
+owner's words are exactly (case aside), so a source owner typed on the form counts (#576 review). Null for none. */
+function sourceOwnerIdOf(m, teams, people = []) {
+	if (m.sourceOwnerId) return m.sourceOwnerId;
+	const w = norm$1(m.sourceOwner).toLowerCase();
+	if (!w) return null;
+	return teams.find((t) => norm$1(t.name).toLowerCase() === w)?.id ?? people.find((p) => norm$1(p.name).toLowerCase() === w)?.id ?? null;
+}
 /**
 * Who may verify (MQ2): anyone but the metric's owner and whoever last changed its calculation, window or source; and
 * then an admin, someone in the source's owner, or a verifier an admin named. Null when they may; otherwise why not, in
@@ -15000,7 +15009,7 @@ function whyCantVerify(m, actor, o) {
 	if (m.calcChangedBy === actor.id) return `You last changed its calculation, window or source, so someone else must verify it. ${instead}`;
 	if (o.stage === "draft") return "It isn’t fully defined yet, so there is nothing agreed to verify. Its owner finishes the definition first.";
 	if (m.measurement === "gap") return "It isn’t measured yet, so there is no figure to reproduce.";
-	if (actor.admin || inSourceOwner(m, actor, o.teams) || (m.verifiers ?? []).includes(actor.id)) return null;
+	if (actor.admin || inSourceOwner(m, actor, o.teams, o.people) || (m.verifiers ?? []).includes(actor.id)) return null;
 	return `Only an admin, someone in the source’s owner or a verifier an admin named can verify it. ${instead}`;
 }
 /** The figure Faro has for a period: the slice's live baseline for that period (company, all of it), else the latest
@@ -15284,7 +15293,10 @@ var init_rulesQuality = __esmMin((() => {
 	norm$1 = (v) => (v ?? "").trim().replace(/\s+/g, " ");
 	sameParts = (a, b, k) => norm$1(a?.[k]) === norm$1(b?.[k]);
 	sameWindow = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-	inSourceOwner = (m, p, teams) => !!m.sourceOwnerId && (m.sourceOwnerId === p.id || p.teamId === m.sourceOwnerId || teams.some((t) => t.id === m.sourceOwnerId && t.leadId === p.id));
+	inSourceOwner = (m, p, teams, people = []) => {
+		const owner = sourceOwnerIdOf(m, teams, people);
+		return !!owner && (owner === p.id || p.teamId === owner || teams.some((t) => t.id === owner && t.leadId === p.id));
+	};
 	sameSlice$1 = (a, b) => (a.teamId ?? null) === (b.teamId ?? null) && norm$1(a.part).toLowerCase() === norm$1(b.part).toLowerCase();
 	liveBaselines = (m) => (m.baselines ?? []).filter((b) => !b.replacedAt);
 	baselineFor = (m, slice) => liveBaselines(m).find((b) => sameSlice$1(b, slice)) ?? null;
@@ -16352,6 +16364,7 @@ function verifyMetric(x, metricId, i) {
 	const why = whyCantVerify(m, x.actor, {
 		stage: st.stage,
 		teams: x.snapshot.teams,
+		people: x.snapshot.people,
 		sourceOwnerName: sourceOwnerName(x.snapshot, m)
 	});
 	if (why) no$2(why);
@@ -22706,7 +22719,7 @@ var help$5 = [
 			{
 				heading: "Verifying a metric",
 				list: [
-					"An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.",
+					"An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source. A source owner typed as a team’s or a person’s exact name counts as that team or person.",
 					"On a Defined metric’s page, Verify this metric (or Verify again, once a change took Verified away) opens the form. Open the source link and tick that you did, then give the period, the figure you got from it and a note. Faro shows the difference from the baseline it has for that period, or else the latest reading, in the metric’s own unit, without judging it. Mark as Verified, or Couldn’t reproduce.",
 					"If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out."
 				]

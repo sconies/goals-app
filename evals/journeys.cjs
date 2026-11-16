@@ -7625,7 +7625,7 @@ journey('U176', ['HOME-LEADER'], 'The admin’s workspace line on Home, drawn: i
   await p.context().close();
 }, ['entry', 'one-action', 'a11y', 'logged']);
 
-journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
+journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what it still needs to reach Defined in words, never a number; adding the source, its owner and the refresh takes them off the line. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.
   await p.goto(url('/metrics'));
@@ -7670,7 +7670,8 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   await p.getByRole('heading', { level: 1, name: 'Deploy sucess rate' }).waitFor();
   const still = p.locator('.metric-head .metric-still');
-  await see(still, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'the page does not say what is still to say');
+  // MQ2 (#571 review): a Draft's page says what it still needs to reach Defined, in the stage's words.
+  await see(still, /^Still needs: .*its source, with a link to the report or query, who owns the source, how often it refreshes\.$/, 'the page does not say what is still to say');
   const words = await still.innerText();
   h.set('attention', !/\d/.test(words) && (await p.locator('.metric-head progress, .metric-head meter, .metric-head [role="progressbar"]').count()) === 0, `the line is a score: “${words}”`);
   const address = new URL(p.url()).pathname.replace(/^\/demo/, '');
@@ -7679,19 +7680,19 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await p.evaluate((k) => localStorage.setItem(k, 'tunde'), viewerKey);
   await p.goto(url(address));
   const his = p.locator('.metric-head .metric-still');
-  await see(his, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'Tunde does not see the line');
+  await see(his, /^Still needs: .*who owns the source, how often it refreshes\.$/, 'Tunde does not see the line');
   h.set('parity', (await his.getByRole('link').count()) === 0, 'Tunde is offered links to change a metric he doesn’t own');
   await p.evaluate((k) => localStorage.setItem(k, 'rhea'), viewerKey);
   await p.goto(url(address));
   await still.waitFor();
-  // Each item opens the form at its field; with the three said, it is Fully defined.
-  await h.click(still.getByRole('link', { name: 'where the number comes from' }));
+  // Each item opens the form at its field; with the source, its owner and the refresh said, they leave the line.
+  await h.click(still.getByRole('link', { name: 'its source, with a link to the report or query' }));
   await p.waitForURL(/\/edit\?field=source/);
   await h.fill(p.getByLabel('Source', { exact: true }), 'Release dashboard');
   await h.fill(p.getByLabel('Who owns that source'), 'Release engineering');
   await p.getByLabel('How often it refreshes').selectOption('daily');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
-  await see(p.locator('.metric-head .metric-still'), 'Fully defined', 'the page does not say Fully defined');
+  await see(p.locator('.metric-head .metric-still'), /^Still needs: (?!.*(who owns the source|how often it refreshes)).*\.$/, 'the page still asks for the source’s owner or the refresh once they are said');
   const s = await h.snapshot();
   const added = (s.changes ?? []).filter((c) => c.entity === 'metric' && /Deploy sucess rate/.test(c.summary)).map((c) => c.action);
   h.set('logged', added.includes('created') && added.includes('edited'), `the change log has ${added.join(', ') || 'nothing'} for the new metric`);
@@ -8024,7 +8025,8 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   await h.fill(p.getByLabel('Source', { exact: true }), deploys?.source ?? '');
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   const similar = p.locator('[data-check="similar"]');
-  await see(similar, 'There’s a similar metric in the library: “Production deploys per day”', 'the similar metric’s Check is not on the form');
+  // Sketch 12: the similar metric as a card, with its name and stage.
+  await see(similar, /1 similar metric in the library[\s\S]*Production deploys per day/, 'the similar metric’s Check is not on the form');
   h.set('errors', (await similar.getByRole('button', { name: 'Use this one' }).count()) === 1, 'the similar Check has no Use this one');
   await h.click(similar.getByRole('button', { name: 'It’s different, carry on' }));
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
@@ -8221,8 +8223,9 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/reviews/reliability'));
   await p.locator('.review-home').waitFor();
-  const shows = p.locator('summary').filter({ hasText: /^Show \d+ goals?$/ });
-  for (let i = 0; i < await shows.count(); i++) await h.click(shows.nth(i));
+  // Every part of the agenda, folded or not: Show n goals and Reviewed · n (the demo has reviewed Change failure rate).
+  const folded = p.locator('details:not([open]) > summary');
+  while (await folded.count()) await h.click(folded.first());
   const lineOf = (name) => p.locator('.agenda > li').filter({ has: p.locator('.agenda-row', { hasText: name }) }).first().locator('.agenda-line');
   const cfr = lineOf('Change failure rate');
   await see(cfr, /^Change failure rate\s*· Verified \d{1,2} \w{3} · Refreshed \w+/, 'the agenda does not say Change failure rate is Verified, when and how often it refreshes');

@@ -276,7 +276,7 @@ const help: Article[] = [
         'It lists each of your metrics and slices with the figure read from its source for the quarter just ended. Change a figure and say why; a Gap metric is skipped. Confirm saves them all and moves the old ones to History. No metric changes stage.',
       ] },
       { heading: 'Verifying a metric', list: [
-        'An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.',
+        'An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source. A source owner typed as a team’s or a person’s exact name counts as that team or person.',
         'On a Defined metric’s page, Verify this metric (or Verify again, once a change took Verified away) opens the form. Open the source link and tick that you did, then give the period, the figure you got from it and a note. Faro shows the difference from the baseline it has for that period, or else the latest reading, in the metric’s own unit, without judging it. Mark as Verified, or Couldn’t reproduce.',
         'If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.',
       ] },

@@ -30,7 +30,7 @@ export function verifyMetric(x: ActionContext, metricId: string, i: VerifyInput)
   const m = live(x, metricId);
   if (m.retiredAt) no(`“${m.name}” is retired. Bring it back before verifying it.`);
   const st = stageNow(x, m);
-  const why = whyCantVerify(m, x.actor, { stage: st.stage, teams: x.snapshot.teams, sourceOwnerName: sourceOwnerName(x.snapshot, m) });
+  const why = whyCantVerify(m, x.actor, { stage: st.stage, teams: x.snapshot.teams, people: x.snapshot.people, sourceOwnerName: sourceOwnerName(x.snapshot, m) });
   if (why) no(why);
   if (i.outcome !== 'verified' && i.outcome !== 'couldnt_reproduce') no('The outcome is “verified” or “couldnt_reproduce”.');
   if (!i.openedLink) no('Open the source link first, and say so (opened_link): the figure must come from it.');

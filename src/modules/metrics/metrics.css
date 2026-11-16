@@ -202,3 +202,7 @@
    a date" and "Latest" ran off the screen). */
 .metric-seg { display: flex; flex-wrap: wrap; max-width: 100%; }
 .metric-seg button { flex: 0 1 auto; min-width: 0; white-space: normal; text-align: left; }
+
+/* Measured by: a metric's second line wraps, so a Draft's "Not fully defined yet: needs …" and the rhythm it would set
+   are read before it is chosen (#576 review: the line was cut with an ellipsis). */
+.measured-by .pick-detail { white-space: normal; overflow: visible; text-overflow: clip; }

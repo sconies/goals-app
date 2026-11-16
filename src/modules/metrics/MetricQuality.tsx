@@ -27,7 +27,7 @@ export function stageFor(app: App, m: Metric): Stage {
 
 /** Whether the viewer may verify the metric now, and if not, why (null: they may). */
 export function refusalFor(app: App, m: Metric, st: Stage): string | null {
-  return whyCantVerify(m, app.viewer, { stage: st.stage, teams: app.snapshot.teams, sourceOwnerName: sourceOwnerName(app.snapshot, m) });
+  return whyCantVerify(m, app.viewer, { stage: st.stage, teams: app.snapshot.teams, people: app.snapshot.people, sourceOwnerName: sourceOwnerName(app.snapshot, m) });
 }
 
 /** The line under a metric's name: its stage, refresh, window, and unit with which way is better (sketch 2). */

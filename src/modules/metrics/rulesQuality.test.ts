@@ -126,11 +126,13 @@ describe('verifying (MQ2)', () => {
   });
   it('refuses someone who is neither an admin, in the source’s owner nor a named verifier', () => {
     const w = ready();
-    refused(() => V.verifyMetric(w.x('tariq'), 'metric_ci-time', ok), /Only an admin, someone in the source’s owner or a verifier an admin named/);
-    // Only an admin names verifiers, at every door: the owner can't through the save (#564 review, medium 2).
-    refused(() => saveMetricAsked(w.x('daniel'), { id: 'metric_ci-time', verifiers: ['tariq'] }), /Only an admin can name a metric’s verifiers/);
-    w.apply(saveMetricAsked(w.x('grace'), { id: 'metric_ci-time', verifiers: ['tariq'] }).commit);
+    // Tunde is in Build & Release; CI pipeline time's source is owned by Developer Experience (by name, #576 review).
+    refused(() => V.verifyMetric(w.x('tunde'), 'metric_ci-time', ok), /Only an admin, someone in the source’s owner or a verifier an admin named/);
     expect(() => V.verifyMetric(w.x('tariq'), 'metric_ci-time', ok)).not.toThrow();
+    // Only an admin names verifiers, at every door: the owner can't through the save (#564 review, medium 2).
+    refused(() => saveMetricAsked(w.x('daniel'), { id: 'metric_ci-time', verifiers: ['tunde'] }), /Only an admin can name a metric’s verifiers/);
+    w.apply(saveMetricAsked(w.x('grace'), { id: 'metric_ci-time', verifiers: ['tunde'] }).commit);
+    expect(() => V.verifyMetric(w.x('tunde'), 'metric_ci-time', ok)).not.toThrow();
   });
   it('needs the link opened, the figure and a note; stores the record and shows the difference', () => {
     const w = ready();
@@ -267,5 +269,19 @@ describe('a window is said only when it is whole (#574 review)', () => {
     expect(said({ kind: 'cumulative', since: '' })).toBe(false);
     expect(said({ kind: 'point' })).toBe(true);
     expect(said(null)).toBe(false);
+  });
+});
+
+describe('the source’s owner, by its name when no id is stored (#576 review)', () => {
+  const teams = [{ id: 'devex', name: 'Developer Experience', leadId: 'oskar' }];
+  const m = { sourceOwnerId: null, sourceOwner: 'developer experience' } as never;
+  it('lets someone in the team the words name, or its lead, verify', () => {
+    expect(Q.sourceOwnerIdOf(m, teams)).toBe('devex');
+    expect(Q.inSourceOwner(m, { id: 'tariq', teamId: 'devex' }, teams)).toBe(true);
+    expect(Q.inSourceOwner(m, { id: 'oskar', teamId: 'other' }, teams)).toBe(true);
+    expect(Q.inSourceOwner(m, { id: 'yuki', teamId: 'sre' }, teams)).toBe(false);
+  });
+  it('names nobody for words that match no team or person', () => {
+    expect(Q.sourceOwnerIdOf({ sourceOwnerId: null, sourceOwner: 'The data team' } as never, teams)).toBeNull();
   });
 });
