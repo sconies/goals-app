@@ -262,6 +262,11 @@ describe('metric library tools', () => {
       expect(tv.every((m) => m.stage === 'defined')).toBe(true);
       expect(tv.map((m) => m.name)).toContain('CI pipeline time on main (p90)');
     });
+    it('get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)', async () => {
+      const { call } = await setup('tariq');
+      const d = (await call('get_metric', { metric: 'metric_ci-time' })).structuredContent as Record<string, any>;
+      expect(d.sourceOwnerInFaro).toBe('Developer Experience');
+    });
     it('get_metric returns the calculation, baselines per slice and the verification record', async () => {
       const { call } = await setup('amara');
       const d = (await call('get_metric', { metric: 'Change failure rate' })).structuredContent as Record<string, any>;

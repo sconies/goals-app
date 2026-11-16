@@ -89,7 +89,7 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `retireMetric` | amara | saved | `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
 | `unretireMetric` | amara | refused: ““Lead time for changes” isn’t retired.” | `modules.metrics.metrics` 1 of 13 | — |
 | `mergeMetrics` | amara | saved | `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 2 of 13, past the rest by `id` | — |
-| `verifyMetric` | amara | saved | `modules.metrics.metrics` 1 of 13, past the rest by `id`; `people` 2 of 97, past the rest by `id` | — |
+| `verifyMetric` | amara | saved | `modules.metrics.metrics` 1 of 13, past the rest by `id`; `people` 2 of 97, past the rest by `id`; `teams` 2 of 14 | — |
 | `saveBaselines` | amara | saved | `modules.metrics.metrics` 1 of 13, past the rest by `id` | — |
 | `confirmMetricOwner` | amara | refused: ““Change failure rate” has no handover to confirm.” | `modules.metrics.metrics` 1 of 13, past the rest by `id` | — |
 | `confirmMetricReword` | amara | refused: ““Change failure rate” has no rewording to confirm.” | `modules.metrics.metrics` 1 of 13, past the rest by `id` | — |

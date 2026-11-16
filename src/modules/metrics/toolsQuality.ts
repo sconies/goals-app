@@ -58,7 +58,7 @@ export function qualityData(ctx: McpContext, m: Metric) {
     lapsed: st.lapsed ? { kind: st.lapsed.kind, at: st.lapsed.at, what: st.lapsed.what, why: st.lapsed.why, by: n(st.lapsed.by) } : null,
     calculation: m.calculation ?? null, calculationWords: Q.calcWords(m.calculation),
     window: m.timeWindow ?? null, windowWords: Q.windowWords(m.timeWindow), refreshWords: Q.refreshWords(m), refreshNote: m.refreshNote ?? '',
-    sourceLink: m.sourceLink ?? '', sourceQuery: m.sourceQuery ?? '', sourceOwnerInFaro: m.sourceOwnerId ? V.sourceOwnerName(ctx.snapshot, m) : null,
+    sourceLink: m.sourceLink ?? '', sourceQuery: m.sourceQuery ?? '', sourceOwnerInFaro: V.sourceOwnerInFaro(ctx.snapshot, m) || null,
     baselines: Q.liveBaselines(m).map(base), baselineHistory: (m.baselines ?? []).filter((b) => !!b.replacedAt).map(base),
     verification: m.verification ? ver(m.verification) : null, failedAttempts: (m.verifyAttempts ?? []).map(ver),
     verifiers: (m.verifiers ?? []).map((v) => n(v)), lastCalculationChange: m.calcChangedBy ? { by: n(m.calcChangedBy), at: m.calcChangedAt ?? null } : null,

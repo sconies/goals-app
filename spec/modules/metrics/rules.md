@@ -117,6 +117,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 - metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)
 - metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
 - metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
 - metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
@@ -223,6 +224,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 - metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)
 - metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
 - metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
 - metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
@@ -489,6 +491,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 - metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)
 - metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
 - metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
 - metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
@@ -610,6 +613,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 - metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)
 - metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
 - metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
 - metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
@@ -718,6 +722,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 - metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)
 - metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
 - metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
 - metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified
@@ -1050,6 +1055,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 - metric library tools › metric quality through MCP › lists stages, refresh and window, and filters by stage and to_verify
+- metric library tools › metric quality through MCP › get_metric names the source’s owner here when it is a team’s exact name, as verifying reads it (#577 review)
 - metric library tools › metric quality through MCP › get_metric returns the calculation, baselines per slice and the verification record
 - metric library tools › metric quality through MCP › verify_metric refuses the owner in words, and verifies for someone else with the comparison
 - metric library tools › metric quality through MCP › save_metric returns the stage before and after, and asks before lapsing Verified

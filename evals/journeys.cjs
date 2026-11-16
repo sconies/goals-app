@@ -8026,7 +8026,7 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   const similar = p.locator('[data-check="similar"]');
   // Sketch 12: the similar metric as a card, with its name and stage.
-  await see(similar, /1 similar metric in the library[\s\S]*Production deploys per day/, 'the similar metric’s Check is not on the form');
+  await see(similar, /A similar metric in the library[\s\S]*Production deploys per day/, 'the similar metric’s Check is not on the form');
   h.set('errors', (await similar.getByRole('button', { name: 'Use this one' }).count()) === 1, 'the similar Check has no Use this one');
   await h.click(similar.getByRole('button', { name: 'It’s different, carry on' }));
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
@@ -8228,7 +8228,7 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   while (await folded.count()) await h.click(folded.first());
   const lineOf = (name) => p.locator('.agenda > li').filter({ has: p.locator('.agenda-row', { hasText: name }) }).first().locator('.agenda-line');
   const cfr = lineOf('Change failure rate');
-  await see(cfr, /^Change failure rate\s*· Verified \d{1,2} \w{3} · Refreshed \w+/, 'the agenda does not say Change failure rate is Verified, when and how often it refreshes');
+  await see(cfr, /^Change failure rate\s*· Verified \d{1,2} \w{3}( \d{4})? · Refreshed \w+/, 'the agenda does not say Change failure rate is Verified, when and how often it refreshes');
   h.set('entry', true);
   const mttd = lineOf('Mean time to detect');
   await see(mttd, 'Draft metric', 'the agenda does not say Mean time to detect is measured by a Draft metric');
@@ -8265,7 +8265,7 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   // The form asks its Checks once Add is pressed (as U180 does); nothing is added while one is open.
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   const card = p.locator('[data-check="similar"]');
-  await see(card, '1 similar metric in the library', 'the similar metric is not asked about');
+  await see(card, 'A similar metric in the library', 'the similar metric is not asked about');
   await see(card.locator('[data-part="Similar metric"]'), /Production deploys per day\s*Verified/, 'the card does not name the similar metric with its stage');
   await see(card, 'Pavel Novák', 'the card does not say who owns the similar metric');
   h.set('honest', (await card.getByRole('button', { name: 'It’s different, carry on' }).count()) === 1, 'the card has no It’s different, carry on');

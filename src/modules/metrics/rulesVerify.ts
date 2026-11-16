@@ -6,7 +6,7 @@ import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { canEditMetric, live, log, metricRows, no, type Metric } from './rules';
-import { baselineProblems, differenceWords, mayConfirmReword, onDay, QUALITY_LIMITS, stageOf, storedFigure, whyCantVerify, withBaselines, type BaselineInput } from './rulesQuality';
+import { baselineProblems, differenceWords, mayConfirmReword, onDay, sourceOwnerIdOf, QUALITY_LIMITS, stageOf, storedFigure, whyCantVerify, withBaselines, type BaselineInput } from './rulesQuality';
 import type { MetricVerification } from './types';
 
 const nameOf = (x: ActionContext, id: string | null | undefined) => x.snapshot.people.find((p) => p.id === id)?.name ?? 'someone who has left';
@@ -16,7 +16,13 @@ export const stageNow = (x: Pick<ActionContext, 'snapshot' | 'now'>, m: Metric) 
   stageOf(m, { now: x.now, ownerIsHere: x.snapshot.people.some((p) => p.id === m.ownerId && !p.leftAt), nameOf: (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? id });
 /** Who owns a metric's source, in words: the team's or person's name, else the text. */
 export const sourceOwnerName = (s: Pick<ActionContext['snapshot'], 'people' | 'teams'>, m: Metric) =>
-  (m.sourceOwnerId && (s.teams.find((t) => t.id === m.sourceOwnerId)?.name ?? s.people.find((p) => p.id === m.sourceOwnerId)?.name)) || m.sourceOwner || '';
+  sourceOwnerInFaro(s, m) || m.sourceOwner || '';
+/** The team's or person's name that owns a metric's source here, by id or by its exact name (sourceOwnerIdOf, as
+    verifying reads it); empty when it names no one here (#577 review: get_metric said none for CI pipeline time). */
+export const sourceOwnerInFaro = (s: Pick<ActionContext['snapshot'], 'people' | 'teams'>, m: Metric) => {
+  const id = sourceOwnerIdOf(m, s.teams, s.people);
+  return (id && (s.teams.find((t) => t.id === id)?.name ?? s.people.find((p) => p.id === id)?.name)) || '';
+};
 
 export interface VerifyInput { period: string; figure: number; note: string; openedLink: boolean; outcome: 'verified' | 'couldnt_reproduce'; reading?: number | null }
 
@@ -105,7 +111,7 @@ export function confirmReword(x: ActionContext, metricId: string): Commit {
     ? `You reworded it, so someone else confirms it: ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or another admin.`
     : `Only ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or an admin can confirm the rewording.`);
   const { toConfirm: _t, ...rest } = m;
-  return { ...metricRows({ metrics: [{ ...rest, updatedAt: x.now }] }), changes: [log(x, { entityId: m.id, action: 'edited', summary: `${nameOf(x, x.actor.id)} confirmed that the reworded ${m.toConfirm!.what.map((w) => w.replace(/^the\s+/i, '')).join(' and ')} of “${m.name}”: still Verified`, diffs: [] })] };
+  return { ...metricRows({ metrics: [{ ...rest, updatedAt: x.now }] }), changes: [log(x, { entityId: m.id, action: 'edited', summary: `${nameOf(x, x.actor.id)} confirmed that the reworded ${m.toConfirm!.what.map((w) => w.replace(/^the\s+/i, '')).join(' and ')} of “${m.name}” mean the same: still Verified`, diffs: [] })] };
 }
 
 /** The owner (or an admin) answers the latest "Couldn't reproduce": it leaves "To sort out", kept on the page. */

@@ -48,7 +48,7 @@ export function ReviewRowMetric({ goal }: PlaceProps['review.row']) {
   if (!m || m.retired) return null;
   const st = stageNowOf(app, m.metric);
   const v = st.stage === 'verified' ? m.metric.verification : null;
-  const stage = st.stage === 'draft' ? null : v ? `Verified ${shortDay(v.at)}` : STAGE_LABEL[st.stage];
+  const stage = st.stage === 'draft' ? null : v ? `Verified ${shortDay(v.at, app.stamp())}` : STAGE_LABEL[st.stage];
   return (
     <p className="agenda-line" data-part="Metric" data-stage={st.stage}>
       <span>{m.metric.name}</span>
@@ -56,8 +56,8 @@ export function ReviewRowMetric({ goal }: PlaceProps['review.row']) {
     </p>
   );
 }
-/** "3 Nov": the day and month, as a review's line says it. */
-const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+/** "3 Nov", as a review's line says it; with the year when it isn't this year's ("19 Dec 2025", #577 review). */
+const shortDay = (iso: string, now: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(iso.slice(0, 4) === now.slice(0, 4) ? {} : { year: 'numeric' }), timeZone: 'UTC' });
 
 /** goal.sections: the metric that measures the goal, for which slice, what it means, and the other goals it measures.
     The place sits inside About this goal (after its facts), so this is a part of About with its own small heading, not
