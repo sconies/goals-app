@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metrics-to-verify-home',
+    date: '2026-11-16',
+    title: 'Home says which metrics are yours to verify',
+    points: [
+      'If you may verify a metric waiting on To verify, Home now says how many under Metrics to verify, such as “2 metrics to verify”, and names the ones due soonest, each opening its page.',
+      'Nothing shows when none is yours to verify, or while the Metric library is off.',
+    ],
+    articles: ['metric-quality'],
+  },
+  {
     id: 'metric-quality',
     date: '2026-11-16',
     title: 'Metrics are Draft, Defined or Verified',

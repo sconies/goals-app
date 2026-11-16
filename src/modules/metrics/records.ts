@@ -15,6 +15,7 @@ import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
 import { heldOnSwitch } from './rulesMeasured';
+import { leadOf } from '../../domain/removal';
 import { LINKS_KEY, linkOf, linksOf, log, markLabel, marksFor, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { metricsSheetRef } from './sheetRef';
 import type { Metric, MetricLink } from './types';
@@ -129,6 +130,32 @@ const goalMetric: RecordDef<MetricLink> = {
   goalOf: (l) => l.goalId,
 };
 
+/** MQ2: the metrics someone owns pass to `toId`, each to confirm under "To sort out"; the stage doesn't change (a
+    handover isn't an edit of the calculation). Null when they own none. */
+function passMetrics(x: ActionContext, personId: string, toId: string): (Pick<Commit, 'modules' | 'changes'> & { lines: string[] }) | null {
+  const s = x.full ?? x.snapshot;
+  const mine = metricsOf(s).filter((m) => m.ownerId === personId && !m.removedAt);
+  if (!mine.length) return null;
+  const name = (id: string) => s.people.find((p) => p.id === id)?.name ?? 'someone';
+  const moved: Metric[] = mine.map((m) => ({ ...m, ownerId: toId, handover: { from: personId, at: x.now, why: `${name(personId)} left` }, updatedAt: x.now }));
+  return {
+    ...metricRows({ metrics: moved }),
+    changes: moved.map((m) => log(x, { entityId: m.id, action: 'edited', summary: `Passed “${m.name}” to ${name(toId)} to confirm, as ${name(personId)} left`, diffs: [{ field: 'Owner', from: name(personId), to: `${name(toId)} (to confirm)` }] })),
+    lines: moved.map((m) => `The metric “${m.name}” passes to ${name(toId)}, to confirm.`),
+  };
+}
+
+/** Switched on again (#579 review): someone marked as left while the library was off still owns their metrics, as
+    leaving skipped it then (`whatPasses`). Each passes to their lead now, as leaving would have passed it (`leadOf`). */
+function passLeftBehind(x: ActionContext): Pick<Commit, 'modules' | 'changes'> | null {
+  const s = x.full ?? x.snapshot;
+  const owners = new Set(metricsOf(s).filter((m) => !m.removedAt).map((m) => m.ownerId));
+  const gone = s.people.filter((p) => owners.has(p.id) && (p.leftAt || p.removedAt));
+  const parts = gone.flatMap((p) => { const o = passMetrics(x, p.id, leadOf(x, p, null)); return o ? [o] : []; });
+  if (!parts.length) return null;
+  return { ...metricRows({ metrics: parts.flatMap((o) => metricsOf(o)) }), changes: parts.flatMap((o) => o.changes) };
+}
+
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
   sheets: [metricsSheetRef()],
@@ -146,22 +173,18 @@ const records: Omit<ModuleRecords, 'module'> = {
     const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : undefined;
     return m && l ? marksFor(m, l, since, until).map((k) => ({ week: k.week, label: markLabel(k) })) : [];
   },
-  // MS: switched off, the library lets go of the goals it held to no number; switched on, it holds them again.
-  switched: (x, on) => { const s = x.full ?? x.snapshot; return heldOnSwitch(x, on, metricsOf(s), linksOf(s)); },
+  // MS: switched off, the library lets go of the goals it held to no number; switched on, it holds them again. Switched
+  // on, it also passes the metrics of anyone who left while it was off to their lead, as leaving does (#579 review).
+  switched: (x, on) => {
+    const s = x.full ?? x.snapshot;
+    const held = heldOnSwitch(x, on, metricsOf(s), linksOf(s));
+    const passed = on ? passLeftBehind(x) : null;
+    if (!held && !passed) return null;
+    return { ...(held ? { goals: held.goals } : {}), ...(passed ? { modules: passed.modules } : {}), changes: [...(held?.changes ?? []), ...(passed?.changes ?? [])] };
+  },
   // MQ2: someone leaving passes the metrics they own to their lead, each to confirm under "To sort out"; the stage
   // doesn't change (a handover isn't an edit of the calculation).
-  personLeft: (x, personId, toId) => {
-    const s = x.full ?? x.snapshot;
-    const mine = metricsOf(s).filter((m) => m.ownerId === personId && !m.removedAt);
-    if (!mine.length) return null;
-    const name = (id: string) => s.people.find((p) => p.id === id)?.name ?? 'someone';
-    const moved: Metric[] = mine.map((m) => ({ ...m, ownerId: toId, handover: { from: personId, at: x.now, why: `${name(personId)} left` }, updatedAt: x.now }));
-    return {
-      ...metricRows({ metrics: moved }),
-      changes: moved.map((m) => log(x, { entityId: m.id, action: 'edited', summary: `Passed “${m.name}” to ${name(toId)} to confirm, as ${name(personId)} left`, diffs: [{ field: 'Owner', from: name(personId), to: `${name(toId)} (to confirm)` }] })),
-      lines: moved.map((m) => `The metric “${m.name}” passes to ${name(toId)}, to confirm.`),
-    };
-  },
+  personLeft: (x, personId, toId) => passMetrics(x, personId, toId),
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };
 export default records;

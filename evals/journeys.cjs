@@ -8280,6 +8280,41 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   h.set('logged', true);
   await p.context().close();
 }, []);
+/* MQ2 journey 3 (docs/design/mq2/journeys.html): a verifier's Home says how many metrics are theirs to verify. */
+journey('U185', ['METRIC-VERIFY'], 'A verifier’s Home: as Amara, Home says “5 metrics to verify” under Metrics to verify, names the three soonest, each opening its page where she can verify it, and “2 more in To verify” opens the library’s To verify; Rhea, who may verify none, sees no such line; with the Metric library switched off, Amara’s Home has none either', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/'));
+  const block = p.locator('[data-part="Metrics to verify"]');
+  await see(block, '5 metrics to verify', 'Home does not say how many metrics Amara may verify');
+  await h.inView(block.getByRole('link').first(), 'entry', 'the first metric to verify');
+  h.set('honest', (await block.locator('li').count()) === 3 && (await block.locator('svg').count()) === 0, 'Home lists more or fewer than three metrics to verify, or marks them with a shape');
+  const first = (await block.locator('li a').first().innerText()).trim();
+  await h.click(block.getByRole('link', { name: first }));
+  await p.waitForURL((u) => /^\/demo\/metrics\/[^/]+$/.test(u.pathname));
+  await see(p.locator('main'), /Verify (this metric|again)/, `${first}’s page does not offer to verify it`);
+  h.set('progress', true);
+  await h.checkpoint('to verify');
+  await p.goto(url('/'));
+  await h.click(p.locator('[data-part="Metrics to verify"]').getByRole('link', { name: '2 more in To verify' }));
+  await p.waitForURL((u) => /\/metrics$/.test(u.pathname) && /verify=1/.test(u.search));
+  h.set('finish', true);
+  // Rhea may verify none of them: no line.
+  await p.evaluate((k) => localStorage.setItem(k, 'rhea'), 'goals-app-viewer:platform-org');
+  await p.goto(url('/'));
+  await p.locator('[data-part="Home"]').waitFor();
+  await see(p.locator('[data-part="Home"]'), /Rhea/, 'Home did not open as Rhea');
+  h.set('attention', (await p.locator('[data-part="Metrics to verify"]').count()) === 0, 'Rhea, who may verify no metric, is told there are metrics to verify');
+  // The Metric library off: nothing on Amara's Home either.
+  await p.evaluate((k) => localStorage.setItem(k, 'amara'), 'goals-app-viewer:platform-org');
+  await p.goto(url('/workspace/features'));
+  await h.click(p.getByRole('checkbox', { name: /^Metric/ }));
+  await see(p, 'Metric library is off in', 'the Metric library does not switch off');
+  await p.goto(url('/'));
+  await p.locator('[data-part="Home"]').waitFor();
+  h.set('logged', (await p.locator('[data-part="Metrics to verify"]').count()) === 0, 'Home says there are metrics to verify with the Metric library off');
+  h.set('errors', true);
+  await p.context().close();
+}, []);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));

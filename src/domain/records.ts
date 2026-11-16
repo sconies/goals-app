@@ -151,13 +151,15 @@ export interface ModuleRecords {
       yyyy-mm-dd) and before `until` (the day after its last week), so a change made next year never marks this year's goals. */
   goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string, until: string): GoalMark[];
   /** What the core's own records need when the module is switched off or on, in the same save as the switch: the
-      metric library lets go of the goals it held to no number, and holds them again (MS). Null when nothing. */
-  switched?(x: ActionContext, on: boolean): Pick<Commit, 'goals' | 'changes'> | null;
+      metric library lets go of the goals it held to no number, and holds them again (MS); switched on, it also passes
+      the metrics of anyone who left while it was off to their lead, as `personLeft` would have (MQ2, #579 review).
+      Null when nothing. */
+  switched?(x: ActionContext, on: boolean): Pick<Commit, 'goals' | 'modules' | 'changes'> | null;
   /** Someone leaves (mark_person_left, Leave this workspace), in the same save: what the module passes from them to
       `toId`, the core's choice of their lead (their team's lead; whoever takes over the team when they led it). The
       metric library passes the metrics they own, each to confirm under "To sort out" (MQ2). `lines` say each thing
-      passed, for the tool's answer. Null when they hold nothing of the module's. Runs whatever the switch: what is
-      theirs moves on, as watches carry with their goals. */
+      passed, for the tool's answer. Null when they hold nothing of the module's. Skipped while the module is off
+      (`whatPasses`); `switched` passes what was left behind when it is on again. */
   personLeft?(x: ActionContext, personId: string, toId: string): (Pick<Commit, 'modules' | 'changes'> & { lines: string[] }) | null;
 }
 

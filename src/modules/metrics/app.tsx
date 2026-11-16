@@ -40,6 +40,15 @@ function HomeBaselines() {
   const owns = ((app.snapshot.modules?.metrics?.metrics ?? []) as { ownerId: string; removedAt?: string | null }[]).some((m) => m.ownerId === app.viewer.id && !m.removedAt);
   return firstWeek && owns ? <Suspense fallback={null}><LazyHomeBaselines /></Suspense> : null;
 }
+// A verifier's "n metrics to verify" (journey 3): loaded only when the library has a metric someone could verify.
+const LazyHomeVerify = lazy(() => import('./HomeVerify').then((m) => ({ default: m.HomeVerify })));
+function HomeVerify() {
+  const app = useApp();
+  const any = ((app.snapshot.modules?.metrics?.metrics ?? []) as { ownerId: string; removedAt?: string | null; retiredAt?: string | null }[]).some((m) => m.ownerId !== app.viewer.id && !m.removedAt && !m.retiredAt);
+  return any ? <Suspense fallback={null}><LazyHomeVerify /></Suspense> : null;
+}
+/** The library's blocks on Home: this quarter's baselines, then the metrics to verify. */
+const HomeMetrics = () => <><HomeBaselines /><HomeVerify /></>;
 const PersonMetrics = later('PersonMetrics');
 const TeamMetrics = later('TeamMetrics');
 
@@ -61,7 +70,7 @@ const metrics: AppModule = {
   ],
   navigation: [{ id: 'metrics', to: '/metrics', label: 'Metrics', icon, group: 'lookup' }],
   places: {
-    'home.blocks': HomeBaselines,
+    'home.blocks': HomeMetrics,
     'goal.facts': GoalMeasuredBy,
     'goal.measure': MeasuredBy,
     'goal.sections': GoalMetric,

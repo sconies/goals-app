@@ -905,7 +905,7 @@
     {
       "id": "METRIC-VERIFY",
       "area": "Metrics",
-      "text": "A metric is verified by anyone but its owner and whoever last changed its calculation, window or source, and then only by an admin, someone in the source's owner or a verifier an admin named. They say they opened the link and give the period, the figure they got and a note; Faro shows the difference from the figure it has (a baseline, else the latest reading), with no fixed tolerance. The outcome is Verified, or Couldn't reproduce (kept, the stage unchanged, on the owner's To sort out until answered). verify_metric does the same and refuses in words that say who can instead.",
+      "text": "A metric is verified by anyone but its owner and whoever last changed its calculation, window or source, and then only by an admin, someone in the source's owner or a verifier an admin named. They say they opened the link and give the period, the figure they got and a note; Faro shows the difference from the figure it has (a baseline, else the latest reading), with no fixed tolerance. The outcome is Verified, or Couldn't reproduce (kept, the stage unchanged, on the owner's To sort out until answered). verify_metric does the same and refuses in words that say who can instead. A verifier's Home says how many metrics on To verify are theirs to verify (“2 metrics to verify”), naming the soonest due; nothing when there are none or the Metric library is off.",
       "use": "copy"
     },
     {

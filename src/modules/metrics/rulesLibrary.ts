@@ -6,7 +6,7 @@
    Pure, as src/domain is: each takes only the rows it reads (the metrics, the links, the cycle's live goal ids, the
    people), never the whole workspace, and no clock (`now` is given). Statuses, "now", targets and the gap to plan come
    from the core's goal summary (domain/summary, domain/scorecard), never worked out again here. */
-import { sortOutOf, stageOf, type MetricStage, type SortOut, type Stage } from './rulesQuality';
+import { sortOutOf, stageOf, whyCantVerify, type MetricStage, type SortOut, type Stage } from './rulesQuality';
 import { measurementOf } from './rulesMeasured';
 import { fold, textMatches } from '../../domain/find';
 import { placesText } from '../../domain/numbers';
@@ -173,6 +173,14 @@ export function stageCounts(r: LibraryReads): { all: number; verified: number; d
   const rows = findMetrics(r, { size: Number.MAX_SAFE_INTEGER }).rows;
   const n = (f: (x: LibraryRow) => boolean) => rows.filter(f).length;
   return { all: rows.length, verified: n((x) => x.stage.stage === 'verified'), defined: n((x) => x.stage.stage === 'defined'), draft: n((x) => x.stage.stage === 'draft'), toVerify: n((x) => x.stage.toVerify), sortout: n((x) => x.needs.length > 0 || x.sortOut.length > 0) };
+}
+
+/** MQ2 journey 3: the metrics on "To verify" that this person may verify (rule 14, `whyCantVerify`, says nothing against
+    it), soonest due first, then A to Z: the line on a verifier's Home, "n metrics to verify". */
+export function toVerifyFor(r: LibraryReads, actor: Pick<Person, 'id' | 'teamId' | 'admin'>, o: { teams: readonly Pick<Team, 'id' | 'leadId' | 'name'>[]; sourceOwnerName: (m: Metric) => string }): LibraryRow[] {
+  return findMetrics(r, { toVerify: true, size: Number.MAX_SAFE_INTEGER }).rows
+    .filter((x) => whyCantVerify(x.metric, actor, { stage: x.stage.stage, teams: o.teams, people: r.people, sourceOwnerName: o.sourceOwnerName(x.metric) }) == null)
+    .sort((a, b) => (a.stage.dueBy ?? '').localeCompare(b.stage.dueBy ?? '') || fold(a.metric.name).localeCompare(fold(b.metric.name)));
 }
 
 /* ---------- rule 2: a metric's goals ---------- */
