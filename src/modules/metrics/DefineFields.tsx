@@ -7,8 +7,22 @@ import { AGGREGATE_LABEL, AGGREGATES, DEFINED_PARTS, definedMissing, MEASURE_LAB
 import type { Metric } from './rules';
 import type { MetricAggregate, MetricCalc, MetricMeasure, MetricPart, MetricWindow } from './types';
 
-const MEASURE_HINT: Record<MetricMeasure, string> = { count: 'How many things', sum: 'Adds an amount up', value: 'A score or reading', duration: 'Time between two events', ratio: 'One over another', other: 'A formula in words' };
+const MEASURE_HINT: Record<MetricMeasure, string> = { count: 'How many things: deploys, sign-ups', sum: 'Adds an amount up: spend, hours', value: 'A score or reading: NPS, uptime', duration: 'Time between two events: build time', ratio: 'One over another: failure rate', other: 'A formula in words' };
+/** What each choice means, under the choices: the form asks a lot, so each part says what it wants. */
+const AGGREGATE_HINT: Record<MetricAggregate, string> = {
+  total: 'Total: everything in the window added up, such as deploys this month.',
+  mean: 'Mean: the average, such as the average build time. Pulled up by a few very long ones.',
+  median: 'Median: the middle value, half above and half below. A few outliers don’t move it.',
+  percentile: 'Percentile: the value most fall under. p90 means 90 in 100 are at or below it, so it shows the slow tail.',
+  latest: 'Latest: the most recent reading, such as today’s headcount.',
+};
 const WINDOW_LABEL: Record<MetricWindow['kind'], string> = { point: 'Point in time', rolling: 'Rolling', period: 'Per period', cumulative: 'Cumulative since a date' };
+const WINDOW_HINT: Record<MetricWindow['kind'], string> = {
+  point: 'The value as it stands when read, such as open incidents right now.',
+  rolling: 'Always the last so many days, so it moves every day. 28 days evens out weekly ups and downs.',
+  period: 'Starts again each week, month or quarter, such as deploys per month.',
+  cumulative: 'Keeps adding up from a start date, such as customers since launch.',
+};
 const empty: MetricPart = { counts: '', filters: '', excludes: '' };
 /** A mean's "per": each event, or per day, week or month (and one stored another way, kept as it is). */
 const PER_CHOICES = (per?: string): [string, string][] => [['', 'Each event'], ...[...new Set(['day', 'week', 'month', ...(per ? [per] : [])])].map((p): [string, string] => [p, `Per ${p}`])];
@@ -46,6 +60,7 @@ export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undef
           <div className="seg metric-seg" role="group" aria-labelledby="metric-agg-l">
             {AGGREGATES.map((k) => <button key={k} type="button" aria-pressed={c.aggregate === k} onClick={() => aggregateTo(k as MetricAggregate)}>{k === 'percentile' ? 'Percentile (pXX)' : cap(AGGREGATE_LABEL[k])}</button>)}
           </div>
+          <span className="hint">{c.aggregate ? AGGREGATE_HINT[c.aggregate] : 'How the readings in the window become one number. Choose one to see what it means.'}</span>
           {c.aggregate === 'mean' && (
             <div className="field metric-per"><span className="field-label" id="metric-per-l">Per</span>
               <div className="seg metric-seg" role="group" aria-labelledby="metric-per-l">
@@ -80,9 +95,12 @@ export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undef
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function PartFields({ title, p, onChange, named }: { title?: string; p: MetricPart; onChange: (p: MetricPart) => void; named?: boolean }) {
+  // The placeholder goes when typing starts, so what each wants also stays under it.
+  const GUIDE = { counts: 'The thing each reading is about: a deploy, a build, a support ticket.', filters: 'Only these are in. Say every condition, so two people would count the same things.', excludes: 'What is deliberately left out and why, such as test accounts. “None” if nothing.' };
   const row = (k: 'counts' | 'filters' | 'excludes', label: string, hint: string) => (
     <label className="field"><span className="field-label">{label}</span>
       <input className="input" maxLength={QUALITY_LIMITS.part} value={p[k]} placeholder={hint} onChange={(e) => onChange({ ...p, [k]: e.target.value })} aria-label={title ? `${title}: ${label}` : label} />
+      <span className="hint">{GUIDE[k]}</span>
     </label>
   );
   return (
@@ -105,6 +123,7 @@ export function WindowField({ w, onChange }: { w: MetricWindow | null | undefine
       <div className="seg metric-seg" role="group" aria-labelledby="metric-window-l">
         {(['point', 'rolling', 'period', 'cumulative'] as const).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => onChange(kind === k ? null : to(k))}>{WINDOW_LABEL[k]}</button>)}
       </div>
+      <span className="hint">{kind ? WINDOW_HINT[kind] : 'The stretch of time one reading covers. Choose one to see what it means.'}</span>
       {w?.kind === 'rolling' && <label className="field metric-days"><span className="field-label">Days</span><input className="input" type="number" min={1} max={3660} value={w.days || ''} onChange={(e) => onChange({ kind: 'rolling', days: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>}
       {w?.kind === 'period' && (
         <label className="field metric-days"><span className="field-label">Each</span>
@@ -113,6 +132,34 @@ export function WindowField({ w, onChange }: { w: MetricWindow | null | undefine
       )}
       {w?.kind === 'cumulative' && <label className="field metric-days"><span className="field-label">Since</span><input className="input" type="date" value={w.since} onChange={(e) => onChange({ kind: 'cumulative', since: e.target.value })} /></label>}
     </div>
+  );
+}
+
+/** One metric filled in end to end, folded away at the top of the form: what a good answer to each question looks like. */
+const EXAMPLE: [string, string][] = [
+  ['Name', 'Build time'],
+  ['Unit', 'minutes'],
+  ['Which way is better', 'Lower'],
+  ['What it means', 'How long a main-branch build takes, from start to a green or red result.'],
+  ['What is measured', 'Duration'],
+  ['How it is aggregated', 'Percentile, p90: the slow builds people actually wait for'],
+  ['Counts', 'A CI build'],
+  ['Filters', 'Branch is main; CI runs only'],
+  ['Leaves out', 'Builds cancelled by hand'],
+  ['Window', 'Rolling, 28 days'],
+  ['Source', 'The CI dashboard, with a link to it'],
+  ['Who owns that source', 'Platform team'],
+  ['How often it refreshes', 'Daily'],
+  ['Owner', 'The person who answers for what it means'],
+];
+export function MetricExample() {
+  return (
+    <details className="metric-example">
+      <summary className="small">See a worked example</summary>
+      <dl className="metric-example-list small">
+        {EXAMPLE.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+      </dl>
+    </details>
   );
 }
 

@@ -42,6 +42,7 @@ const help: Article[] = [
       { heading: 'What it needs', list: [
         'In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.',
         'Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.',
+        'Every field says what it wants underneath, with an everyday example: how each way of aggregating and each window works (a p90 shows the slow tail; rolling 28 days moves every day), what Counts, Filters and Leaves out take, who to name as the source’s owner, and what a caveat or a way to game it looks like. See a worked example, at the top of the form, opens one metric (Build time) filled in from Name to Owner.',
         'A Defined or Verified metric’s page says “Fully defined” under its title. A Draft one says what it still needs to reach Defined: “Still needs: a window, a source link.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.',
       ] },
       { heading: 'Must fix and Check', list: [
