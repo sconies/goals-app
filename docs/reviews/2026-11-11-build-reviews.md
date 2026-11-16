@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It is live, has cross-session tools again, and reviews whatever merges next; read on only if it has handed over.
 
-- **Last merge fully reviewed:** `e0750402` (#581). #582 from the drill-bugs track is to follow. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #581 are at the end, under “The reviewer of 16 November, afternoon”.
+- **Last merge fully reviewed:** `7b23328c` (#582), the last of the drill-bugs track. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #582 are at the end, under “The reviewer of 16 November, afternoon”.
 - **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
@@ -325,6 +325,7 @@ Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, after
 | #578 #577’s review: `get_metric` names the source’s owner as verifying reads it; the agenda’s year, the History verb, the card’s heading | MQ2 (session …QjRG9q19) | 0 | 0 | 0 |
 | #579 Drill bugs 1/3: the database checks a workspace’s switches in `okr_commit` and `okr_token_create` (0058); a leaver passes nothing of a switched-off module | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 1 |
 | #581 Drill bugs 2/3: days without an update never negative (0v), U69’s real goal, evals find Vite from the root up, home.csv made in UTC, “on its goal”, Settings’ token link with AI access off | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 0 |
+| #582 Drill bugs 3/3: Help leaves Reviews out while it is off; a goal’s name has no longest length in the engine’s words (G-48) | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2939,3 +2940,12 @@ Reviewed by session_012kbr91MPMFHiESAut3BVig. No findings.
 - **Evals.** `viteBin` resolves `vite/package.json` from the app folder up. `run.mjs` stops with a clear sentence when none is found. U69 now opens six goals that exist, and fails on a “not found” title.
 - **home.csv.** `inUtc` sets `process.env.TZ` around the synchronous row build and puts it back. The test builds it in Pacific/Auckland and gets the committed file byte for byte.
 - Ran the five new or changed test files and `src/domain/status`: 12 tests pass. Not walked on screen.
+
+### #582 Drill bugs 3/3: Help without Reviews, and the workspace name’s limit out of Goals’ words (merged 16 Nov, `7b23328c`)
+
+Reviewed by session_012kbr91MPMFHiESAut3BVig. No highs or mediums; one low.
+
+- **Names.** `workspaceNameProblem` holds the 80-character limit; `nameProblem` keeps only empty and too short. Every former `nameProblem(…, 'workspace')` caller has moved (actions’ rename, dayOne, Onboarding, Workspace), so no door lost the limit. `engineWords.test.ts` checks that Goals’ words no longer list it, and that G-48’s 141 characters pass.
+- **Help.** `GuideSection.module`/`moduleOff` with `sectionsShown`, and `whenOff` with `articleShown`, are used for the list row, the article’s title and summary, and its sections. `guideReviewsOff.test.ts` checks that no core article names reviews with Reviews off, and that the articles are unchanged with it on.
+- Ran `src/help`, `engineWords`, `workspace` and `thresholds` tests: 42 pass.
+- **Low:** Help’s search still reads every section and keyword (`textOf` in `guide.ts`), the hidden ones included. With Reviews off, a search for “review” returns about 15 core articles (print, removing, set-up, needs-attention, goals, people and more) whose shown text no longer mentions reviews (probe over `searchGuide`, `articleShown` and `sectionsShown`). It should search what `sectionsShown` and `articleShown` give for the switches in force. Also, R-names’ code pointer in `src/spec/rules.ts` (around line 1095) still lists `nameProblem` and `MAX_WORKSPACE_NAME`, not `workspaceNameProblem`.
