@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It is live, has cross-session tools again, and reviews whatever merges next; read on only if it has handed over.
 
-- **Last merge fully reviewed:** `f8e1830a` (#578). Every code PR merged from #121 up to it has a row in State and a section below. #577 and #578 are at the end, under “The reviewer of 16 November, afternoon”.
+- **Last merge fully reviewed:** `d0f5c794` (#579). #581 and #582 from the drill-bugs track are to follow. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #579 are at the end, under “The reviewer of 16 November, afternoon”.
 - **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
@@ -323,6 +323,7 @@ Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, after
 | #576 MQ2 part 4c: verifying, Measured by with the stage, a goal on a Draft metric | MQ2 (session …QjRG9q19) | 0 | 2 | 1 |
 | #577 MQ2 part 4d: the stage on a review’s agenda, the similar-metric card, Metrics from day one, and the review fixes | MQ2 (session …QjRG9q19) | 0 | 1 | 1 |
 | #578 #577’s review: `get_metric` names the source’s owner as verifying reads it; the agenda’s year, the History verb, the card’s heading | MQ2 (session …QjRG9q19) | 0 | 0 | 0 |
+| #579 Drill bugs 1/3: the database checks a workspace’s switches in `okr_commit` and `okr_token_create` (0058); a leaver passes nothing of a switched-off module | Drill bugs (session …NX6NXBs2f) | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2915,3 +2916,14 @@ Reviewed by session_012kbr91MPMFHiESAut3BVig. No findings; closes #577’s mediu
 - **The medium.** `rulesVerify.ts` adds `sourceOwnerInFaro`, which resolves the owner through `sourceOwnerIdOf`, the same rule `verifyMetric` uses. `sourceOwnerName`, the metric page’s source line and `get_metric` all read it. A new test calls `get_metric` for `metric_ci-time` as Tariq and gets “Developer Experience”. Read and run: `src/modules/metrics`, 15 files, 241 tests pass.
 - **The low.** `shortDay` adds the year when the verified date isn’t in this year (`app.stamp()` is an ISO string, so the year comparison holds; the agenda’s journey pattern now allows ` \d{4}`). The History line reads “… of “X” mean the same: still Verified”. The card says “A similar metric in the library”, with both journeys changed to match.
 - Not walked on screen; the changes are wording and one resolver, and the journeys that see them (U184’s agenda and card lines) were updated in the same PR.
+
+### #579 Drill bugs 1/3: the database checks a workspace’s switches (migration 0058; merged 16 Nov, `d0f5c794`)
+
+Reviewed by session_012kbr91MPMFHiESAut3BVig. No highs or mediums; one low.
+
+- **The migration.** `okr_commit` is defined only in 0011 and now in 0058; 0058’s body is 0011’s with `modules_off_check` added before the expectations check, so nothing later is dropped. `okr_token_create`’s body is 0024’s word for word apart from the search path and the new AI-access refusal. The new function is revoked from public and granted to anon; `module_entities` has RLS, a read policy and a written grant. Safe to run twice (`if not exists`, `on conflict do nothing`, `drop policy if exists`).
+- **The rule lives once.** `modules_off_check` restates `writesReviews` (FT2, `src/domain/reviewWrites.ts`) and `writesWatches` (SW1, `src/domain/watchWrites.ts`) clause by clause; I compared them. It reads the switches the save leaves in force (`workspace_modules_off`, which `commitPayload` sends only when the save sets them). The core logs `decision`, `review` and `watch` changes only from Reviews’ and Watching’s own actions; `metric` and `field` only from their modules (restore from Recently removed included, which should be refused while off). The importer’s weekly review goes through `okr_create_workspace`, not `okr_commit`.
+- Ran `src/data/modulesOff.test.ts`, `rulesMeasured.test.ts`, `schema.test.ts` and `src/domain/removal`: 4 files, 60 tests pass.
+- **Low:** someone marked as left while a module is off now passes nothing of it (`removal.ts` filters `x.modulesOff`), and nothing catches up when the module is switched back on: their metrics stay owned by a person who has left, and the reviews they were in still list them. Reviews’ `personLeft` only rewrites stored reviews, which 0058 doesn’t refuse, so skipping it there wasn’t needed. A left owner shows as “Left” (#570), so this is visible, not broken.
+- **As the database rule, not the app’s:** SW1’s “watches and nothing else” means a client that bundles any non-empty key with a watch still gets it written. That is the shared rule, and the app refuses the watch earlier anyway, so it’s noted, not raised.
+- Not walked on screen: the only screen change is the leaving sheet’s list, which reads the same `whatPasses`.
