@@ -23,7 +23,7 @@ import { stagesFromNow } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
-import { nameLength, nameProblem } from '../domain/thresholds';
+import { nameLength, workspaceNameProblem } from '../domain/thresholds';
 import { fmt } from '../domain/format';
 import { closeTeam } from '../domain/people';
 import { Sheet, Steps } from '../ui/bits';
@@ -308,7 +308,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const prefs = usePrefs();
 
   // Each field says its own problem (setup review, 8 Nov): a name of at least MIN_NAME characters, and the numbers a goal needs.
-  const nameIssue = nameProblem(d.name, 'workspace');
+  const nameIssue = workspaceNameProblem(d.name);
   const meErr = {
     name: !d.me.name.trim() ? 'Add your name.' : null,
     email: !meEmail ? 'Add your email.' : !isEmail(meEmail) ? `“${me.email}” doesn’t look like an email.` : null,

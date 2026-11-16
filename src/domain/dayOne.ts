@@ -3,7 +3,7 @@
    workspace behind the Prefs port (src/ports/prefs.ts). */
 import type { Change, Goal, Person } from './types';
 import { isEmail, normalEmail } from './people';
-import { nameProblem } from './thresholds';
+import { workspaceNameProblem } from './thresholds';
 
 /** Set-up's steps, by their address under /workspace/new/ (set-up spec rule S1, small workspaces rule 3). */
 export type SetupStep = 'workspace' | 'people' | 'goals' | 'check';
@@ -30,7 +30,7 @@ export interface SetupAnswers { name: string; me: { name: string; email: string;
  * Forward, a typed address) can't carry a refused answer through to Create (build review of #475).
  */
 export function workspaceStepProblem(a: Pick<SetupAnswers, 'name' | 'me'>): boolean {
-  return !!nameProblem(a.name, 'workspace') || !a.me.name.trim() || !isEmail(normalEmail(a.me.email)) || !a.me.team.trim();
+  return !!workspaceNameProblem(a.name) || !a.me.name.trim() || !isEmail(normalEmail(a.me.email)) || !a.me.team.trim();
 }
 
 /**

@@ -18,9 +18,9 @@ Found by the full rebuild drill. Wording only; none is fixed here.
 
 - U69 opens `rel-cfr`, which doesn't exist.
 - `evals/run.mjs` needs vite at the repo root.
-- Help names reviews while Reviews is off.
-- Demo goal G-48's 141-character name makes an unchanged export refused.
-- An unedited export needs engine fixes to load back (m9).
+- **Fixed:** Help names reviews while Reviews is off (a guide section may be a module's, `GuideSection.module`, with its words while off, `moduleOff`; an article's title and summary likewise, `whenOff`; Features still names every switch).
+- **Fixed (in the kit; Faro never refused it):** Demo goal G-48's 141-character name makes an unchanged export refused. The engine's words listed the workspace's 80-character limit as a Goals Must fix (`spec/core/rules/change-engine.md`); it is now `workspaceNameProblem`'s alone.
+- **Fixed:** An unedited export needs engine fixes to load back (m9: the drill's stage 9). Faro's engine loads it back as no change (`src/domain/roundtrip.test.ts`); of the kit's four gaps, #547's conformance rows cover three, and the fourth is G-48's row above.
 - `home.csv` depends on the time zone (Pacific/Auckland).
 - 0v: a goal whose plan hasn't started yet shows a negative number of days without an update.
 - Reviews' switch-off read-back says "1 open next step … on their goals" for one goal (from #547).

@@ -36,13 +36,21 @@ export const MIN_NAME = 3;
 const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
 /** The longest name a workspace can have, in characters: said under the field while typing, never cut silently (backlog WS). */
 export const MAX_WORKSPACE_NAME = 80;
-/** What's wrong with a workspace's or a goal's name, or null: empty, shorter than MIN_NAME, or (a workspace) longer than MAX_WORKSPACE_NAME. */
+/** What's wrong with a workspace's or a goal's name, or null: empty, or shorter than MIN_NAME. A goal's name has no
+    longest length; a workspace's does (workspaceNameProblem). */
 export function nameProblem(name: string, thing: 'workspace' | 'goal' | 'outcome'): string | null {
   const t = name.trim().replace(/\s+/g, ' ');
   if (!t) return `Give the ${thing} a name.`;
   if (t.length < MIN_NAME) return `Give the ${thing} a name of at least ${NUMBER_WORDS[MIN_NAME] ?? MIN_NAME} characters.`;
-  if (thing === 'workspace' && t.length > MAX_WORKSPACE_NAME) return `Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has ${t.length}.`;
   return null;
+}
+
+/** What's wrong with a workspace's name, or null: nameProblem's, or longer than MAX_WORKSPACE_NAME. Its own function, so
+    the change engine's words (src/spec/engineWords.ts, which follows goalMustFix into nameProblem) never list the
+    workspace's limit under Goals (drill, 15 Nov: a rebuild refused demo goal G-48's 141-character name for it). */
+export function workspaceNameProblem(name: string): string | null {
+  const t = name.trim().replace(/\s+/g, ' ');
+  return nameProblem(name, 'workspace') ?? (t.length > MAX_WORKSPACE_NAME ? `Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has ${t.length}.` : null);
 }
 
 /** What a workspace name's field says while it's typed: how many characters of the limit it uses, once it's near (null before). */

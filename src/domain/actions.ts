@@ -6,7 +6,7 @@ import { mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { withProposed } from './proposed';
 import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
-import { nameProblem } from './thresholds';
+import { workspaceNameProblem } from './thresholds';
 import type { Commit } from './commit';
 import { applyModuleRows, hasModuleRows, type ModuleRecords, type ModuleRows } from './records';
 import type { Lookup } from './changes';
@@ -484,7 +484,7 @@ export function arrive(x: ActionContext, ws: { name: string }): Commit | null {
 export function renameWorkspace(x: ActionContext, ws: { id: string; name: string }, name: string): Commit | null {
   if (!x.actor.admin) no('Only admins can rename the workspace.');
   const clean = name.trim().replace(/\s+/g, ' ');
-  const named = nameProblem(clean, 'workspace');
+  const named = workspaceNameProblem(clean);
   if (named) no(named);
   if (clean === ws.name) return null;
   return { workspace: { name: clean }, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: `Renamed the workspace to “${clean}”`, diffs: [{ field: 'Workspace name', from: ws.name, to: clean }] }] };

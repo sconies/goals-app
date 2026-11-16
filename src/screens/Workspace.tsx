@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { STEPS_NOTE } from '../markup/model';
-import { nameLength, nameProblem } from '../domain/thresholds';
+import { nameLength, workspaceNameProblem } from '../domain/thresholds';
 import { createContext, Fragment, useContext, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
@@ -462,7 +462,7 @@ function WorkspaceName() {
   const [tried, setTried] = useState(false);
   const save = async () => {
     setTried(true);
-    if (name === null || nameProblem(name, 'workspace') || busy) return;
+    if (name === null || workspaceNameProblem(name) || busy) return;
     setBusy(true);
     try {
       const same = name.trim().replace(/\s+/g, ' ') === app.ws.name;
@@ -477,11 +477,11 @@ function WorkspaceName() {
       <form className="stack ws-rename" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="field">
           <label className="field"><span className="field-label">Workspace name</span>
-            <input className={'input' + (tried && nameProblem(name, 'workspace') ? ' invalid' : '')} aria-invalid={tried && nameProblem(name, 'workspace') ? true : undefined} aria-describedby={nameLength(name) ? 'ws-name-length' : undefined} autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+            <input className={'input' + (tried && workspaceNameProblem(name) ? ' invalid' : '')} aria-invalid={tried && workspaceNameProblem(name) ? true : undefined} aria-describedby={nameLength(name) ? 'ws-name-length' : undefined} autoFocus value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           {/* The limit is said while typing, never applied by cutting the name short (backlog WS). */}
-          {nameLength(name) && <span id="ws-name-length" className={'hint' + (nameProblem(name, 'workspace')?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(name)}</span>}
-          {tried && nameProblem(name, 'workspace') && <span className="hint tone-off" role="alert">{nameProblem(name, 'workspace')}</span>}
+          {nameLength(name) && <span id="ws-name-length" className={'hint' + (workspaceNameProblem(name)?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(name)}</span>}
+          {tried && workspaceNameProblem(name) && <span className="hint tone-off" role="alert">{workspaceNameProblem(name)}</span>}
         </div>
         <span className="ws-rename-buttons"><button type="submit" className="btn">{busy ? 'Saving…' : 'Save the name'}</button><button type="button" className="btn ghost" onClick={() => { setName(null); setTried(false); }}>Cancel</button></span>
       </form>
