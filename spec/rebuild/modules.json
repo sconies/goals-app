@@ -344,6 +344,10 @@
         "verify_metric",
         "get_metric",
         "list_metrics"
+      ],
+      "HomeVerify": [
+        "list_metrics",
+        "get_metric"
       ]
     }
   },

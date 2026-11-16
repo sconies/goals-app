@@ -313,7 +313,7 @@ const help: Article[] = [
       ] },
     ],
     routes: ['/metrics', '/metrics/:metricId', '/metrics/:metricId/baseline', '/metrics/baselines', '/metrics/:metricId/verify'],
-    screens: ['MetricQuality', 'DefineFields', 'BaselineForms', 'VerifyForm'],
+    screens: ['MetricQuality', 'DefineFields', 'BaselineForms', 'VerifyForm', 'HomeVerify'],
     reqs: ['METRIC-STAGE', 'METRIC-VERIFY', 'METRIC-BASELINES'],
     keywords: ['define', 'aggregated', 'percentile', 'take this quarter', 'review', 'agenda', 'similar', 'monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
     related: ['metric-define', 'metric-structure', 'metrics'],

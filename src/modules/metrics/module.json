@@ -217,6 +217,7 @@
     "MetricQuality": ["get_metric",  "list_metrics",  "save_metric",  "verify_metric",  "save_baselines"],
     "DefineFields": ["save_metric",  "get_metric"],
     "BaselineForms": ["save_baselines",  "get_metric",  "list_metrics"],
-    "VerifyForm": ["verify_metric",  "get_metric",  "list_metrics"]
+    "VerifyForm": ["verify_metric",  "get_metric",  "list_metrics"],
+    "HomeVerify": ["list_metrics",  "get_metric"]
   }
 }

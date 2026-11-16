@@ -1742,7 +1742,7 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
 
 `metric-quality`, from the metrics module. How far a metric can be trusted: whether its definition is complete, and whether someone other than its owner has reproduced its figure.
 
-Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metrics/baselines`, `/metrics/:metricId/verify`. Screens: `MetricQuality`, `DefineFields`, `BaselineForms`, `VerifyForm`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
+Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metrics/baselines`, `/metrics/:metricId/verify`. Screens: `MetricQuality`, `DefineFields`, `BaselineForms`, `VerifyForm`, `HomeVerify`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
 
 #### The three stages
 
