@@ -4,7 +4,7 @@ The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` bra
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `0fb6c6e1` (#568, no findings; before it #566), which closes #564’s high, walked. Mediums open: #564’s two (fix on MQ2 part 3, draft #567) and #566’s one (U180 isn’t in the metric library’s `module.json` journeys). The newest state is under “The reviewer of 16 November” at the end of the log.
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `7dbdd505` (#567: one high open, an edit of a goal drops its monthly rhythm, sent 02:22 UTC, 16 Nov, to the MQ2 builder, now session_012kbr92MEwSBMnnQ1Pis1ae, and planning; four mediums with planning; before it #568, no findings, and #566), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. Mediums open: #567’s four. The newest state is under “The reviewer of 16 November” at the end of the log.
 
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.

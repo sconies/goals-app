@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `0fb6c6e1` (#568, no findings; before it #566), which closes #564’s high, walked. Mediums open: #564’s two (fix on MQ2 part 3, draft #567) and #566’s one (U180 isn’t in the metric library’s `module.json` journeys). The newest state is under “The reviewer of 16 November” at the end of the log.
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `7dbdd505` (#567: one high open, an edit of a goal drops its monthly rhythm, sent 02:22 UTC, 16 Nov, to the MQ2 builder, now session_012kbr92MEwSBMnnQ1Pis1ae, and planning; four mediums with planning; before it #568, no findings, and #566), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. Mediums open: #567’s four. The newest state is under “The reviewer of 16 November” at the end of the log.
 
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.
@@ -314,6 +314,7 @@ Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning t
 | #564 MQ2 part 2: the metric quality rules and MCP (0057) | MQ2 | 1 | 2 | 1 |
 | #566 The metric form asks the similar-metric and lapse questions (#564’s high) | MQ2 | 0 | 1 | 3 |
 | #568 Core: a module’s sheets load on demand | core (session …nQ1Pis1ae) | 0 | 0 | 0 |
+| #567 MQ2 part 3: a goal’s own rhythm, a leaver’s metrics, the sheet’s calculation columns | MQ2 (session …nQ1Pis1ae) | 1 | 4 | 1 |
 
 **High findings, and where each stands**
 
@@ -2746,7 +2747,7 @@ One high, two mediums, one low.
 
 ## The reviewer of 16 November (session …nAc52AT), from #566
 
-Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `0fb6c6e1` (#568, no findings; before it #566). #564’s high is closed. Mediums open: #564’s two (their fix is on MQ2 part 3, draft #567, which waits on a core PR that loads sheets lazily) and #566’s one, sent to planning at 01:05 UTC, 16 Nov.
+Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `7dbdd505` (#567: one high open, an edit of a goal drops its monthly rhythm, sent 02:22 UTC, 16 Nov, to the MQ2 builder, now session_012kbr92MEwSBMnnQ1Pis1ae, and planning; four mediums with planning; before it #568, no findings, and #566). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. Mediums open: #567’s four.
 
 ### #566 The metric form asks the similar-metric and lapse questions its save asks (MQ2 build, merged 16 Nov)
 
@@ -2770,3 +2771,27 @@ Read at `0fb6c6e1`: the diff by me, then every reader of a module sheet followed
 - As run (subagent): the entry chunk and its preloads don’t hold the Metrics sheet’s columns. Cold, as Amara, demo of 5 November: Goals’ export and Data’s “Everything” each save a workbook with a Metrics sheet of 13 rows; a pasted Metrics row with new Caveats reads as “1 metric changed”; the exported workbook loaded back reads “Nothing would change” over 2,604 rows. No console or page errors. U19, U20, U95, U178 and U179 pass at phone and desktop size, at full speed. The 274 to 266 KB figure was not measured here.
 
 No findings.
+
+### #567 MQ2 part 3: each goal’s own check-in rhythm, a leaver’s metrics, the Metrics sheet’s calculation columns (MQ2, session …nQ1Pis1ae, merged 16 Nov)
+
+Read at `7dbdd505` against `docs/design/mq2` and Lane’s answers: the core side (`goalRhythm.ts`, `progress.ts`, `attention.ts`, `standing.ts`, `status.ts`, `removal.ts`) and the library’s rules by me, probed with throwaway vitest files over the demo of 5 November (deleted). The Metrics sheet’s round trip and every added sentence of Help, What’s new, the spec’s rules and the hand-written pages by a Sonnet subagent, which ran its own probes; each finding of its I report was checked by hand in the code, and says so. A second subagent walked Home, Check-in and the goal page for the two monthly goals on four dates: no errors, but the demo checks them in every week, so a monthly goal waiting for its month was never on screen. No migration (0056 holds the column).
+
+- **#564’s two mediums: closed, probed.** Grace, who reworded `metric_deploys`’ filters, is refused (“You reworded it, so someone else confirms it”) and Amara confirms. Rhea, not an admin, is refused naming a verifier through `saveMetricAsked`, `saveMetric` and on a new metric.
+- **#566’s medium: closed.** U180 is in `module.json`’s journeys.
+- As probed: ns-cost, monthly, is due only in the last week of its month (45 to 48 for November, 48 the due one); a check-in in week 45 counts through week 48; with none in its month and the last week not yet come it is `later`, out of the week’s goals. A refresh changed to monthly and back sets and clears the rhythm with a History line; the switch clears and restores it. A leaver’s metrics pass to their team’s lead, or to whoever takes their goals when they led it.
+
+One high, four mediums, one low.
+
+- **High. Any ordinary edit of a goal drops its monthly rhythm, silently.** `planGoal` (`src/domain/goalEntry.ts`, about line 636) rebuilds the goal with `buildGoal` and keeps `proposedIn`, `proposedBy` and `unmeasuredSince` from the stored one; `checkInRhythm` isn’t kept. Probe: as Bjorn, `planGoal` with ns-cost’s own draft and a new title. Before, `monthly`; the commit’s goal has no `checkInRhythm`, `goalToRows` writes `check_in_rhythm` null, the only change logged is “Changed name”, and after `applyCommit` the goal has none. A goal still on a monthly metric is then due every week and reads No recent update after the cycle’s two weeks; nothing puts it back until its link or the metric’s refresh changes. The hold had the same slip (MS review, medium 3; the `held` line beside it). Not probed: the Goals sheet, `update_goal` by name, carrying into a new year. Sent to the MQ2 builder and planning at 02:22 UTC, 16 Nov.
+- **Medium. The Metrics sheet takes a Verified metric back to Defined without asking or saying.** The sheet’s planner calls `saveMetricChange` (`sheetPlan.ts:237`), not `saveMetricAsked`; nothing in the file raises `lapse`. By the subagent’s run on `metric_deploys`: a new How aggregated, Window, Source link or Counts is one item with no question, and the commit’s metric has its verification gone and an empty reason; a new Filters keeps it with `toConfirm`. The preview says only the diff and “Stages after loading: 1 Defined”. `lapseChecks`’ own comment says the question is asked “at every door”. Checked by hand: the call and the missing check.
+- **Medium. The People sheet’s “Left” leaves a leaver’s metrics with them.** `markPersonLeft` is also called from the import (`changeset.ts`, about line 1791) with a context that has no `records` (`xOf`), so `whatPasses` finds no `personLeft`. By the subagent’s run: Yuki marked Left with Takes over Amara; `metric_mttd` still Yuki’s, no handover. `bulk_change` comes the same way. Checked by hand: `xOf` has no `records`. Help, What’s new and the README say a leaver’s metrics pass on, without this exception.
+- **Medium. A changed “How aggregated” keeps the old one’s number.** `Object.assign(base, aggregateFrom(how))` (`sheetPlan.ts:162`) never clears `percentile` or `per`. By the subagent’s run: p90 to median saves `aggregate: median, percentile: 90`; “mean per day” to “total” saves `per: day`; “mean per day” to “mean” reads as no change. Checked by hand: the assign.
+- **Medium. Four pages say what only the assistant’s door does, or what nothing does.**
+  - Help (“Before anything is saved, the preview says how many would be Draft, Defined and Verified…”), What’s new and `module.json`: the planner’s `notes` are read in one place, `src/mcp/tools.ts:209`; the import’s preview draws none of them.
+  - `docs/architecture/module-map.md` and `docs/handoff.md`: “a Stage column”. The sheet has none.
+  - Help: “Linking one says what it still needs”. `draftWarning` is used only by `link_goal_metric`.
+  Checked by hand: the three greps.
+- **Low.**
+  - Someone with no goals whose team has no other lead, leaving by themselves, passes their metrics to themselves (`leadOf` falls to the actor). Probe: Oskar, his team’s lead blanked; the log says “Passed … to Oskar Lindgren to confirm, as Oskar Lindgren left”.
+  - By the subagent’s run of the sheet: “Cumulative since 2026-13-45” and `http://` links are saved; Count with p90 is saved; a retired metric is counted as a Draft in the notes; the notes say “Stages after loading” when a Must fix means nothing loads; an empty cell never clears a calculation, and seven of the new columns have no note.
+  - No screen says a goal is monthly, and a monthly goal waiting for its month is in none of `weekProgress`’s lists the Check-in screen draws (read; the screens are part 4). A monthly goal’s receipt says “10 weeks in a row”. A goal on a retired monthly metric stays monthly.
