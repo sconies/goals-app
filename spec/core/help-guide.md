@@ -1784,6 +1784,7 @@ Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metri
 - An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source. A source owner typed as a team’s or a person’s exact name counts as that team or person.
 - On a Defined metric’s page, Verify this metric (or Verify again, once a change took Verified away) opens the form. Open the source link and tick that you did, then give the period, the figure you got from it and a note. Faro shows the difference from the baseline it has for that period, or else the latest reading, in the metric’s own unit, without judging it. Mark as Verified, or Couldn’t reproduce.
 - If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.
+- If any metric on To verify is yours to verify, Home says how many under Metrics to verify (“2 metrics to verify”) and names the three due soonest, each opening its page. More than three adds a link to the rest in the library’s To verify. Nothing shows when none is yours, or while the Metric library is off.
 
 #### What takes Verified away
 
@@ -1814,6 +1815,7 @@ Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metri
 #### When a metric’s owner leaves
 
 - When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change.
+- Someone marked as left while the Metric library was off keeps their metrics until it is switched on again; then each passes to their lead in the same way.
 
 #### Many metrics at once
 
