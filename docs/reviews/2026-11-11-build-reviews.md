@@ -14,6 +14,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `25067735` (#566), which closes #564’s high, walked. Mediums open: #564’s two (fix on MQ2 part 3, draft #567) and #566’s one (U180 isn’t in the metric library’s `module.json` journeys). The newest state is under “The reviewer of 16 November” at the end of the log.
+
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** one, sent at 23:20 UTC to the MQ2 build session and planning. **#564:** the existing metric form can't add a metric the `similar` check matches, or change the direction or source of a Verified metric: the rule asks `similar` and `lapse`, and `Metrics.tsx` draws only name, unit and meaning. Its fix needs the two questions and their answers on screen; walk it (the steps are in #564's section).
@@ -310,6 +312,7 @@ Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning t
 | #562 A markup's errors wait for the same tick as its steps (#557's medium) | fix track | 0 | 0 | 0 |
 | #563 MQ2 part 1: metric quality columns (0056) | MQ2 | 0 | 1 | 0 |
 | #564 MQ2 part 2: the metric quality rules and MCP (0057) | MQ2 | 1 | 2 | 1 |
+| #566 The metric form asks the similar-metric and lapse questions (#564’s high) | MQ2 | 0 | 1 | 3 |
 
 **High findings, and where each stands**
 
@@ -2739,3 +2742,21 @@ One high, two mediums, one low.
 - **Medium. Whoever rewords a Verified metric's filters may confirm their own rewording.** A changed filter or exclusion doesn't lapse; it asks the last verifier to confirm (Lane's design). `confirmReword` (`rulesVerify.ts`) lets that verifier or any admin, the one who made the change included. Probe: Grace (an admin, not the owner) rewrote `metric_deploys`' filters to "Only the EU region, weekdays only" and its exclusions; it stayed Verified with `toConfirm` naming Amara; Grace then confirmed it herself and it is Verified with nothing to confirm. The same holds when the editor is the last verifier. `whyCantVerify` keeps whoever changed the calculation from verifying; the rewording has no such line.
 - **Medium. "A verifier an admin named" is held only by the MCP tool.** `qualityInput` (`toolsQuality.ts`) refuses `verifiers` from anyone but an admin; `saveMetricAsked` and `saveMetric` take them from whoever may edit the metric. Probe: Rhea, not an admin, named Wen a verifier of her own metric through `saveMetricAsked`. The form and the sheet (parts 3 and 4) come through the rule, not the tool.
 - **Low.** "{owner} was told" and "is told" (`verifyMetric`'s words, the lapse question) have only the change log behind them: nothing tells anyone. Help's new article says a goal measured by a Draft "shows a warning" and speaks of "To verify" and "To sort out" as places; the goal page has no warning yet and those are `list_metrics`' lists (What's new does say the screens follow). An admin who owns a metric can pass it to someone, verify it and take it back, three saves in History. A Verified metric whose owner leaves reads as Draft until part 3's handover, since the owner being here is one of the ten parts. Read, not probed.
+
+## The reviewer of 16 November (session …nAc52AT), from #566
+
+Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `25067735` (#566). #564’s high is closed. Mediums open: #564’s two (their fix is on MQ2 part 3, draft #567, which waits on a core PR that loads sheets lazily) and #566’s one, sent to planning at 01:05 UTC, 16 Nov.
+
+### #566 The metric form asks the similar-metric and lapse questions its save asks (MQ2 build, merged 16 Nov)
+
+Read at `25067735` against #564’s high: the diff by me (`Metrics.tsx`, `rulesSave.ts`, Help, journey U180, the `[METRIC-BASELINES]` scenario); the form walked on a production build by a Sonnet subagent with Playwright, demo of 5 November, at 1280 × 900 and 390 × 844, one screenshot looked at by me. The other form that adds a metric (`MeasuredBy.tsx`, from a goal’s Measured by) was read: it draws whatever Checks `metricChecks` returns, `similar` included, and was not part of the high. Not done: U180 and the new scenario were not run here; the spec and `api/mcp.js` were left to their own tests.
+
+- **#564’s high: closed, walked.**
+  - As Amara, `/metrics/new`, “Daily releases to production” with the meaning and source of Production deploys per day: Add the metric shows the Check under Name with “Use this one” and “It’s different, carry on”. Use this one opens that metric and adds nothing; carrying on closes to “You said: mine is different.” and the metric is added.
+  - As Pavel, `/metrics/metric_deploys/edit`: a new Source, or the other direction, shows the Check above Save changes with “Change it, and lapse Verified”; answered, the read-back sheet follows (same number or not; a reason for the direction) and the change saves. The page then reads “Fully defined” and the verification is gone. Caveats alone save with no question.
+  - At phone width both Checks fit, with no sideways scroll and 44px buttons. No console errors.
+
+No highs, one medium, three lows.
+
+- **Medium. U180, the journey that guards this fix, isn’t in the metric library’s journey list, so a change to the form doesn’t run it before a merge.** `evals/touches.cjs` runs a module’s `module.json` `journeys` for a change in its folder; `src/modules/metrics/module.json` ends at U179. Run: `touches(['src/modules/metrics/Metrics.tsx'])` and the same for `rulesSave.ts` and `rulesDefine.ts` return 22 ids without U180. So `evals:changed` and PR CI don’t run it for parts 3 and 4, which rewrite this form; only the full suite after the merge does. A full run of a build without the Metric library would also run it and fail (the map’s F6, again); the “without metrics” job runs the core journeys only, so CI is green. The fix is the one id in `module.json`, and `npm run spec`.
+- **Low.** The lapse Check is answered once for the form (`valueOf('lapse')` is `''`): answer it for the source, then change the direction too, and “You said: change it, and lapse Verified.” stays without asking about the direction (the rule takes the one answer for both, so nothing is refused). The Check names two changes as “Changing the source, the direction takes it back”. It tells Pavel, the owner making the change, “Pavel Novák is told” (and nothing tells anyone: #564’s low). Walked.
