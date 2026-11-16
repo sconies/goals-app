@@ -105,7 +105,7 @@ export function LeaveSheet({ person, onClose }: { person: Person; onClose: () =>
   const asks = new Set([...l.asked, ...l.asking].map((r) => r.id)).size;
   const [goalsTo, setGoalsTo] = useState('');
   // What the modules pass to their lead (MQ2: the metrics they own), said before it happens.
-  const passes = whatPasses({ snapshot: app.snapshot, cycle: app.cycle, week: app.week, actor: app.viewer, now: new Date().toISOString(), newId: (p) => p, ...(app.full ? { full: app.full } : {}), records: MODULE_RECORDS }, person, goalsTo || null).flatMap((o) => o.lines);
+  const passes = whatPasses({ snapshot: app.snapshot, cycle: app.cycle, week: app.week, actor: app.viewer, now: new Date().toISOString(), newId: (p) => p, ...(app.full ? { full: app.full } : {}), records: MODULE_RECORDS, modulesOff: app.ws.modulesOff ?? [] }, person, goalsTo || null).flatMap((o) => o.lines);
   const [asksTo, setAsksTo] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -172,7 +172,7 @@ export function LeaveWorkspaceSheet({ onClose }: { onClose: () => void }) {
   const l = leaving({ snapshot: app.snapshot, cycle: app.cycle, full: app.full }, me.id);
   const asks = new Set([...l.asked, ...l.asking].map((r) => r.id)).size;
   const [goalsTo, setGoalsTo] = useState('');
-  const passes = whatPasses({ snapshot: app.snapshot, cycle: app.cycle, week: app.week, actor: me, now: new Date().toISOString(), newId: (p) => p, ...(app.full ? { full: app.full } : {}), records: MODULE_RECORDS }, me, goalsTo || null).flatMap((o) => o.lines);
+  const passes = whatPasses({ snapshot: app.snapshot, cycle: app.cycle, week: app.week, actor: me, now: new Date().toISOString(), newId: (p) => p, ...(app.full ? { full: app.full } : {}), records: MODULE_RECORDS, modulesOff: app.ws.modulesOff ?? [] }, me, goalsTo || null).flatMap((o) => o.lines);
   const [asksTo, setAsksTo] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);

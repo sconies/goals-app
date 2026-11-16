@@ -789,6 +789,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a metric’s measurement status (MS) › keeps the hold when the goal’s own form is saved (MS review, medium 3)
 - a metric’s measurement status (MS) › says so in the export: held to no number, and the word for it
 - someone leaving passes their metrics to their lead (MQ2) › passes each metric they own to their team’s lead, to confirm, and keeps its stage
+- someone leaving passes their metrics to their lead (MQ2) › passes nothing while the library is switched off: the metrics stay as they are (the database refuses a metric’s change then, 0058)
 
 ## Where a metric sits, and how far to trust it
 

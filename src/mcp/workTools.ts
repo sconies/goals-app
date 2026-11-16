@@ -50,7 +50,7 @@ export const READ = { readOnlyHint: true, openWorldHint: false } as const;
 export const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = VIA_MCP;
 
-export const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
+export const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS, modulesOff: ctx.ws?.modulesOff ?? [] });
 
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 export async function save(ctx: McpContext, c: Commit | null, done: string, nothing: string): Promise<ToolResult> {

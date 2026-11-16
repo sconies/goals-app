@@ -248,7 +248,7 @@ export function leadOf(x: Pick<ActionContext, 'snapshot' | 'actor'>, p: Pick<Per
     answer. `goalsTo` is who takes over their goals and teams. */
 export function whatPasses(x: ActionContext, p: Pick<Person, 'id' | 'teamId'>, goalsTo: string | null): (Pick<Commit, 'modules' | 'changes'> & { lines: string[] })[] {
   const lead = leadOf(x, p, goalsTo);
-  return (x.records ?? []).flatMap((r) => { const o = r.personLeft?.(x, p.id, lead); return o ? [o] : []; });
+  return (x.records ?? []).filter((r) => !x.modulesOff?.includes(r.module)).flatMap((r) => { const o = r.personLeft?.(x, p.id, lead); return o ? [o] : []; });
 }
 
 /** Admins: delete someone with no history at all (no goals, check-ins, notes or asks), say someone added by mistake. */

@@ -9422,7 +9422,7 @@ function leadOf(x, p, goalsTo) {
 answer. `goalsTo` is who takes over their goals and teams. */
 function whatPasses(x, p, goalsTo) {
 	const lead = leadOf(x, p, goalsTo);
-	return (x.records ?? []).flatMap((r) => {
+	return (x.records ?? []).filter((r) => !x.modulesOff?.includes(r.module)).flatMap((r) => {
 		const o = r.personLeft?.(x, p.id, lead);
 		return o ? [o] : [];
 	});
@@ -18634,7 +18634,7 @@ var _virtual_faro_modules_default = [
 			],
 			"exit": [
 				"Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.",
-				"Switched off, making a token is refused with “AI access is off in {workspace}.” by the app’s action, and revoking one still works. The database function that makes a token (okr_token_create) doesn’t check the switch yet, only that its maker is an admin (a backlog bug).",
+				"Switched off, making a token is refused with “AI access is off in {workspace}.” by the app’s action, and revoking one still works. The database function that makes a token (okr_token_create) refuses it too, in the same words (migration 0058; src/data/modulesOff.test.ts).",
 				"Switched off, Workspace has no AI access section (/workspace/ai is Page not found with “AI access is switched off in {workspace}. An admin can switch it on in Workspace, Features.”), Settings has no “Your MCP tokens” and a person's page has no Make an MCP token (journey U175).",
 				"Switching off first reads back, from the rule aiAccessReadBack, the tokens that stop working (the first five by person and name, then how many more) and the changes AI tools made here; switching back on, only when tokens were kept, names those that work again. With no token it acts at once.",
 				"set_feature switching AI access off answers “AI access is off in {workspace}. This connection stops working now. An admin switches it back on in Faro.”",
@@ -19030,7 +19030,7 @@ var _virtual_faro_modules_default = [
 			],
 			"exit": [
 				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
-				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing: the app's action dispatcher and the MCP server's tools refuse it; the database's save doesn't check the switch yet (a backlog bug) (check N21; src/app/reviewsOffWrites.test.ts).",
+				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing: the app's action dispatcher and the MCP server's tools refuse it; the database's save (okr_commit, migration 0058) refuses the same, by the same rule (check N21; src/data/modulesOff.test.ts; src/app/reviewsOffWrites.test.ts).",
 				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
 				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
 				"Back on, every review, its people, its cadence and what was said are as they were (journey U104).",
@@ -28502,7 +28502,8 @@ var ax$4 = (ctx) => ({
 	newId: ctx.newId,
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
 	...ctx.full ? { full: ctx.full } : {},
-	records: MODULE_RECORDS
+	records: MODULE_RECORDS,
+	modulesOff: ctx.ws?.modulesOff ?? []
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save$4(ctx, c, done, nothing) {
@@ -29708,7 +29709,8 @@ var ax$3 = (ctx) => ({
 	newId: ctx.newId,
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
 	...ctx.full ? { full: ctx.full } : {},
-	records: MODULE_RECORDS
+	records: MODULE_RECORDS,
+	modulesOff: ctx.ws?.modulesOff ?? []
 });
 async function save$3(ctx, c, done) {
 	await ctx.save({
