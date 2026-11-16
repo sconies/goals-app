@@ -2,7 +2,7 @@
 
 # Access today
 
-Who may read and change what in Faro’s database today, read from the database itself after every migration (57). **All of it is demo access: replace.** Faro has no sign-in on purpose (a demo that never holds real data), so the app’s public key (`anon`) may read and change every workspace. Requirement R1 ([sign-in and access](../requirements/internal/r1-sign-in-and-access.md)) says what the internal app does instead; the two shapes at the end of this page are what replaces each line here. The full schema is [schema.sql](../core/schema.sql).
+Who may read and change what in Faro’s database today, read from the database itself after every migration (58). **All of it is demo access: replace.** Faro has no sign-in on purpose (a demo that never holds real data), so the app’s public key (`anon`) may read and change every workspace. Requirement R1 ([sign-in and access](../requirements/internal/r1-sign-in-and-access.md)) says what the internal app does instead; the two shapes at the end of this page are what replaces each line here. The full schema is [schema.sql](../core/schema.sql).
 
 Each new table in the migrations copied the block before it, so the pattern seen most often there is the one not to keep. Read this page, not the migrations, for the access surface.
 
@@ -14,6 +14,7 @@ The schema `faro` may be used by the public key (`anon`), anyone signed in (`aut
 |---|---|---|---|---|
 | `goal_field_values` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
 | `goal_fields` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
+| `module_entities` | on | anon: select | “saves: read”: select for anon where `true` | Demo access: replace |
 | `module_tables` | on | anon: select | “saves: read”: select for anon where `true` | Demo access: replace |
 | `okr_api_tokens` | on | nobody | none | Functions only |
 | `okr_builders` | on | nobody | none | Functions only |
@@ -46,7 +47,7 @@ The schema `faro` may be used by the public key (`anon`), anyone signed in (`aut
 
 ## Functions that run with their owner’s rights
 
-34 of the 41 functions are `security definer`: they pass every row rule above, so each is as open as the list of who may run it. Some check what they are handed (a live token’s hash, for the AI tools’ endpoint) or that the person signed in is one of Faro’s builders (`okr_is_builder`). None checks that the caller belongs to the workspace it names, because nobody signs in to a workspace. In the internal app each must check its caller first (shape 2).
+34 of the 42 functions are `security definer`: they pass every row rule above, so each is as open as the list of who may run it. Some check what they are handed (a live token’s hash, for the AI tools’ endpoint) or that the person signed in is one of Faro’s builders (`okr_is_builder`). None checks that the caller belongs to the workspace it names, because nobody signs in to a workspace. In the internal app each must check its caller first (shape 2).
 
 | Function | Who may run it | Today |
 |---|---|---|
@@ -85,7 +86,7 @@ The schema `faro` may be used by the public key (`anon`), anyone signed in (`aut
 | `okr_token_secret()` | its owner only | Owner only (scheduled jobs and helpers) |
 | `okr_token_touch(hash text)` | the public key (`anon`), everyone (`public`) | Demo access: replace |
 
-The other 7 run with the caller’s rights, so the table rules above apply to them.
+The other 8 run with the caller’s rights, so the table rules above apply to them.
 
 ## Files
 

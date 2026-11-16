@@ -14,7 +14,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 ## Bugs found by the drill (15 Nov)
 
-Found by the full rebuild drill. Wording only; none is fixed here.
+Found by the full rebuild drill. Taken as one track (Lane, 16 Nov); each is marked as its fix lands, with a test that fails without it.
 
 - **Fixed:** U69 opens `rel-cfr`, which doesn't exist (it opens `vuln-autofix`, and fails on a “not found” title).
 - **Fixed:** `evals/run.mjs` needs vite at the repo root (it finds Vite as Node finds a package, `evals/viteBin.cjs`).
@@ -24,10 +24,10 @@ Found by the full rebuild drill. Wording only; none is fixed here.
 - **Fixed:** `home.csv` depends on the time zone (Pacific/Auckland) (made in UTC, `inUtc` in `src/spec/conformance.ts`).
 - **Fixed:** 0v: a goal whose plan hasn't started yet shows a negative number of days without an update.
 - **Fixed:** Reviews' switch-off read-back says "1 open next step … on their goals" for one goal (from #547).
-- `okr_token_create` doesn't check `modules_off`: a token can be made while AI access is off.
-- The database's save (`okr_commit`) doesn't check `modules_off` either: a save that writes Reviews' records, or a module's rows, is kept while the module is off; only the app's and the MCP server's actions refuse it.
+- **Fixed (#579, migration 0058):** `okr_token_create` doesn't check `modules_off`: a token can be made while AI access is off.
+- **Fixed (#579, migration 0058; someone leaving no longer passes a switched-off library's metrics):** The database's save (`okr_commit`) doesn't check `modules_off` either: a save that writes Reviews' records, or a module's rows, is kept while the module is off; only the app's and the MCP server's actions refuse it.
 - **Fixed:** Settings' "On this page" links to "Your MCP tokens" while AI access is off.
-- R1's access table said "Anyone" for what is said in a review, where REVIEW-SPEAK says someone in the review or an admin (fixed in the spec by this PR; the stand-in showed the server must enforce it).
+- **Fixed (confirmed 16 Nov: the access table says someone in the review, or an admin):** R1's access table said "Anyone" for what is said in a review, where REVIEW-SPEAK says someone in the review or an admin (fixed in the spec by this PR; the stand-in showed the server must enforce it).
 
 ## Deep dive, 15 Nov
 
