@@ -197,3 +197,8 @@
 .metric-take-fields { display: flex; flex-direction: column; gap: 6px; }
 .metric-take-row > p { margin: 0; }
 @media (max-width: 620px) { .metric-take-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* The form's aggregate and window choices wrap within the column on a phone (#574 review: at 390 px "Cumulative since
+   a date" and "Latest" ran off the screen). */
+.metric-seg { display: flex; flex-wrap: wrap; max-width: 100%; }
+.metric-seg button { flex: 0 1 auto; min-width: 0; white-space: normal; text-align: left; }

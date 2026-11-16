@@ -257,3 +257,15 @@ describe('who may confirm a rewording (#571 review)', () => {
     expect(Q.mayConfirmReword(t, { id: 'yuki' })).toBe(false);
   });
 });
+
+describe('a window is said only when it is whole (#574 review)', () => {
+  const said = (timeWindow: unknown) => Q.partSaid({ timeWindow } as never, 'window', true);
+  it('needs a rolling window’s days and a cumulative one’s date', () => {
+    expect(said({ kind: 'rolling', days: 28 })).toBe(true);
+    expect(said({ kind: 'rolling', days: 0 })).toBe(false);
+    expect(said({ kind: 'cumulative', since: '2026-01-01' })).toBe(true);
+    expect(said({ kind: 'cumulative', since: '' })).toBe(false);
+    expect(said({ kind: 'point' })).toBe(true);
+    expect(said(null)).toBe(false);
+  });
+});

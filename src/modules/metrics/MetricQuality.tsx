@@ -100,7 +100,7 @@ export function QualityNotices({ metric: m, st }: { metric: Metric; st: Stage })
       )}
       {m.toConfirm && (
         <section className="metric-box stack" role="note" aria-labelledby="metric-reword" data-part="Rewording to confirm">
-          <h2 className="metric-box-head" id="metric-reword">The {m.toConfirm.what.join(' and ')} {m.toConfirm.what.length > 1 ? 'were' : 'was'} reworded</h2>
+          <h2 className="metric-box-head" id="metric-reword">{rewordHead(m.toConfirm.what)}</h2>
           <p>{nameOf(app, m.toConfirm.by)} reworded them on {onDay(m.toConfirm.at)}. It stays Verified; {nameOf(app, m.toConfirm.verifier)}, who verified it, is asked to confirm the new words mean the same; an admin may confirm it too, never whoever reworded it.</p>
           {mayConfirmReword(m.toConfirm, app.viewer) && <div className="row"><button type="button" className="btn" onClick={() => void run('confirmMetricReword', { metricId: m.id })}>They mean the same</button></div>}
         </section>
@@ -231,3 +231,9 @@ export function Verification({ metric: m, st }: { metric: Metric; st: Stage }) {
     </section>
   );
 }
+
+/** "The filters were reworded": each part as stored ("the filters"), so no second "the" (#574 review, low). */
+const rewordHead = (what: readonly string[]) => {
+  const w = what.map((x) => x.replace(/^the\s+/i, '')).join(' and ');
+  return `The ${w} ${what.length > 1 || /s$/.test(w) ? 'were' : 'was'} reworded`;
+};

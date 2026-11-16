@@ -172,7 +172,8 @@ export function partSaid(m: Metric, part: DefinedPart, ownerIsHere: boolean): bo
       return c.measure === 'ratio' ? partHas(c.numerator, 'scope') && partHas(c.denominator, 'scope') : partHas(c.part, 'scope');
     case 'unit': return said(m.unit);
     case 'direction': return m.direction === 'higher' || m.direction === 'lower';
-    case 'window': return !!m.timeWindow && WINDOW_KINDS.includes(m.timeWindow.kind);
+    // A rolling window needs its days, a cumulative one its date (#574 review): a kind alone isn't a window.
+    case 'window': { const w = m.timeWindow; return !!w && WINDOW_KINDS.includes(w.kind) && (w.kind !== 'rolling' || w.days > 0) && (w.kind !== 'cumulative' || !!w.since) && (w.kind !== 'period' || PERIODS.includes(w.period)); }
     case 'source': return said(m.source) && said(m.sourceLink);
     case 'sourceOwner': return said(m.sourceOwner);
     case 'refresh': return m.refresh != null;

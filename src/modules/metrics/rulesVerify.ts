@@ -105,7 +105,7 @@ export function confirmReword(x: ActionContext, metricId: string): Commit {
     ? `You reworded it, so someone else confirms it: ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or another admin.`
     : `Only ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or an admin can confirm the rewording.`);
   const { toConfirm: _t, ...rest } = m;
-  return { ...metricRows({ metrics: [{ ...rest, updatedAt: x.now }] }), changes: [log(x, { entityId: m.id, action: 'edited', summary: `${nameOf(x, x.actor.id)} confirmed the reworded ${m.toConfirm!.what.join(' and ')} of “${m.name}”: still Verified`, diffs: [] })] };
+  return { ...metricRows({ metrics: [{ ...rest, updatedAt: x.now }] }), changes: [log(x, { entityId: m.id, action: 'edited', summary: `${nameOf(x, x.actor.id)} confirmed that the reworded ${m.toConfirm!.what.map((w) => w.replace(/^the\s+/i, '')).join(' and ')} of “${m.name}”: still Verified`, diffs: [] })] };
 }
 
 /** The owner (or an admin) answers the latest "Couldn't reproduce": it leaves "To sort out", kept on the page. */

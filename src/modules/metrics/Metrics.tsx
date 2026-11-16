@@ -726,7 +726,7 @@ export function MetricForm() {
       </div>
     );
   }
-  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '', level: d.level || null as never, parentId: d.parentId || null as never, confidence: d.confidence || null as never, gaming: d.gaming ?? '', ...(d.calculation ? { calculation: d.calculation } : {}), ...(d.timeWindow ? { timeWindow: d.timeWindow } : {}), sourceLink: d.sourceLink ?? '', sourceQuery: d.sourceQuery ?? '', refreshNote: d.refreshNote ?? '' };
+  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '', level: d.level || null as never, parentId: d.parentId || null as never, confidence: d.confidence || null as never, gaming: d.gaming ?? '', ...('calculation' in d ? { calculation: d.calculation ?? null } : {}), ...('timeWindow' in d ? { timeWindow: d.timeWindow ?? null } : {}), sourceLink: d.sourceLink ?? '', sourceQuery: d.sourceQuery ?? '', refreshNote: d.refreshNote ?? '' };
   const next = metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId });
   const problems = metricProblems(next, app.snapshot);
   const shows = (k?: string) => tried || (!!k && left.has(k));
