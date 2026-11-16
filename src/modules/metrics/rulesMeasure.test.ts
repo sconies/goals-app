@@ -46,7 +46,7 @@ describe('the metric finder', () => {
     const a = M.searchMetrics(r, { q: 'queue' });
     // CI pipeline time's meaning says "Queue time included", so it is found too (rule 1 searches the meaning).
     expect(a.rows.map((x) => x.name)).toEqual(['CI pipeline time on main (p90)', 'Pipeline queue wait (p90)']);
-    expect(a.rows[1]!.detail).toBe('min · lower is better · Rhea Kapoor');
+    expect(a.rows[1]!.detail).toBe('Defined · min · lower is better · Rolling 7 days · Refreshed hourly · Rhea Kapoor');
     expect(a.next).toBeNull();
   });
   it('pages by key', () => {

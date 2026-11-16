@@ -1369,7 +1369,7 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
 
 `metric-quality`, from the metrics module. How far a metric can be trusted: whether its definition is complete, and whether someone other than its owner has reproduced its figure.
 
-Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metrics/baselines`. Screens: `MetricQuality`, `DefineFields`, `BaselineForms`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
+Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metrics/baselines`, `/metrics/:metricId/verify`. Screens: `MetricQuality`, `DefineFields`, `BaselineForms`, `VerifyForm`. Requirements: `METRIC-STAGE`, `METRIC-VERIFY`, `METRIC-BASELINES`.
 
 #### The three stages
 
@@ -1409,7 +1409,7 @@ Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metri
 #### Verifying a metric
 
 - An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.
-- Open the source link, then give the period, the figure you got from it and a note. Faro shows the difference from the figure it has for that period, without judging it.
+- On a Defined metric’s page, Verify this metric (or Verify again, once a change took Verified away) opens the form. Open the source link and tick that you did, then give the period, the figure you got from it and a note. Faro shows the difference from the baseline it has for that period, or else the latest reading, in the metric’s own unit, without judging it. Mark as Verified, or Couldn’t reproduce.
 - If you can’t reproduce the figure, record Couldn’t reproduce with your note. The metric stays as it was, and its owner sees your note under To sort out.
 
 #### What takes Verified away
@@ -1433,6 +1433,8 @@ Routes: `/metrics`, `/metrics/:metricId`, `/metrics/:metricId/baseline`, `/metri
 - A goal measured by a metric that refreshes monthly checks in once a month, by the month’s last due day, so the new figure is in first. One that refreshes quarterly checks in once a quarter. Nothing is due on it in between, and it never reads No recent update between refreshes.
 - Linking the goal, or changing the metric’s refresh, sets this, with a line in the goal’s History. Unlinking it, or a refresh more often than monthly, puts it back on the workspace’s rhythm. Switching the Metric library off puts every goal back.
 - A Draft metric can still measure a goal, and the goal keeps working. Linking one through the AI assistant says what it still needs.
+- In Measured by, Defined and Verified metrics come first, each with its window and how often it refreshes; a Draft one says what it still needs. Adding a metric there asks only its name, unit and direction: it starts as Draft, to finish on its page.
+- A goal measured by a Draft metric shows “Measured by a Draft metric” with the warning mark, what isn’t set yet and See what’s missing. Its status works as normal. Wherever the goal names its metric, the stage and refresh come with it.
 
 #### When a metric’s owner leaves
 

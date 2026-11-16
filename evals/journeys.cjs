@@ -6195,7 +6195,7 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
   await h.fill(here.getByLabel('Unit'), 'min');
   await h.click(here.getByRole('button', { name: 'Lower is better' }));
   await h.click(here.getByRole('button', { name: 'Add this metric' }));
-  await see(p, 'Added runner wait. Say more about it on its page when you can.', 'adding a metric in place is not confirmed');
+  await see(p, 'Added runner wait as Draft. Finish defining it on its page when you can.', 'adding a metric in place is not confirmed');
   await see(p.locator('.measured-by'), 'Its meaning hasn’t been written yet.', 'the metric added in place is not chosen');
   await h.fill(p.getByLabel(/^Baseline$/), '8');
   await h.fill(p.getByLabel(/^Target$/), '5');
@@ -8158,6 +8158,58 @@ journey('U182', ['METRIC-STAGE', 'METRIC-BASELINES'], 'Defining and baselines: a
   h.set('logged', (s1.changes ?? []).some((c) => c.entity === 'metric' && c.entityId === 'metric_ci-time'), 'the change log has no line for the baseline');
   h.set('finish', true);
   h.set('errors', true);
+  await p.context().close();
+}, []);
+/* MQ2 sketches 5, 7 and 10 (journeys 1, 3, 4 and 9 of docs/design/mq2/journeys.html): verifying, the picker, a goal on a Draft metric. */
+journey('U183', ['METRIC-VERIFY', 'METRIC-STAGE', 'METRICS-MEASURED-BY'], 'Verifying and the picker: as Amara, CI pipeline time’s page offers Verify this metric; the form shows the difference from the stored figure in minutes, and Mark as Verified makes it Verified with her record; Couldn’t reproduce on Time to first review keeps it Defined and shows her attempt in an outlined box; a goal measured by Remote build cache hit rate warns that it is measured by a Draft metric, with what’s missing; Measured by lists Defined metrics before Draft ones, each with its window and refresh', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/metrics/ci-time'));
+  const go = p.getByRole('link', { name: 'Verify this metric' });
+  await h.inView(go, 'entry', 'Verify this metric');
+  await h.click(go);
+  await p.getByRole('heading', { level: 1, name: /^Verify CI pipeline time/ }).waitFor();
+  await p.getByLabel('I opened the link and it shows this metric, for this window').check();
+  await h.fill(p.getByLabel('The figure you got from the link'), '21');
+  await see(p.locator('[data-part="Difference"]'), /Your 21 min/, 'the form does not show the figure against the stored one');
+  await h.fill(p.getByLabel('Note'), 'Matches within rounding.');
+  await h.click(p.getByRole('button', { name: 'Mark as Verified' }));
+  await p.waitForURL((u) => /\/metrics\/ci-time$/.test(u.pathname));
+  await see(p.locator('.metric-top'), 'Verified', 'CI pipeline time is not Verified after Mark as Verified');
+  await see(p.locator('[data-part="Verification"]'), 'Verified by Amara Nwosu', 'the verification record does not name Amara');
+  await h.checkpoint('verified');
+  await p.goto(url('/metrics/first-review/verify'));
+  await p.getByLabel('I opened the link and it shows this metric, for this window').check();
+  await h.fill(p.getByLabel('The figure you got from the link'), '9');
+  await h.fill(p.getByLabel('Note'), 'The dashboard counts bot reviews; the definition doesn’t say.');
+  await h.click(p.getByRole('button', { name: 'Couldn’t reproduce' }));
+  await p.waitForURL((u) => /\/metrics\/first-review$/.test(u.pathname));
+  const box = p.locator('[data-part="Couldn\'t reproduce"]');
+  await see(box, 'Couldn’t reproduce · Amara Nwosu', 'the failed attempt is not on the page');
+  const outline = await box.evaluate((e) => { const c = getComputedStyle(e); return [c.borderTopWidth, c.borderRightWidth, c.borderBottomWidth, c.borderLeftWidth]; });
+  h.set('attention', new Set(outline).size === 1 && outline[0] !== '0px', `the attempt box is not a full outline (${outline.join(' ')})`);
+  await see(p.locator('.metric-top'), 'Defined', 'a failed attempt changed the stage');
+  await h.checkpoint('attempt');
+  // A goal on a Draft metric (sketch 7): it keeps working and warns, with the warning mark, never a status shape.
+  await p.goto(url('/metrics/cache-hit'));
+  await h.click(p.getByRole('link', { name: 'See its goal' }));
+  await h.click(p.locator('main a', { hasText: 'cache' }).first());
+  const warn = p.locator('[data-part="Draft metric"]');
+  await see(warn, 'Measured by a Draft metric', 'the goal does not warn that its metric is Draft');
+  h.set('progress', (await warn.locator('svg[data-status]').count()) === 0 && (await warn.getByRole('link', { name: 'See what’s missing' }).count()) === 1, 'the warning uses a status shape, or has no See what’s missing');
+  // Measured by (sketch 7): Defined and Verified first, each with its window and refresh.
+  const gid = new URL(p.url()).pathname.split('/').pop();
+  await p.goto(url(`/goals/${gid}/edit`));
+  await p.getByRole('button', { name: /^Measured by\b/ }).first().click();
+  const panel = p.locator('.pick.open');
+  await panel.getByRole('combobox').fill('pipeline');
+  await panel.getByRole('option').first().waitFor();
+  const opts = await panel.getByRole('option').evaluateAll((os) => os.map((o) => o.innerText.replace(/\s+/g, ' ')));
+  const named = opts.filter((o) => /pipeline/i.test(o));
+  const firstDraft = named.findIndex((o) => /\bDraft\b/.test(o));
+  const lastDefined = named.map((o) => /\b(Defined|Verified)\b/.test(o)).lastIndexOf(true);
+  h.set('finish', named.length >= 2 && (firstDraft === -1 || firstDraft > lastDefined) && named.every((o) => /Refreshed \w+/.test(o) && /(Rolling|Per |Point|Cumulative|Not said)/.test(o)), `Measured by lists: ${named.join(' | ')}`);
+  h.set('errors', true);
+  h.set('logged', true);
   await p.context().close();
 }, []);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {

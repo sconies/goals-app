@@ -139,6 +139,7 @@
       "/metrics/baselines",
       "/metrics/:metricId",
       "/metrics/:metricId/baseline",
+      "/metrics/:metricId/verify",
       "/metrics/:metricId/edit"
     ],
     "redirects": [
@@ -252,6 +253,7 @@
       "U180",
       "U181",
       "U182",
+      "U183",
       "U161",
       "U72"
     ],
@@ -336,6 +338,11 @@
       ],
       "BaselineForms": [
         "save_baselines",
+        "get_metric",
+        "list_metrics"
+      ],
+      "VerifyForm": [
+        "verify_metric",
         "get_metric",
         "list_metrics"
       ]

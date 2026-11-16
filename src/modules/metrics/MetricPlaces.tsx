@@ -11,7 +11,13 @@ import { WarnMark } from '../../ui/bits';
 import { readingThisWeek } from '../../domain/readingWords';
 import { decimalsWords, directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
 import { libraryReads } from './reads';
+import { draftWarning, refreshWords, STAGE_LABEL, stageOf } from './rulesQuality';
+import { ownerName } from './rules';
 import './metrics.css';
+
+type App = ReturnType<typeof useApp>;
+/** A metric's stage as the open workspace reads it (rulesQuality.ts stageOf). */
+const stageNowOf = (app: App, m: Parameters<typeof stageOf>[0]) => stageOf(m, { now: app.stamp(), ownerIsHere: !!ownerName(app.snapshot.people, m) });
 
 /** How many metrics a person's or a team's page lists before "See all". */
 const SHOWN = 5;
@@ -27,7 +33,7 @@ export function GoalMeasuredBy({ goal }: PlaceProps['goal.facts']) {
   const differ = [...p.errors, ...p.warnings];
   return (
     <>
-      <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link>{m.retired ? `, retired ${onDay(m.retired.at)}` : ''} · {m.metric.unit}, {directionWords(m.metric.direction)}</p>
+      <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link>{m.retired ? `, retired ${onDay(m.retired.at)}` : ''} · {m.metric.unit}, {directionWords(m.metric.direction)} · {STAGE_LABEL[stageNowOf(app, m.metric).stage]} · {refreshWords({ refresh: m.metric.refresh, refreshNote: '' })}</p>
       {differ.length > 0 && <p className="small metric-differs" role="note"><WarnMark /> {differ.join(' ')}</p>}
     </>
   );
@@ -60,9 +66,18 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   const latest = app.checkInsOf(goal).at(-1);
   const thisWeek = goal.kind === 'milestone' ? null : readingThisWeek(latest, goal, app.person(latest?.authorId ?? '')?.name ?? 'someone who has left', app.today);
   const useOther = async () => { try { await app.run('linkGoalMetric', { goalId: goal.id, metricId: other!.id, teamId: m.link.teamId, part: m.part, reason: `${m.metric.name} was retired.` }); } catch { /* the rule's message is shown */ } };
+  // MQ2 sketch 7: a goal on a Draft metric keeps its status, and says so with the warning mark, never a status shape.
+  const st = stageNowOf(app, m.metric);
+  const warn = r ? null : draftWarning(m.metric, st.missing, app.person(m.metric.ownerId)?.name ?? null);
   return (
     <section className="stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
-      <h3 className="label" id="g-metric">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link>{r ? `, retired ${onDay(r.at)}` : ''}</h3>
+      <h3 className="label" id="g-metric">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link>{r ? `, retired ${onDay(r.at)}` : ''} · {STAGE_LABEL[st.stage]} · {refreshWords({ refresh: m.metric.refresh, refreshNote: '' })}</h3>
+      {warn && (
+        <div className="metric-box metric-draft-warning stack" role="note" data-part="Draft metric">
+          <p className="metric-box-head"><span className="metric-needs"><WarnMark />{warn.heading}</span></p>
+          <p className="small">{warn.words} <Link to={metricPath(m.metric)}>See what’s missing</Link></p>
+        </div>
+      )}
       {r && (
         <div className="small stack" style={{ gap: 'var(--s1)' }}>
           <span>{app.person(r.by ?? '')?.name ?? 'Someone'} retired it: “{r.why}”. This goal keeps its numbers and its plan.{other && <> Replaced by <Link to={metricPath(other)}>{other.name}</Link>.</>}</span>

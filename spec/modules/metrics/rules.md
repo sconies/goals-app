@@ -235,7 +235,7 @@ What choosing a metric in a goal form fills in (rule 5), what stops the goal bei
 
 ### The rule
 
-A goal's metric is chosen where the goal is made or changed, by typing part of its name, unit, direction, owner, meaning or source (rule 1's words). Each metric reads as two lines: its name, then “{unit} · {lower|higher} is better · {owner}” (“no owner” when it has none, or they have left). Before anything is typed, up to six are offered: those chosen lately, then those the viewer's team's goals are measured by, then the most used. A metric removed since it was chosen still reads by its name.
+A goal's metric is chosen where the goal is made or changed, by typing part of its name, unit, direction, owner, meaning or source (rule 1's words). Each metric reads as two lines: its name, then “{stage} · {unit} · {lower|higher} is better · {window} · Refreshed {refresh} · {owner}” (“no owner” when it has none, or they have left); a Draft adds “Not fully defined yet: needs …. A goal on it shows a warning until it is.”, and a monthly or quarterly one “Check-ins would be monthly, after each refresh.” (MQ2 sketch 7). As typed, Verified and Defined metrics come before Draft ones, each A to Z. Before anything is typed, up to six are offered: those chosen lately, then those the viewer's team's goals are measured by, then the most used. A metric removed since it was chosen still reads by its name.
 
 **Rule 5. What a chosen metric sets on the form** (`measureDefaults`). On a **new** goal whose unit and decimal places are still the form's own (nobody typed them), choosing a metric sets both from it, and the form says so in one line instead of the two fields: “{unit}, {decimals in words}, {lower|higher} is better: from the metric.” “Use different ones” shows the fields again, filled from the metric. Choosing “No metric” afterwards gives them back what they held. A field the person typed is kept. On a goal that already exists nothing is set.
 
@@ -261,7 +261,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A new goal with its unit typed as hours; the same metric chosen. | `nothing set; This metric is in min; this goal is in hours.` |
 | Changing a goal that keeps 1 decimal place; a metric with 0 chosen. | `nothing set; The goal keeps 1 decimal place and Pipeline queue wait (p90) whole numbers. Check which is meant.` |
 | Check, measured for CI/CD. | `Measured by Pipeline queue wait (p90), for CI/CD.` |
-| The finder, “queue” typed. | `CI pipeline time on main (p90) \| Pipeline queue wait (p90): min · lower is better · Rhea Kapoor` |
+| The finder, “queue” typed. | `CI pipeline time on main (p90) \| Pipeline queue wait (p90): Defined · min · lower is better · Rolling 7 days · Refreshed hourly · Rhea Kapoor` |
 
 ### Where it lives
 
