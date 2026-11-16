@@ -643,7 +643,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Who” | PickOne | always |
 | “Workspace name” | text | always |
 | “Record how the app is used here” | checkbox | an admin |
-| “… Off until … is on. On / Off” | checkbox | always |
+| “… Nothing in it yet, so it isn’t in the menu. Open … Off until … is on. On / Off” | checkbox | always |
 | “Due by …” | select | `to.weeks === 1` |
 | “Type … to confirm” | text | `open` |
 
@@ -1660,7 +1660,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “… Off until … is on. On / Off” | checkbox | always |
+| “… Nothing in it yet, so it isn’t in the menu. Open … Off until … is on. On / Off” | checkbox | always |
 
 **States**
 
