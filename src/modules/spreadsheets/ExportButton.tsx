@@ -6,7 +6,8 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../../app/state';
 import type { Goal } from '../../domain/types';
 
-const ExportSheet = lazy(() => import('./Export').then((m) => ({ default: m.ExportSheet })));
+// With the modules' sheets (core/records loadModuleSheets): the export reads their columns as it draws.
+const ExportSheet = lazy(() => Promise.all([import('./Export'), import('../../core/records').then((r) => r.loadModuleSheets())]).then(([m]) => ({ default: m.ExportSheet })));
 
 /** Goals' one way out (the goals.tools place): an item in the Views menu, or the phone's View sheet. Import and the rest are on Data. */
 export function ExportTheseGoals({ goals, viewName, inMenu }: { goals: Goal[]; viewName: string; inMenu?: boolean }) {

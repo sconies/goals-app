@@ -10,6 +10,7 @@ import { DIRECTION_LABEL, liveMetrics, linksOf, metricsOf, REFRESH_LABEL, sliceN
 import { stillToSay } from './rulesStill';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS } from './rulesStructure';
 import { AGGREGATE_LABEL, MEASURE_LABEL } from './qualityWords';
+import { METRICS_SHEET_ABOUT, METRICS_SHEET_NAME } from './sheetRef';
 import type { Metric, MetricAggregate, MetricCalc, MetricMeasure, MetricWindow } from './types';
 
 const MEASURES = Object.keys(MEASURE_LABEL) as MetricMeasure[];
@@ -43,8 +44,8 @@ const or = cellOr;
 
 export const METRICS_SHEET: ModuleSheet<MetricRow> = {
   spec: {
-    kind: 'metrics', name: 'Metrics', rowIs: 'metric in the library', loaded: true,
-    about: 'The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back.',
+    kind: 'metrics', name: METRICS_SHEET_NAME, rowIs: 'metric in the library', loaded: true,
+    about: METRICS_SHEET_ABOUT,
     columns: [
       m<MetricRow>('ID', 'The metric’s identity. Empty for a new metric.', (r) => r.m.id),
       e<MetricRow>('Metric', 'Its name: 3 to 120 characters, used by one metric.', (r) => r.m.name),

@@ -2,7 +2,7 @@
 /* Fix item F2: a module switched off in a workspace adds no sheet to its exports, at every door: the workbook (Export,
    Import's "Export everything", the preview's "Nothing would change"), the zipped CSVs, and the MCP export tool. */
 import { serve, type Deps } from '../../../server/mcp';
-import { exportOn, MODULE_RECORDS, MODULE_SHEETS, sheetsOn } from '../../core/records';
+import { exportOn, loadModuleSheets, moduleSheets, MODULE_RECORDS, sheetsOn } from '../../core/records';
 import { MODULES } from '../../core/registry';
 import { REVIEWS_COLUMN, REVIEWS_SHEET } from '../../domain/columns';
 import { buildPlatformOrg } from '../../data/platformOrg';
@@ -10,12 +10,15 @@ import { sheetNamed, workbook } from '../../domain/export';
 import type { ApiToken, Snapshot } from '../../domain/types';
 import { hashToken, newToken } from '../../mcp/protocol';
 
+// The modules' sheets load on demand (core/records loadModuleSheets), as every door that reads them awaits.
+await loadModuleSheets();
+
 const MODULE_IDS = MODULES.map((m) => m.id);
 const today = new Date('2026-11-02T12:00:00Z');
 const built = buildPlatformOrg(today);
 // The first module in this build that adds a sheet (the metric library's Metrics); none in a build without one.
 const owner = MODULE_RECORDS.find((m) => m.sheets?.length);
-const sheet = owner?.sheets?.[0];
+const sheet = owner?.sheets?.[0]?.sheet;
 const csvFormat = sheet ? `${sheet.spec.name.toLowerCase().replace(/[^a-z]+/g, '_')}_csv` : '';
 
 async function call(modulesOff: string[], name: string, args: object) {
@@ -40,9 +43,9 @@ describe.skipIf(!owner)('a switched-off module’s sheet leaves every export (F2
   const names = (off: string[]) => workbook({ ws: ws(off), snapshot: built, cycle: built.cycles[0]!, week: 10, today, sheets: sheetsOn(ws(off)) }).map((x) => x.name);
 
   it('sheetsOn gives every module sheet while on, and none of a module that is off', () => {
-    expect(sheetsOn(ws([]))).toEqual(MODULE_SHEETS);
+    expect(sheetsOn(ws([]))).toEqual(moduleSheets());
     expect(sheetsOn(ws([owner!.module]))).not.toContain(sheet);
-    expect(sheetsOn(null)).toEqual(MODULE_SHEETS);
+    expect(sheetsOn(null)).toEqual(moduleSheets());
   });
 
   it('the workbook has the sheet while the module is on, and not once it is off', () => {
@@ -70,7 +73,7 @@ describe('with Reviews switched off, every export leaves out the Notes sheet and
   const book = (off: string[]) => workbook({ ws: ws(off), snapshot: built, cycle: built.cycles[0]!, week: 10, today, ...exportOn(ws(off)) });
 
   it('exportOn carries the sheets and Reviews, from the one switch', () => {
-    expect(exportOn(ws([]))).toMatchObject({ sheets: MODULE_SHEETS, reviews: MODULE_IDS.includes('reviews') });
+    expect(exportOn(ws([]))).toMatchObject({ sheets: moduleSheets(), reviews: MODULE_IDS.includes('reviews') });
     // A module's Goals columns (Fields') go with its switch, as its sheets do.
     if (MODULE_IDS.includes('tags')) expect(exportOn(ws(['tags'])).goalColumns).toEqual([]);
     expect(exportOn(ws(['reviews'])).reviews).toBe(false);

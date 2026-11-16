@@ -151,7 +151,7 @@ const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 's
 const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a ?? {}) as Record<string, unknown>).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : { choice: String((v as { choice?: unknown }).choice ?? ''), ...((v as { value?: unknown }).value != null ? { value: String((v as { value: unknown }).value) } : {}) }]));
 
 /** The modules' own loaded sheets (MI: Metrics), each a bulk_change argument named by its sheet in lower case. */
-const LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && (sh.plan || sh.loadPlan)).map((sh) => ({ module: m.module, sheet: sh.spec.name, arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, '_'), about: sh.spec.about })));
+const LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.loaded).map((sh) => ({ module: m.module, sheet: sh.name, arg: sh.name.toLowerCase().replace(/[^a-z]+/g, '_'), about: sh.about })));
 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;

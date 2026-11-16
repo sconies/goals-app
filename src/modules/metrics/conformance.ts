@@ -16,6 +16,7 @@ import { readingState } from './rulesReading';
 import { sliceOf } from './source';
 import { describe, planChanges, type Answers, type Tables } from '../../domain/changeset';
 import { METRICS_SHEET } from './sheet';
+import { metricsSheetRef } from './sheetRef';
 import { planMetricsSheet } from './sheetPlan';
 import { stageOf } from './rulesQuality';
 
@@ -84,7 +85,7 @@ export function metricRowsOf(w: ConformanceWorkspace, asOf: (w: ConformanceWorks
   let k = 0;
   for (const c of SHEET_CASES(used, spare)) {
     const tables: Tables = { modules: { Metrics: c.rows.map((r, i) => ({ ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])), __row: String(i + 2) })) } };
-    const cs = planChanges({ tables, snapshot: s, cycle, week, actor: amara, now: w.builtFor, newId: (p) => `${p}_conf${++k}`, via: 'spreadsheet', records: [{ module: 'metrics', records: [], sheets: [{ ...METRICS_SHEET, plan: planMetricsSheet }] }], answers: c.answers ?? {} });
+    const cs = planChanges({ tables, snapshot: s, cycle, week, actor: amara, now: w.builtFor, newId: (p) => `${p}_conf${++k}`, via: 'spreadsheet', records: [{ module: 'metrics', records: [], sheets: [{ ...metricsSheetRef(), sheet: { ...METRICS_SHEET, plan: planMetricsSheet } }] }], answers: c.answers ?? {} });
     out.push(blank('sheet', c.case, 1, { total: String(cs.items.length), summary: describe(cs), needs: cs.issues.filter((x) => x.level !== 'note').map((x) => `${x.level === 'must' ? 'Must fix' : 'Check'}: ${x.message}`).join(' | '), state: cs.commit ? 'saves' : 'refused' }));
   }
   return out;

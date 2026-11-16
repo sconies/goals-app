@@ -86,7 +86,7 @@ export interface ModuleSheet<C = unknown> {
   keys: string[];
   /** Its rows: what the export carries, for the goals it exports. */
   rows(x: ExportInput, c: Ctx, goalIds: ReadonlySet<string>): C[];
-  /** A loaded sheet's planner, loaded on demand (the workbook's sheets are in the first download, its rules needn't be):
+  /** A loaded sheet's planner, loaded on demand (with the sheet's columns, after them: the engine's rules needn't be):
       every door that runs the engine on such a sheet awaits it first (core/records loadSheetPlanners), which keeps it
       in `plan`. */
   loadPlan?: () => Promise<SheetPlanner>;
@@ -94,6 +94,22 @@ export interface ModuleSheet<C = unknown> {
   plan?: SheetPlanner;
   /** A header row made by hand that is this sheet (lower-case headers), beside the export's own. */
   has?: (headers: ReadonlySet<string>) => boolean;
+}
+
+/** A module's sheet as its records declare it (ModuleRecords.sheets): what the first download knows of it (its name, what
+    it holds, whether it loads back: the MCP tools' arguments and formats), and the sheet itself, loaded on demand. Every
+    door that reads its columns or rows (the export, the file reader's headers, the import) awaits core/records
+    loadModuleSheets first, which keeps the loaded sheet in `sheet`. */
+export interface ModuleSheetRef {
+  /** The sheet's name, as its spec says it ("Metrics"). */
+  name: string;
+  /** What it holds, as its spec says it. */
+  about: string;
+  /** Whether it loads back: its spec is `loaded` and it gives a planner. */
+  loaded: boolean;
+  load: () => Promise<ModuleSheet<any>>;
+  /** The sheet once loaded (or given directly, as a test does). */
+  sheet?: ModuleSheet<any>;
 }
 
 /**
@@ -117,8 +133,9 @@ export interface ModuleRecords {
   /** The module's id: set by the registry from its folder. */
   module: string;
   records: RecordDef<any>[];
-  /** The workbook's sheets it adds, if any. */
-  sheets?: ModuleSheet<any>[];
+  /** The workbook's sheets it adds, if any: each named here, its columns and rows loaded on demand (core/records
+      loadModuleSheets), so they are not in the first download. */
+  sheets?: ModuleSheetRef[];
   /** The columns it adds to Goals' rows, by their address parameter (?metric=): what each goal holds, from the open
       workspace. The app's Goals filter (core/app ModuleFilter) and the AI's find_goals read the same ones. */
   goalColumns?: { param: string; fill: (s: import('./types').Snapshot) => (g: Goal) => string | null }[];
