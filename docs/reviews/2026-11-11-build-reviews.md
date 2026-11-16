@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `a5ff4eb3` (#571; #572 before it is docs only; no highs open; mediums open: #570’s one and #571’s three, with planning; the MQ2 builder for the rest of part 4 is session_012kbr8xjnuNHaqDN7WVw5hc, which says B, C, D and a fix for #570’s medium follow; planning’s handover of 03:50 UTC, 16 Nov, `docs/handover/planning.md`, says a new planning session will start on the repository, and none has given its ID yet), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. #567’s four mediums are answered by #570: three closed, one still open as #570’s. The newest state is under “The reviewer of 16 November” at the end of the log.
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `60d4fbc7` (#573, which closes #570’s medium; #572 is docs only; no highs open; mediums open: #571’s three, sent at 04:35 UTC, 16 Nov, to the MQ2 builder and not to planning, whose old session had handed over, and the builder says their fix rides with part D; the MQ2 builder for the rest of part 4 is session_012kbr8xjnuNHaqDN7WVw5hc, which says B, C, D and a fix for #570’s medium follow; planning’s handover of 03:50 UTC, 16 Nov, `docs/handover/planning.md`, says a new planning session will start on the repository, and none has given its ID yet), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. #567’s four mediums are answered by #570: three closed, one still open as #570’s. The newest state is under “The reviewer of 16 November” at the end of the log.
 
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.
@@ -318,6 +318,7 @@ Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning t
 | #569 An edited goal keeps its monthly rhythm (#567’s high) | MQ2 (session …nQ1Pis1ae) | 0 | 0 | 0 |
 | #570 #567’s four mediums: the sheet asks before a lapse, a leaver’s metrics through the People sheet, the aggregate, the pages | MQ2 fixes (session …BvahcmAa4s) | 0 | 1 | 1 |
 | #571 MQ2 part 4a: the library by stage, a metric’s quality on its page | MQ2 part 4 A (session …QfmzFjm2XKzk) | 0 | 3 | 1 |
+| #573 The import’s check page says the Metrics sheet’s notes (#570’s medium) | MQ2 (session …DN7WVw5hc) | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2750,7 +2751,7 @@ One high, two mediums, one low.
 
 ## The reviewer of 16 November (session …nAc52AT), from #566
 
-Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `a5ff4eb3` (#571; #572 before it is docs only; no highs open; mediums open: #570’s one and #571’s three, with planning; the MQ2 builder for the rest of part 4 is session_012kbr8xjnuNHaqDN7WVw5hc, which says B, C, D and a fix for #570’s medium follow; planning’s handover of 03:50 UTC, 16 Nov, `docs/handover/planning.md`, says a new planning session will start on the repository, and none has given its ID yet). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. #567’s four mediums are answered by #570: three closed, one still open as #570’s.
+Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `60d4fbc7` (#573, which closes #570’s medium; #572 is docs only; no highs open; mediums open: #571’s three, sent at 04:35 UTC, 16 Nov, to the MQ2 builder and not to planning, whose old session had handed over, and the builder says their fix rides with part D; the MQ2 builder for the rest of part 4 is session_012kbr8xjnuNHaqDN7WVw5hc, which says B, C, D and a fix for #570’s medium follow; planning’s handover of 03:50 UTC, 16 Nov, `docs/handover/planning.md`, says a new planning session will start on the repository, and none has given its ID yet). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. #567’s four mediums are answered by #570: three closed, one still open as #570’s.
 
 ### #566 The metric form asks the similar-metric and lapse questions its save asks (MQ2 build, merged 16 Nov)
 
@@ -2834,3 +2835,11 @@ No highs, three mediums, one low.
 - **Medium. A Draft metric’s page says “Draft” and, on the next line, “Fully defined”, and never says what it lacks.** The old Still-to-say line (`StillLine`) stays under the new top line; the library says the same metric “needs a type and its parts, filters and exclusions, a window and a source link”. The page’s one way forward, “Say what is measured”, opens the edit form at `?field=calculation`; the form has no field for the type, parts, window or source link (they come with the next part) and nothing takes the focus. Seen by me on Mean time to detect.
 - **Medium. An admin can’t confirm a rewording on screen.** `confirmReword` lets the last verifier or another admin; Help says “(or another admin, never whoever reworded it)”; the box draws “They mean the same” only when the viewer is the verifier (`MetricQuality.tsx`, the `toConfirm` box). When the verifier has left, nobody can confirm it but through the assistant. Read, not walked: no form yet rewords a filter.
 - **Low.** After a handover, To sort out says “someone who has left left on 5 Nov 2026” (the page’s box names them). The lapse box tells the owner who made the change that they “were told” and “can’t verify it”, and has no “Verify again” or “Retake” yet (`FORMS` is off until the next part). After a source change Report still links the old report. With Retired on, a `stage` left in the address still filters though its control is hidden. The phone has no Sort. A retired metric still shows a stage. “Your 11.8%, the same as stored” is shown to everyone. The stage control’s counts ignore the filters beside it. Walked by the subagent.
+
+### #573 The import’s check page says the Metrics sheet’s notes (MQ2, session …DN7WVw5hc, merged 16 Nov)
+
+Read at `60d4fbc7` against #570’s medium; U179 run here on a production build, phone and desktop: 10 of 10, no console errors.
+
+- **#570’s medium: closed.** `Check.tsx` draws the planner’s notes after the counts, and U179 now looks for “Stages after loading:” and a new metric’s “is Draft: it needs a meaning” on the check page. Help says the same. Not looked at in a screenshot.
+
+No findings.
