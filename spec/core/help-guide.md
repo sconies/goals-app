@@ -20,8 +20,21 @@ Home is where you start each day. It answers one question first: what is asked o
 #### How to use it
 
 - The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.
+
+#### How to use it
+
+- The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or when you left one half done (Pick up where you left off); and the wrap-up at the end of the year, once your check-ins are in. Its ring says what it counts: check-ins or wrapped.
+
+#### How to use it
+
 - With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.
+
+#### How to use it
+
 - This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.
+
+#### How to use it
+
 - While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.
 - Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says first how long it has waited or when it is due (a late one with the warning mark), then who asked, where and on what day; one that came to you with a goal you now own also says “Asked of Tunde, now yours”. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.
 - When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response. A goal someone proposed for you is asked of you like an ask with no date: once a week has passed and no ask comes first, it is the lead, with Open it.
@@ -38,6 +51,13 @@ Home is where you start each day. It answers one question first: what is asked o
 #### Why an ask says how long it has waited
 
 - An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.
+
+#### Why an ask says how long it has waited
+
+- An ask with a week it is due by is due that week’s Sunday.
+
+#### Why an ask says how long it has waited
+
 - An ask with no date says how long it has waited: “Waiting since 4 Aug, 14 weeks”. The oldest come first, after anything late or due this week.
 
 #### Your team on Home
@@ -51,6 +71,9 @@ Home is where you start each day. It answers one question first: what is asked o
 
 - If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.
 - It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.
+
+#### How the week’s check-ins stand
+
 - Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners.
 
 #### The workspace’s line
@@ -76,6 +99,10 @@ Home is where you start each day. It answers one question first: what is asked o
 #### Who can
 
 Everyone has a Home. What is on it depends on the goals you own, the goals you watch and the reviews you’re in. There are no role labels.
+
+#### Who can
+
+Everyone has a Home. What is on it depends on the goals you own and the goals you watch. There are no role labels.
 
 ### What the statuses mean
 
@@ -151,7 +178,17 @@ Start your own workspace with goals you type, your own spreadsheet, or none yet:
 - In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.
 - Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.
 - Set up from inside the app (from the workspace switcher or Workspace), the first step says “Setting up as” you, in one line; Change opens your name, email and team.
+
+#### How to use it
+
 - Under the first step, How you’ll work says the usual in one paragraph: check-ins every week, by the review’s day; a weekly review on Thursdays; the year starting in January; Recording off. Change how you’ll work opens a sheet for the month the goal year starts, the review day and whether to record how the app is used (off unless you tick it). Changed, the panel says so. Check has the same Change.
+
+#### How to use it
+
+- Under the first step, How you’ll work says the usual in one paragraph: check-ins every week; the year starting in January; Recording off. Change how you’ll work opens a sheet for the month the goal year starts and whether to record how the app is used (off unless you tick it). Changed, the panel says so. Check has the same Change.
+
+#### How to use it
+
 - Goals offers three ways to start. Add your own (chosen to begin with) shows the outcome and up to four goals that feed it, to type in. Import a spreadsheet takes the template or a workbook (Choose a spreadsheet; a file with goals uploaded on People is used straight away). Later finishes with no goals: each owner adds theirs from New goal. Not sure what a good goal looks like? The link there opens the demo’s goals in a new tab, and your set-up is kept.
 - Each goal you add there takes its owner’s team, so a teammate’s goal counts for their team. Set-up doesn’t ask for a team; change it on the goal later if it belongs elsewhere. A number goal’s Today figure is its number until the first check-in, marked as the baseline as at the day you set up. A goal kept in range can stay at most, at least or between two limits, as in New goal.
 - Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.
@@ -161,9 +198,33 @@ Start your own workspace with goals you type, your own spreadsheet, or none yet:
 - A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.
 - With Add your own, name the outcome and add up to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.
 - The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.
+
+#### How to use it
+
 - Check (Step 4 of 4) reads back what Create will make: you, the people, the goals, the year, the review and Recording, each with Change. Change on a step brings you straight back to Check (Back to Check). Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace.
+
+#### How to use it
+
+- Check (Step 4 of 4) reads back what Create will make: you, the people, the goals, the year and Recording, each with Change. Change on a step brings you straight back to Check (Back to Check). Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace.
+
+#### How to use it
+
 - Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.
+
+#### How to use it
+
+- Set-up pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.
+
+#### How to use it
+
 - Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.
+
+#### How to use it
+
+- Nothing is late on the first day.
+
+#### How to use it
+
 - Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.
 - On a phone, the small links in set-up (Start over, Change) are as easy to hit as a button. Close and keep the draft leaves at any step; coming back picks up the set-up you hadn’t finished, at its step, with Start over (which asks first).
 - The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.
@@ -224,7 +285,13 @@ Faro is a prototype: a working model of a goals app, built to be copied and rebu
 
 Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.
 
+#### What it’s for
+
 The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.
+
+#### What it’s for
+
+The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.
 
 #### How to use it
 
@@ -244,23 +311,65 @@ Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 #### Where you are
 
 - The browser’s tab says the page’s own name: a goal’s title, a review’s or a person’s name, “Change {goal}” while you edit it. So two goals open in two tabs are easy to tell apart.
+
+#### Where you are
+
+- The browser’s tab says the page’s own name: a goal’s title or a person’s name, “Change {goal}” while you edit it. So two goals open in two tabs are easy to tell apart.
+
+#### Where you are
+
 - One place in the menu is lit: Goals for a goal and its pages, Reviews for a goal you reach while walking a review, People for a person or a team. On a phone, the tab that holds it is lit, or More.
+
+#### Where you are
+
+- One place in the menu is lit: Goals for a goal and its pages, People for a person or a team. On a phone, the tab that holds it is lit, or More.
+
+#### Where you are
+
 - Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on.
 
 #### Going back
 
 - Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead.
+
+#### Going back
+
+- Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead.
+
+#### Going back
+
 - It goes back to the page you came from, the same as your browser’s Back, so Forward still works. Forms you passed through (an edit you saved, a check-in) are stepped over, by the link and by the browser’s Back alike.
+
+#### Going back
+
 - Opened from a link or a new tab, it goes up instead: to the goal this one feeds, or Goals; to the review for a goal in its walk; to People, Teams or Help.
+
+#### Going back
+
+- Opened from a link or a new tab, it goes up instead: to the goal this one feeds, or Goals; to People, Teams or Help.
 
 #### Leaving a form
 
 - A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.
+
+#### Leaving a form
+
 - “Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.
+
+#### Leaving a form
+
+- “Close without saving” (wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.
 
 #### An address that leads nowhere
 
 - An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.
+
+#### An address that leads nowhere
+
+- An old or mistyped link says “Page not found”, with Go to Home and Help. A goal or person that isn’t there says so in its own words.
+
+#### An address that leads nowhere
+
 - A link to a part of Faro an admin has switched off in this workspace, such as Reviews, says so under it: “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.” For an admin, Workspace, Features is a link.
 
 ## Your week
@@ -274,6 +383,10 @@ Routes: `/check-in`, `/check-in/:goalId`. Screens: `CheckInFlow`, `CheckInQueue`
 #### What it’s for
 
 Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, quarter results and exports all read from them.
+
+#### What it’s for
+
+Check-ins are how everyone knows where a goal stands. Home, charts, quarter results and exports all read from them.
 
 #### How to use it
 
@@ -333,6 +446,12 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.
 
+#### When the week’s are all in
+
+The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.
+
+#### When the week’s are all in
+
 One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.
 
 When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”, judged as things stood that week: a later check-in or a change of plan never takes the mark away. A correction never does.
@@ -380,8 +499,22 @@ An ask names what’s needed, who must respond and, if it matters, by when, so i
 
 - A decision or help: an owner needs it from someone, and says so in a check-in that is behind (“Need a decision or help”, and who it’s for).
 - An update: someone asks a quiet goal’s owner to check in, from the goal’s page. The owner’s next check-in answers it.
+
+#### The four kinds
+
 - A question: for a goal’s owner, asked in a review or from the goal’s page (Ask {owner} a question, under Next steps and asks).
+
+#### The four kinds
+
+- A question: for a goal’s owner, asked from the goal’s page (Ask {owner} a question, under Next steps and asks).
+
+#### The four kinds
+
 - An action: agreed in a review, for someone to do, with a week it’s due by if one is set. Past its week it shows as overdue until it’s marked done or withdrawn.
+
+#### The four kinds
+
+- An action: agreed for someone to do, with a week it’s due by if one is set. Past its week it shows as overdue until it’s marked done or withdrawn.
 
 #### How to use it
 
@@ -456,6 +589,9 @@ Scanning the whole set of goals, or a slice of it, in whatever shape suits the q
 - In the sidebar, Goals has your saved views under it.
 - The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.
 - Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed.
+
+#### How to use it
+
 - Goals is the same whether or not a workspace holds reviews: every list, filter and view works without them, and a link that opened Goals for a review’s goals opens Goals without the review.
 
 #### Who can
@@ -498,7 +634,19 @@ Keeping attention on the exceptions: what is behind, without a recent update or 
 
 A goal needs attention when it is off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse or greener than calculated, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out.
 
+#### What it means
+
+A goal needs attention when it is off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse or greener than calculated, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out.
+
+#### What it means
+
 Being handled: Off track or at risk, and since its latest check-in an action was agreed with an owner and a due week (and isn’t overdue), or, when it is at risk, its request was answered. An off-track goal is handled only with an action. Marking it reviewed or noting it is not enough: that goal still needs attention, and says who looked at it. A new check-in or a new flag makes it need attention again.
+
+#### What it means
+
+Being handled: Off track or at risk, and since its latest check-in an action was agreed with an owner and a due week (and isn’t overdue), or, when it is at risk, its request was answered. An off-track goal is handled only with an action. A new check-in or a new flag makes it need attention again.
+
+#### What it means
 
 These have an action with an owner and a date, or an answer to their request, agreed after their latest check-in. They come back under Needs attention if anything new happens.
 
@@ -519,9 +667,26 @@ These have an action with an owner and a date, or an answer to their request, ag
 - Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.
 - A new check-in, or a new flag, makes a goal that is being handled need attention again.
 - Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.
+
+#### How to use it
+
 - Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action. A goal someone only marked reviewed or noted still needs attention; pointing at its reason says who looked at it (“Looked at by Amara in Platform leadership weekly, week 45”).
+
+#### How to use it
+
+- Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action.
+
+#### How to use it
+
 - On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. One line above the goals says the same for the goals shown (a team filter counts that team); Why? says what the count is made of: how many are off track, at risk or without a recent update, and how many are on track but flagged for something else (getting worse, a missed date, an ask waiting). The health line there counts the same goals. On the Board, a goal being handled says so on its card.
+
+#### How to use it
+
 - Home, Watching, Goals (the Needs attention switch and filter, on the Map too), the review agenda and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.
+
+#### How to use it
+
+- Home, Watching, Goals (the Needs attention switch and filter, on the Map too) and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.
 
 ### History: quarter results and weekly status
 
@@ -601,13 +766,39 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 - If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.
 - Why: the owner’s reason from their latest check-in (one an admin loaded is said as theirs, by name), its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.
 - The chart: the plan as a broad pale band that steps each week to the number the plan table gives for it, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.
+
+#### In order, on a computer and a phone
+
 - Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.
+
+#### In order, on a computer and a phone
+
 - What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.
 - The comment box is one line, Add a comment, until you press it. Open, it says who will see what you write before you post: everyone in the workspace can read it, and the owner and the people watching see it on Home. Cancel closes it and keeps what you typed.
 - Watch opens a sheet that says what watching does: the goal’s check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email. With goals feeding it, choose this goal, or it and everything feeding it. Watching, the same sheet has Done and Stop watching; each says what it did, with Undo.
+
+#### In order, on a computer and a phone
+
 - This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments, what reviews said and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.
+
+#### In order, on a computer and a phone
+
+- This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.
+
+#### In order, on a computer and a phone
+
 - A check-in whose number was filled in from its metric’s source says so on a second line in History: “From CI analytics, read 9:02 on Thu 12 Nov. Rhea Kapoor checked in.”, or, when the owner typed their own, “Typed by Rhea Kapoor. CI analytics said 13 min.” with their reason. It is a fact about the check-in, so it stays when the Metric library is switched off.
+
+#### In order, on a computer and a phone
+
 - History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review, and asks raised in one, even after the review is renamed) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.
+
+#### In order, on a computer and a phone
+
+- History’s filters, each with its count: All, Check-ins, Comments and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.
+
+#### In order, on a computer and a phone
+
 - About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.
 - On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order.
 
@@ -630,7 +821,14 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 
 - A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.
 - A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.
+
+#### A stopped goal
+
 - It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity. Goals lists the year’s stopped goals with the State filter on Stopped, most recently stopped first, with who stopped each, when and why.
+
+#### A stopped goal
+
+- It is out of every list, count and Home, but still in exports (Status: Stopped) and Activity. Goals lists the year’s stopped goals with the State filter on Stopped, most recently stopped first, with who stopped each, when and why.
 
 #### Sharing it
 
@@ -665,6 +863,13 @@ Requirements: `FIND-AND-PICK`, `LIST-BAR`, `FIND-ANYWHERE`.
 #### Choosing someone or something
 
 - Wherever you choose a person, a team or a goal (a goal’s owner, team, what it feeds and what it also helps; who takes part in a review; a next step’s owner; who takes over when someone leaves; an owner in Data or in set-up; who sent feedback), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal), or what nothing means there, such as “Nothing: top of its own tree”.
+
+#### Choosing someone or something
+
+- Wherever you choose a person, a team or a goal (a goal’s owner, team, what it feeds and what it also helps; a next step’s owner; who takes over when someone leaves; an owner in Data or in set-up; who sent feedback), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal), or what nothing means there, such as “Nothing: top of its own tree”.
+
+#### Choosing someone or something
+
 - Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.
 - Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.
 - Someone marked as left is never offered. A goal that can’t be chosen is still listed, greyed, with the reason: a goal already under this one can’t be what it feeds (“Feeds this goal already”).
@@ -710,7 +915,17 @@ Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `
 - Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year (in the year’s last week, the end of next year); the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.
 - Under Baseline, Period the baseline covers (optional): when the baseline is a figure you already have, say the period it covers, such as “June to September 2026”, and tick Provisional if it may still be firmed up. The goal then shows it as its number, marked as the baseline, until its first check-in.
 - Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Not a guardrail.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first. The metric you chose stays chosen through a reload or a kept draft, and it is for the goal’s team as it is now: choose another team and Check says the new one.
+
+#### How to use it
+
 - Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.
+
+#### How to use it
+
+- Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.
+
+#### How to use it
+
 - On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.
 - Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.
 - A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again. Setting up a goal for someone else, the question adds that they mark done stages at the first check-in (“Mateo marks done stages at the first check-in.”): a check-in is the owner’s, so the goal is published without it.
@@ -749,10 +964,33 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 - A number goal can be proposed with its Baseline and no Target yet, when the number is known but nobody has agreed where it should go. It says “Target not set” (in lists: “0.42 USD now, target not set”), has no status and nothing due, and needs a target before it can be made active: Set the target on its page opens Change it at the plan. Leaving out the Baseline and giving only a Target isn’t enough: the baseline is what such a goal is.
 - Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.
 - Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.
+
+#### How to use it
+
 - In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.
+
+#### How to use it
+
 - On a goal’s page, What feeds it lists any goals proposed to feed it under “Proposed” with how many, with no status and counted in nothing; a goal that feeds a proposed goal says “· Proposed” after its name. When the next year starts, proposed goals carry as proposed, counted apart on the start page.
+
+#### How to use it
+
 - On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. Both are remembered for you, not for the device: open a goal on your phone and it no longer asks on your laptop. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).
+
+#### How to use it
+
+- On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. Both are remembered for you, not for the device: open a goal on your phone and it no longer asks on your laptop. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).
+
+#### How to use it
+
 - Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.
+
+#### How to use it
+
+- Proposed goals are in no count, health line, Needs attention, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.
+
+#### How to use it
+
 - A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead.
 
 #### Who can
@@ -868,7 +1106,21 @@ Routes: `/activity`. Screens: `Activity`. Requirements: `CHANGE-LOG`, `NOTES`, `
 #### How to use it
 
 - Every save is logged: goals, plans, check-ins, comments, review calls, people and the workspace. Drafts are not.
+
+#### How to use it
+
+- Every save is logged: goals, plans, check-ins, comments, people and the workspace. Drafts are not.
+
+#### How to use it
+
 - Filter by who, a goal or its whole tree, team, level, kind of change (check-ins, plans and targets, goal details, reviews, comments, people, imports, via MCP, wrap-ups) and when.
+
+#### How to use it
+
+- Filter by who, a goal or its whole tree, team, level, kind of change (check-ins, plans and targets, goal details, comments, people, imports, via MCP, wrap-ups) and when.
+
+#### How to use it
+
 - Search finds the words on a change: who, the goal and its key, what was said and the numbers. A line under it says how many match; the filters on read as words with Remove (see Finding and choosing). Choose who and which goal by typing their name. Show the changes opens the before and after.
 - The search and filters are in the link, so a filtered log can be shared, and Back undoes the last choice. Save .csv exports what is shown.
 - Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.
@@ -878,8 +1130,26 @@ Routes: `/activity`. Screens: `Activity`. Requirements: `CHANGE-LOG`, `NOTES`, `
 #### When someone else saved first
 
 - If someone else changed the same goal or review since you opened it, nothing is half-saved, and nothing of theirs is lost.
+
+#### When someone else saved first
+
+- If someone else changed the same goal since you opened it, nothing is half-saved, and nothing of theirs is lost.
+
+#### When someone else saved first
+
 - A simple change, such as restoring something or ending a review, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.
+
+#### When someone else saved first
+
+- A simple change, such as restoring something, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.
+
+#### When someone else saved first
+
 - A goal’s form, a review’s settings, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest.
+
+#### When someone else saved first
+
+- A goal’s form, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest.
 
 ### Wrapping up the year, and the next one
 
@@ -910,7 +1180,17 @@ Routes: `/workspace/cycles/next`. Screens: `StartNext`. Requirements: `CARRY-GOA
 
 - From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.
 - Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).
+
+#### How to use it
+
 - Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks, watches and reviews that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.
+
+#### How to use it
+
+- Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks and watches that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.
+
+#### How to use it
+
 - A number goal that carries on starts from its final number in week 1, with the same target, due at the end of next year. Stages not done are spread evenly over next year. A plan that already ran past the year keeps its dates.
 - A final number or a wrap-up given after next year was set up still counts: the carried goal follows it until someone checks in on it or changes it. After that, stop it in next year instead.
 - Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.
@@ -1077,8 +1357,25 @@ Routes: `/goals/:goalId/print`. Screens: `Print`. Requirements: `PRINT-EXPORT`.
 #### How to use it
 
 - On a goal’s page or a review, choose Print or save as PDF.
+
+#### How to use it
+
+- On a goal’s page, choose Print or save as PDF.
+
+#### How to use it
+
 - A goal prints on one A4 page: status, the number against plan and target, the facts, chart, path to green, latest check-in, requests, the three latest review notes, quarters and contributing goals. The reason is printed once, under Why.
+
+#### How to use it
+
+- A goal prints on one A4 page: status, the number against plan and target, the facts, chart, path to green, latest check-in, requests, quarters and contributing goals. The reason is printed once, under Why.
+
+#### How to use it
+
 - A review prints its session worst first, with what was said.
+
+#### How to use it
+
 - Print uses black on white with the status shapes kept, and no navigation.
 
 ## People, workspace and settings
@@ -1096,10 +1393,34 @@ Mistakes and changes of plan. A person leaves, a goal stops mattering mid-year, 
 #### What each removal does
 
 - A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them), and says what else passes on: with the Metric library on, the metrics they own go to their team’s lead, to confirm. They then disappear from pickers, counts, reviews and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.
+
+#### What each removal does
+
+- A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them), and says what else passes on: with the Metric library on, the metrics they own go to their team’s lead, to confirm. They then disappear from pickers, counts and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.
+
+#### What each removal does
+
 - A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.
+
+#### What each removal does
+
+- A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.
+
+#### What each removal does
+
 - A check-in: Delete this check-in, under the latest one on the goal’s page, by the goal’s owner. Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction. Once a newer one is posted it can only be corrected. The status goes back to the one before.
+
+#### What each removal does
+
 - A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.
 - A comment: its author can edit it (it then says edited), and its author or an admin can remove it; its place in the thread says “Comment removed”, so the conversation still reads. A note said in a review works the same way, leaving “Note removed”.
+
+#### What each removal does
+
+- A comment: its author can edit it (it then says edited), and its author or an admin can remove it; its place in the thread says “Comment removed”, so the conversation still reads.
+
+#### What each removal does
+
 - A saved view: Delete, from its menu. An admin can delete anyone’s. Stopping watching works the same way.
 - A cycle no one has checked in to yet (started by mistake, say): an admin deletes it under Cycles on Workspace, with its goals.
 - An import or bulk edit: Undo this import, on its entry in Activity, by whoever made it or an admin. Every row it wrote goes back as it was: goals and check-ins it added are deleted, ones it changed get their earlier version back. A row someone has changed since is skipped and listed.
@@ -1113,7 +1434,17 @@ Mistakes and changes of plan. A person leaves, a goal stops mattering mid-year, 
 #### Who can
 
 - Admins mark people as left, delete people with no history, delete cycles and restore anything from Recently removed; anyone restores what they removed.
+
+#### Who can
+
 - A goal’s owner or an admin stops or deletes it. Whoever posted a check-in, or an admin, deletes it. Whoever set up a review, or an admin, ends it.
+
+#### Who can
+
+- A goal’s owner or an admin stops or deletes it. Whoever posted a check-in, or an admin, deletes it.
+
+#### Who can
+
 - Only a comment’s author edits it; its author or an admin removes it. Whoever made an import, or an admin, undoes it.
 - Through MCP, an AI tool can do each of these with the same rules, as the person whose MCP token it uses.
 
@@ -1126,7 +1457,17 @@ Routes: `/workspace`, `/workspace/overview`. Screens: `Workspace`. Requirements:
 #### About
 
 - Under Workspace’s title, one line says whose workspace it is and your part in it: “Platform Engineering · you’re an admin here”, or a member.
+
+#### About
+
 - For admins, first, To sort out: no goals yet in the year, no review set up, being the only admin of five people or more, people with no email, people in no team, and teams of three or more with no lead. Each says why it matters and has one button that leads to where it’s dealt with. Three show at a time; “and 2 more” shows the rest. When there is nothing, the block isn’t there at all.
+
+#### About
+
+- For admins, first, To sort out: no goals yet in the year, being the only admin of five people or more, people with no email, people in no team, and teams of three or more with no lead. Each says why it matters and has one button that leads to where it’s dealt with. Three show at a time; “and 2 more” shows the rest. When there is nothing, the block isn’t there at all.
+
+#### About
+
 - Then the facts: its name (the example’s says “example data”; one you made in the demo, “kept in this browser”), how many people in how many teams (leading to People), the year and when its wrap-up opens (leading to Cycles), who the admins are (leading to Access, for admins; anyone else is told to ask one of them), which optional features are on (leading to Features) and whether how the app is used is recorded (leading to Privacy).
 - Admins rename the workspace with Rename, beside About this workspace. A name has at most 80 characters, and the field counts them as you near the limit.
 - Admins of a workspace of their own (not the example) can delete it at the foot of About, after typing its name. It can’t be undone. The example is put back as it was with Start over, in Demo controls, which only touches this browser.
@@ -1136,8 +1477,25 @@ Routes: `/workspace`, `/workspace/overview`. Screens: `Workspace`. Requirements:
 - The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow. With the narrow menu of icons, the Faro mark at its top is the switcher.
 - Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.
 - A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.
+
+#### Switching, and setting one up
+
 - Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.
+
+#### Switching, and setting one up
+
+- Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.
+
+#### Switching, and setting one up
+
 - Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.
+
+#### Switching, and setting one up
+
+- Part-way through a check-in or a new goal, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.
+
+#### Switching, and setting one up
+
 - Switch person (your name at the foot of the sidebar) is only about people. Where you’re an admin, it says Admin.
 
 #### Finding your way
@@ -1150,6 +1508,13 @@ Routes: `/workspace`, `/workspace/overview`. Screens: `Workspace`. Requirements:
 #### Leaving
 
 - Leaving a workspace is in Settings, at the end: someone takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.
+
+#### Leaving
+
+- Leaving a workspace is in Settings, at the end: someone takes over your goals and open asks first, then you’re gone from its pickers, counts and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.
+
+#### Leaving
+
 - The only admin can’t leave until someone else is an admin.
 
 #### Who can
@@ -1178,7 +1543,14 @@ People is in the sidebar (on a phone, under More), for everyone. It answers who 
 - Filter by a team (its lead counts as one of its people), or tick Admins only. On a phone both are under Filter.
 - The list is A to Z (with a search, those whose name starts with it first), 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.
 - Each row says the person’s job title and team, and beside it whether they are an admin, which team they lead and how many goals they own this year.
+
+#### How to use it
+
 - Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, their goals counted by status (each count opens those goals) and the reviews they run or are in. See their goals opens Goals for just them.
+
+#### How to use it
+
+- Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, and their goals counted by status (each count opens those goals). See their goals opens Goals for just them.
 
 #### For admins
 
@@ -1486,7 +1858,14 @@ Routes: `/teams`, `/teams/:teamId`, `/workspace/teams`. Requirements: `PEOPLE-DI
 - Teams is the second tab of People. Find a team by its name or its lead’s.
 - Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.
 - Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.
+
+#### How to use it
+
 - A team’s page also says how many of its goals were checked in on time this week, without being asked, and the last 8 weeks, under “Week 46, due by Thursday 12 Nov”. When Reviews is on and a review is held that day with the team’s people in it, it is headed “Before this week’s review” and says “before it” instead. Only for a team whose goals have three or more owners: nobody is named.
+
+#### How to use it
+
+- A team’s page also says how many of its goals were checked in on time this week, without being asked, and the last 8 weeks, under “Week 46, due by Thursday 12 Nov”. Only for a team whose goals have three or more owners: nobody is named.
 
 #### For admins
 
@@ -1681,7 +2060,17 @@ Routes: `/workspace/privacy`. Requirements: `TELEMETRY-SIGNALS`, `TELEMETRY-PRIV
 
 - The pages you open, and how long each takes to show.
 - The buttons you press that do something, such as posting a check-in, saving a goal or answering a request, and whether it worked.
+
+#### What is recorded
+
 - How far you get in a task: a check-in, a new goal, changing a goal, a review, answering a request, an import, the wrap-up or setting up a workspace. Where you start, each step you reach, and whether you finish or stop.
+
+#### What is recorded
+
+- How far you get in a task: a check-in, a new goal, changing a goal, answering a request, an import, the wrap-up or setting up a workspace. Where you start, each step you reach, and whether you finish or stop.
+
+#### What is recorded
+
 - Errors, saves that didn’t go through (and whether a rule said no or the connection failed), and how long loading took.
 - With each: an id for this browser tab, your id in the workspace and the workspace’s id. Not your name.
 
@@ -1718,13 +2107,37 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 #### What it can do
 
 - Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.
+
+#### What it can do
+
+- Read every screen: what needs you, goals, a goal in full, requests, watching, people, activity, views, the wrap-up, this guide and what’s new.
+
+#### What it can do
+
 - Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.
+
+#### What it can do
+
+- Do what you can: check in, set up and change goals and plans, answer requests, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.
+
+#### What it can do
+
 - Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company and optionally one part of it (it asks before two goals share one number, and asks why when a goal with check-ins is measured differently).
 - It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.
 - In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.
 - Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first. The key is the one the goal holds once saved, even when someone else adds a goal at the same moment. A dry run says the keys the goals would get, and no IDs yet.
 - Finding goals, it gets 50 at a time, with how many match in all and how to ask for the next page.
+
+#### What it can do
+
 - Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.
+
+#### What it can do
+
+- Lists (goals it finds, asks, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.
+
+#### What it can do
+
 - Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.
 - Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.
 - Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included.
@@ -1822,8 +2235,22 @@ Requirements: `NAV-PLACES`, `NAV-COLLAPSED`, `LAUNCH`, `PHONE`, `A11Y`, `NO-ERRO
 #### The menu
 
 - The menu is in four groups: your work (Home, Check-in when you have a goal to check in on, Goals with up to four saved views under it, Reviews), things to look up (People, Activity, Data, and any feature’s own place), New goal, and this workspace and you (Workspace, Settings, Help, Feedback). Your name and role are at the foot; in the demo they open the Demo panel.
+
+#### The menu
+
+- The menu is in four groups: your work (Home, Check-in when you have a goal to check in on, Goals with up to four saved views under it), things to look up (People, Activity, Data, and any feature’s own place), New goal, and this workspace and you (Workspace, Settings, Help, Feedback). Your name and role are at the foot; in the demo they open the Demo panel.
+
+#### The menu
+
 - Collapsed to icons, each icon names itself when you point at it or move to it with the keyboard. Between a phone and a computer the menu is always icons.
+
+#### The menu
+
 - On a phone the tabs are Home, Check-in, Goals and Reviews for someone with a goal to check in on, or Home, Goals, Reviews and People; More holds the rest, in the same groups.
+
+#### The menu
+
+- On a phone the tabs are Home, Check-in and Goals for someone with a goal to check in on, or Home, Goals and People; More holds the rest, in the same groups.
 
 #### How it fits
 

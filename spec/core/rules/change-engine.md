@@ -45,7 +45,7 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 ## Every sentence it says
 
-Each problem, question and note is one of these 235 sentences, read by `src/spec/engineWords.ts` from the engine’s own source (`src/domain/changeset.ts`) and from the rules it shares, where those make the sentence: the goal form’s Must fix and questions (`goalMustFix`, `goalChecks` in `src/domain/goalEntry.ts`), a check-in’s number (`valueProblem` in `src/domain/checkin.ts`), the people rules (`personProblems`) and the removal rules (`src/domain/removal.ts`). `src/spec/engineWords.test.ts` checks that every sentence the conformance cases raise matches one of them, under its kind.
+Each problem, question and note is one of these 234 sentences, read by `src/spec/engineWords.ts` from the engine’s own source (`src/domain/changeset.ts`) and from the rules it shares, where those make the sentence: the goal form’s Must fix and questions (`goalMustFix`, `goalChecks` in `src/domain/goalEntry.ts`), a check-in’s number (`valueProblem` in `src/domain/checkin.ts`), the people rules (`personProblems`) and the removal rules (`src/domain/removal.ts`). `src/spec/engineWords.test.ts` checks that every sentence the conformance cases raise matches one of them, under its kind.
 
 - **{placeholder}**: a value put in: a cell as the row wrote it (`{cell}`), a goal’s or person’s name, a week, a number written as the goal writes it (with its unit, digits grouped: “1,500%”). `{sheet}` is Goals, Plan, Check-ins or People.
 - **[words]**: said only sometimes; **{a / b}**: one or the other, as the case is.
@@ -65,7 +65,6 @@ Each problem, question and note is one of these 235 sentences, read by `src/spec
 | `required-empty` | must | Goals | `Owner` | — | A new goal needs an owner: Owner email, or Owner. |
 | `required-empty` | must | Goals | `Goal` | — | Give the {goal / person / team…} a name. |
 | `required-empty` | must | Goals | `Goal` | — | Give the {goal / person / team…} a name of at least {two} characters. |
-| `required-empty` | must | Goals | `Goal` | — | Keep the name to 80 characters or fewer: it has {its length}. |
 | `required-empty` | must | Goals | `Owner` | — | Choose who owns it. |
 | `required-empty` | must | Goals | `Team` | — | {owner} isn’t in a team. Choose the team this goal is for. |
 | `required-empty` | must | Goals | `Team` | — | Choose a team. |
