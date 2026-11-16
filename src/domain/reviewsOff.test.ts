@@ -31,12 +31,12 @@ describe('the read-back before switching Reviews off', () => {
       ],
       decisions: [], goals: [], dueDay: 'Thursday',
     });
-    expect(r).toEqual({ people: 2, reviews: 1, said: 2, steps: 1, questions: 2, risks: 0, dueDay: 'Thursday' });
+    expect(r).toEqual({ people: 2, reviews: 1, said: 2, steps: 1, stepGoals: 1, questions: 2, risks: 0, dueDay: 'Thursday' });
   });
 
   it('says each line only when its count is above nought; the first, the due day’s and the last always', () => {
     const lines = (r: Parameters<typeof switchOffLines>[0]) => switchOffLines(r).map((l) => l.strong + l.rest);
-    expect(lines({ people: 30, reviews: 6, said: 41, steps: 3, questions: 1, risks: 2, dueDay: 'Thursday' })).toEqual([
+    expect(lines({ people: 30, reviews: 6, said: 41, steps: 3, stepGoals: 2, questions: 1, risks: 2, dueDay: 'Thursday' })).toEqual([
       'Reviews leaves the menu, and Home’s “Next review”.',
       '6 reviews stay in the record, with the 41 things said or marked in them. Each goal’s History still shows them.',
       '3 open next steps agreed in a review stay open on their goals and on Home.',
@@ -45,11 +45,20 @@ describe('the read-back before switching Reviews off', () => {
       'Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.',
       'Nothing is deleted. Switch Reviews back on and every review is as it was.',
     ]);
-    expect(lines({ people: 2, reviews: 0, said: 0, steps: 0, questions: 0, risks: 0, dueDay: 'Monday' })).toEqual([
+    expect(lines({ people: 2, reviews: 0, said: 0, steps: 0, stepGoals: 0, questions: 0, risks: 0, dueDay: 'Monday' })).toEqual([
       'Reviews leaves the menu, and Home’s “Next review”.',
       'Check-ins are still due by Monday. “Before the review” becomes “by Monday” on Home, in the check-in and in the count of goals checked in on time.',
       'Nothing is deleted. Switch Reviews back on and every review is as it was.',
     ]);
+  });
+
+  it('says “on its goal” when every open next step is on one goal (drill, 15 Nov: “1 open next step … on their goals”)', () => {
+    const step = (goalIds: string[]) => ({ kind: 'action' as const, status: 'open' as const, reviewId: 'weekly', goalIds });
+    const read = (asks: ReturnType<typeof step>[]) => switchOffReadBack({ people: [], reviews: [], changes: [], asks, decisions: [], goals: [], dueDay: 'Thursday' });
+    const line = (asks: ReturnType<typeof step>[]) => switchOffLines(read(asks)).map((l) => l.strong + l.rest).find((t) => t.includes('next step'));
+    expect(line([step(['g1'])])).toBe('1 open next step agreed in a review stays open on its goal and on Home.');
+    expect(line([step(['g1']), step(['g1'])])).toBe('2 open next steps agreed in a review stay open on its goal and on Home.');
+    expect(line([step(['g1']), step(['g2'])])).toBe('2 open next steps agreed in a review stay open on their goals and on Home.');
   });
 
   it('RS2: counts the risks a review accepted on goals not removed, leaving out a removed note, another note and a removed goal', () => {

@@ -27,7 +27,7 @@ export function Settings() {
         <h1 className="title-xl">Settings</h1>
         <span className="hint">Your own choices. Nobody else sees them.</span>
       </div>
-      <SectionLinks />
+      <SectionLinks sections={settingsSections(aiAccessOn(on))} />
 
       <section className="block settings-block" aria-labelledby="set-you">
         <h2 className="block-title" id="set-you">You</h2>
@@ -100,7 +100,9 @@ export function Settings() {
 /** Settings' sections, as links to them (navigation spec 2.5): under the title, sticking to the top as you scroll,
     with the one in view lit. On a phone the row scrolls sideways inside itself, keeping the lit one in view. */
 const SECTIONS: [string, string][] = [['set-you', 'You'], ['set-look', 'Appearance'], ['set-nav', 'Navigation'], ['ai-mine', 'Your MCP tokens'], ['set-leave', 'Leave']];
-function SectionLinks() {
+/** The sections the page has: no Your MCP tokens while AI access is off, as the section itself isn't there (drill, 15 Nov). */
+export const settingsSections = (aiOn: boolean): [string, string][] => SECTIONS.filter(([id]) => aiOn || id !== 'ai-mine');
+function SectionLinks({ sections: SECTIONS }: { sections: [string, string][] }) {
   const [lit, setLit] = useState(SECTIONS[0]![0]);
   // A link just chosen stays lit while the page scrolls to it (near the foot, its heading can't reach the top).
   const chosen = useRef(0);
@@ -121,7 +123,7 @@ function SectionLinks() {
     window.addEventListener('scroll', pick, { passive: true });
     work?.addEventListener('scroll', pick, { passive: true });
     return () => { window.removeEventListener('scroll', pick); work?.removeEventListener('scroll', pick); };
-  }, []);
+  }, [SECTIONS.map(([id]) => id).join()]);
   // Keep the lit link in view by moving the row sideways only, when it overflows. Never scrollIntoView: the row is sticky,
   // and the page's scroll-padding would pull the whole window back up on every change (build review of #113).
   useEffect(() => {

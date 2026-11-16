@@ -248,9 +248,13 @@ export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale
  * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
  * added if later), and never from before the present check-in rhythm began (`rhythmFrom`, FT1). The one rule for "no
  * recent update": stale at staleAfterDays(cycle), and the Goals filter "Last check-in N weeks ago or more" counts the
- * same days in weeks.
+ * same days in weeks. Never below zero: a goal whose plan starts later has 0 days without an update until then (0v).
  */
 export function daysWithoutUpdate(goal: Goal, cycle: Cycle, latest: CheckIn | null, today: Date): number {
+  // Never below zero (0v): before a plan that starts later, or a rhythm still to begin, nothing is late yet.
+  return Math.max(0, daysSinceUpdate(goal, cycle, latest, today));
+}
+function daysSinceUpdate(goal: Goal, cycle: Cycle, latest: CheckIn | null, today: Date): number {
   // Nothing is late for a time before the present rhythm began (FT1): a rhythm switched on today counts from today.
   const rhythm = cycle.rhythmFrom ? rhythmOf(cycle)?.from ?? '' : '';
   if (latest) return daysSince(rhythm > latest.postedAt.slice(0, 10) ? rhythm : latest.postedAt, today);

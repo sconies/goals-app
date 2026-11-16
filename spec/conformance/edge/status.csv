@@ -60,7 +60,7 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 3,E-8,metric,off,off,no,3,2
 3,E-9,metric,off,on,no,3,2
 3,E-10,metric,stale,off,yes,1,16
-3,E-11,metric,none,none,no,,-11
+3,E-11,metric,none,none,no,,0
 3,E-12,metric,on,off,yes,3,2
 3,E-13,metric,on,off,yes,2,9
 3,E-14,metric,on,on,no,2,9
@@ -78,7 +78,7 @@ week,goal,kind,status,calculated,greener,latest_week,days_without_update
 4,E-8,metric,off,off,no,3,9
 4,E-9,metric,off,on,no,3,9
 4,E-10,metric,stale,off,yes,1,23
-4,E-11,metric,none,none,no,,-4
+4,E-11,metric,none,none,no,,0
 4,E-12,metric,on,off,yes,3,9
 4,E-13,metric,stale,off,yes,2,16
 4,E-14,metric,stale,on,no,2,16
