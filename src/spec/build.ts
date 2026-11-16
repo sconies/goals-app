@@ -34,7 +34,7 @@ import { exportFormatPage, importIssuesMarkdown } from './importIssues';
 import { useLine, useShort, USES } from './uses';
 import { limitsSection } from './limits';
 import { changeEngineSections } from './changeEngineDoc';
-import { MODULE_SHEETS } from '../core/records';
+import { loadModuleSheets, moduleSheets } from '../core/records';
 import { ALWAYS_ON } from './alwaysOn';
 import { EDGE_GOALS, EDGE_NOTES, edgeWorkspace } from './edge';
 import { goalsQueryPage } from './goalsQuery';
@@ -658,7 +658,8 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   }
   const files = conformanceFiles(w);
   out['spec/conformance/workspace.json'] = workspaceJson(w);
-  out['spec/core/export-format.md'] = exportFormatPage(MODULE_SHEETS);
+  await loadModuleSheets();
+  out['spec/core/export-format.md'] = exportFormatPage(moduleSheets());
   out['spec/core/goals-query.md'] = goalsQueryPage(r, GENERATED('src/domain/query.ts, by src/spec/goalsQuery.ts'));
   out['spec/core/import-issues.md'] = GENERATED('src/domain/issueKinds.ts, src/domain/problemLevels.ts, src/domain/columns.ts and import.csv’s cases') + importIssuesMarkdown(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;

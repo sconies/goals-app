@@ -31,7 +31,7 @@ import { headersOf, isWorkedOut, KEY_COLUMNS, SHEETS, specOf } from '../src/doma
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
 import { csvFiles, sheetNamed, toCsv, workbook, type Table } from '../src/domain/export';
 import { exportFormatMarkdown } from '../src/domain/formatDoc';
-import { MODULE_SHEETS } from '../src/core/records';
+import { loadModuleSheets, moduleSheets } from '../src/core/records';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../src/domain/importer';
 import { currentWeek } from '../src/domain/plan';
 import * as R from '../src/domain/removal';
@@ -95,10 +95,11 @@ describe('one format', () => {
     expect(readme.flat().join(' ')).not.toMatch(/\bRequests\b/);
   });
 
-  it(F('ONE-FORMAT', 'docs/export-format.md is made from the same definitions, and is current'), () => {
+  it(F('ONE-FORMAT', 'docs/export-format.md is made from the same definitions, and is current'), async () => {
     const doc = fs.readFileSync(path.join(root, 'docs/export-format.md'), 'utf8');
     // The committed page describes every module's sheets; a build that leaves a module out (FARO_WITHOUT) can't make it whole.
-    if (!process.env.FARO_WITHOUT) expect(doc).toBe(exportFormatMarkdown(MODULE_SHEETS));
+    await loadModuleSheets();
+    if (!process.env.FARO_WITHOUT) expect(doc).toBe(exportFormatMarkdown(moduleSheets()));
     for (const sheet of SHEETS) for (const c of sheet.columns) expect(doc).toContain(`| ${c.header.replace(/\|/g, '\\|')} |`);
     expect(doc).toMatch(/"ownerEmail"/);
     expect(doc).toMatch(/## Activity/);

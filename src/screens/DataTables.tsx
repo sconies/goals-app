@@ -11,7 +11,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { Place, useModules } from '../core/app';
-import { exportOn } from '../core/records';
+import { goalSheetsOn } from '../core/records';
+import { isModuleOn } from '../core/registry';
 import { examplesLine, type Answers, type Rec, type Tables } from '../domain/changeset';
 import { workbook, type Cell } from '../domain/export';
 import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
@@ -103,7 +104,8 @@ export function DataTables() {
   // A module's columns on Goals (Fields' one per live field) are Data's Goals columns too, as in every export.
   const { extras } = useModules();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { reviews, goalColumns } = useMemo(() => exportOn(app.ws), [app.ws, extras]);
+  // A table shows no module sheet, so only Reviews' switch and the modules' Goals columns (core/records exportOn's rest).
+  const { reviews, goalColumns } = useMemo(() => ({ reviews: isModuleOn(app.ws, 'reviews'), goalColumns: goalSheetsOn(app.ws) }), [app.ws, extras]);
   const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, reviews, goalColumns }), [app.ws, app.snapshot, app.cycle, app.week, app.today, reviews, goalColumns]);
   const tables = useMemo(() => {
     const out = {} as Record<Tab, { head: string[]; rows: { key: string; cells: string[]; locked?: string }[] }>;

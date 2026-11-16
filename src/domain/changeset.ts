@@ -721,8 +721,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   /* ---------- a module's own sheets (MI): Metrics before goals, through the module's planner and its own rules ---------- */
   const planned: { sheet: string; module: string; result: SheetPlanResult }[] = [];
   for (const [sheet, recs] of Object.entries(input.tables.modules ?? {})) {
-    const owner = (input.records ?? []).find((m) => m.sheets?.some((x) => x.spec.name === sheet && x.plan));
-    const plan = owner?.sheets?.find((x) => x.spec.name === sheet)?.plan;
+    // Its planner, loaded with its sheet by the door that runs the engine (core/records loadSheetPlanners).
+    const owner = (input.records ?? []).find((m) => m.sheets?.some((x) => x.name === sheet && x.sheet?.plan));
+    const plan = owner?.sheets?.find((x) => x.name === sheet)?.sheet?.plan;
     // A module that's off (or not in this build) plans nothing: its sheet was said once as not read (domain/sheets).
     if (!owner || !plan || create) continue;
     const rows = recs.map((r, i) => ({ r, row: rowOf(r, i) })).filter(({ r }) => !blankRow(r) && !(fold(val(r, 'action')) === 'example' && ++examples));

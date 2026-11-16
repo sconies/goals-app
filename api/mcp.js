@@ -5791,7 +5791,7 @@ var init_columns = __esmMin((() => {
 	sheetNamesWith = (sheets = [], reviews = true) => [
 		START_HERE,
 		...sheetsFor(reviews).map((x) => x.name),
-		...sheets.map((x) => x.spec.name)
+		...sheets
 	];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
 	headersOf = (kind) => specOf(kind).columns.map((c) => c.header);
@@ -11574,8 +11574,8 @@ function* planChangesInChunks(input) {
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === "must")) raise("required-empty", "People", 1, "", "Add at least one person.", { column: "Name" });
 	const planned = [];
 	for (const [sheet, recs] of Object.entries(input.tables.modules ?? {})) {
-		const owner = (input.records ?? []).find((m) => m.sheets?.some((x) => x.spec.name === sheet && x.plan));
-		const plan = owner?.sheets?.find((x) => x.spec.name === sheet)?.plan;
+		const owner = (input.records ?? []).find((m) => m.sheets?.some((x) => x.name === sheet && x.sheet?.plan));
+		const plan = owner?.sheets?.find((x) => x.name === sheet)?.sheet?.plan;
 		if (!owner || !plan || create) continue;
 		const rows = recs.map((r, i) => ({
 			r,
@@ -17084,64 +17084,10 @@ var init_sheetPlan = __esmMin((() => {
 	differs = (before, input) => Object.keys(input).some((k) => (typeof before[k] === "string" ? String(before[k]).trim() : before[k] ?? null) !== (typeof input[k] === "string" ? String(input[k]).trim() : input[k] ?? null));
 }));
 // src/modules/metrics/sheet.ts
-init_columns();
-init_sheets();
-init_rules$1();
-init_rulesStill();
-init_rulesStructure();
-var { match: m, edit: e, worked: w, shown: sh, action: act } = moduleColumn;
-var or$1 = cellOr;
-var METRICS_SHEET = {
-	spec: {
-		kind: "metrics",
-		name: "Metrics",
-		rowIs: "metric in the library",
-		loaded: true,
-		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back.",
-		columns: [
-			m("ID", "The metric’s identity. Empty for a new metric.", (r) => r.m.id),
-			e("Metric", "Its name: 3 to 120 characters, used by one metric.", (r) => r.m.name),
-			act("Action", "Retire or Bring back; empty for none. Retiring needs a Reason.", () => null),
-			e("Meaning", "What it means and how it’s calculated: what is counted, out of what or over what period, what is left out.", (r) => or$1(r.m.meaning)),
-			e("Unit", "Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use.", (r) => r.m.unit),
-			e("Decimals", "Places after the decimal point it’s shown with: 0 to 4.", (r) => r.m.decimals),
-			e("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
-			e("Source", "Where the number comes from: a dashboard, a query, a report.", (r) => or$1(r.m.source)),
-			e("Source owner", "Who owns that source: a team or a person.", (r) => or$1(r.m.sourceOwner)),
-			e("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
-			e("Owner", "Who answers for the definition, by name (Owner email wins when both are given).", (r) => or$1(r.c.name(r.m.ownerId))),
-			e("Owner email", "Who answers for it, by email; empty on a new metric: whoever loads the file.", (r) => r.c.email(r.m.ownerId)),
-			e("Caveats", "What to watch out for when reading it.", (r) => or$1(r.m.caveats)),
-			e("Part of", "The metric it sits under, by name or ID: a metric in the library or on an earlier row. Empty for none.", (r) => r.parent),
-			e("How it relates", `How it relates to the metric it is part of: ${oneOf(LEVELS$2.map((k) => LEVEL_WORDS[k].label))}. Needs Part of; empty when not said.`, (r) => r.m.level ? LEVEL_WORDS[r.m.level].label : null),
-			e("Confidence", `How far its number can be trusted: ${oneOf(CONFIDENCES.map((k) => CONFIDENCE_WORDS[k].label))}; empty when not said.`, (r) => r.m.confidence ? CONFIDENCE_WORDS[r.m.confidence].label : null),
-			e("How it could be gamed", `In words, up to 500 characters; empty when not said.`, (r) => or$1(r.m.gaming)),
-			e("Reason", "Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show.", () => null),
-			w("Still to say", "Fully defined, or what it still needs to say.", (r) => stillToSay(r.m, !!r.c.email(r.m.ownerId)).line),
-			w("Retired on", "The day it was retired; empty while it is in use.", (r) => r.m.retiredAt ? r.m.retiredAt.slice(0, 10) : null),
-			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or$1(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
-			sh("Goal keys", "Their keys.", (r) => or$1(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
-		]
-	},
-	keys: ["ID"],
-	loadPlan: () => Promise.resolve().then(() => (init_sheetPlan(), sheetPlan_exports)).then((m) => m.planMetricsSheet),
-	has: isMetricsHeader,
-	rows: (x, c, ids) => {
-		const s = x.snapshot;
-		return liveMetrics(s, { retired: true }).map((mt) => ({
-			c,
-			m: mt,
-			parent: mt.parentId ? metricsOf(s).find((v) => v.id === mt.parentId)?.name ?? null : null,
-			measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
-				const g = s.goals.find((v) => v.id === l.goalId);
-				return g ? [{
-					g,
-					slice: sliceName$1(s, l.teamId)
-				}] : [];
-			})
-		}));
-	}
-};
+var sheet_exports = /* @__PURE__ */ __exportAll({
+	METRICS_SHEET: () => METRICS_SHEET,
+	isMetricsHeader: () => isMetricsHeader
+});
 /** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
 Direction or Measures; never one with a column the Goals sheet reads as Goal or Key (its own name or another the
 field table gives it: Title, Goal name, Objective…), which is a Goals sheet. */
@@ -17152,11 +17098,86 @@ function isMetricsHeader(h) {
 	}
 	return h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
 }
+var m, e, w, sh, act, or$1, METRICS_SHEET;
+var init_sheet$1 = __esmMin((() => {
+	init_columns();
+	init_sheets();
+	init_rules$1();
+	init_rulesStill();
+	init_rulesStructure();
+	init_sheetRef();
+	({match: m, edit: e, worked: w, shown: sh, action: act} = moduleColumn);
+	or$1 = cellOr;
+	METRICS_SHEET = {
+		spec: {
+			kind: "metrics",
+			name: METRICS_SHEET_NAME,
+			rowIs: "metric in the library",
+			loaded: true,
+			about: METRICS_SHEET_ABOUT,
+			columns: [
+				m("ID", "The metric’s identity. Empty for a new metric.", (r) => r.m.id),
+				e("Metric", "Its name: 3 to 120 characters, used by one metric.", (r) => r.m.name),
+				act("Action", "Retire or Bring back; empty for none. Retiring needs a Reason.", () => null),
+				e("Meaning", "What it means and how it’s calculated: what is counted, out of what or over what period, what is left out.", (r) => or$1(r.m.meaning)),
+				e("Unit", "Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use.", (r) => r.m.unit),
+				e("Decimals", "Places after the decimal point it’s shown with: 0 to 4.", (r) => r.m.decimals),
+				e("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+				e("Source", "Where the number comes from: a dashboard, a query, a report.", (r) => or$1(r.m.source)),
+				e("Source owner", "Who owns that source: a team or a person.", (r) => or$1(r.m.sourceOwner)),
+				e("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
+				e("Owner", "Who answers for the definition, by name (Owner email wins when both are given).", (r) => or$1(r.c.name(r.m.ownerId))),
+				e("Owner email", "Who answers for it, by email; empty on a new metric: whoever loads the file.", (r) => r.c.email(r.m.ownerId)),
+				e("Caveats", "What to watch out for when reading it.", (r) => or$1(r.m.caveats)),
+				e("Part of", "The metric it sits under, by name or ID: a metric in the library or on an earlier row. Empty for none.", (r) => r.parent),
+				e("How it relates", `How it relates to the metric it is part of: ${oneOf(LEVELS$2.map((k) => LEVEL_WORDS[k].label))}. Needs Part of; empty when not said.`, (r) => r.m.level ? LEVEL_WORDS[r.m.level].label : null),
+				e("Confidence", `How far its number can be trusted: ${oneOf(CONFIDENCES.map((k) => CONFIDENCE_WORDS[k].label))}; empty when not said.`, (r) => r.m.confidence ? CONFIDENCE_WORDS[r.m.confidence].label : null),
+				e("How it could be gamed", `In words, up to 500 characters; empty when not said.`, (r) => or$1(r.m.gaming)),
+				e("Reason", "Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show.", () => null),
+				w("Still to say", "Fully defined, or what it still needs to say.", (r) => stillToSay(r.m, !!r.c.email(r.m.ownerId)).line),
+				w("Retired on", "The day it was retired; empty while it is in use.", (r) => r.m.retiredAt ? r.m.retiredAt.slice(0, 10) : null),
+				sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or$1(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
+				sh("Goal keys", "Their keys.", (r) => or$1(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
+			]
+		},
+		keys: ["ID"],
+		loadPlan: () => Promise.resolve().then(() => (init_sheetPlan(), sheetPlan_exports)).then((m) => m.planMetricsSheet),
+		has: isMetricsHeader,
+		rows: (x, c, ids) => {
+			const s = x.snapshot;
+			return liveMetrics(s, { retired: true }).map((mt) => ({
+				c,
+				m: mt,
+				parent: mt.parentId ? metricsOf(s).find((v) => v.id === mt.parentId)?.name ?? null : null,
+				measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
+					const g = s.goals.find((v) => v.id === l.goalId);
+					return g ? [{
+						g,
+						slice: sliceName$1(s, l.teamId)
+					}] : [];
+				})
+			}));
+		}
+	};
+}));
+// src/modules/metrics/sheetRef.ts
+var METRICS_SHEET_NAME, METRICS_SHEET_ABOUT, metricsSheetRef;
+var init_sheetRef = __esmMin((() => {
+	METRICS_SHEET_NAME = "Metrics";
+	METRICS_SHEET_ABOUT = "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back.";
+	metricsSheetRef = () => ({
+		name: METRICS_SHEET_NAME,
+		about: METRICS_SHEET_ABOUT,
+		loaded: true,
+		load: () => Promise.resolve().then(() => (init_sheet$1(), sheet_exports)).then((m) => m.METRICS_SHEET)
+	});
+}));
 // src/modules/metrics/records.ts
 init_rulesStructure();
 init_actions();
 init_rulesMeasured();
 init_rules$1();
+init_sheetRef();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
 var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
 var iso$4 = (v) => new Date(String(v)).toISOString();
@@ -17368,7 +17389,7 @@ var records$3 = {
 		})),
 		goalOf: (l) => l.goalId
 	}],
-	sheets: [METRICS_SHEET],
+	sheets: [metricsSheetRef()],
 	measures: (s, goalId) => {
 		const l = linkOf(s, goalId);
 		const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
@@ -18903,8 +18924,32 @@ var goalExtrasOf = (on) => [...extras].filter(([id]) => !on || on.has(id)).map((
 var GOAL_PREFIXES = MODULE_RECORDS.flatMap((m) => m.goalExtras?.prefix ? [m.goalExtras.prefix] : []);
 /** The modules' columns on the Goals sheet (Fields' one per live field), of the modules on in a workspace and loaded. */
 var goalSheetsOn = (ws) => goalExtrasOf(modulesOn(ws).on).flatMap((x) => x.sheet ? [x.sheet] : []);
-/** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
-var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
+/** The workbook's sheets the modules add (domain/export), in module id order, as their records name them: every module in
+this build. Each sheet's columns and rows load on demand (loadModuleSheets), so the first download carries none. */
+var MODULE_SHEET_REFS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).map((r) => Object.assign(r, { module: m.module })));
+var sheetsLoading = null;
+/** Loads every module sheet not loaded yet, keeping each on its ref. Every door that reads a module sheet's columns or rows
+awaits this first: the export (Export, Data's downloads, the MCP export tool), the file reader's headers
+(sheetHeadsFor: a file, a paste, the import's check) and the engine (loadSheetPlanners). Loaded once. */
+function loadModuleSheets() {
+	if (MODULE_SHEET_REFS.every((r) => r.sheet)) return Promise.resolve();
+	sheetsLoading ??= Promise.all(MODULE_SHEET_REFS.filter((r) => !r.sheet).map(async (r) => {
+		const sheet = await r.load();
+		if (sheet.spec.name !== r.name) throw new Error(`The ${r.module} module names its sheet ${r.name}, but the sheet it loads is ${sheet.spec.name}.`);
+		r.sheet = sheet;
+	})).then(() => void 0, (e) => {
+		sheetsLoading = null;
+		throw e;
+	});
+	return sheetsLoading;
+}
+/** A ref's loaded sheet: said plainly when a door forgot to await loadModuleSheets, never an export without it. */
+var loadedSheet = (r) => {
+	if (!r.sheet) throw new Error(`The ${r.name} sheet (${r.module}) hasn't loaded: await loadModuleSheets() before reading it.`);
+	return r.sheet;
+};
+/** The workbook's sheets the modules add, loaded: every module in this build. Await loadModuleSheets first. */
+var moduleSheets = () => MODULE_SHEET_REFS.map(loadedSheet);
 /** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
 carries. A module that's off, switched off itself or off because something it needs is (fix item F5), keeps its rows
 untouched, and none of them is offered back until it is on again. */
@@ -18913,20 +18958,25 @@ var recordsOn = (ws) => recordsOf(MODULE_RECORDS, modulesOn(ws).on);
 var recordsOf = (records, on) => records.filter((m) => on.has(m.module));
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
 any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
-var sheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.sheets ?? []);
+var sheetsOn = (ws) => {
+	const on = modulesOn(ws).on;
+	return MODULE_SHEET_REFS.filter((r) => on.has(r.module)).map(loadedSheet);
+};
 /** What a workspace's exports hold, for every door that writes one (the Export sheet, Import's "Export everything", the
 preview's worked-out check, the Data tables, the MCP export tool): the sheets of the modules switched on there (F2),
 and whether Reviews is on (RS1, Reviews switch spec 5): with it off the workbook has no Notes sheet and Asks no Review
-column. Spread into workbook()'s input, so the rule lives here once. */
+column. Spread into workbook()'s input, so the rule lives here once. Await loadModuleSheets first. */
 var exportOn = (ws) => ({
 	sheets: sheetsOn(ws),
 	goalColumns: goalSheetsOn(ws),
 	reviews: isModuleOn(ws, "reviews")
 });
 /** Loads every module sheet's planner not loaded yet (MI): each door that runs the engine on a file with a module's own
-sheet awaits this first (the import's reader, its worker, bulk_change). Loaded once, kept on the sheet. */
+sheet awaits this first (the import's reader, its worker, bulk_change). Loads the sheets first. Loaded once, kept on
+the sheet. */
 async function loadSheetPlanners() {
-	await Promise.all(MODULE_SHEETS.filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => {
+	await loadModuleSheets();
+	await Promise.all(moduleSheets().filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => {
 		sh.plan = await sh.loadPlan();
 	}));
 }
@@ -31851,10 +31901,11 @@ var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-/** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
+/** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… The modules'
+sheets by name only (their refs), so the schema needs none of them loaded. */
 var csvFormats = (sheets, reviews = true) => sheetNamesWith(sheets, reviews).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
 /** Every format this build has, for the tool's schema; a workspace with a module (or Reviews) switched off has fewer (F2, RS1). */
-var CSV_FORMATS = csvFormats(MODULE_SHEETS);
+var CSV_FORMATS = csvFormats(MODULE_SHEET_REFS.map((r) => r.name));
 var tools$3 = [{
 	name: "export",
 	title: "Export the goals",
@@ -31874,6 +31925,7 @@ var tools$3 = [{
 		openWorldHint: false
 	},
 	async run(a, ctx) {
+		await loadModuleSheets();
 		const on = exportOn(ctx.ws);
 		const x = {
 			ws: ctx.ws,
@@ -31883,7 +31935,7 @@ var tools$3 = [{
 			today: ctx.today,
 			...on
 		};
-		const formats = csvFormats(on.sheets, on.reviews);
+		const formats = csvFormats(on.sheets.map((sh) => sh.spec.name), on.reviews);
 		if (a.format === "json") {
 			const j = toJson$1(x);
 			return {
@@ -32573,11 +32625,11 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
 /** The modules' own loaded sheets (MI: Metrics), each a bulk_change argument named by its sheet in lower case. */
-var LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && (sh.plan || sh.loadPlan)).map((sh) => ({
+var LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.loaded).map((sh) => ({
 	module: m.module,
-	sheet: sh.spec.name,
-	arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, "_"),
-	about: sh.spec.about
+	sheet: sh.name,
+	arg: sh.name.toLowerCase().replace(/[^a-z]+/g, "_"),
+	about: sh.about
 })));
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 var FIND_PAGE = 50;

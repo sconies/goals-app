@@ -2,7 +2,7 @@
    changes nothing; rows add, change, retire and bring back metrics through the library's rules; the same Must fix and
    Check words as the form; one Undo puts every row back; with the Metric library off the sheet is said once, not read. */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { loadSheetPlanners, MODULE_RECORDS, MODULE_SHEETS, sheetHeadsFor } from '../../core/records';
+import { loadModuleSheets, loadSheetPlanners, moduleSheets, MODULE_RECORDS, sheetHeadsFor } from '../../core/records';
 import { buildPlatformOrg } from '../../data/platformOrg';
 import { applyCommit } from '../../data/store';
 import { planChanges, type Answers, type Tables } from '../../domain/changeset';
@@ -15,6 +15,9 @@ import { readLine, readTables, type NamedGrid } from '../../domain/sheets';
 import type { Snapshot } from '../../domain/types';
 import { liveMetrics, metricsOf, saveMetric } from './rules';
 import { linkedGoals } from './rulesChange';
+
+// The modules' sheets load on demand (core/records loadModuleSheets), as every door that reads them awaits.
+await loadModuleSheets();
 
 const today = new Date('2026-11-05T12:00:00Z');
 const full = buildPlatformOrg(today);
@@ -40,7 +43,7 @@ describe('the Metrics sheet in and out (MI)', () => {
   const spare = live.find((m) => !linkedGoals(full, m.id).length)!;
 
   it('[METRIC-SHEET] an export loaded back changes nothing, and the Metrics sheet is read', () => {
-    const book = workbook({ ws, snapshot: scopeToCycle(full, cycle), cycle, week, today, sheets: MODULE_SHEETS });
+    const book = workbook({ ws, snapshot: scopeToCycle(full, cycle), cycle, week, today, sheets: moduleSheets() });
     const read = readTables(grids(book), sheetHeadsFor({}));
     expect(read.read.map((r) => r.name)).toContain('Metrics');
     expect(read.tables.modules?.Metrics?.length).toBe(metricsOf(full).filter((m) => !m.removedAt).length);
@@ -101,7 +104,7 @@ describe('the Metrics sheet in and out (MI)', () => {
     const m = metricsOf(after).find((v) => v.id === spare.id)!;
     expect(m).toMatchObject({ parentId: used.id, level: 'driver', confidence: 'medium', gaming: 'Retrying until green hides flaky tests.' });
     // Out: the export says it in the same words, and loading it back changes nothing.
-    const book = workbook({ ws, snapshot: scopeToCycle(after, cycle), cycle, week, today, sheets: MODULE_SHEETS });
+    const book = workbook({ ws, snapshot: scopeToCycle(after, cycle), cycle, week, today, sheets: moduleSheets() });
     const sheet = book.find((t) => t.name === 'Metrics')!;
     const head = sheet.rows[0]!.map(String);
     const row = sheet.rows.find((r) => r[0] === spare.id)!;
@@ -221,7 +224,7 @@ describe('the Metrics sheet in and out (MI)', () => {
   });
 
   it('with the Metric library off, the sheet is said once and not read', () => {
-    const book = workbook({ ws, snapshot: scopeToCycle(full, cycle), cycle, week, today, sheets: MODULE_SHEETS });
+    const book = workbook({ ws, snapshot: scopeToCycle(full, cycle), cycle, week, today, sheets: moduleSheets() });
     const read = readTables(grids(book), sheetHeadsFor({ modulesOff: ['metrics'] }));
     expect(read.tables.modules).toBeUndefined();
     expect(readLine(read, 0, { workspace: ws.name })).toContain('Metric library is off in Platform Engineering, so the Metrics sheet was not read.');

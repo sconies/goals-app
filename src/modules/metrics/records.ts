@@ -16,7 +16,7 @@ import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
 import { heldOnSwitch } from './rulesMeasured';
 import { LINKS_KEY, linkOf, linksOf, markLabel, marksFor, metricRows, metricsOf, METRICS_KEY } from './rules';
-import { METRICS_SHEET } from './sheet';
+import { metricsSheetRef } from './sheetRef';
 import type { Metric, MetricLink } from './types';
 
 /* ---------- rows each way (the Supabase and Postgres adapters write and read these) ---------- */
@@ -131,7 +131,7 @@ const goalMetric: RecordDef<MetricLink> = {
 
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
-  sheets: [METRICS_SHEET],
+  sheets: [metricsSheetRef()],
   // The metric a goal is linked to, for goal entry's wrong-side question at every door (a file and the AI tools too).
   measures: (s, goalId) => {
     const l = linkOf(s, goalId);

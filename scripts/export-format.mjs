@@ -12,7 +12,9 @@ const server = await createServer({ root, logLevel: 'error', server: { middlewar
 try {
   const { exportFormatMarkdown } = await server.ssrLoadModule('/src/domain/formatDoc.ts');
   // With the sheets the feature modules add (src/core/records.ts), as the export writes them.
-  const { MODULE_SHEETS } = await server.ssrLoadModule('/src/core/records.ts');
+  const { loadModuleSheets, moduleSheets } = await server.ssrLoadModule('/src/core/records.ts');
+  await loadModuleSheets();
+  const MODULE_SHEETS = moduleSheets();
   const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   const after = exportFormatMarkdown(MODULE_SHEETS);
   if (process.argv.includes('--check')) {

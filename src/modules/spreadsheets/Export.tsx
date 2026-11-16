@@ -31,7 +31,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const on = exportOn(app.ws);
   /** Every sheet’s name after Start here: the core’s, then each module’s that’s on (the metric library’s Metrics). A list
       fixed by the build and the switches, not by the workspace’s records (the pickers lint). */
-  const SHEET_NAMES = sheetNamesWith(on.sheets, on.reviews).slice(1);
+  const SHEET_NAMES = sheetNamesWith(on.sheets.map((sh) => sh.spec.name), on.reviews).slice(1);
   const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, ...on };
   // Every file is named the same way (spec 2.9): workspace, what it holds, which goals (`all` or the view's name), the day.
   // `all` means everything: a filtered All tab is `as-shown`, never `all`.
