@@ -12,15 +12,15 @@ function later<P extends object>(load: () => Promise<ComponentType<P>>): Compone
   const Lazy = lazy(() => load().then((c) => ({ default: c as ComponentType<object> })));
   return (props: P) => <Suspense fallback={null}><Lazy {...props} /></Suspense>;
 }
-const DataMenu = later<PlaceProps['data.tools']>(() => import('./DataMenu').then((m) => m.DataMenu as ComponentType<PlaceProps['data.tools']>));
+// Import, its preview and the Data menu (Export everything) read the modules' sheets as they draw (the export, the header check), so they load with them.
+const withSheets = <T,>(screen: Promise<T>) => Promise.all([screen, loadModuleSheets()]).then(([m]) => m);
+const DataMenu = later<PlaceProps['data.tools']>(() => withSheets(import('./DataMenu')).then((m) => m.DataMenu as ComponentType<PlaceProps['data.tools']>));
 
 // The field table is read in one Help article only: it loads when that article opens, not on a first visit.
 const FieldTable = lazy(() => import('./ColumnsHelp').then((m) => ({ default: m.ColumnsHelp })));
 const ColumnsHelp = (p: PlaceProps['help.article']) => (p.article === 'columns' ? <Suspense fallback={null}><FieldTable {...p} /></Suspense> : null);
 
 // Import, its preview and its changes load when opened (the bundle budget, scripts/check-bundle.mjs).
-// Import and its preview read the modules' sheets as they draw (the export, the header check), so they load with them.
-const withSheets = <T,>(screen: Promise<T>) => Promise.all([screen, loadModuleSheets()]).then(([m]) => m);
 const LazyImport = lazy(() => withSheets(import('./Import')).then((m) => ({ default: m.Import })));
 const LazyCheck = lazy(() => withSheets(import('./Check')).then((m) => ({ default: m.Check })));
 const LazyChanges = lazy(() => import('./Changes').then((m) => ({ default: m.Changes })));
