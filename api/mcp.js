@@ -16514,7 +16514,7 @@ function confirmReword(x, metricId) {
 		changes: [log$1(x, {
 			entityId: m.id,
 			action: "edited",
-			summary: `${nameOf$1(x, x.actor.id)} confirmed that the reworded ${m.toConfirm.what.map((w) => w.replace(/^the\s+/i, "")).join(" and ")} of “${m.name}”: still Verified`,
+			summary: `${nameOf$1(x, x.actor.id)} confirmed that the reworded ${m.toConfirm.what.map((w) => w.replace(/^the\s+/i, "")).join(" and ")} of “${m.name}” mean the same: still Verified`,
 			diffs: []
 		})]
 	};
@@ -16554,7 +16554,7 @@ function answerAttempt(x, metricId, note) {
 		})]
 	};
 }
-var nameOf$1, stageNow, sourceOwnerName;
+var nameOf$1, stageNow, sourceOwnerName, sourceOwnerInFaro;
 var init_rulesVerify = __esmMin((() => {
 	init_qualityHooks();
 	init_rules$1();
@@ -16565,7 +16565,11 @@ var init_rulesVerify = __esmMin((() => {
 		ownerIsHere: x.snapshot.people.some((p) => p.id === m.ownerId && !p.leftAt),
 		nameOf: (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? id
 	});
-	sourceOwnerName = (s, m) => m.sourceOwnerId && (s.teams.find((t) => t.id === m.sourceOwnerId)?.name ?? s.people.find((p) => p.id === m.sourceOwnerId)?.name) || m.sourceOwner || "";
+	sourceOwnerName = (s, m) => sourceOwnerInFaro(s, m) || m.sourceOwner || "";
+	sourceOwnerInFaro = (s, m) => {
+		const id = sourceOwnerIdOf(m, s.teams, s.people);
+		return id && (s.teams.find((t) => t.id === id)?.name ?? s.people.find((p) => p.id === id)?.name) || "";
+	};
 }));
 // src/data/examples.ts
 /** The modules an eval build starts the example with switched off (FARO_MODULES_OFF, evals/run.mjs): CI's smoke run with
@@ -30964,7 +30968,7 @@ function qualityData(ctx, m) {
 		refreshNote: m.refreshNote ?? "",
 		sourceLink: m.sourceLink ?? "",
 		sourceQuery: m.sourceQuery ?? "",
-		sourceOwnerInFaro: m.sourceOwnerId ? sourceOwnerName(ctx.snapshot, m) : null,
+		sourceOwnerInFaro: sourceOwnerInFaro(ctx.snapshot, m) || null,
 		baselines: liveBaselines(m).map(base),
 		baselineHistory: (m.baselines ?? []).filter((b) => !!b.replacedAt).map(base),
 		verification: m.verification ? ver(m.verification) : null,

@@ -153,7 +153,7 @@ export function Calculation({ metric: m }: { metric: Metric }) {
 export function Source({ metric: m }: { metric: Metric }) {
   const app = useApp();
   const owner = app.person(m.ownerId);
-  const srcOwner = m.sourceOwnerId ? sourceOwnerName(app.snapshot, m) : m.sourceOwner;
+  const srcOwner = sourceOwnerName(app.snapshot, m);
   return (
     <section className="stack" style={{ gap: 'var(--s2)' }} data-part="Source">{/* Not labelled by its heading: “Source” is the form’s field name too. */}
       <h2 className="label" id="metric-source">Source</h2>

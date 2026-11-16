@@ -1026,7 +1026,7 @@ function SimilarCheck({ c, waiting, onAnswer }: { c: MetricCheck; waiting: boole
   return (
     <div className={'level-block level-check metric-check metric-similar' + (waiting ? ' level-alert' : '')} role="group" aria-labelledby="metric-check-similar" aria-describedby="metric-similar-card" tabIndex={-1} data-check="similar">
       <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
-      <strong id="metric-check-similar" className="level-q">1 similar metric in the library</strong>
+      <strong id="metric-check-similar" className="level-q">A similar metric in the library</strong>
       <div id="metric-similar-card" className="metric-box stack" data-part="Similar metric">
         <p className="metric-box-head metric-similar-name"><Link to={metricPath(m)} target="_blank" rel="noreferrer">{m.name}</Link> <StageMark k={row.stage.stage} /></p>
         {m.meaning.trim() && <p className="small">{m.meaning.trim()}</p>}
