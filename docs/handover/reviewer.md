@@ -4,7 +4,7 @@ The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` bra
 
 Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It is live, has cross-session tools again, and reviews whatever merges next; read on only if it has handed over.
 
-- **Last merge fully reviewed:** `e0750402` (#581). #582 from the drill-bugs track is to follow. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #581 are at the end, under “The reviewer of 16 November, afternoon”.
+- **Last merge fully reviewed:** `7b23328c` (#582), the last of the drill-bugs track. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #582 are at the end, under “The reviewer of 16 November, afternoon”.
 - **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
