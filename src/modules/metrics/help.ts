@@ -262,6 +262,19 @@ const help: Article[] = [
         'When something needs answering, an outlined box at the top says so: Verified taken away by a change (what changed, who, when and why), a figure someone couldn’t reproduce, a new owner to confirm, or a rewording to confirm.',
         'On a phone the parts stack with ÷ between them, baselines become pairs, and the verification note folds to Read the note.',
       ] },
+      { heading: 'Defining a metric', list: [
+        'On a metric’s form, What is measured is one of Count, Sum, Value, Duration, Ratio or Other or composite, and How it is aggregated is Total, Mean, Median, a percentile (pXX) or Latest. A ratio asks for a numerator and a denominator, each with what it counts, its filters and what it leaves out; Other asks for the formula in words.',
+        'The window is a point in time, rolling a number of days, per week, month or quarter, or cumulative since a date. The source takes a link to the exact report or query, and the query itself if you like.',
+        'Above the button, a box counts what is still needed to reach Defined (“still needed: 1 of 10”), each with why it matters. Saving is always allowed: the metric becomes Defined by itself once nothing is left.',
+      ] },
+      { heading: 'Adding a baseline', list: [
+        'On a metric’s page, under Baselines, Add a baseline (or Add a baseline for a team) asks for the slice (the whole company or a team, and optionally a part), the value, the period it covers, the day you took it and how.',
+        'The form says which goals measured for that slice start from it. Goals already running keep their start values.',
+      ] },
+      { heading: 'Taking this quarter’s baselines', list: [
+        'In a quarter’s first week, Home tells the owner of any metric how many of theirs have no baseline for the quarter, with Take this quarter’s baselines.',
+        'It lists each of your metrics and slices with the figure read from its source for the quarter just ended. Change a figure and say why; a Gap metric is skipped. Confirm saves them all and moves the old ones to History. No metric changes stage.',
+      ] },
       { heading: 'Verifying a metric', list: [
         'An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.',
         'Open the source link, then give the period, the figure you got from it and a note. Faro shows the difference from the figure it has for that period, without judging it.',
@@ -293,10 +306,10 @@ const help: Article[] = [
         'Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A change that would take a Verified metric back to Defined is asked first, and the Reason column says why. A new metric lands as Draft until all ten parts are said.',
       ] },
     ],
-    routes: ['/metrics', '/metrics/:metricId'],
-    screens: ['MetricQuality'],
+    routes: ['/metrics', '/metrics/:metricId', '/metrics/:metricId/baseline', '/metrics/baselines'],
+    screens: ['MetricQuality', 'DefineFields', 'BaselineForms'],
     reqs: ['METRIC-STAGE', 'METRIC-VERIFY', 'METRIC-BASELINES'],
-    keywords: ['monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
+    keywords: ['define', 'aggregated', 'percentile', 'take this quarter', 'monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
     related: ['metric-define', 'metric-structure', 'metrics'],
   },
 ];

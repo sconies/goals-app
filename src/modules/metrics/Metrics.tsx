@@ -10,8 +10,9 @@
 import './qualityHooks';
 import { MeasureMark } from './measureMark';
 import { StageMark } from './stageMark';
+import { CalcFields, StillNeeded, WindowField } from './DefineFields';
 import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
-import { calcWords, missingLine, onDay, windowWords, type MetricStage } from './rulesQuality';
+import { calcWords, missingLine, onDay, QUALITY_LIMITS, windowWords, type MetricStage } from './rulesQuality';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -32,10 +33,10 @@ import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
 import { MENU_NOW } from './names';
-import type { MetricMeasurement } from './types';
+import type { MetricCalc, MetricMeasurement, MetricWindow } from './types';
 import { decimalsWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, stageCounts, summaryLine, unitsInUse, type LibraryAsk, type LibraryRow, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
-import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
+import { countLine, metricChecks, STILL_FIELD, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
 import { lapseChecks } from './rulesSave';
@@ -662,7 +663,7 @@ const FIELD_ORDER: [string, RegExp][] = [['name', /metric a name|already a metri
 /** Where a metric's form keeps its draft: one for a new metric, one for each metric being changed. */
 const metricDraftKey = (ws: string, id: string | null) => `${ws}:metric:${id ?? 'new'}`;
 
-type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string; measurement?: MetricMeasurement; measurementNote?: string; level?: MetricLevel | ''; parentId?: string; confidence?: MetricConfidence | ''; gaming?: string };
+type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string; measurement?: MetricMeasurement; measurementNote?: string; level?: MetricLevel | ''; parentId?: string; confidence?: MetricConfidence | ''; gaming?: string; calculation?: MetricCalc | null; timeWindow?: MetricWindow | null; sourceLink?: string; sourceQuery?: string; refreshNote?: string };
 
 export function MetricForm() {
   const app = useApp();
@@ -673,7 +674,7 @@ export function MetricForm() {
   const live = before && !before.removedAt ? before : null;
   // Kept as other drafts are (src/app/drafts.ts): Close, Back or a reload never loses what was typed.
   const [d, set, clearDraft, restored] = useDraft<Draft>(metricDraftKey(app.ws.id, live?.id ?? null), () => live
-    ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats, measurement: measurementOf(live), measurementNote: live.measurementNote ?? '', level: live.level ?? '', parentId: live.parentId ?? '', confidence: live.confidence ?? '', gaming: live.gaming ?? '' }
+    ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats, measurement: measurementOf(live), measurementNote: live.measurementNote ?? '', level: live.level ?? '', parentId: live.parentId ?? '', confidence: live.confidence ?? '', gaming: live.gaming ?? '', calculation: live.calculation ?? null, timeWindow: live.timeWindow ?? null, sourceLink: live.sourceLink ?? '', sourceQuery: live.sourceQuery ?? '', refreshNote: live.refreshNote ?? '' }
     : { name: (params.get('name') ?? '').slice(0, METRIC_LIMITS.name), meaning: '', unit: '', decimals: 0, direction: '', source: '', sourceOwner: '', refresh: '', ownerId: app.viewer.id, caveats: '' });
   const [tried, setTried] = useState(false);
   // Fields left once: their errors show from then on, not while the first thing is being typed.
@@ -717,7 +718,7 @@ export function MetricForm() {
       </div>
     );
   }
-  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '', level: d.level || null as never, parentId: d.parentId || null as never, confidence: d.confidence || null as never, gaming: d.gaming ?? '' };
+  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '', level: d.level || null as never, parentId: d.parentId || null as never, confidence: d.confidence || null as never, gaming: d.gaming ?? '', ...(d.calculation ? { calculation: d.calculation } : {}), ...(d.timeWindow ? { timeWindow: d.timeWindow } : {}), sourceLink: d.sourceLink ?? '', sourceQuery: d.sourceQuery ?? '', refreshNote: d.refreshNote ?? '' };
   const next = metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId });
   const problems = metricProblems(next, app.snapshot);
   const shows = (k?: string) => tried || (!!k && left.has(k));
@@ -733,7 +734,6 @@ export function MetricForm() {
   const shownChecks = open.filter((c) => shows(c.field));
   const shownFixes = problems.filter((p) => tried || FIELD_ORDER.some(([k, re]) => left.has(k) && re.test(p)));
   const count = countLine(shownFixes.length, shownChecks.length);
-  const still = stillToSay(next, true);
   // The goals the metric measures now, and how many of them a new unit or direction would set apart (linkProblems).
   // Rule 3: what kind of change this is, for the goals the metric measures now. `words` saves at once.
   const linked = live ? linkedGoals(app.full ?? app.snapshot, live.id) : [];
@@ -849,8 +849,22 @@ export function MetricForm() {
           {checkFor('meaning')}
         </div>
         <fieldset className="metric-later stack" style={{ gap: 'var(--s3)' }}>
+          <legend className="label">How it’s calculated · can be said later</legend>
+          <CalcFields calc={d.calculation} onChange={(c) => set({ calculation: c })} />
+          <WindowField w={d.timeWindow} onChange={(w) => set({ timeWindow: w })} />
+        </fieldset>
+        <fieldset className="metric-later stack" style={{ gap: 'var(--s3)' }}>
           <legend className="label">Where the number comes from · can be said later</legend>
           {text('source', 'Source', METRIC_LIMITS.text, undefined, undefined, 'A dashboard, a query, a report')}
+          <div className="field" id="metric-sourceLink">
+            <label className="field"><span className="field-label">Link to the report or query</span>
+              <input className="input" type="url" maxLength={QUALITY_LIMITS.link} value={d.sourceLink ?? ''} placeholder="Paste a link" onChange={(e) => set({ sourceLink: e.target.value })} />
+            </label>
+            <span className="hint">Without it the number can’t be checked, so the metric stays Draft.</span>
+          </div>
+          <details className="metric-query-field"><summary className="small">Add the query <span className="hint">optional</span></summary>
+            <label className="field"><span className="field-label">Query</span><textarea className="input" rows={3} maxLength={QUALITY_LIMITS.query} value={d.sourceQuery ?? ''} onChange={(e) => set({ sourceQuery: e.target.value })} /></label>
+          </details>
           {text('sourceOwner', 'Who owns that source', METRIC_LIMITS.text, undefined, undefined, 'A team or a person')}
           <div className="field" id="metric-refresh">
             <label className="field"><span className="field-label">How often it refreshes</span>
@@ -859,7 +873,8 @@ export function MetricForm() {
                 {REFRESHES.map((r) => <option key={r} value={r}>{REFRESH_LABEL[r]}</option>)}
               </select>
             </label>
-            {slow && <span className="hint">Check-ins here are weekly. Most weeks a goal measured by this will have no new number, and that is fine.</span>}
+            {d.refresh && <label className="field"><span className="field-label">When in the period <span className="hint">optional</span></span><input className="input" maxLength={QUALITY_LIMITS.refreshNote} value={d.refreshNote ?? ''} placeholder="Mondays" onChange={(e) => set({ refreshNote: e.target.value })} /></label>}
+            {slow && <span className="hint">A goal measured by this checks in {d.refresh === 'monthly' ? 'monthly' : 'quarterly'}, after each refresh.</span>}
           </div>
           <div className="field" id="metric-measurement"><span className="field-label" id="metric-measurement-l">Is it measured today</span>
             <div className="seg" role="group" aria-labelledby="metric-measurement-l">
@@ -915,10 +930,10 @@ export function MetricForm() {
           <ChangeReadBack before={live} after={next} kinds={question} linked={linked} unitChanging={unitChanging} comparable={comparable} setComparable={setComparable} unitIs={unitIs} setUnitIs={setUnitIs} why={why} setWhy={setWhy} tried={whyTried} marking={marking}
             onSave={() => void save(true)} onClose={() => setAsking(false)} onKeep={() => { setAsking(false); setComparable(undefined); setUnitIs(undefined); setWhy(''); setWhyTried(false); set({ unit: live.unit, direction: live.direction, meaning: live.meaning, source: live.source, decimals: live.decimals }); }} />
         )}
+        <StillNeeded metric={next} ownerIsHere={!!ownerName(app.snapshot.people, next)} />
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {checkFor('lapse')}
           {count && <p className="small metric-count" role="status">{count}</p>}
-          <p className="small metric-still">{still.line}</p>
         </div>
         <div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}

@@ -171,3 +171,27 @@
   .metric-src dd { margin-bottom: var(--s2); }
   .metric-box { padding: var(--s3); }
 }
+
+/* MQ2: defining a metric on its form (sketch 3). */
+.metric-measures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+.metric-measure { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit; font: inherit; cursor: pointer; min-height: 44px; }
+.metric-measure[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); }
+.metric-measure-word { font-weight: 600; }
+.metric-define-parts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s3); }
+.metric-define .metric-part { margin: 0; }
+.metric-pct, .metric-days { max-width: 180px; margin-top: var(--s2); }
+.metric-still-box ul { margin: 0; padding-left: 1.2em; }
+@media (max-width: 620px) {
+  .metric-measures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-define-parts { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* MQ2: baselines (sketches 4 and 9). */
+.metric-value-row { display: flex; align-items: center; gap: var(--s2); }
+.metric-value-row .input { max-width: 160px; }
+.metric-take-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.metric-take-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--s3); padding: var(--s3) 0; border-bottom: 1px solid var(--line-2); }
+.metric-take-what { display: flex; flex-direction: column; gap: 2px; }
+.metric-take-fields { display: flex; flex-direction: column; gap: 6px; }
+.metric-take-row > p { margin: 0; }
+@media (max-width: 620px) { .metric-take-row { grid-template-columns: minmax(0, 1fr); } }

@@ -15081,10 +15081,20 @@ function lastQuarter(now) {
 	const q = Math.floor(d.getUTCMonth() / 3);
 	const y = q === 0 ? d.getUTCFullYear() - 1 : d.getUTCFullYear();
 	const pq = (q + 3) % 4;
-	const mon = (i) => new Date(Date.UTC(2e3, i, 1)).toLocaleDateString("en-GB", {
-		month: "short",
-		timeZone: "UTC"
-	});
+	const mon = (i) => [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	][i % 12];
 	const end = new Date(Date.UTC(y, pq * 3 + 3, 0, 23, 59, 59)).toISOString();
 	return {
 		words: `${mon(pq * 3)}–${mon(pq * 3 + 2)} ${y}`,
@@ -18733,13 +18743,16 @@ var _virtual_faro_modules_default = [
 		routes: [
 			"/metrics",
 			"/metrics/new",
+			"/metrics/baselines",
 			"/metrics/:metricId",
+			"/metrics/:metricId/baseline",
 			"/metrics/:metricId/edit"
 		],
 		redirects: [["/data/metrics", "/metrics"]],
 		navigation: ["Metrics"],
 		menu: { "waitsFor": "metrics" },
 		places: [
+			"home.blocks",
 			"goal.facts",
 			"goal.measure",
 			"goal.sections",
@@ -18830,6 +18843,7 @@ var _virtual_faro_modules_default = [
 			"U179",
 			"U180",
 			"U181",
+			"U182",
 			"U161",
 			"U72"
 		],
@@ -18902,6 +18916,12 @@ var _virtual_faro_modules_default = [
 				"save_metric",
 				"verify_metric",
 				"save_baselines"
+			],
+			"DefineFields": ["save_metric", "get_metric"],
+			"BaselineForms": [
+				"save_baselines",
+				"get_metric",
+				"list_metrics"
 			]
 		}
 	},
@@ -22657,6 +22677,22 @@ var help$5 = [
 				]
 			},
 			{
+				heading: "Defining a metric",
+				list: [
+					"On a metric’s form, What is measured is one of Count, Sum, Value, Duration, Ratio or Other or composite, and How it is aggregated is Total, Mean, Median, a percentile (pXX) or Latest. A ratio asks for a numerator and a denominator, each with what it counts, its filters and what it leaves out; Other asks for the formula in words.",
+					"The window is a point in time, rolling a number of days, per week, month or quarter, or cumulative since a date. The source takes a link to the exact report or query, and the query itself if you like.",
+					"Above the button, a box counts what is still needed to reach Defined (“still needed: 1 of 10”), each with why it matters. Saving is always allowed: the metric becomes Defined by itself once nothing is left."
+				]
+			},
+			{
+				heading: "Adding a baseline",
+				list: ["On a metric’s page, under Baselines, Add a baseline (or Add a baseline for a team) asks for the slice (the whole company or a team, and optionally a part), the value, the period it covers, the day you took it and how.", "The form says which goals measured for that slice start from it. Goals already running keep their start values."]
+			},
+			{
+				heading: "Taking this quarter’s baselines",
+				list: ["In a quarter’s first week, Home tells the owner of any metric how many of theirs have no baseline for the quarter, with Take this quarter’s baselines.", "It lists each of your metrics and slices with the figure read from its source for the quarter just ended. Change a figure and say why; a Gap metric is skipped. Confirm saves them all and moves the old ones to History. No metric changes stage."]
+			},
+			{
 				heading: "Verifying a metric",
 				list: [
 					"An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.",
@@ -22701,14 +22737,27 @@ var help$5 = [
 				list: ["The Metrics sheet in a download has a column for each part of the definition: What is measured, How aggregated, Counts, Filters, Leaves out, Numerator and Denominator with theirs, Formula, Window and Source link. Load it back to change many at once.", "Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A change that would take a Verified metric back to Defined is asked first, and the Reason column says why. A new metric lands as Draft until all ten parts are said."]
 			}
 		],
-		routes: ["/metrics", "/metrics/:metricId"],
-		screens: ["MetricQuality"],
+		routes: [
+			"/metrics",
+			"/metrics/:metricId",
+			"/metrics/:metricId/baseline",
+			"/metrics/baselines"
+		],
+		screens: [
+			"MetricQuality",
+			"DefineFields",
+			"BaselineForms"
+		],
 		reqs: [
 			"METRIC-STAGE",
 			"METRIC-VERIFY",
 			"METRIC-BASELINES"
 		],
 		keywords: [
+			"define",
+			"aggregated",
+			"percentile",
+			"take this quarter",
 			"monthly",
 			"quarterly",
 			"rhythm",
@@ -25869,7 +25918,7 @@ var WHATS_NEW = [
 			"A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”. Baselines are kept per team, with History; a changed figure needs a reason.",
 			"A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between.",
 			"When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.",
-			"Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it, and says in an outlined box when something needs answering.",
+			"Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source.",
 			"The AI assistant does all of it too: list_metrics, get_metric, save_metric and link_goal_metric show and take the new parts, and save_baselines and verify_metric are new."
 		],
 		articles: ["metric-quality", "check-in"]

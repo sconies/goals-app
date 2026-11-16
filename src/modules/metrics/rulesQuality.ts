@@ -370,7 +370,8 @@ export function lastQuarter(now: string): { words: string; end: string; next: st
   const q = Math.floor(d.getUTCMonth() / 3);
   const y = q === 0 ? d.getUTCFullYear() - 1 : d.getUTCFullYear();
   const pq = (q + 3) % 4;
-  const mon = (i: number) => new Date(Date.UTC(2000, i, 1)).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+  // Fixed three-letter months: browsers differ on en-GB's September (“Sep” or “Sept”), and stored periods must match.
+  const mon = (i: number) => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i % 12]!;
   const end = new Date(Date.UTC(y, pq * 3 + 3, 0, 23, 59, 59)).toISOString();
   return { words: `${mon(pq * 3)}–${mon(pq * 3 + 2)} ${y}`, end, next: `${mon(q * 3)}–${mon(q * 3 + 2)} ${d.getUTCFullYear()}` };
 }
