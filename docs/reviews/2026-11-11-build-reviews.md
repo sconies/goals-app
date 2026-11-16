@@ -12,13 +12,14 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 ## Where the next reviewer starts
 
-Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It is live, has cross-session tools again, and reviews whatever merges next; read on only if it has handed over.
+Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It stopped at about 19:05 UTC, 16 Nov, when building paused.
 
-- **Last merge fully reviewed:** `7b23328c` (#582), the last of the drill-bugs track. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #582 are at the end, under “The reviewer of 16 November, afternoon”.
+- **Building is paused** (planning, about 19:00 UTC, 16 Nov: Lane paused after #583). This reviewer stopped after #583. A fresh reviewer starts when building resumes: read this note, then compare `git log origin/main` with `7141ed66`.
+- **Last merge fully reviewed:** `7141ed66` (#583). Every code PR merged from #121 up to it has a row in State and a section below. #577 to #583 are at the end, under “The reviewer of 16 November, afternoon”.
 - **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
-  - None. #577’s medium (`get_metric`’s `sourceOwnerInFaro`) and its low are closed by #578. The eight from #571, #574 and #576 closed in #577’s section.
+  - None. #577’s medium (`get_metric`’s `sourceOwnerInFaro`) and its low are closed by #578. #579’s low is closed by #583. #582’s low (Help’s search reads hidden sections; R-names’ code pointer) is open, with planning for the backlog. The eight from #571, #574 and #576 closed in #577’s section.
 - **Watch:** P3 (contrast on Ingrid’s Home row `a[href$="env-tpl-data"]`) failed in the builder’s full local run for #576, #577 and #578 and passed alone each time; none touched that row. Act if it fails on main’s full run.
 - **Who gets what.** Highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged only. **Planning is session_012kbr8yQaHGoDsesfVZhHry** (since about 13:40 UTC, 16 Nov; it has this note’s open list and the reviewer’s ID). Send highs and mediums there. #577’s medium and low were sent straight to the MQ2 builder (session_012kbr8yw65g7pJoQjRG9q19) at about 13:00 UTC; #578 fixed them.
 - **Sessions:** MQ2 follow-ups track session_012kbr92uHkZxbfc7oExsQhM (from about 17:30 UTC, 16 Nov: the verifier’s Home line, and passing on metrics when the library is switched back on); drill-bugs track session_012kbr8yxWQV5FLnx6NXBs2f, done with #582; MQ2 builder session_012kbr8yw65g7pJoQjRG9q19, MQ2 finished with #578 (earlier ones: …nQ1Pis1ae for part 3, …QfmzFjm2XKzk for 4a, …DN7WVw5hc for #573, …BvahcmAa4s for #570); the fix session for #575 was session_012kbr91B1kqLGi5oMZv2Etd. Sessions change often: answer whoever sent the merge.
@@ -326,6 +327,7 @@ Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, after
 | #579 Drill bugs 1/3: the database checks a workspace’s switches in `okr_commit` and `okr_token_create` (0058); a leaver passes nothing of a switched-off module | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 1 |
 | #581 Drill bugs 2/3: days without an update never negative (0v), U69’s real goal, evals find Vite from the root up, home.csv made in UTC, “on its goal”, Settings’ token link with AI access off | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 0 |
 | #582 Drill bugs 3/3: Help leaves Reviews out while it is off; a goal’s name has no longest length in the engine’s words (G-48) | Drill bugs (session …nx6NXBs2f) | 0 | 0 | 1 |
+| #583 MQ2 follow-ups: a verifier’s Home line (MQ2a); metrics passed on when the library is switched back on (MQ2b, #579’s low) | MQ2 follow-ups (session …c7oExsQhM) | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2949,3 +2951,11 @@ Reviewed by session_012kbr91MPMFHiESAut3BVig. No highs or mediums; one low.
 - **Help.** `GuideSection.module`/`moduleOff` with `sectionsShown`, and `whenOff` with `articleShown`, are used for the list row, the article’s title and summary, and its sections. `guideReviewsOff.test.ts` checks that no core article names reviews with Reviews off, and that the articles are unchanged with it on.
 - Ran `src/help`, `engineWords`, `workspace` and `thresholds` tests: 42 pass.
 - **Low:** Help’s search still reads every section and keyword (`textOf` in `guide.ts`), the hidden ones included. With Reviews off, a search for “review” returns about 15 core articles (print, removing, set-up, needs-attention, goals, people and more) whose shown text no longer mentions reviews (probe over `searchGuide`, `articleShown` and `sectionsShown`). It should search what `sectionsShown` and `articleShown` give for the switches in force. Also, R-names’ code pointer in `src/spec/rules.ts` (around line 1095) still lists `nameProblem` and `MAX_WORKSPACE_NAME`, not `workspaceNameProblem`.
+
+### #583 MQ2 follow-ups: a verifier’s Home line, and metrics passed on when the library is switched back on (merged 16 Nov, `7141ed66`)
+
+Reviewed by session_012kbr91MPMFHiESAut3BVig. No findings; closes #579’s low.
+
+- **MQ2a.** `toVerifyFor` (`rulesLibrary.ts`) takes the To verify rows and keeps those for which rule 14’s `whyCantVerify` says nothing, so the Home count follows the same rule as the verify form; it sorts no-due-date first, then due soonest, then A to Z. `HomeVerify` loads lazily, behind a cheap check that someone else owns a live metric, and draws hairline rows with no status shapes. U185 covers Amara (5), Rhea (none) and the library switched off.
+- **MQ2b.** `personLeft`’s body moved into `passMetrics`. The `switched` hook, on, runs `passLeftBehind`: every left or removed person who still owns a live metric passes it to `leadOf`, which falls back to the person switching when there is no lead, as leaving does. `setModule` (`domain/actions.ts`) now carries the hook’s `modules` rows in the same save. 0058 lets that save through, since it reads the switches the save leaves in force.
+- Ran `src/modules/metrics`, `src/domain/actions`, `src/domain/removal` and `src/data/modulesOff.test.ts`: 257 pass. Not walked on screen.

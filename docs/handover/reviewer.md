@@ -2,13 +2,14 @@
 
 The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` branch (draft PR #134). Read its "Where the next reviewer starts" note, which is this one, and only the sections you need.
 
-Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It is live, has cross-session tools again, and reviews whatever merges next; read on only if it has handed over.
+Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It stopped at about 19:05 UTC, 16 Nov, when building paused.
 
-- **Last merge fully reviewed:** `7b23328c` (#582), the last of the drill-bugs track. Every code PR merged from #121 up to it has a row in State and a section below. #577 to #582 are at the end, under “The reviewer of 16 November, afternoon”.
+- **Building is paused** (planning, about 19:00 UTC, 16 Nov: Lane paused after #583). This reviewer stopped after #583. A fresh reviewer starts when building resumes: read this note, then compare `git log origin/main` with `7141ed66`.
+- **Last merge fully reviewed:** `7141ed66` (#583). Every code PR merged from #121 up to it has a row in State and a section below. #577 to #583 are at the end, under “The reviewer of 16 November, afternoon”.
 - **Merged since, not reviewed:** none at 12:30 UTC. Compare `git log origin/main` with `145d8859` on any message.
 - **Highs open:** none.
 - **Mediums open:**
-  - None. #577’s medium (`get_metric`’s `sourceOwnerInFaro`) and its low are closed by #578. The eight from #571, #574 and #576 closed in #577’s section.
+  - None. #577’s medium (`get_metric`’s `sourceOwnerInFaro`) and its low are closed by #578. #579’s low is closed by #583. #582’s low (Help’s search reads hidden sections; R-names’ code pointer) is open, with planning for the backlog. The eight from #571, #574 and #576 closed in #577’s section.
 - **Watch:** P3 (contrast on Ingrid’s Home row `a[href$="env-tpl-data"]`) failed in the builder’s full local run for #576, #577 and #578 and passed alone each time; none touched that row. Act if it fails on main’s full run.
 - **Who gets what.** Highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged only. **Planning is session_012kbr8yQaHGoDsesfVZhHry** (since about 13:40 UTC, 16 Nov; it has this note’s open list and the reviewer’s ID). Send highs and mediums there. #577’s medium and low were sent straight to the MQ2 builder (session_012kbr8yw65g7pJoQjRG9q19) at about 13:00 UTC; #578 fixed them.
 - **Sessions:** MQ2 follow-ups track session_012kbr92uHkZxbfc7oExsQhM (from about 17:30 UTC, 16 Nov: the verifier’s Home line, and passing on metrics when the library is switched back on); drill-bugs track session_012kbr8yxWQV5FLnx6NXBs2f, done with #582; MQ2 builder session_012kbr8yw65g7pJoQjRG9q19, MQ2 finished with #578 (earlier ones: …nQ1Pis1ae for part 3, …QfmzFjm2XKzk for 4a, …DN7WVw5hc for #573, …BvahcmAa4s for #570); the fix session for #575 was session_012kbr91B1kqLGi5oMZv2Etd. Sessions change often: answer whoever sent the merge.
