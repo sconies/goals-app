@@ -9,11 +9,35 @@ import type { Goal } from '../../domain/types';
 import { DIRECTION_LABEL, liveMetrics, linksOf, metricsOf, REFRESH_LABEL, sliceName } from './rules';
 import { stillToSay } from './rulesStill';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS } from './rulesStructure';
-import type { Metric } from './types';
+import { AGGREGATE_LABEL, MEASURE_LABEL } from './qualityWords';
 import { METRICS_SHEET_ABOUT, METRICS_SHEET_NAME } from './sheetRef';
+import type { Metric, MetricAggregate, MetricCalc, MetricMeasure, MetricWindow } from './types';
+
+const MEASURES = Object.keys(MEASURE_LABEL) as MetricMeasure[];
+const PARTS = [['', 'part'], ['Numerator ', 'numerator'], ['Denominator ', 'denominator']] as const;
+const PART_WORD = { counts: 'counts', filters: 'filters', excludes: 'leaves out' } as const;
+/** "Counts", "Leaves out", "Numerator", "Numerator filters": the sheet's header for a part's field. */
+const partHeader = (p: string, f: keyof typeof PART_WORD) => (p ? (f === 'counts' ? p.trim() : p + PART_WORD[f]) : PART_WORD[f].replace(/^./, (c) => c.toUpperCase()));
+const AGGREGATES = Object.keys(AGGREGATE_LABEL) as MetricAggregate[];
+
+/** How aggregated, as the sheet writes it and reads it back: "p90", "mean per day", "median". */
+export function aggregateCell(c: MetricCalc | null | undefined): string | null {
+  if (!c?.aggregate || c.measure === 'ratio' || c.measure === 'other') return null;
+  if (c.aggregate === 'percentile') return c.percentile ? `p${c.percentile}` : 'percentile';
+  return c.aggregate === 'mean' && c.per ? `mean per ${c.per}` : AGGREGATE_LABEL[c.aggregate];
+}
+
+/** The window as the sheet writes it, in words windowFrom reads back (a cumulative window by its ISO day). */
+export function windowCell(w: MetricWindow | null | undefined): string | null {
+  if (!w) return null;
+  if (w.kind === 'point') return 'Point in time';
+  if (w.kind === 'rolling') return `Rolling ${w.days} days`;
+  if (w.kind === 'period') return `Per ${w.period}`;
+  return `Cumulative since ${w.since}`;
+}
 
 /** A metric in the library, and the exported goals it measures, each with its slice. */
-export interface MetricRow { c: Ctx; m: Metric; measures: { g: Goal; slice: string }[]; parent: string | null }
+export interface MetricRow { c: Ctx; m: Metric; measures: { g: Goal; slice: string }[]; parent: string | null; /** The export's moment, for the stage. */ now: string }
 
 const { match: m, edit: e, worked: w, shown: sh, action: act } = moduleColumn;
 const or = cellOr;
@@ -30,7 +54,15 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
       e<MetricRow>('Unit', 'Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use.', (r) => r.m.unit),
       e<MetricRow>('Decimals', 'Places after the decimal point it’s shown with: 0 to 4.', (r) => r.m.decimals),
       e<MetricRow>('Direction', `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+      // MQ2 (rulesQuality.ts): the calculation in two fields and its parts, the window and the source link.
+      e<MetricRow>('What is measured', oneOf(MEASURES.map((k) => MEASURE_LABEL[k])), (r) => (r.m.calculation?.measure ? MEASURE_LABEL[r.m.calculation.measure] ?? null : null)),
+      e<MetricRow>('How aggregated', `${oneOf(AGGREGATES.filter((k) => k !== 'percentile').map((k) => AGGREGATE_LABEL[k]))}, p90 or “mean per day”.`, (r) => aggregateCell(r.m.calculation)),
+      // Its parts, each with what it counts, its filters and what it leaves out: a ratio's numerator and denominator.
+      ...PARTS.flatMap(([p, key]) => (['counts', 'filters', 'excludes'] as const).map((f) => e<MetricRow>(partHeader(p, f), '', (r) => or(r.m.calculation?.[key]?.[f])))),
+      e<MetricRow>('Formula', '', (r) => or(r.m.calculation?.formula)),
+      e<MetricRow>('Window', 'Point in time, Rolling 28 days, Per month or Cumulative since 2026-01-01.', (r) => windowCell(r.m.timeWindow)),
       e<MetricRow>('Source', 'Where the number comes from: a dashboard, a query, a report.', (r) => or(r.m.source)),
+      e<MetricRow>('Source link', '', (r) => or(r.m.sourceLink)),
       e<MetricRow>('Source owner', 'Who owns that source: a team or a person.', (r) => or(r.m.sourceOwner)),
       e<MetricRow>('Refresh', `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => (r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null)),
       e<MetricRow>('Owner', 'Who answers for the definition, by name (Owner email wins when both are given).', (r) => or(r.c.name(r.m.ownerId))),
@@ -55,7 +87,7 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
   rows: (x, c, ids) => {
     const s = x.snapshot;
     return liveMetrics(s, { retired: true }).map((mt) => ({
-      c, m: mt,
+      c, m: mt, now: x.today.toISOString(),
       parent: mt.parentId ? (metricsOf(s).find((v) => v.id === mt.parentId)?.name ?? null) : null,
       measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => { const g = s.goals.find((v) => v.id === l.goalId); return g ? [{ g, slice: sliceName(s, l.teamId) }] : []; }),
     }));

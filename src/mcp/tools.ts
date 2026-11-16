@@ -205,7 +205,9 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   // Example rows (Action says Example) are said wherever a file comes in, not only on Import (review of #130).
   const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
   if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
-  const what = `${describe(cs)}.${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
+  // A module's sheet may say more after its counts (the Metrics sheet's stages, similar metrics and Drafts, MQ2).
+  const recordNotes = (cs.counts.records ?? []).flatMap((r) => r.notes ?? []);
+  const what = `${describe(cs)}.${recordNotes.length ? `\n${recordNotes.join('\n')}` : ''}${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
   const tooMany = tooManyChanges(cs.items.length);
   if (tooMany && !opts.dry) return { isError: true, data, text: `Not saved. ${tooMany} Send the rows in parts, a goal's plan and check-ins with it.` };
   if (opts.dry || !cs.commit) {

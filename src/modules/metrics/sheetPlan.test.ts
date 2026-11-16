@@ -51,6 +51,10 @@ describe('the Metrics sheet in and out (MI)', () => {
     expect(must(cs)).toEqual([]);
     expect(cs.items.filter((x) => x.sheet === 'Metrics')).toEqual([]);
     expect(cs.unchangedBy.Metrics).toBe(read.tables.modules!.Metrics!.length);
+    // MQ2: the calculation and window read back as they are, so a member who owns none of them is refused nothing.
+    const member = plan(read.tables, { actor: 'tunde' });
+    expect(must(member)).toEqual([]);
+    expect(member.items.filter((x) => x.sheet === 'Metrics')).toEqual([]);
   });
 
   it('adds a metric, changes one, and one Undo puts both back', () => {
@@ -59,7 +63,10 @@ describe('the Metrics sheet in and out (MI)', () => {
       { ID: spare.id, Caveats: 'Read with the release calendar.' },
     ]));
     expect(must(cs)).toEqual([]);
-    expect(cs.counts.records).toEqual([{ one: 'metric', many: 'metrics', added: 1, changed: 1 }]);
+    expect(cs.counts.records).toMatchObject([{ one: 'metric', many: 'metrics', added: 1, changed: 1 }]);
+    // MQ2: the dry run says the stages, and what each Draft still needs; a new metric lands as Draft.
+    expect(cs.counts.records![0]!.notes![0]).toMatch(/^Stages after loading: \d+ Draft/);
+    expect(cs.counts.records![0]!.notes).toContain('“Retried test share” is Draft: it needs a type and its parts, filters and exclusions, a window, a source link, a source owner and a refresh.');
     expect(cs.commit).not.toBeNull();
     const after = applyCommit(full, cs.commit!);
     expect(liveMetrics(after).find((m) => m.name === 'Retried test share')?.ownerId).toBe('amara');
@@ -73,6 +80,23 @@ describe('the Metrics sheet in and out (MI)', () => {
     const back = applyCommit(after, out.commit);
     expect(liveMetrics(back).some((m) => m.name === 'Retried test share')).toBe(false);
     expect(metricsOf(back).find((m) => m.id === spare.id)?.caveats).toBe(spare.caveats);
+  });
+
+  it('reads the calculation, the window and the source link, and says a cell it can’t read (MQ2)', () => {
+    const cs = plan(metricsTable([
+      { Metric: 'Retried test share', Unit: '%', Direction: 'Lower is better', Meaning: 'Test runs that pass only on retry, out of all runs.', 'What is measured': 'Ratio', Numerator: 'test runs that pass on retry', 'Numerator leaves out': 'quarantined tests', Denominator: 'test runs', Window: 'Rolling 7 days', 'Source link': 'https://ci.example.com/retries' },
+      { ID: spare.id, 'What is measured': 'Duration', 'How aggregated': 'p90' },
+    ]));
+    expect(must(cs)).toEqual([]);
+    const after = applyCommit(full, cs.commit!);
+    const added = liveMetrics(after).find((m) => m.name === 'Retried test share')!;
+    expect(added.calculation).toMatchObject({ measure: 'ratio', numerator: { counts: 'test runs that pass on retry', excludes: 'quarantined tests' }, denominator: { counts: 'test runs' } });
+    expect(added.timeWindow).toEqual({ kind: 'rolling', days: 7 });
+    expect(added.sourceLink).toBe('https://ci.example.com/retries');
+    expect(metricsOf(after).find((m) => m.id === spare.id)!.calculation).toMatchObject({ measure: 'duration', aggregate: 'percentile', percentile: 90 });
+    const bad = plan(metricsTable([{ ID: spare.id, Window: 'fortnightly', 'How aggregated': 'mostly' }]));
+    expect(must(bad).join(' ')).toMatch(/Window says “fortnightly”/);
+    expect(must(bad).join(' ')).toMatch(/How aggregated says “mostly”/);
   });
 
   it('says what can’t be saved in section 3.1’s words', () => {

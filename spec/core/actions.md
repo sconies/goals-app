@@ -1604,6 +1604,7 @@ From the [metrics](../modules/metrics/README.md) module.
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
 - ““…” is retired. Bring it back before changing it.”
+- “Only an admin can name a metric’s verifiers.”
 - “Answer … first: …”
 - “… … measured by … in …. A metric in … is a different number: add it as a new metric and move goals to it, or retire this one. If “…” is only a new label for the same numbers, say so (relabel).”
 - “Say whether it is still the same number.”
@@ -1987,7 +1988,7 @@ export interface ChangeSet {
   needsConfirm: boolean;
   /** Ready to save: null while a Must fix or an unanswered Check remains, or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed". */ records?: { one: string; many: string; added: number; changed: number }[] };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed", and what its planner says after (`notes`). */ records?: { one: string; many: string; added: number; changed: number; notes?: string[] }[] };
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }

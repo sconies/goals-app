@@ -249,7 +249,21 @@ One row per metric in the library. The metric library: every number goals are me
 | Unit | You can change it | Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use. | Changed when loaded back |
 | Decimals | You can change it | Places after the decimal point it’s shown with: 0 to 4. | Changed when loaded back |
 | Direction | You can change it | Higher is better or Lower is better. | Changed when loaded back |
+| What is measured | You can change it | Count, Sum, Value, Duration, Ratio or Other or composite | Changed when loaded back |
+| How aggregated | You can change it | total, mean, median or latest, p90 or “mean per day”. | Changed when loaded back |
+| Counts | You can change it |  | Changed when loaded back |
+| Filters | You can change it |  | Changed when loaded back |
+| Leaves out | You can change it |  | Changed when loaded back |
+| Numerator | You can change it |  | Changed when loaded back |
+| Numerator filters | You can change it |  | Changed when loaded back |
+| Numerator leaves out | You can change it |  | Changed when loaded back |
+| Denominator | You can change it |  | Changed when loaded back |
+| Denominator filters | You can change it |  | Changed when loaded back |
+| Denominator leaves out | You can change it |  | Changed when loaded back |
+| Formula | You can change it |  | Changed when loaded back |
+| Window | You can change it | Point in time, Rolling 28 days, Per month or Cumulative since 2026-01-01. | Changed when loaded back |
 | Source | You can change it | Where the number comes from: a dashboard, a query, a report. | Changed when loaded back |
+| Source link | You can change it |  | Changed when loaded back |
 | Source owner | You can change it | Who owns that source: a team or a person. | Changed when loaded back |
 | Refresh | You can change it | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Changed when loaded back |
 | Owner | You can change it | Who answers for the definition, by name (Owner email wins when both are given). | Changed when loaded back |

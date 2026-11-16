@@ -182,6 +182,7 @@ type Io = 'input' | 'output'
 | `proposedBy` | `Id \| null` | no | Who proposed it: set only with proposedAt. While it is proposed they may change or withdraw it too. |
 | `proposedIn` | `Id \| null` | no | The review (Review.id) it was proposed in, from "Propose a new goal" in the walk (GE10, decision 15); kept once it is made active, so the next session's "Last time" can say so. Left out when it was proposed anywhere else. |
 | `unmeasuredSince` | `string \| null` | no | Held to no number since then (MS; domain/unmeasured): what measures it isn't measured yet, so it has no status from its plan, nothing on it is late, and a baseline isn't asked for. Set and cleared by whatever measures it (the metric library, when it links the goal to a metric with a gap); absent or null when it is held to its plan. |
+| `checkInRhythm` | `'monthly' \| 'quarterly' \| null` | no | Its own check-in rhythm (MQ2; domain/goalRhythm): 'monthly' or 'quarterly' when what measures it changes only that often, so it checks in once a month or quarter instead of every week. Set and cleared by whatever measures it (the metric library, from its metric's refresh); absent or null: the cycle's rhythm. |
 
 ### PendingChange
 

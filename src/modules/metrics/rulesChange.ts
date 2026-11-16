@@ -187,7 +187,7 @@ export function mergeMetrics(x: ActionContext, fromId: string, intoId: string, w
       log(x, { entityId: into.id, action: 'edited', summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord(moved.length)}: ${w}`, diffs: [{ field: 'Merged in', from: '—', to: from.name }] }),
       log(x, { entityId: from.id, action: 'stopped', summary: `Retired the metric “${from.name}”: merged into “${into.name}”`, diffs: [{ field: 'Retired', from: '—', to: w }] }),
       ...moved.map((l) => log(x, { entityId: into.id, goalId: l.goalId, action: 'edited', summary: `Measured by “${into.name}” in place of “${from.name}”, which was merged into it`, diffs: [{ field: 'Measured by', from: from.name, to: into.name }] })),
-      ...holds.map((h) => h.change),
+      ...holds.flatMap((h) => h.changes),
     ],
   };
 }

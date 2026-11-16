@@ -15,7 +15,7 @@ import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
 import { heldOnSwitch } from './rulesMeasured';
-import { LINKS_KEY, linkOf, linksOf, markLabel, marksFor, metricRows, metricsOf, METRICS_KEY } from './rules';
+import { LINKS_KEY, linkOf, linksOf, log, markLabel, marksFor, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { metricsSheetRef } from './sheetRef';
 import type { Metric, MetricLink } from './types';
 
@@ -148,6 +148,20 @@ const records: Omit<ModuleRecords, 'module'> = {
   },
   // MS: switched off, the library lets go of the goals it held to no number; switched on, it holds them again.
   switched: (x, on) => { const s = x.full ?? x.snapshot; return heldOnSwitch(x, on, metricsOf(s), linksOf(s)); },
+  // MQ2: someone leaving passes the metrics they own to their lead, each to confirm under "To sort out"; the stage
+  // doesn't change (a handover isn't an edit of the calculation).
+  personLeft: (x, personId, toId) => {
+    const s = x.full ?? x.snapshot;
+    const mine = metricsOf(s).filter((m) => m.ownerId === personId && !m.removedAt);
+    if (!mine.length) return null;
+    const name = (id: string) => s.people.find((p) => p.id === id)?.name ?? 'someone';
+    const moved: Metric[] = mine.map((m) => ({ ...m, ownerId: toId, handover: { from: personId, at: x.now, why: `${name(personId)} left` }, updatedAt: x.now }));
+    return {
+      ...metricRows({ metrics: moved }),
+      changes: moved.map((m) => log(x, { entityId: m.id, action: 'edited', summary: `Passed “${m.name}” to ${name(toId)} to confirm, as ${name(personId)} left`, diffs: [{ field: 'Owner', from: name(personId), to: `${name(toId)} (to confirm)` }] })),
+      lines: moved.map((m) => `The metric “${m.name}” passes to ${name(toId)}, to confirm.`),
+    };
+  },
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };
 export default records;

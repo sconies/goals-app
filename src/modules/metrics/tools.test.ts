@@ -126,6 +126,20 @@ describe('metric library tools', () => {
     expect((await owner.call('save_metric', { id: 'Flaky test rate', decimals: 2 })).content[0]!.text).toMatch(/Nothing changed/);
   });
 
+  it('gives a goal its metric’s monthly rhythm when linked, and the cycle’s again when unlinked (MQ2)', async () => {
+    const { call, data } = await setup('bjorn');
+    const off = await call('link_goal_metric', { goal: 'ns-cost', unlink: true });
+    expect(off.isError).toBe(false);
+    const on = await call('link_goal_metric', { goal: 'ns-cost', metric: 'Cloud cost per 1,000 requests', reason: 'Back on the cost report' });
+    expect(on.isError).toBe(false);
+    expect(on.structuredContent).toMatchObject({ saved: true, rhythm: 'monthly' });
+    expect(on.content[0]!.text).toMatch(/Check-ins: once a month, by the month’s last due day, as Cloud cost per 1,000 requests refreshes monthly\./);
+    expect(data().goals.find((g) => g.id === 'ns-cost')!.checkInRhythm).toBe('monthly');
+    const again = await call('link_goal_metric', { goal: 'ns-cost', unlink: true });
+    expect(again.isError).toBe(false);
+    expect(data().goals.find((g) => g.id === 'ns-cost')!.checkInRhythm ?? null).toBeNull();
+  });
+
   it('links a goal for a team’s slice, warns on a direction mismatch, and unlinks it', async () => {
     const { call, data } = await setup('rhea');
     const ask = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD' });
@@ -135,6 +149,9 @@ describe('metric library tools', () => {
     const r = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD', answers: { others: 'carry-on' } });
     expect(r.isError).toBe(false);
     expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_cache-hit', teamId: 'cicd' });
+    // MQ2: a Draft metric is linked, with its warning and what it still needs.
+    expect(r.structuredContent).toMatchObject({ saved: true, stage: 'draft', draft: { heading: 'Measured by a Draft metric' } });
+    expect(r.content[0]!.text).toMatch(/Warning: Measured by a Draft metric\. Its .+ set, so this number may not mean the same to everyone\. The goal keeps working\. .+ owns the metric\. Still needed: .+\./);
     const wrong = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate', reason: 'Shards are measured by flakiness now' });
     expect(wrong.content[0]!.text).toMatch(/Warning: The goal aims up, but for Flaky test rate lower is better/);
     expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_flaky-rate', teamId: null });

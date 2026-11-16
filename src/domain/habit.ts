@@ -147,6 +147,7 @@ export interface BeforeReview { counts: HabitCounts; past: boolean; says: string
 export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRows, cycle: Cycle, today: Date, viewerId: string, held = true): BeforeReview | null {
   if (week < 1) return null;
   const isDue = dueIn(cycle, rows.checkIns);
+  rows = rows.cycle ? rows : { ...rows, cycle };
   const dueDay = reviewDate(cycle, week);
   const h = habit(goals, week, rows, dueDay, isDue);
   // Rule 4 over the goals counted, not the whole set: three owners in a set but one with every goal due would single

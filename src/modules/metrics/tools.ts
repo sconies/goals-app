@@ -21,7 +21,8 @@ import type { DisplayStatus } from '../../domain/types';
 import type { Metric, MetricDirection, MetricMeasurement, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import QUALITY_TOOLS, { QUALITY_FIELDS, qualityActs, qualityData, qualityInput, qualityLines, stageMove } from './toolsQuality';
-import { STAGES, type MetricStage } from './rulesQuality';
+import { draftWarning, missingLine, stageOf, STAGES, type MetricStage } from './rulesQuality';
+import type { GoalRhythm } from '../../domain/goalRhythm';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
 import { addCheckInReader } from '../../mcp/checkInReaders';
@@ -322,7 +323,7 @@ const tools: ToolDef[] = [
   {
     name: 'link_goal_metric',
     title: 'Say which metric measures a goal',
-    description: 'Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.',
+    description: 'Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. A Draft metric is linked too, with a warning saying what it still needs (data.draft). When the metric refreshes monthly or quarterly the goal’s check-ins become monthly or quarterly (data.rhythm); unlinking puts them back on the cycle’s rhythm. Linking again the same way changes nothing.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal'], properties: {
       goal: str('The goal’s ID or key (G-12).'),
       metric: str('The metric’s ID or name. Required unless unlinking.'),
@@ -359,10 +360,28 @@ const tools: ToolDef[] = [
         const c = linkGoalMetric(ax(ctx), g, m.id, teamId, part, reason);
         if (!c) return { data: { saved: false, warnings }, text: `${g.title} is already measured by ${m.name} for ${forWords(M.sliceName(ctx.snapshot, teamId), part)}.` };
         await save(ctx, c);
-        return { data: { saved: true, warnings }, text: [`${g.title}: ${c.changes[0]!.summary.charAt(0).toLowerCase()}${c.changes[0]!.summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`)].join('\n') };
+        // MQ2: a Draft metric is linked, not refused: the answer carries its warning and what's missing, and the goal's
+        // new check-in rhythm when the metric refreshes monthly or quarterly.
+        const owner = ctx.snapshot.people.find((p) => p.id === m.ownerId && !p.leftAt);
+        const stage = stageOf(m, { now: ctx.now, ownerIsHere: !!owner });
+        const draft = draftWarning(m, stage.missing, owner?.name ?? null);
+        const after = c.goals?.find((x) => x.id === g.id);
+        const rhythm = after && (after.checkInRhythm ?? null) !== (g.checkInRhythm ?? null) ? after.checkInRhythm ?? 'cycle' : null;
+        const rhythmLine = rhythm === 'monthly' || rhythm === 'quarterly' ? `Check-ins: ${GOAL_RHYTHM_WORDS[rhythm]}, as ${m.name} refreshes ${rhythm}.` : rhythm === 'cycle' ? 'Check-ins: back on the cycle’s rhythm.' : null;
+        return {
+          data: { saved: true, warnings, stage: stage.stage, ...(draft ? { draft: { ...draft, missing: stage.missing.map((x) => x.part) } } : {}), ...(rhythm ? { rhythm } : {}) },
+          text: [`${g.title}: ${c.changes[0]!.summary.charAt(0).toLowerCase()}${c.changes[0]!.summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`), ...(draft ? [`Warning: ${draft.heading}. ${draft.words} Still needed: ${missingLine(stage.missing).replace(/^needs /, '')}.`] : []), ...(rhythmLine ? [rhythmLine] : [])].join('\n'),
+        };
       });
     },
   },
 ];
+
+/** The rhythm in words, for a fact line, a tool's answer and the History: "monthly, by the last due day of the month". */
+const GOAL_RHYTHM_WORDS: Record<GoalRhythm | 'weekly', string> = {
+  weekly: 'every week',
+  monthly: 'once a month, by the month’s last due day',
+  quarterly: 'once a quarter, by the quarter’s last due day',
+};
 
 export default [...tools, ...QUALITY_TOOLS];

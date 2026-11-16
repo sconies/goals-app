@@ -3,6 +3,7 @@
 import { firstWeekFrom, hasEnded, weekDate } from './plan';
 import { goalStatus } from './status';
 import { rhythmOf } from './thresholds';
+import { checkedInFor, isDueWeek, periodic, weeksCounting } from './goalRhythm';
 import type { CheckIn, Cycle, Goal, Snapshot } from './types';
 
 export interface WeekProgress {
@@ -11,6 +12,9 @@ export interface WeekProgress {
   due: Goal[];
   /** Set up after this week's review day: their first check-in is due next week (firstDueWeek). */
   upcoming: Goal[];
+  /** On their own monthly or quarterly rhythm (domain/goalRhythm), with nothing due this week: not yet checked in this
+      month (or quarter), and this isn't its last week. Left out of `goals`, so the week can be complete without them. */
+  later: Goal[];
 }
 
 /** The first week a goal's check-in is due: the week it was set up in, or the next one when it was set up after that week's review day; never before its plan's From. */
@@ -25,14 +29,18 @@ export const firstDueWeek = (g: Pick<Goal, 'createdAt'> & Partial<Pick<Goal, 'ki
 
 /** The person's goals this week: which are checked in and which are still due. */
 export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): WeekProgress {
-  const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== 'done');
-  const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-  // Week 0 is the baseline week: the first check-ins are due in week 1, and a goal set up after this week's review starts next week.
+  const mine = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== 'done');
   // With no set rhythm nothing is due or upcoming (FT1).
-  if (!rhythmOf(cycle)) return { goals, done, upcoming: [], due: [] };
+  if (!rhythmOf(cycle)) return { goals: mine, done: mine.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)), upcoming: [], due: [], later: [] };
+  // A goal on its own monthly or quarterly rhythm (MQ2) counts as checked in for the whole month once it has one in it,
+  // and is due only in the month's last week: before then, with none yet, it waits (`later`), out of the week's count.
+  const done = mine.filter((g) => checkedInFor(g, cycle, s.checkIns, week));
+  const later = week < 1 ? [] : mine.filter((g) => !done.includes(g) && periodic(g, cycle) && !isDueWeek(g, cycle, week));
+  const goals = mine.filter((g) => !later.includes(g));
+  // Week 0 is the baseline week: the first check-ins are due in week 1, and a goal set up after this week's review starts next week.
   const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
   // Once the cycle's last day is past, nothing in it is due (cycle-end rule 2).
-  return { goals, done, upcoming, due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
+  return { goals, done, upcoming, later, due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
 }
 
 /**
@@ -184,9 +192,12 @@ function onTimeRun(personId: string, all: readonly Goal[], allCheckIns: readonly
   const goals = all.filter((g) => g.ownerId === personId).map((g) => ({ g, from: ownedFrom(g, personId, checkIns, cycle), to: doneWeek(g, checkIns) }));
   // No set rhythm, no run (FT1).
   if (!goals.length || !rhythmOf(cycle)) return { weeks: 0, forgiven: [] };
-  const dueIn = (w: number) => goals.filter((x) => x.from <= w && w <= x.to);
+  // A goal on its own monthly or quarterly rhythm (MQ2) is due only in its month's (quarter's) last week, and any of its
+  // check-ins in that month counts for it, judged against that week's due day.
+  const dueIn = (w: number) => goals.filter((x) => x.from <= w && w <= x.to && isDueWeek(x.g, cycle, w));
   const due = (w: number) => dueIn(w).length > 0;
-  const mine = (gid: string, w: number) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
+  const goalOf = new Map(goals.map((x) => [x.g.id, x.g]));
+  const mine = (gid: string, w: number) => { const weeks = new Set(weeksCounting(goalOf.get(gid)!, cycle, w)); return checkIns.filter((c) => c.goalId === gid && weeks.has(c.week) && c.authorId === personId); };
   const onTime = (w: number) => due(w) && dueIn(w).every((x) => mine(x.g.id, w).some((c) => inByDueDay(c, cycle, w)));
   const forgiven = (w: number) => {
     let seen = 0;
@@ -198,9 +209,12 @@ function onTimeRun(personId: string, all: readonly Goal[], allCheckIns: readonly
     return seen === FORGIVE_AFTER;
   };
   // This week counts once every goal is checked in; otherwise start from last week.
-  const complete = dueIn(week).every((x) => checkIns.some((c) => c.goalId === x.g.id && c.week === week));
+  const complete = dueIn(week).every((x) => checkedInFor(x.g, cycle, checkIns, week));
   const out = { weeks: 0, forgiven: [] as { week: number; missed: boolean }[] };
-  for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) {
+  // A week where a goal is live but none is due (a monthly goal mid-month, MQ2) is passed over, never the end of the run.
+  const live = (w: number) => goals.some((x) => x.from <= w && w <= x.to);
+  for (let w = complete && due(week) ? week : week - 1; w >= 1 && live(w); w--) {
+    if (!due(w)) continue;
     if (onTime(w)) out.weeks++;
     // Missed: some goal due that week has no check-in of theirs posted in its week at all.
     else if (forgiven(w)) out.forgiven.push({ week: w, missed: dueIn(w).some((x) => !mine(x.g.id, w).some((c) => !c.backfilled)) });

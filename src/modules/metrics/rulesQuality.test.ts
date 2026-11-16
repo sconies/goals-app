@@ -127,6 +127,8 @@ describe('verifying (MQ2)', () => {
   it('refuses someone who is neither an admin, in the source’s owner nor a named verifier', () => {
     const w = ready();
     refused(() => V.verifyMetric(w.x('tariq'), 'metric_ci-time', ok), /Only an admin, someone in the source’s owner or a verifier an admin named/);
+    // Only an admin names verifiers, at every door: the owner can't through the save (#564 review, medium 2).
+    refused(() => saveMetricAsked(w.x('daniel'), { id: 'metric_ci-time', verifiers: ['tariq'] }), /Only an admin can name a metric’s verifiers/);
     w.apply(saveMetricAsked(w.x('grace'), { id: 'metric_ci-time', verifiers: ['tariq'] }).commit);
     expect(() => V.verifyMetric(w.x('tariq'), 'metric_ci-time', ok)).not.toThrow();
   });
@@ -181,6 +183,12 @@ describe('lapsing (MQ2)', () => {
     refused(() => V.confirmReword(w.x('tariq'), 'metric_ci-time'), /Only Grace/);
     w.apply(V.confirmReword(w.x('grace'), 'metric_ci-time'));
     expect(w.metric('ci-time').toConfirm).toBeUndefined();
+  });
+  it('never lets whoever reworded it confirm their own rewording, an admin included (#564 review, medium 1)', () => {
+    const w = verified();
+    w.apply(saveMetricAsked(w.x('amara'), { id: 'metric_ci-time', calculation: { ...P90, part: { ...P90.part!, excludes: 'Cancelled and skipped runs' } } }).commit);
+    refused(() => V.confirmReword(w.x('amara'), 'metric_ci-time'), /You reworded it, so someone else confirms it: Grace/);
+    expect(() => V.confirmReword(w.x('hamid'), 'metric_ci-time')).not.toThrow();
   });
   it('baselines, the owner and caveats never lapse it', () => {
     const w = verified();

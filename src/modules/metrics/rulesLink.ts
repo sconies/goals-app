@@ -52,7 +52,7 @@ export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, t
   const summary = `Measured by “${m.name}” for ${forWords(slice, p)}${why ? `: ${why}` : ''}`;
   // MS: measured by a metric with a gap, the goal is held to no number; by one that's measured, to its plan.
   const hold = heldByLink(x, goal, m);
-  return { ...metricRows({ metricLinks: [link] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary, diffs }), ...(hold ? [hold.change] : [])] };
+  return { ...metricRows({ metricLinks: [link] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary, diffs }), ...(hold ? hold.changes : [])] };
 }
 
 /** What rule 2 reads for a goal and a metric: its last link (removed or not), the metric's other live links on goals

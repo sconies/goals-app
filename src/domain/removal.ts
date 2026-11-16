@@ -205,6 +205,8 @@ function departs(x: ActionContext, p: Person, to: { goalsTo?: string | null; ask
     return { ...r, people: people.length ? people : [goalsTo?.id ?? asksTo?.id ?? x.actor.id] };
   });
   const teams = l.leads.map((t) => ({ ...t, leadId: goalsTo?.id ?? '' }));
+  // What the modules hold of theirs passes to their lead (ModuleRecords.personLeft; MQ2: the metrics they own).
+  const passed = whatPasses(x, p, goalsTo?.id ?? null);
   const changes: Change[] = [
     log(x, {
       entity: 'person', entityId: id, action: 'left', summary,
@@ -218,8 +220,11 @@ function departs(x: ActionContext, p: Person, to: { goalsTo?: string | null; ask
     }),
     ...l.goals.map((g) => log(x, { entity: 'goal', entityId: g.id, goalId: g.id, action: 'edited', summary: `Handed over to ${goalsTo!.name}, as ${p.name} left`, diffs: [{ field: 'Owner', from: p.name, to: goalsTo!.name }] })),
     ...[...asks.values()].map((r) => log(x, { entity: 'request', entityId: r.id, goalId: r.goalIds[0] ?? null, action: 'edited', summary: `Handed over to ${asksTo!.name}, as ${p.name} left`, diffs: [{ field: r.recipientId === asksTo!.id && l.asking.some((a) => a.id === r.id) ? 'Asked of' : 'Asked by', from: p.name, to: asksTo!.name }] })),
+    ...passed.flatMap((o) => o.changes),
   ];
+  const modules = passed.reduce<ModuleRows | undefined>((acc, o) => (o.modules ? applyModuleRows(acc, o.modules) : acc), undefined);
   return {
+    ...(modules ? { modules } : {}),
     people: [{ ...p, leftAt: x.now, leftBy: x.actor.id }],
     ...(goals.length ? { goals } : {}),
     ...(asks.size ? { requests: [...asks.values()] } : {}),
@@ -227,6 +232,23 @@ function departs(x: ActionContext, p: Person, to: { goalsTo?: string | null; ask
     ...(teams.length ? { teams } : {}),
     changes,
   };
+}
+
+/**
+ * Who someone's things pass to when they leave and no one is chosen for them (MQ2: their metrics): the lead of their
+ * team; when they led it themselves, whoever takes over the team (`goalsTo`); with neither, whoever marks them as left.
+ */
+export function leadOf(x: Pick<ActionContext, 'snapshot' | 'actor'>, p: Pick<Person, 'id' | 'teamId'>, goalsTo: string | null): string {
+  const team = p.teamId ? x.snapshot.teams.find((t) => t.id === p.teamId) : undefined;
+  const lead = team?.leadId && team.leadId !== p.id ? x.snapshot.people.find((v) => v.id === team.leadId && !v.leftAt && !v.removedAt) : undefined;
+  return lead?.id ?? goalsTo ?? x.actor.id;
+}
+
+/** What the modules pass from someone leaving to their lead (ModuleRecords.personLeft), each with its lines for a tool's
+    answer. `goalsTo` is who takes over their goals and teams. */
+export function whatPasses(x: ActionContext, p: Pick<Person, 'id' | 'teamId'>, goalsTo: string | null): (Pick<Commit, 'modules' | 'changes'> & { lines: string[] })[] {
+  const lead = leadOf(x, p, goalsTo);
+  return (x.records ?? []).flatMap((r) => { const o = r.personLeft?.(x, p.id, lead); return o ? [o] : []; });
 }
 
 /** Admins: delete someone with no history at all (no goals, check-ins, notes or asks), say someone added by mistake. */

@@ -298,6 +298,12 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.
 - A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.
 
+#### Goals that check in monthly
+
+- Some goals check in once a month or once a quarter instead of every week: those measured by a number that only changes that often (with the Metric library on, a metric that refreshes monthly or quarterly). Such a goal is due by the last due day of its month or quarter, and a check-in earlier in the month counts for the whole month.
+- Until then it isn’t counted in your week, so the week can be complete without it, and it never reads No recent update between check-ins: only after two months (or two quarters) with none.
+- With no set rhythm for the workspace, nothing is due on any goal, monthly ones included.
+
 #### With no set rhythm
 
 - An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.
@@ -1088,7 +1094,7 @@ Mistakes and changes of plan. A person leaves, a goal stops mattering mid-year, 
 
 #### What each removal does
 
-- A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.
+- A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them), and says what else passes on: with the Metric library on, the metrics they own go to their team’s lead, to confirm. They then disappear from pickers, counts, reviews and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.
 - A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.
 - A check-in: Delete this check-in, under the latest one on the goal’s page, by the goal’s owner. Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction. Once a newer one is posted it can only be corrected. The status goes back to the one before.
 - A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.
@@ -1380,7 +1386,7 @@ Routes: `/metrics`, `/metrics/:metricId`. Requirements: `METRIC-STAGE`, `METRIC-
 #### What takes Verified away
 
 - Changing the calculation, the window, the source or its link, or which way is better asks first, then takes the metric back to Defined until someone verifies it again. On the metric’s form the question sits above Save changes: Change it, and lapse Verified. The reason you give is kept.
-- Rewording a filter or an exclusion asks the last verifier to confirm instead. Baselines, the owner and caveats change nothing.
+- Rewording a filter or an exclusion asks the last verifier to confirm instead (or another admin, never whoever reworded it). Baselines, the owner and caveats change nothing.
 - A new source marks the baselines taken from the old one, so you can retake them, and the charts of its goals show the week the source changed.
 
 #### Adding a metric like one already here
@@ -1392,6 +1398,21 @@ Routes: `/metrics`, `/metrics/:metricId`. Requirements: `METRIC-STAGE`, `METRIC-
 - A baseline belongs to the whole company or to a team (and optionally one part). Give its value, the period it covers, the day you took it and how.
 - A new baseline moves the old one to History. A new figure for the same period, or one you changed from the figure read, needs a reason.
 - Through the AI assistant: save_baselines sets them, verify_metric verifies, and list_metrics finds metrics by stage or waiting To verify.
+
+#### Goals on a monthly metric check in monthly
+
+- A goal measured by a metric that refreshes monthly checks in once a month, by the month’s last due day, so the new figure is in first. One that refreshes quarterly checks in once a quarter. Nothing is due on it in between, and it never reads No recent update between refreshes.
+- Linking the goal, or changing the metric’s refresh, sets this, with a line in the goal’s History. Unlinking it, or a refresh more often than monthly, puts it back on the workspace’s rhythm. Switching the Metric library off puts every goal back.
+- A Draft metric can still measure a goal. Linking one says what it still needs; the goal keeps working.
+
+#### When a metric’s owner leaves
+
+- When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change.
+
+#### Many metrics at once
+
+- The Metrics sheet in a download has a column for each part of the definition: What is measured, How aggregated, Counts, Filters, Leaves out, Numerator and Denominator with theirs, Formula, Window and Source link. Load it back to change many at once.
+- Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A new metric lands as Draft until all ten parts are said.
 
 ### Metrics in a spreadsheet
 

@@ -34,9 +34,11 @@ export const WHATS_NEW: NewsEntry[] = [
       'Every metric now has a stage. It is Defined once its definition is complete, with a link to the report its number comes from. It is Verified once someone other than its owner has reproduced its figure.',
       'A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”.',
       'Baselines are kept per team, with History. A changed figure needs a reason.',
-      'For now this is through the AI assistant: list_metrics, get_metric and save_metric show and take the new parts, and save_baselines and verify_metric are new. The screens follow.',
+      'A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between.',
+      'When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.',
+      'For now this is through the AI assistant and the spreadsheet: list_metrics, get_metric, save_metric and link_goal_metric show and take the new parts, and save_baselines and verify_metric are new. The screens follow.',
     ],
-    articles: ['metric-quality'],
+    articles: ['metric-quality', 'check-in'],
   },
   {
     id: 'feedback-own-sent',

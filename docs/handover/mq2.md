@@ -5,7 +5,7 @@ Lane approved MQ2 on 15 Nov. The decisions are in the MQ2 row of `docs/backlog.m
 ## Done
 
 - **Part 1: PR #563, merged 15 Nov.** Migration 0056 adds, on `faro.okr_metrics`: `calculation`, `time_window`, `source_link`, `source_query`, `source_owner_id`, `refresh_note`, `calc_changed_by` / `calc_changed_at`, `baselines`, `verification`, `verify_attempts`, `lapse`, `verifiers`, `handover` and `to_confirm`. On `faro.okr_goals` it adds `check_in_rhythm` (`monthly`, `quarterly` or null). CI applied it.
-- **Part 2: branch `claude/mq2-rules` (its PR follows this note).** The rules and MCP for:
+- **Part 2: PR #564, merged 15 Nov.** The rules and MCP for:
   - the stage, the ten Defined parts, lapsing and confirming a rewording;
   - verifying, including "Couldn't reproduce";
   - baselines per slice, flagging old-source baselines, and the source mark on goal charts;
@@ -20,6 +20,13 @@ Lane approved MQ2 on 15 Nov. The decisions are in the MQ2 row of `docs/backlog.m
   - The Metric's field is `timeWindow`. Not `window`: the layer check reads `.window` as browser code. The MCP parameter is still `window`.
   - The demo has the sketches' stages. Verified: cfr, deploys, mttr. Defined: lead time, CI time, queue wait, first review, cloud cost. Draft: the other five.
   - Already updated: spec rule `metric-quality` (rules 13–16), conformance rows `stage` and the three new `find` asks, requirements `METRIC-STAGE`, `METRIC-VERIFY` and `METRIC-BASELINES`, Help `metric-quality`, What's new `metric-quality`, README, architecture, handoff, the module map and the rebuild stage.
+- **#564's review fixes.** The high (the form could not answer the `similar` and `lapse` checks): PR #566, auto-merge, journey U180 and a `[METRIC-BASELINES]` scenario. The two mediums (whoever reworded a Verified metric may not confirm it; only an admin names verifiers, in `saveMetric`) are on the part 3 branch.
+- **Lazy module sheets: #568, merged 16 Nov.** `ModuleRecords.sheets` is a `ModuleSheetRef` per sheet (name, about, loaded, `load()`); `loadModuleSheets()` in `src/core/records.ts` loads the sheets, and every door that reads columns awaits it (the export from Goals, the Data menu, Import and MCP; `sheetHeadsFor`; `loadSheetPlanners`). Reading one before it loads throws. `personLeft` stays eager: it runs synchronously in the domain's leaving save (`departs`), and a lazy hook would make that save async for little gain. First download on main: 266 KB (was 274).
+- **Part 3: #567, branch `claude/mq2-part3`, ready for review (no migration).** Measures 268 KB of 275 (about 7 KB left; part 4's screens must load lazily). Full `evals:changed` 220/220 with U83, U94 and U180 at 10; U180 now in the metrics journeys (review of #566).
+  - A goal's own check-in rhythm, a core seam: `src/domain/goalRhythm.ts` and `Goal.checkInRhythm` (`monthly`, `quarterly` or empty = the cycle's). The due, run, habit and "No recent update" rules read it (62 days monthly, 184 quarterly). The metric library sets it through `rhythmChange` from `heldBy`/`heldByLink` on link, unlink, a refresh change and merge; `switched` clears it. Spec rule `goal-rhythm`; the module platform page lists the `goalRhythm` hook.
+  - New `ModuleRecords` hook `personLeft(x, personId, toId)`, called by `departs()` through `whatPasses`. The core names the lead (`leadOf`); the library passes the person's metrics with `handover` set. `mark_person_left` lists them.
+  - MCP: `link_goal_metric` returns `data.stage`, `data.draft` (heading, words, missing parts) for a Draft metric and `data.rhythm` when the goal's rhythm changes.
+  - Metrics sheet: columns for What is measured, How aggregated, Counts, Filters, Leaves out, Numerator (with its filters and leaves out), Denominator (same three), Formula, Window and Source link (no worked Stage column: it would put the quality rules in the first download). The sheet compares a calculation by what it says (`said`/`canon` in `sheetPlan.ts`), so an export loaded back by a member changes nothing (U94). `SheetPlanResult.notes` (`src/domain/sheetPlan.ts`) lets a sheet say lines after the counts: stages after loading, similar metrics for new rows, each Draft's missing parts. `bulk_change`'s dry run prints them.
 
 ## Decisions taken at build (planning passed them to Lane; none challenged)
 
@@ -28,30 +35,14 @@ Lane approved MQ2 on 15 Nov. The decisions are in the MQ2 row of `docs/backlog.m
 3. MQ's `confidence` stays as "the owner's confidence" under Structure, never beside the stage.
 4. "To verify" lists every Defined metric (never verified, or lapsed) plus any Verified one within 30 days of its 12 months.
 5. A goal's rhythm is a goal column (`check_in_rhythm`), filled in from the metric's refresh, like `unmeasured_since`.
+6. A monthly or quarterly goal is due by its period's last due day (Faro doesn't know the refresh day), and goes quiet after two periods (62 or 184 days). The demo's two goals on monthly metrics (cloud cost, developer satisfaction) now check in monthly, so the demo shows it.
+
+## Next (16 Nov, after #568 and #567)
+
+1. **Check #567 has merged** (auto-merge, once planning says so). If its CI is red, fix that first.
+2. **Part 4, the screens**, branched from main once #567 is in. Keep all screen code in lazy chunks loaded only on the metrics routes and places, and keep the quality rules behind `qualityHooks.ts` (planning, 15 Nov). The new MQ2 words that must load with records live in `qualityWords.ts`. The first download has about 7 KB of room: measure after each screen with `npx vite build --manifest && node scripts/check-bundle.mjs`. Build `api/mcp.js` in the main checkout, not a worktree (a worktree build differs).
 
 ## Still to build
-
-### Part 3: rhythm, handover, link and bulk_change
-
-**Rhythm follows refresh: a core seam, not a metrics feature.** The sketch session asked for this at Lane's request.
-- The core must not import `src/modules/metrics` or learn the word "refresh".
-- Build it on FT1's rhythm (`Cycle.checkInWeeks`). Don't add a second mechanism.
-- Add a small extension point: a module may suggest a goal's rhythm (`monthly`, `quarterly` or nothing). The core falls back to the cycle's rhythm when no module answers, or when Metrics is off.
-- The library fills in `check_in_rhythm` when it links a goal and when a metric's `refresh` changes, using `rhythmFor` (as `heldBy` does for `unmeasured_since`). Its `switched` hook clears it when Metrics is switched off.
-- The core's due and "No recent update" rules read the goal's column: monthly is due once per calendar month after the refresh; quarterly once per quarter.
-- Document the seam in `docs/architecture.md` and the module map, and give it a rebuild-kit line.
-- Merge main first: the deep-dive fix track has changed setup baselines and team defaults.
-
-**`mark_person_left`.** It also passes the person's metrics to their lead, one step up if they led the team (`handover` set; the stage doesn't change). It lists them in its result.
-- `departs()` in `src/domain/removal.ts` is core. Add a module hook in `ModuleRecords` (for example `personLeft(x, personId, leadId)`) rather than importing metrics.
-- The new owner confirms with `save_metric` `confirm_owner: true` (already built).
-
-**`link_goal_metric`.** It links a Draft metric with its warning and what's missing (it already links), and the goal's new rhythm when the metric refreshes monthly or quarterly.
-
-**`bulk_change` and the Metrics sheet** (`sheetPlan.ts`, `sheet.ts`).
-- New columns for the structured fields. Proposal: What is measured, How aggregated, Counts, Filters, Leaves out, Numerator…, Denominator…, Window, Source link.
-- The dry run gives counts by stage, similar metrics and each Draft's missing list.
-- The import lands rows as Draft with their missing list.
 
 ### Part 4: the screens (sketches 1–12)
 - **Library:** stage column, step shape plus word, a segmented filter with counts, Refresh and Window columns, and To verify and To sort out.
@@ -59,7 +50,7 @@ Lane approved MQ2 on 15 Nov. The decisions are in the MQ2 row of `docs/backlog.m
 - **Forms:** the define form (two-field calculation, structured window, "To reach Defined, still needed: n of 10"), the add-a-baseline form, the verify form with the difference shown, and "Take this quarter's baselines" (from readings; reason on a changed figure).
 - **Picker:** Measured by lists Defined and Verified first, with window and refresh on each option. Quick add asks only name, unit and direction.
 - **Goal page:** the Draft warning, through the goal places (`goal.measure`, `goal.facts`), not the core. It also shows on review agenda rows, through a named place if none fits.
-- **Add a metric:** the similar-metric check.
+- **Add a metric:** the similar-metric check (the form asks it since #566; part 4 gives it the sketch's look).
 - **Home:** "n of your metrics have no baseline for Oct–Dec".
 
 Each needs:

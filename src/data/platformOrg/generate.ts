@@ -424,7 +424,8 @@ export function buildPlatformOrg(today: Date): Snapshot {
   /* ---------- Each feature module's own rows (domain/records): the metric library's, in this build ---------- */
   // Added the way the app would, through each module's rules; a build without the module has none, and nothing else moves.
   for (const { part: addRows } of MODULE_DEMOS) addRows({
-    save: (c) => { if (c.modules) S.modules = applyModuleRows(S.modules, c.modules); S.changes.push(...c.changes); },
+    // A module's rule may also set a goal's own field (the metric library: a goal's check-in rhythm, MQ2), kept like its rows.
+    save: (c) => { if (c.modules) S.modules = applyModuleRows(S.modules, c.modules); for (const g of c.goals ?? []) { const i = keyed.findIndex((v) => v.id === g.id); if (i >= 0) keyed[i] = g; } S.changes.push(...c.changes); },
     start: new Date(startMs),
     act: (by, when, ids) => ({ ...ctx(by, when), newId: ids }),
     goal: (id) => ({ goal: goalOf(id), createdAt: created[id]!.createdAt }),

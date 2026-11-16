@@ -100,6 +100,8 @@ export function confirmOwner(x: ActionContext, metricId: string): Commit {
 export function confirmReword(x: ActionContext, metricId: string): Commit {
   const m = live(x, metricId);
   if (!m.toConfirm) no(`“${m.name}” has no rewording to confirm.`);
+  // Whoever reworded it never confirms their own rewording, an admin included (#564 review, medium 1).
+  if (m.toConfirm!.by === x.actor.id) no(`You reworded it, so someone else confirms it: ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or another admin.`);
   if (m.toConfirm!.verifier !== x.actor.id && !x.actor.admin) no(`Only ${nameOf(x, m.toConfirm!.verifier)} (who last verified it) or an admin can confirm the rewording.`);
   const { toConfirm: _t, ...rest } = m;
   return { ...metricRows({ metrics: [{ ...rest, updatedAt: x.now }] }), changes: [log(x, { entityId: m.id, action: 'edited', summary: `${nameOf(x, x.actor.id)} confirmed the reworded ${m.toConfirm!.what.join(' and ')} of “${m.name}”: still Verified`, diffs: [] })] };
