@@ -14,6 +14,8 @@ export interface ReviewsReadBack {
   said: number;
   /** Open next steps agreed in a review: they stay open on their goals and on Home. */
   steps: number;
+  /** How many goals those next steps are on: "on its goal" for one, "on their goals" for more (drill, 15 Nov). */
+  stepGoals: number;
   /** Open questions raised in a review: they stay open and no longer name a session. */
   questions: number;
   /** Risks a review accepted on goals not removed (RS2): they stay on their goals, as they were said. */
@@ -30,16 +32,20 @@ export interface ReviewsReadBack {
  * Nothing here is changed by switching off: the counts are what stays.
  */
 export function switchOffReadBack(reads: {
-  people: readonly { removedAt?: string | null }[]; reviews: readonly Pick<Review, 'endedAt' | 'removedAt'>[]; changes: readonly { entity: string }[]; asks: readonly Pick<Ask, 'kind' | 'status' | 'reviewId'>[];
+  people: readonly { removedAt?: string | null }[]; reviews: readonly Pick<Review, 'endedAt' | 'removedAt'>[]; changes: readonly { entity: string }[]; asks: readonly (Pick<Ask, 'kind' | 'status' | 'reviewId'> & { goalIds?: readonly string[] })[];
   decisions: readonly Pick<Decision, 'goalId' | 'kind' | 'note' | 'removedAt'>[]; goals: readonly { id: string; removedAt?: string | null }[]; dueDay: string;
 }): ReviewsReadBack {
   const live = new Set(reads.goals.filter((g) => !g.removedAt).map((g) => g.id));
-  const open = (kind: Ask['kind']) => reads.asks.filter((a) => a.kind === kind && a.status === 'open' && !!a.reviewId).length;
+  const openOf = (kind: Ask['kind']) => reads.asks.filter((a) => a.kind === kind && a.status === 'open' && !!a.reviewId);
+  const open = (kind: Ask['kind']) => openOf(kind).length;
+  const steps = openOf('action');
   return {
     people: reads.people.filter((p) => !p.removedAt).length,
     reviews: reads.reviews.filter((r) => !r.removedAt && !r.endedAt).length,
     said: reads.changes.filter((c) => c.entity === 'review' || c.entity === 'decision').length,
-    steps: open('action'),
+    steps: steps.length,
+    // An ask whose goals aren't given counts as on a goal of its own.
+    stepGoals: new Set(steps.flatMap((a, i) => a.goalIds?.length ? a.goalIds : [`ask:${i}`])).size,
     questions: open('question'),
     risks: reads.decisions.filter((d) => d.kind === 'note' && !d.removedAt && live.has(d.goalId) && acceptedReason(d.note) != null).length,
     dueDay: reads.dueDay,
@@ -52,7 +58,7 @@ export function switchOffLines(r: ReviewsReadBack): { strong: string; rest: stri
   return [
     { strong: 'Reviews leaves the menu', rest: ', and Home’s “Next review”.' },
     ...(r.reviews ? [{ strong: `${n(r.reviews, 'review stays', 'reviews stay')} in the record`, rest: `${r.said ? `, with the ${n(r.said, 'thing', 'things')} said or marked in ${r.reviews === 1 ? 'it' : 'them'}` : ''}. Each goal’s History still shows ${r.reviews === 1 ? 'it' : 'them'}.` }] : []),
-    ...(r.steps ? [{ strong: `${n(r.steps, 'open next step', 'open next steps')} agreed in a review ${r.steps === 1 ? 'stays' : 'stay'} open`, rest: ' on their goals and on Home.' }] : []),
+    ...(r.steps ? [{ strong: `${n(r.steps, 'open next step', 'open next steps')} agreed in a review ${r.steps === 1 ? 'stays' : 'stay'} open`, rest: r.stepGoals === 1 ? ' on its goal and on Home.' : ' on their goals and on Home.' }] : []),
     ...(r.questions ? [{ strong: `${n(r.questions, 'question', 'questions')} waiting for a review`, rest: ` ${r.questions === 1 ? 'stays' : 'stay'} open; ${r.questions === 1 ? 'it no longer names' : 'they no longer name'} a session.` }] : []),
     // RS2 (docs/design/round-4/reviews-switch/spec.md 2.2): after the questions line.
     ...(r.risks ? [{ strong: `${n(r.risks, 'accepted risk stays on its goal', 'accepted risks stay on their goals')}`, rest: ', as ' + (r.risks === 1 ? 'it was' : 'they were') + ' said. No new one can be accepted while Reviews is off.' }] : []),

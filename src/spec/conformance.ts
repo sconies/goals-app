@@ -326,6 +326,23 @@ export const homeDays = (w: ConformanceWorkspace) => Array.from({ length: 14 }, 
 
 /** For each viewer on each day: the lead's kind and title (none: empty), or the quiet sentence and its line. No draft is kept. */
 export function homeRowsOf(w: ConformanceWorkspace, c: ScreenCases['home'] = { viewers: HOME_VIEWERS, days: homeDays(w).map((d) => d.toISOString()) }): string[][] {
+  return inUtc(() => homeRows(w, c));
+}
+
+/**
+ * Runs `f` with the process's zone set to UTC, then puts it back. The records here are judged in UTC (R3's home-zone
+ * case is zone.csv's), but a check-in's day is read on the machine's clock (`postedDay`), as a person's own day is, so
+ * without this home.csv changed with the zone it was made in (Pacific/Auckland: drill, 15 Nov). Synchronous, so
+ * nothing else runs in between.
+ */
+export function inUtc<T>(f: () => T): T {
+  if (typeof process === 'undefined') return f();
+  const was = process.env.TZ;
+  process.env.TZ = 'UTC';
+  try { return f(); } finally { if (was === undefined) delete process.env.TZ; else process.env.TZ = was; }
+}
+
+function homeRows(w: ConformanceWorkspace, c: ScreenCases['home']): string[][] {
   const rows: string[][] = [];
   for (const viewer of c.viewers) for (const day of c.days.map((d) => new Date(d))) {
     const s = asOf(w, day);

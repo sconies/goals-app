@@ -16,17 +16,17 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 Found by the full rebuild drill. Taken as one track (Lane, 16 Nov); each is marked as its fix lands, with a test that fails without it.
 
-- U69 opens `rel-cfr`, which doesn't exist.
-- `evals/run.mjs` needs vite at the repo root.
+- **Fixed:** U69 opens `rel-cfr`, which doesn't exist (it opens `vuln-autofix`, and fails on a “not found” title).
+- **Fixed:** `evals/run.mjs` needs vite at the repo root (it finds Vite as Node finds a package, `evals/viteBin.cjs`).
 - Help names reviews while Reviews is off.
 - Demo goal G-48's 141-character name makes an unchanged export refused.
 - An unedited export needs engine fixes to load back (m9).
-- `home.csv` depends on the time zone (Pacific/Auckland).
-- 0v: a goal whose plan hasn't started yet shows a negative number of days without an update.
-- Reviews' switch-off read-back says "1 open next step … on their goals" for one goal (from #547).
-- **Fixed (migration 0058):** `okr_token_create` doesn't check `modules_off`: a token can be made while AI access is off.
-- **Fixed (migration 0058; someone leaving no longer passes a switched-off library's metrics):** The database's save (`okr_commit`) doesn't check `modules_off` either: a save that writes Reviews' records, or a module's rows, is kept while the module is off; only the app's and the MCP server's actions refuse it.
-- Settings' "On this page" links to "Your MCP tokens" while AI access is off.
+- **Fixed:** `home.csv` depends on the time zone (Pacific/Auckland) (made in UTC, `inUtc` in `src/spec/conformance.ts`).
+- **Fixed:** 0v: a goal whose plan hasn't started yet shows a negative number of days without an update.
+- **Fixed:** Reviews' switch-off read-back says "1 open next step … on their goals" for one goal (from #547).
+- **Fixed (#579, migration 0058):** `okr_token_create` doesn't check `modules_off`: a token can be made while AI access is off.
+- **Fixed (#579, migration 0058; someone leaving no longer passes a switched-off library's metrics):** The database's save (`okr_commit`) doesn't check `modules_off` either: a save that writes Reviews' records, or a module's rows, is kept while the module is off; only the app's and the MCP server's actions refuse it.
+- **Fixed:** Settings' "On this page" links to "Your MCP tokens" while AI access is off.
 - **Fixed (confirmed 16 Nov: the access table says someone in the review, or an admin):** R1's access table said "Anyone" for what is said in a review, where REVIEW-SPEAK says someone in the review or an admin (fixed in the spec by this PR; the stand-in showed the server must enforce it).
 
 ## Deep dive, 15 Nov
@@ -102,7 +102,7 @@ Lane's outside deep-dive test of the live app. Taken by the fix track (`docs/han
 | 3a | **Mark up a goal and send it to someone.** Use the screen markup from release 1 to talk about goals, not only to report bugs. On a goal page (or its chart, scorecard or a review agenda row) anyone can draw and pin notes, pick who it's for (the owner, a teammate, a review) and send it as one of the existing asks: a question, a decision or help needed, or an update request. The recipient sees it in Needs your response with the drawing, answers in the same Respond panel, and it stays on the goal's page and in Activity. In a review, a markup can be added live to that goal's discussion and becomes part of the review notes. Reuses the capture, drawing and named-parts code; the only new thing is where it goes. Open questions for a short grill: is the picture a snapshot or does it link to the live goal; can a markup go to several people; do watchers see it | Turns markup into a way to discuss goals, which is the app's main job; small because the pieces exist | M | 0b. Built demo-friendly (Lane, 8 Nov): it works in the shared workspace and the demo without sign-in; who may read a sent markup is written as a spec-only requirement (R1) | Lane, 7 Nov |
 | 0t | **A saved, migrated test database for the schema tests.** The slowest unit-test file (13 s) migrates a fresh PGlite database each time; save one migrated copy and share it, after a shared helper for the roles and storage stand-ins each file sets up. Also make U14's phone entry check wait for the page to settle instead of a fixed time (it flaked under load in PRs #40 and #42), as N6 was fixed in #41. Also from the 8 Nov review: root `/` takes over 5 s, and Activity's blank first paint | Small speed-up left out of -1 | S | 0 | Build session for -1, 7 Nov |
 | 11 | **Rebuild kit: the full drill.** The kit has grown with every release since 8k; this is the last check: a fresh team or session rebuilds the whole of Faro stage by stage from the kit alone, and each stage ships when its exit criteria pass | The final proof, once every stage has passed its own drill | S–M | 8k and every stage since | Plan, 6 Nov; stages added 7 Nov |
-| 0v | **Days without an update before a plan starts.** A goal whose plan starts in week 5 shows "days without an update" of −11 in week 3 and −4 in week 4; before a plan starts the count should be empty (or zero), never negative. Found by the edge-case conformance rows (#525), which record today's behaviour on purpose: they change, with `npm run spec`, when this is fixed | A real bug people can see ("−11 days"), but it doesn't break main; small | S | None | Item 11 drill, planning 14 Nov |
+| 0v | **Done (16 Nov, drill-bug track).** **Days without an update before a plan starts.** A goal whose plan starts in week 5 shows "days without an update" of −11 in week 3 and −4 in week 4; before a plan starts the count should be empty (or zero), never negative. Found by the edge-case conformance rows (#525), which record today's behaviour on purpose: they change, with `npm run spec`, when this is fixed | A real bug people can see ("−11 days"), but it doesn't break main; small | S | None | Item 11 drill, planning 14 Nov |
 
 ## Deferred to after the handoff (Lane, 14 Nov)
 
