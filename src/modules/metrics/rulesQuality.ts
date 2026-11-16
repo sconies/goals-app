@@ -10,15 +10,13 @@
    - MQ's `confidence` is the owner's own word on how far to trust the number. It stays, shown under Structure as "the
      owner's confidence", never beside the stage: the stage is the evidence, confidence an opinion. */
 import type { Id, Person, Team } from '../../domain/types';
-import type { Metric, MetricAggregate, MetricBaseline, MetricCalc, MetricMeasure, MetricPart, MetricRefresh, MetricVerification, MetricWindow } from './types';
+import { AGGREGATE_LABEL, AGGREGATES, MEASURE_LABEL, MEASURES } from './qualityWords';
+import type { Metric, MetricAggregate, MetricBaseline, MetricCalc, MetricMeasure, MetricPart, MetricVerification, MetricWindow } from './types';
 
 export type MetricStage = 'draft' | 'defined' | 'verified';
 export const STAGES: readonly MetricStage[] = ['draft', 'defined', 'verified'];
 export const STAGE_LABEL: Record<MetricStage, string> = { draft: 'Draft', defined: 'Defined', verified: 'Verified' };
-export const MEASURES: readonly MetricMeasure[] = ['count', 'sum', 'value', 'duration', 'ratio', 'other'];
-export const MEASURE_LABEL: Record<MetricMeasure, string> = { count: 'Count', sum: 'Sum', value: 'Value', duration: 'Duration', ratio: 'Ratio', other: 'Other or composite' };
-export const AGGREGATES: readonly MetricAggregate[] = ['total', 'mean', 'median', 'percentile', 'latest'];
-export const AGGREGATE_LABEL: Record<MetricAggregate, string> = { total: 'total', mean: 'mean', median: 'median', percentile: 'percentile', latest: 'latest' };
+export { AGGREGATES, AGGREGATE_LABEL, MEASURES, MEASURE_LABEL } from './qualityWords';
 export const WINDOW_KINDS = ['point', 'rolling', 'period', 'cumulative'] as const;
 export const PERIODS = ['week', 'month', 'quarter'] as const;
 /** Verified lasts this many months; "To verify" lists a metric this many days before it is up. */
@@ -382,9 +380,7 @@ export function lastQuarter(now: string): { words: string; end: string; next: st
 /** The core's (domain/goalRhythm): the library only says which its metric's refresh gives. */
 export type { GoalRhythm } from '../../domain/goalRhythm';
 import type { GoalRhythm } from '../../domain/goalRhythm';
-/** A goal measured by a metric refreshed monthly is due monthly, quarterly quarterly; anything faster keeps the cycle's
-    rhythm (null). */
-export const rhythmFor = (refresh: MetricRefresh | null | undefined): GoalRhythm | null => (refresh === 'monthly' || refresh === 'quarterly' ? refresh : null);
+export { rhythmFor } from './qualityWords';
 export const RHYTHM_WORDS: Record<GoalRhythm, string> = { monthly: 'Check-ins monthly, after each refresh', quarterly: 'Check-ins quarterly, after each refresh' };
 
 /* ---------- "To sort out" ---------- */

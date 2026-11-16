@@ -2,6 +2,7 @@
    save is (`changeKinds`), the marks a change of meaning or direction leaves on its goals (`marksFor`), and retiring,
    bringing back and merging. Loaded with linking and saving (actions.ts), not with the first download. As pure as
    src/domain: no clock, browser or network, and each rule takes only what it reads. */
+import './qualityHooks';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { Goal } from '../../domain/types';

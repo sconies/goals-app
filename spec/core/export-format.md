@@ -249,21 +249,21 @@ One row per metric in the library. The metric library: every number goals are me
 | Unit | You can change it | Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use. | Changed when loaded back |
 | Decimals | You can change it | Places after the decimal point it’s shown with: 0 to 4. | Changed when loaded back |
 | Direction | You can change it | Higher is better or Lower is better. | Changed when loaded back |
-| What is measured | You can change it | Count, Sum, Value, Duration, Ratio or Other or composite; empty when not said. | Changed when loaded back |
-| How aggregated | You can change it | Over the window: total, mean, median or latest, or p50, p90, p95…; “mean per day” for a mean of a count. Not for a ratio or other. | Changed when loaded back |
-| Counts | You can change it | What it counts (not a ratio). | Changed when loaded back |
-| Filters | You can change it | Which of those it counts. | Changed when loaded back |
-| Leaves out | You can change it | What it leaves out. | Changed when loaded back |
-| Numerator | You can change it | A ratio’s top: what it counts. | Changed when loaded back |
-| Numerator filters | You can change it | Which of those. | Changed when loaded back |
-| Numerator leaves out | You can change it | What it leaves out. | Changed when loaded back |
-| Denominator | You can change it | A ratio’s bottom: what it counts. | Changed when loaded back |
-| Denominator filters | You can change it | Which of those. | Changed when loaded back |
-| Denominator leaves out | You can change it | What it leaves out. | Changed when loaded back |
-| Formula | You can change it | For other or composite: the formula in words. | Changed when loaded back |
-| Window | You can change it | What each figure covers: Point in time, Rolling 28 days, Per week, Per month, Per quarter, or Cumulative since 2026-01-01. | Changed when loaded back |
+| What is measured | You can change it | Count, Sum, Value, Duration, Ratio or Other or composite | Changed when loaded back |
+| How aggregated | You can change it | total, mean, median or latest, p90 or “mean per day”. | Changed when loaded back |
+| Counts | You can change it |  | Changed when loaded back |
+| Filters | You can change it |  | Changed when loaded back |
+| Leaves out | You can change it |  | Changed when loaded back |
+| Numerator | You can change it |  | Changed when loaded back |
+| Numerator filters | You can change it |  | Changed when loaded back |
+| Numerator leaves out | You can change it |  | Changed when loaded back |
+| Denominator | You can change it |  | Changed when loaded back |
+| Denominator filters | You can change it |  | Changed when loaded back |
+| Denominator leaves out | You can change it |  | Changed when loaded back |
+| Formula | You can change it |  | Changed when loaded back |
+| Window | You can change it | Point in time, Rolling 28 days, Per month or Cumulative since 2026-01-01. | Changed when loaded back |
 | Source | You can change it | Where the number comes from: a dashboard, a query, a report. | Changed when loaded back |
-| Source link | You can change it | A link to the report or query that gives the figure (https://…). | Changed when loaded back |
+| Source link | You can change it |  | Changed when loaded back |
 | Source owner | You can change it | Who owns that source: a team or a person. | Changed when loaded back |
 | Refresh | You can change it | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Changed when loaded back |
 | Owner | You can change it | Who answers for the definition, by name (Owner email wins when both are given). | Changed when loaded back |
@@ -275,7 +275,6 @@ One row per metric in the library. The metric library: every number goals are me
 | How it could be gamed | You can change it | In words, up to 500 characters; empty when not said. | Changed when loaded back |
 | Reason | You can change it | Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show. | Changed when loaded back |
 | Still to say | Worked out | Fully defined, or what it still needs to say. | Worked out by the app; ignored when loaded back |
-| Stage | Worked out | Draft, Defined or Verified, worked out from what it says and who verified it. | Worked out by the app; ignored when loaded back |
 | Retired on | Worked out | The day it was retired; empty while it is in use. | Worked out by the app; ignored when loaded back |
 | Measures | For reading | The goals it measures, each with its slice: a team, or the whole company. | For reading; not loaded back from this sheet |
 | Goal keys | For reading | Their keys. | For reading; not loaded back from this sheet |

@@ -15,7 +15,7 @@ import type { ActionContext } from '../../domain/actions';
 import type { Change, Goal } from '../../domain/types';
 import { heldToNoNumber } from '../../domain/unmeasured';
 import { rhythmChange, type GoalRhythm } from '../../domain/goalRhythm';
-import { rhythmFor } from './rulesQuality';
+import { rhythmFor } from './qualityWords';
 import type { Metric, MetricLink, MetricMeasurement } from './types';
 
 /** The three, in the order the form offers them. */

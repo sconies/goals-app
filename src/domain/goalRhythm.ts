@@ -88,12 +88,6 @@ export function staleAfterDaysFor(goal: Pick<Goal, 'checkInRhythm'>, cycle: Cycl
   return staleAfterDays(cycle);
 }
 
-/** The rhythm in words, for a fact line, a tool's answer and the History: "monthly, by the last due day of the month". */
-export const GOAL_RHYTHM_WORDS: Record<GoalRhythm | 'weekly', string> = {
-  weekly: 'every week',
-  monthly: 'once a month, by the month’s last due day',
-  quarterly: 'once a quarter, by the quarter’s last due day',
-};
 
 /** A goal's rhythm as the History's diff says it. */
 const said = (r: GoalRhythm | null | undefined) => (r === 'monthly' ? 'Monthly' : r === 'quarterly' ? 'Quarterly' : 'The cycle’s');

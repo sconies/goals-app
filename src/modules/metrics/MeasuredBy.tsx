@@ -3,6 +3,7 @@
    the form's unit offered first; "Add “…” as a new metric" last), then what was chosen: its meaning, the unit, decimals
    and direction it fills in (rule 5), and "For": the goal's team or the whole company. What to save goes back to the
    form as one of the module's actions (linkGoalMetric or unlinkGoalMetric), run after the goal. */
+import './qualityHooks';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../../app/state';

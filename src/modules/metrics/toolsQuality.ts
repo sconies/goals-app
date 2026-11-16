@@ -3,6 +3,7 @@
    save_baselines and verify_metric; list_metrics, get_metric and save_metric take and return the quality fields
    through `qualityData`, `qualityInput` and `QUALITY_FIELDS`. With Metrics switched off, the server refuses them all
    with the module-off sentence, as it does every tool of the module. */
+import './qualityHooks';
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';

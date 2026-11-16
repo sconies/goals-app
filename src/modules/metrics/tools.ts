@@ -22,7 +22,7 @@ import type { Metric, MetricDirection, MetricMeasurement, MetricRefresh } from '
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import QUALITY_TOOLS, { QUALITY_FIELDS, qualityActs, qualityData, qualityInput, qualityLines, stageMove } from './toolsQuality';
 import { draftWarning, missingLine, stageOf, STAGES, type MetricStage } from './rulesQuality';
-import { GOAL_RHYTHM_WORDS } from '../../domain/goalRhythm';
+import type { GoalRhythm } from '../../domain/goalRhythm';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
 import { addCheckInReader } from '../../mcp/checkInReaders';
@@ -376,5 +376,12 @@ const tools: ToolDef[] = [
     },
   },
 ];
+
+/** The rhythm in words, for a fact line, a tool's answer and the History: "monthly, by the last due day of the month". */
+const GOAL_RHYTHM_WORDS: Record<GoalRhythm | 'weekly', string> = {
+  weekly: 'every week',
+  monthly: 'once a month, by the month’s last due day',
+  quarterly: 'once a quarter, by the quarter’s last due day',
+};
 
 export default [...tools, ...QUALITY_TOOLS];
