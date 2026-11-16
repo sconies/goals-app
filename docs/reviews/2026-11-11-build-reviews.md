@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning to night (session_012kbr8yEo9vztTkpARWNy66) handed over at about 490k tokens of context after 17 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `7dbdd505` (#567: one high open, an edit of a goal drops its monthly rhythm, sent 02:22 UTC, 16 Nov, to the MQ2 builder, now session_012kbr92MEwSBMnnQ1Pis1ae, and planning; four mediums with planning; before it #568, no findings, and #566), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. Mediums open: #567’s four. The newest state is under “The reviewer of 16 November” at the end of the log.
+**Since this note (the reviewer of 16 November, session_012kbr8yhSnbewc3YnAc52AT):** main is reviewed up to `9aa56d1f` (#569, which closes #567’s high, probed again; no highs open; #567’s four mediums are with planning since 02:50 UTC, 16 Nov; the MQ2 builder is now session_012kbr92MEwSBMnnQ1Pis1ae), which closes #564’s high, walked. #564’s two mediums and #566’s one are closed by #567. Mediums open: #567’s four. The newest state is under “The reviewer of 16 November” at the end of the log.
 
 - **Last merge fully reviewed:** `bb6ea0c3` (#564), the head of main at 23:25 UTC, 15 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #541, #543, #544, #546, #547, #548, #550, #551, #553, #554, #555, #556, #557, #559, #562, #563 and #564, at the end, under "The reviewer of 15 November, morning". Docs-only merges (#549, #512, #552, #558, #560, #561) have neither.
 - **Merged since, not reviewed:** none.
@@ -315,6 +315,7 @@ Written 15 November 2026, 23:30 UTC, when the reviewer of 15 November, morning t
 | #566 The metric form asks the similar-metric and lapse questions (#564’s high) | MQ2 | 0 | 1 | 3 |
 | #568 Core: a module’s sheets load on demand | core (session …nQ1Pis1ae) | 0 | 0 | 0 |
 | #567 MQ2 part 3: a goal’s own rhythm, a leaver’s metrics, the sheet’s calculation columns | MQ2 (session …nQ1Pis1ae) | 1 | 4 | 1 |
+| #569 An edited goal keeps its monthly rhythm (#567’s high) | MQ2 (session …nQ1Pis1ae) | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2747,7 +2748,7 @@ One high, two mediums, one low.
 
 ## The reviewer of 16 November (session …nAc52AT), from #566
 
-Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `7dbdd505` (#567: one high open, an edit of a goal drops its monthly rhythm, sent 02:22 UTC, 16 Nov, to the MQ2 builder, now session_012kbr92MEwSBMnnQ1Pis1ae, and planning; four mediums with planning; before it #568, no findings, and #566). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. Mediums open: #567’s four.
+Started fresh at 23:15 UTC, 15 Nov, from the note above. Until this session hands over, this heading’s first lines are the newest state: main is reviewed up to `9aa56d1f` (#569, which closes #567’s high, probed again; no highs open; #567’s four mediums are with planning since 02:50 UTC, 16 Nov; the MQ2 builder is now session_012kbr92MEwSBMnnQ1Pis1ae). #564’s high is closed. #564’s two mediums and #566’s one are closed by #567, probed again. Mediums open: #567’s four.
 
 ### #566 The metric form asks the similar-metric and lapse questions its save asks (MQ2 build, merged 16 Nov)
 
@@ -2795,3 +2796,12 @@ One high, four mediums, one low.
   - Someone with no goals whose team has no other lead, leaving by themselves, passes their metrics to themselves (`leadOf` falls to the actor). Probe: Oskar, his team’s lead blanked; the log says “Passed … to Oskar Lindgren to confirm, as Oskar Lindgren left”.
   - By the subagent’s run of the sheet: “Cumulative since 2026-13-45” and `http://` links are saved; Count with p90 is saved; a retired metric is counted as a Draft in the notes; the notes say “Stages after loading” when a Must fix means nothing loads; an empty cell never clears a calculation, and seven of the new columns have no note.
   - No screen says a goal is monthly, and a monthly goal waiting for its month is in none of `weekProgress`’s lists the Check-in screen draws (read; the screens are part 4). A monthly goal’s receipt says “10 weeks in a row”. A goal on a retired monthly metric stays monthly.
+
+### #569 An edited goal keeps its monthly rhythm (MQ2, session …nQ1Pis1ae, merged 16 Nov)
+
+Read at `9aa56d1f` against #567’s high; the first probe run again, with two more edits (deleted). `goalEntry.test.ts` passes here, 59 tests.
+
+- **#567’s high: closed, probed.** `planGoal` keeps `checkInRhythm` beside the hold. As Bjorn, ns-cost renamed: the commit’s goal is `monthly` and its row writes `monthly`. As Amara, its owner changed: still `monthly`. A change to dated stages is refused for an active goal, so a stages goal can’t be left monthly this way.
+- As read: the import lays the built goal over the stored one (`builtOver`: every key the build doesn’t decide is kept) and carrying into a new year copies the goal whole, so neither drops the field. Neither was run.
+
+No findings.
