@@ -12,7 +12,7 @@ const help: Article[] = [
       { heading: 'What it’s for', text: ['A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone.'] },
       { heading: 'How to use it', list: [
         'The library lists every metric A to Z, 50 a page. Each row says its unit, which way is better and who owns it, and its goals by status, worst first, or “No goals yet”.',
-        'Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.',
+        'Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Retired metrics only; To sort out is on the stage control above the list. Sort by Best stage first (the default), A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.',
         'A search that finds nothing offers to add it as a new metric.',
         'Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.',
         'A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.',
@@ -250,6 +250,17 @@ const help: Article[] = [
         'Defined: all ten parts are said: what it means, what is measured and how it is aggregated with its parts, the filters and what it leaves out, the unit, which way is better, the window, the source with a link to the report, who owns the source, how often it refreshes, and its owner. It becomes Defined by itself; there is no button.',
         'Verified: someone other than its owner reproduced its figure from the source link in the last 12 months. Thirty days before the year is up it appears under To verify.',
       ] },
+      { heading: 'Stages in the library', list: [
+        'Each metric’s stage comes first on its row, as a three-step shape with its word: one step filled for Draft, two for Defined, three for Verified. The shape is never a goal’s status.',
+        'The library lists the best stage first, so trusted numbers lead. Refresh and Window have their own columns, beside the owner and the metric’s goals.',
+        'Above the list, one control picks All, Verified, Defined, Draft, To verify or To sort out, each with how many. Draft and To sort out list the metrics with the most goals first, each saying what it needs and who should do it.',
+      ] },
+      { heading: 'A metric’s page', list: [
+        'Under the name: its stage, how often it refreshes, its window, its unit and which way is better.',
+        'Then the calculation’s parts (a ratio’s numerator and denominator, each with what it counts, its filters and what it leaves out), the source with a link to the exact report, its baselines per slice, and the verification: who, when, the figure they reproduced against the stored one, and their note.',
+        'When something needs answering, an outlined box at the top says so: Verified taken away by a change (what changed, who, when and why), a figure someone couldn’t reproduce, a new owner to confirm, or a rewording to confirm.',
+        'On a phone the parts stack with ÷ between them, baselines become pairs, and the verification note folds to Read the note.',
+      ] },
       { heading: 'Verifying a metric', list: [
         'An admin, someone in the source’s owning team, or a verifier an admin named can verify it, but never its owner or whoever last changed its calculation, window or source.',
         'Open the source link, then give the period, the figure you got from it and a note. Faro shows the difference from the figure it has for that period, without judging it.',
@@ -282,7 +293,7 @@ const help: Article[] = [
       ] },
     ],
     routes: ['/metrics', '/metrics/:metricId'],
-    screens: [],
+    screens: ['MetricQuality'],
     reqs: ['METRIC-STAGE', 'METRIC-VERIFY', 'METRIC-BASELINES'],
     keywords: ['monthly', 'quarterly', 'rhythm', 'left', 'new owner', 'sheet', 'stage', 'draft', 'defined', 'verified', 'verify', 'verification', 'baseline', 'baselines', 'lapse', 'reproduce', 'window', 'calculation', 'ratio', 'numerator', 'denominator', 'source link', 'to verify', 'quality'],
     related: ['metric-define', 'metric-structure', 'metrics'],

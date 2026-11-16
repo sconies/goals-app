@@ -114,3 +114,60 @@
 .measure-shape { width: 14px; height: 14px; flex: none; }
 .measure-gap { color: var(--fg-1, inherit); font-weight: 600; }
 .metric-measure-note { margin-top: var(--s1); }
+
+/* MQ2: a metric's stage, its own three-step shape with its word (stageMark.tsx). */
+.stage-mark { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.875rem; white-space: nowrap; }
+.stage-mark .stage-shape { width: 16px; height: 16px; flex: none; }
+.stage-verified { color: var(--on-fg); }
+.stage-defined { color: var(--accent-text); }
+.stage-draft { color: var(--muted); }
+.metric-stages { flex-wrap: wrap; }
+.metric-stage-n { font-variant-numeric: tabular-nums; color: var(--muted); margin-left: 2px; }
+.metric-row > .stage-mark { padding-top: 1px; }
+.metric-list:not(.metric-list-wide) .metric-row { grid-template-columns: minmax(0, 1fr) auto; }
+.metric-phone-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metric-phone-line .stage-mark { font-size: inherit; vertical-align: -2px; }
+.metric-list:not(.metric-list-wide) .metric-row .metric-why, .metric-list:not(.metric-list-wide) .metric-row .metric-why ~ .metric-side { grid-column: 2 / -1; align-items: flex-start; text-align: left; }
+.metric-cols, .metric-row-wide { display: grid; grid-template-columns: 96px minmax(0, 2.4fr) 80px 120px minmax(0, 1fr) minmax(120px, auto); column-gap: var(--s3); }
+.metric-cols-sortout, .metric-row-sortout { grid-template-columns: 96px minmax(0, 1.6fr) minmax(0, 1.8fr) minmax(0, 0.9fr) minmax(110px, auto); }
+.metric-cols { padding: 0 var(--s2) 6px; color: var(--muted); font-weight: 600; }
+.metric-cols > span:last-child { text-align: right; }
+.metric-row-wide > .small { padding-top: 2px; }
+.metric-why { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.metric-why .metric-needs { align-items: flex-start; }
+.metric-why .metric-needs svg { margin-top: 3px; }
+
+/* MQ2: a metric's page (sketches 2, 6, 8, 10). */
+.metric-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 2px 0 0; color: var(--fg-2); }
+.metric-top-sep { color: var(--faint); }
+/* A box that asks for something: a whole-surface box with a full outline, never a side stripe. */
+.metric-box { gap: var(--s2); border: 1px solid var(--line-strong); border-radius: 8px; padding: var(--s3) var(--s4); background: var(--surface); }
+.metric-box p { margin: 0; }
+.metric-box-head { font-size: 1rem; font-weight: 600; margin: 0; }
+.metric-ratio { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--s3); align-items: start; }
+.metric-over { font-size: 1.25rem; color: var(--muted); padding-top: 22px; }
+.metric-part { border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); min-width: 0; }
+.metric-part p { margin: 0 0 4px; }
+.metric-part-name { font-weight: 600; }
+.metric-part-facts { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: var(--s3); row-gap: 4px; margin: 0; font-size: 0.875rem; }
+.metric-part-facts dt { color: var(--muted); font-weight: 600; font-size: 0.75rem; line-height: 1.3rem; }
+.metric-part-facts dd { margin: 0; }
+.metric-src { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: var(--s4); row-gap: var(--s2); margin: 0; }
+.metric-src dt { font-size: 0.75rem; line-height: 1.375rem; font-weight: 600; color: var(--muted); }
+.metric-src dd { margin: 0; overflow-wrap: anywhere; }
+.metric-query { white-space: pre-wrap; font-size: 0.8125rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: var(--s2); margin: 6px 0 0; }
+.metric-table { width: 100%; border-collapse: collapse; }
+.metric-table th, .metric-table td { text-align: left; padding: 8px var(--s2); border-bottom: 1px solid var(--line-2); vertical-align: top; }
+.metric-table thead th { color: var(--muted); font-weight: 600; font-size: 0.75rem; }
+.metric-table tbody th { font-weight: 600; }
+.metric-retake { color: var(--risk-fg); }
+.metric-pairs { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.metric-pairs dt { font-weight: 600; font-size: 0.875rem; }
+.metric-pairs dd { margin: 0; }
+@media (max-width: 620px) {
+  .metric-ratio { grid-template-columns: minmax(0, 1fr); }
+  .metric-over { padding: 0; text-align: center; }
+  .metric-src { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .metric-src dd { margin-bottom: var(--s2); }
+  .metric-box { padding: var(--s3); }
+}

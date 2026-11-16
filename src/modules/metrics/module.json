@@ -118,6 +118,7 @@
     "U170",
     "U179",
     "U180",
+    "U181",
     "U161",
     "U72"
   ],
@@ -152,7 +153,8 @@
       "The Metrics sheet loads back (MI): an export loaded unchanged plans nothing; a row with no ID adds a metric owned by whoever loads it; a row with an ID changes that metric, and Retire with a Reason retires it; a name used twice, an ID that isn’t here and a unit change on a metric goals use are each a Must fix in the form’s words; one Undo puts every row back; with the module off the sheet is said once and not read.",
       "A Metrics sheet row whose Part of would put a metric under itself, directly or round a loop, is a Must fix in the library’s words (“Choose another parent: it’s already under this one.”), and an export of a metric with a parent, level, confidence and gaming loads back changing nothing.",
       "Metric quality (MQ2): every metric's stage and the parts it still needs are the `stage` rows of spec/conformance/metrics.csv; a Draft metric still measures a goal; the owner and whoever last changed the calculation are refused verifying in words that say who can; a Verified metric whose window changes asks once (lapse: go) and is Defined after, with the reason kept; a reworded exclusion asks its last verifier to confirm and Verified stands; a baseline needs its value, period, day and how, and a new figure for the same period needs a reason; save_baselines and verify_metric do the same through MCP, and refuse with the module-off sentence when Metrics is off (rule 13 to 16's worked examples).",
-      "Rhythm, handover and the sheet (MQ2 part 3): linking a goal to a metric that refreshes monthly gives the goal a monthly check-in rhythm, with a line in its History, and link_goal_metric returns it (data.rhythm) with a Draft metric's warning (data.draft); a monthly goal is due only in its month's last week and never reads No recent update in between (the core's goal-rhythm rule's worked examples); switching Metrics off puts every goal back on the cycle's rhythm; mark_person_left passes the leaving person's metrics to their team's lead, each to confirm, the stage unchanged, and lists them; the Metrics sheet reads What is measured, How aggregated, the parts, Window and Source link, and its dry run says the stages, similar metrics and each Draft's missing parts."
+      "Rhythm, handover and the sheet (MQ2 part 3): linking a goal to a metric that refreshes monthly gives the goal a monthly check-in rhythm, with a line in its History, and link_goal_metric returns it (data.rhythm) with a Draft metric's warning (data.draft); a monthly goal is due only in its month's last week and never reads No recent update in between (the core's goal-rhythm rule's worked examples); switching Metrics off puts every goal back on the cycle's rhythm; mark_person_left passes the leaving person's metrics to their team's lead, each to confirm, the stage unchanged, and lists them; the Metrics sheet reads What is measured, How aggregated, the parts, Window and Source link, and its dry run says the stages, similar metrics and each Draft's missing parts.",
+      "The screens (MQ2 part 4): the library shows each metric's stage first as a three-step shape with its word, best stage first, with Refresh and Window columns and one control counting All, Verified, Defined, Draft, To verify and To sort out (the demo: 13, 3, 5, 5); Draft and To sort out list the most goals first, each saying what it needs and who; a metric's page reads stage · refresh · window · direction under its name, then the calculation's parts, the source with its link, baselines per slice with History and the verification record; a change that lapses Verified is named at the top in a box with a full outline, never a side stripe."
     ],
     "gaps": [
       "The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
@@ -204,6 +206,7 @@
     "MetricPlaces": ["get_goal",  "get_metric",  "list_metrics"],
     "MeasuredBy": ["list_metrics",  "save_metric",  "link_goal_metric"],
     "GoalFilterSheet": ["list_metrics"],
-    "CheckInNumber": ["post_check_in",  "get_goal",  "get_metric"]
+    "CheckInNumber": ["post_check_in",  "get_goal",  "get_metric"],
+    "MetricQuality": ["get_metric",  "list_metrics",  "save_metric",  "verify_metric",  "save_baselines"]
   }
 }

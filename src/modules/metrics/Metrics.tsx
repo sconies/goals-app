@@ -9,6 +9,9 @@
    What is listed and in what order, a metric's goals and what it needs come from rulesLibrary.ts (rules 1 to 3). */
 import './qualityHooks';
 import { MeasureMark } from './measureMark';
+import { StageMark } from './stageMark';
+import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
+import { calcWords, missingLine, onDay, windowWords, type MetricStage } from './rulesQuality';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -30,7 +33,7 @@ import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
 import { MENU_NOW } from './names';
 import type { MetricMeasurement } from './types';
-import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
+import { decimalsWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, stageCounts, summaryLine, unitsInUse, type LibraryAsk, type LibraryRow, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
@@ -87,11 +90,18 @@ export function MetricsLibrary() {
   const dir = (['lower', 'higher'] as const).find((d) => d === params.get('dir'));
   const unused = params.get('unused') === '1';
   const sortout = params.get('sortout') === '1';
+  // MQ2 sketch 1: one segmented control picks the stage, To verify or To sort out; only one at a time.
+  const stage = (['verified', 'defined', 'draft'] as const).find((k) => k === params.get('stage'));
+  const toVerify = !stage && !sortout && params.get('verify') === '1';
+  const view: StageView = stage ?? (toVerify ? 'verify' : sortout ? 'sortout' : 'all');
   // Retired metrics (MT3) are left out of the list; ?retired=1 lists only them, so one can be found and brought back.
   const retired = params.get('retired') === '1';
-  const sort = (LIBRARY_SORTS.find(([k]) => k === params.get('sort'))?.[0] ?? 'name') as LibrarySort;
+  // Best stage first, so trusted numbers lead; Draft and To sort out are work lists, most goals first (journey 2).
+  const sortDefault: LibrarySort = view === 'draft' || view === 'sortout' ? 'goals' : 'stage';
+  const sort = (LIBRARY_SORTS.find(([k]) => k === params.get('sort'))?.[0] ?? sortDefault) as LibrarySort;
   const page = Number(params.get('page') ?? 1) || 1;
-  const ask: LibraryAsk = { q, unit, teamId, ownerId, dir, unused, sortout, retired, sort, page };
+  const ask: LibraryAsk = { q, unit, teamId, ownerId, dir, unused, sortout, retired, sort, page, stage, toVerify };
+  const counts = stageCounts(reads);
   const found = findMetrics(reads, ask);
   const live = reads.metrics.filter((m) => !m.removedAt).length;
   /** One history entry per choice; typing in the search replaces the entry as it goes. */
@@ -112,14 +122,14 @@ export function MetricsLibrary() {
     ...(ownerId ? [{ key: 'owner', label: 'Owner', values: [app.person(ownerId)?.name ?? 'someone who has left'] }] : []),
     ...(dir ? [{ key: 'dir', label: 'Which way is better', values: [dir] }] : []),
     ...(unused ? [{ key: 'unused', label: 'No goals use it', values: ['yes'] }] : []),
-    ...(sortout ? [{ key: 'sortout', label: 'Something to sort out', values: ['yes'] }] : []),
     ...(retired ? [{ key: 'retired', label: 'Retired', values: ['yes'] }] : []),
   ];
-  const clearFilters = () => set({ unit: null, team: null, owner: null, dir: null, unused: null, sortout: null, retired: null });
+  const clearFilters = () => set({ unit: null, team: null, owner: null, dir: null, unused: null, retired: null });
+  const pickView = (v: StageView) => set({ stage: v === 'verified' || v === 'defined' || v === 'draft' ? v : null, verify: v === 'verify' ? '1' : null, sortout: v === 'sortout' ? '1' : null, sort: null });
   const retiredCount = reads.metrics.filter((m) => !m.removedAt && m.retiredAt).length;
   const unitMenu = <MenuButton label="Unit" display={`Unit: ${unit || 'any'}`} items={[{ label: 'Any unit', current: !unit, onClick: () => set({ unit: null }) }, ...unitsInUse(reads.metrics).map((u) => ({ label: u, current: u === unit, onClick: () => set({ unit: u }) }))]} />;
   const teamMenu = <MenuButton label="Used by" display={`Used by: ${teamId ? teamName(teamId) : 'any team'}`} items={[{ label: 'Any team', current: !teamId, onClick: () => set({ team: null }) }, { label: 'The whole company', current: teamId === 'company', onClick: () => set({ team: 'company' }) }, ...usedBy.map((t) => ({ label: t.name, current: t.id === teamId, onClick: () => set({ team: t.id }) }))]} />;
-  const sortMenu = <SortMenu options={LIBRARY_SORTS} value={sort} onSort={(v) => set({ sort: v === 'name' ? null : v })} />;
+  const sortMenu = <SortMenu options={LIBRARY_SORTS} value={sort} onSort={(v) => set({ sort: v === sortDefault ? null : v })} />;
   const more = (
     <div className="stack" style={{ gap: 'var(--s4)' }}>
       {narrow && <div className="row metric-filter-menus">{unitMenu}{teamMenu}{sortMenu}</div>}
@@ -130,13 +140,13 @@ export function MetricsLibrary() {
         </div>
       </div>
       <label className="check"><input type="checkbox" checked={unused} onChange={(e) => set({ unused: e.target.checked ? '1' : null })} /><span>No goals use it</span></label>
-      <label className="check"><input type="checkbox" checked={sortout} onChange={(e) => set({ sortout: e.target.checked ? '1' : null })} /><span>Something to sort out</span></label>
       <label className="check"><input type="checkbox" checked={retired} onChange={(e) => set({ retired: e.target.checked ? '1' : null })} /><span>Retired metrics only</span></label>
     </div>
   );
   if (moved) return <Navigate to={moved} replace />;
   const filtered = parts.length > 0;
-  const order = LIBRARY_SORTS.find(([k]) => k === sort)?.[1] ?? 'A to Z';
+  const order = (LIBRARY_SORTS.find(([k]) => k === sort)?.[1] ?? 'Best stage first').replace(/^(?!A to Z)./, (c) => c.toLowerCase());
+  const views: [StageView, string, number][] = [['all', 'All', counts.all], ['verified', 'Verified', counts.verified], ['defined', 'Defined', counts.defined], ['draft', 'Draft', counts.draft], ['verify', 'To verify', counts.toVerify], ['sortout', 'To sort out', counts.sortout]];
   return (
     <div className="page metrics-page" ref={ref}>
       <div className="page-head metrics-head">
@@ -153,21 +163,31 @@ export function MetricsLibrary() {
           {!narrow && teamMenu}
           <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filters{parts.length ? ` · ${parts.length}` : ''}</button>
           {!narrow && sortMenu}
+          {/* On a phone the stage control folds into a menu beside Filters, so the first metric stays near the top. */}
+          {narrow && !retired && <MenuButton className="metric-stage-menu" label="Stage" display={`${views.find(([k]) => k === view)![1]} ${views.find(([k]) => k === view)![2]}`} items={views.map(([k, l, n]) => ({ label: `${l} ${n}`, current: view === k, onClick: () => pickView(k) }))} />}
         </ListBar>
+      )}
+      {live > 0 && !retired && !narrow && (
+        <div className="seg metric-stages" role="group" aria-label="Stage">
+          {views.map(([k, l, n]) => <button key={k} type="button" aria-pressed={view === k} onClick={() => pickView(k)}>{l} <span className="metric-stage-n">{n}</span></button>)}
+        </div>
       )}
       {live > 0 && <CountLine things={METRICS} n={found.total} narrowed={!!q.trim() || filtered} order={order} shown={found.total > LIBRARY_PAGE ? { from: found.from, to: found.to } : null} />}
       <FilterLine parts={parts} onRemove={(key) => set({ [key]: null })} onClear={clearFilters} />
       {live === 0 && <EmptyLibrary />}
-      {live > 0 && !found.total && (sortout && parts.length === 1 && !q.trim()
-        ? <p className="hint" role="status">Nothing to sort out. Every metric has a meaning, a source and an owner, and a goal that uses it. <button type="button" className="linkish" onClick={clearFilters}>Clear filters</button></p>
+      {live > 0 && !found.total && (view !== 'all' && !parts.length && !q.trim()
+        ? <p className="hint" role="status">{EMPTY_VIEW[view]} <button type="button" className="linkish" onClick={() => pickView('all')}>See all metrics</button></p>
         : <>
           <NoneFound things={METRICS} q={q} filtered={filtered} onClearSearch={() => set({ q: null })} onClearFilters={clearFilters} />
           {q.trim() && <p><Link to={`/metrics/new?name=${encodeURIComponent(q.trim())}`}>Add “{q.trim()}” as a new metric</Link></p>}
         </>)}
       {found.total > 0 && (
-        <ul className="metric-list" aria-label="Metrics">
-          {found.rows.map((r) => <li key={r.metric.id}><MetricRow metric={r.metric} owner={r.owner} goalIds={r.goalIds} needs={canEditMetric(app.viewer, r.metric) ? needsLine(r.needs) : ''} /></li>)}
-        </ul>
+        <>
+          {!narrow && <div className={view === 'sortout' ? 'metric-cols metric-cols-sortout small' : 'metric-cols small'} aria-hidden="true">{(view === 'sortout' ? ['Stage', 'Metric', 'What’s needed', 'Who', 'Goals'] : ['Stage', 'Metric', 'Refresh', 'Window', 'Owner', 'Goals']).map((h) => <span key={h}>{h}</span>)}</div>}
+          <ul className={narrow ? 'metric-list' : 'metric-list metric-list-wide'} aria-label="Metrics">
+            {found.rows.map((r) => <li key={r.metric.id}><MetricRow row={r} wide={!narrow} sortout={view === 'sortout'} needs={canEditMetric(app.viewer, r.metric) ? needsLine(r.needs) : ''} /></li>)}
+          </ul>
+        </>
       )}
       {found.pages > 1 && (
         <nav className="metric-pages row" aria-label="Pages">
@@ -189,19 +209,56 @@ function EmptyLibrary() {
   return <EmptyResult title="No metrics yet" action={<Link className="btn" to="/metrics/new">Add a metric</Link>}>You don’t need one until two goals share a number. Then say what it means once, here, and both goals mean the same thing.</EmptyResult>;
 }
 
-/** A metric in the library: a link to it, its unit, direction and owner, its goals by status, and (for its owner and
-    admins) the first thing to sort out. */
-function MetricRow({ metric: m, owner, goalIds, needs }: { metric: Metric; owner: string | null; goalIds: string[]; needs: string }) {
+type StageView = 'all' | MetricStage | 'verify' | 'sortout';
+const EMPTY_VIEW: Record<StageView, string> = {
+  all: 'No metrics yet.', verified: 'No metric is Verified yet. Someone other than its owner verifies it by reproducing its figure from the source link.',
+  defined: 'No metric is Defined but not yet verified.', draft: 'No Draft metrics: every metric is fully defined.',
+  verify: 'Nothing to verify. A metric joins this list once it is Defined, and again 30 days before its year is up.',
+  sortout: 'Nothing to sort out. Every metric is defined, has an owner, and a goal that uses it.',
+};
+
+/** A metric in the library (MQ2 sketch 1): its stage first, as the shape and word; its name with its type, unit and what
+    stops it reaching Defined (or that it was Verified until a date); its refresh, window and owner; and its goals by
+    status. On "To sort out" (sketch 11) the refresh and window give way to what's needed and who should do it. */
+function MetricRow({ row, wide, sortout, needs }: { row: LibraryRow; wide: boolean; sortout: boolean; needs: string }) {
   const app = useApp();
+  const { metric: m, owner, goalIds, stage: st } = row;
   const statuses = goalIds.map((id) => app.goal(id)).filter((g) => !!g).map((g) => app.statusOf(g!).status);
+  const sub = [calcWords(m.calculation), m.unit, st.stage === 'draft' ? (sortout ? '' : missingLine(st.missing)) : st.lapsed?.kind === 'change' ? `was Verified until ${onDay(st.lapsed.at)}` : st.lapsed ? `Verified until ${onDay(st.lapsed.at)}` : st.dueBy && st.toVerify ? `due again ${onDay(st.dueBy)}` : ''].filter(Boolean).join(' · ');
+  // The stage's own reasons first (a Draft's missing parts, a Gap, a handover…), then rule 3's that they don't cover.
+  const reasons = [...row.sortOut.map((x) => ({ words: x.words, who: x.who })), ...row.needs.filter((n) => n.id === 'partly' || n.id === 'unused').map((n) => ({ words: n.sentence, who: m.ownerId }))];
+  const goals = statuses.length ? <StatusCounts statuses={statuses} label={`${m.name}’s goals`} /> : <span className="metric-none">No goals yet</span>;
+  const name = (
+    <span className="metric-text">
+      <span className="metric-name">{m.name}</span>
+      {wide
+        ? <span className="hint">{sub}{measurementOf(m) !== 'measured' && <> · <MeasureMark k={measurementOf(m)} /></>}{m.retiredAt ? ' · retired' : ''}</span>
+        // A phone: one line, the stage first, then what a Draft needs, or the refresh and window.
+        : <span className="hint metric-phone-line"><StageMark k={st.stage} /> · {st.stage === 'draft' ? missingLine(st.missing) : `${m.refresh ? REFRESH_LABEL[m.refresh] : 'Refresh not said'} · ${windowWords(m.timeWindow)}`}{m.retiredAt ? ' · retired' : ''}</span>}
+    </span>
+  );
+  const whyCell = <span className="metric-why">{(reasons.length ? reasons : needs ? [{ words: needs, who: null }] : []).map((r, i) => <span key={i} className="metric-needs"><WarnMark />{r.words}</span>)}</span>;
+  const whoCell = <span className="small">{[...new Set(reasons.map((r) => (r.who ? app.person(r.who)?.name : null)).filter(Boolean))].join(', ') || owner || 'No owner'}</span>;
+  if (sortout) {
+    return (
+      <Link className={wide ? 'metric-row metric-row-wide metric-row-sortout' : 'metric-row'} to={metricPath(m)}>
+        {wide && <StageMark k={st.stage} />}
+        {name}
+        {whyCell}
+        {wide ? whoCell : null}
+        <span className="metric-side small">{goals}</span>
+      </Link>
+    );
+  }
   return (
-    <Link className="metric-row" to={metricPath(m)}>
-      <span className="metric-text">
-        <span className="metric-name">{m.name}</span>
-        <span className="hint">{m.unit} · {directionWords(m.direction)} · {owner ? `owned by ${owner}` : 'no owner'}{measurementOf(m) !== 'measured' && <> · <MeasureMark k={measurementOf(m)} /></>}{m.retiredAt ? ' · retired' : ''}</span>
-      </span>
+    <Link className={wide ? 'metric-row metric-row-wide' : 'metric-row'} to={metricPath(m)}>
+      {wide && <StageMark k={st.stage} />}
+      {name}
+      {wide && <span className="small">{m.refresh ? REFRESH_LABEL[m.refresh] : 'Not said'}</span>}
+      {wide && <span className="small">{windowWords(m.timeWindow)}</span>}
+      {wide && <span className="small">{owner ?? 'No owner'}</span>}
       <span className="metric-side small">
-        {statuses.length ? <StatusCounts statuses={statuses} label={`${m.name}’s goals`} /> : <span className="metric-none">No goals yet</span>}
+        {goals}
         {needs && <span className="metric-needs"><WarnMark />{needs}</span>}
       </span>
     </Link>
@@ -250,6 +307,7 @@ export function MetricPage() {
   const retired = !!m.retiredAt;
   const used = everUsed(m.id, linksOf(app.full ?? app.snapshot));
   const replaced = m.replacedBy ? all.find((v) => v.id === m.replacedBy) : undefined;
+  const st = stageFor(app, m);
   const bringBack = async () => { try { await app.run('unretireMetric', { metricId: m.id }); } catch { /* the rule's message is shown */ } };
   return (
     <div className="page metric-page">
@@ -263,11 +321,13 @@ export function MetricPage() {
       <div className="page-head row between metric-head">
         <div className="stack" style={{ gap: 4, minWidth: 0 }}>
           <h1 className="title-xl">{m.name}</h1>
-          <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} />}</span>
+          <QualityTop metric={m} st={st} />
+          <span className="hint">{decimalsWords(m.decimals).replace(/^./, (x) => x.toUpperCase())} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} />}</span>
         </div>
         {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
         {rows.length > 0 && <Link className={retired ? 'btn' : 'btn primary'} to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
       </div>
+      {!retired && <QualityNotices metric={m} st={st} />}
       <section className="stack metric-meaning" style={{ gap: 4 }} aria-labelledby="metric-meaning">
         <h2 className="label" id="metric-meaning">What it means and how it’s calculated</h2>
         {m.meaning ? <p className="metric-prose">{m.meaning}</p> : <p className="hint">Not said yet.{edit && <> <Link to={`${metricPath(m)}/edit?field=meaning`}>Say what it means</Link></>}</p>}
@@ -285,6 +345,10 @@ export function MetricPage() {
           )}
         </section>
       )}
+      <Calculation metric={m} />
+      <Source metric={m} />
+      <Baselines metric={m} />
+      <Verification metric={m} st={st} />
       <section className="stack" id="goals" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-goals">
         <h2 className="label" id="metric-goals">Goals measured by it · {rows.length}</h2>
         {rows.length ? <GoalsTable rows={rows} /> : <p className="hint">No goal uses this metric yet. A goal’s owner links it under “Measured by” when they make or change the goal.</p>}
@@ -302,9 +366,6 @@ export function MetricPage() {
         {line && <p className="small metric-summary">{line}</p>}
       </section>
       <dl className="metric-facts">
-        <dt>Where the number comes from</dt><dd>{m.source || 'Not said'}</dd>
-        <dt>Who owns that source</dt><dd>{m.sourceOwner || 'Not said'}</dd>
-        <dt>How often it refreshes</dt><dd>{m.refresh ? REFRESH_LABEL[m.refresh] : 'Not said'}</dd>
         <dt>Confidence in the number</dt><dd>{m.confidence ? <>{CONFIDENCE_WORDS[m.confidence].label}<span className="hint"> {CONFIDENCE_WORDS[m.confidence].meaning}</span></> : 'Not said'}</dd>
         <dt>Measured today</dt><dd><MeasureMark k={measurementOf(m)} />{measurementOf(m) !== 'measured' && m.measurementNote ? <span className="hint"> {m.measurementNote}</span> : null}</dd>
         {m.caveats && <><dt>Caveats</dt><dd>{m.caveats}</dd></>}

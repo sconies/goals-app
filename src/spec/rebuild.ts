@@ -403,7 +403,7 @@ export function commandNames(): string[] {
   const helper = (fn: string) => /^(can|may)[A-Z]/.test(fn) || fn === 'reviewHeld' || fn === 'leaving';
   // A rule whose action has another name: `planGoal` works out a goal's save, and the `saveGoal` action runs it;
   // `saveMetricAsked` asks rule 1's Checks before `saveMetric` saves, and the `saveMetric` action runs it.
-  const action: Record<string, string> = { planGoal: 'saveGoal', saveMetricAsked: 'saveMetric' };
+  const action: Record<string, string> = { planGoal: 'saveGoal', saveMetricAsked: 'saveMetric', confirmOwner: 'confirmMetricOwner', confirmReword: 'confirmMetricReword', answerAttempt: 'answerMetricAttempt' };
   return [...new Set(ACCESS.flatMap((a) => a.code).map((r) => r.split('#')[1]!).filter((fn) => !helper(fn)).map((fn) => action[fn] ?? fn))];
 }
 

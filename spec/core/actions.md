@@ -78,6 +78,11 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [retireMetric](#retiremetric) (metrics) | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retire_metric`](tools.md#retire_metric) |
 | [unretireMetric](#unretiremetric) (metrics) | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retire_metric`](tools.md#retire_metric) |
 | [mergeMetrics](#mergemetrics) (metrics) | Merge one metric into another in the same unit (MT3) | Admins | [`merge_metrics`](tools.md#merge_metrics) |
+| [verifyMetric](#verifymetric) (metrics) | Verify a metric, or record that its figure couldn’t be reproduced (MQ2) | An admin, someone in the source’s owning team, or a named verifier; never its owner or whoever last changed its calculation, window or source | [`verify_metric`](tools.md#verify_metric) |
+| [saveBaselines](#savebaselines) (metrics) | Set a metric’s baselines, or answer a “Couldn’t reproduce” (MQ2) | Its owner, or an admin | [`save_baselines`](tools.md#save_baselines) |
+| [confirmMetricOwner](#confirmmetricowner) (metrics) | Confirm a metric passed on when its owner left, or a reworded filter (MQ2) | The new owner; the last verifier (or another admin), never whoever reworded it | [`save_metric`](tools.md#save_metric) |
+| [confirmMetricReword](#confirmmetricreword) (metrics) | Confirm a metric passed on when its owner left, or a reworded filter (MQ2) | The new owner; the last verifier (or another admin), never whoever reworded it | [`save_metric`](tools.md#save_metric) |
+| [answerMetricAttempt](#answermetricattempt) (metrics) | Set a metric’s baselines, or answer a “Couldn’t reproduce” (MQ2) | Its owner, or an admin | [`save_metric`](tools.md#save_metric) |
 | [addField](#addfield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
 | [changeField](#changefield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
 | [moveField](#movefield) (tags) | Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`save_field`](tools.md#save_field) |
@@ -1784,6 +1789,155 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **AI tools that do the same:** [`merge_metrics`](tools.md#merge_metrics)
 
+## verifyMetric
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Verify a metric, or record that its figure couldn’t be reproduced (MQ2).
+
+**Input** (`VerifyIn`):
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+| `period` | `string` | yes |  |
+| `figure` | `number` | yes |  |
+| `note` | `string` | yes |  |
+| `openedLink` | `boolean` | yes |  |
+| `outcome` | `'verified' \| 'couldnt_reproduce'` | yes |  |
+| `reading` | `number \| null` | no |  |
+
+**Result:** `Commit`
+
+**Who may:** An admin, someone in the source’s owning team, or a named verifier; never its owner or whoever last changed its calculation, window or source.
+
+**The rule:** `verifyMetric`, in `src/modules/metrics/rulesVerify.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- ““…” is retired. Bring it back before verifying it.”
+- “The outcome is “verified” or “couldnt_reproduce”.”
+- “Open the source link first, and say so (opened_link): the figure must come from it.”
+- “Say the period the figure covers (“Aug–Oct 2026”).”
+- “Keep the period to … characters or fewer.”
+- “Give the figure you got from the link, as a number.”
+- “Add a note: what you checked it against.”
+- “Add a note: what differs, or what the definition doesn’t say.”
+- “Keep the note to … characters or fewer.”
+
+**AI tools that do the same:** [`verify_metric`](tools.md#verify_metric)
+
+## saveBaselines
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Set a metric’s baselines, or answer a “Couldn’t reproduce” (MQ2).
+
+**Input** (`BaselinesIn`):
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+| `baselines` | `BaselineInput[]` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Its owner, or an admin.
+
+**The rule:** `saveBaselines`, in `src/modules/metrics/rulesVerify.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Only … or an admin can set this metric’s baselines.”
+- ““…” is retired. Bring it back before setting its baselines.”
+- “Give at least one baseline.”
+
+**AI tools that do the same:** [`save_baselines`](tools.md#save_baselines)
+
+## confirmMetricOwner
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Confirm a metric passed on when its owner left, or a reworded filter (MQ2).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** The new owner; the last verifier (or another admin), never whoever reworded it.
+
+**The rule:** `confirmOwner`, in `src/modules/metrics/rulesVerify.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- ““…” has no handover to confirm.”
+- “Only … (the new owner) or an admin can confirm it.”
+
+**AI tools that do the same:** [`save_metric`](tools.md#save_metric)
+
+## confirmMetricReword
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Confirm a metric passed on when its owner left, or a reworded filter (MQ2).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** The new owner; the last verifier (or another admin), never whoever reworded it.
+
+**The rule:** `confirmReword`, in `src/modules/metrics/rulesVerify.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- ““…” has no rewording to confirm.”
+- “You reworded it, so someone else confirms it: … (who last verified it) or another admin.”
+- “Only … (who last verified it) or an admin can confirm the rewording.”
+
+**AI tools that do the same:** [`save_metric`](tools.md#save_metric)
+
+## answerMetricAttempt
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Set a metric’s baselines, or answer a “Couldn’t reproduce” (MQ2).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+| `note` | `string` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Its owner, or an admin.
+
+**The rule:** `answerAttempt`, in `src/modules/metrics/rulesVerify.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Only … or an admin can answer it.”
+- ““…” has no failed verification to answer.”
+- “Say what you changed, or why the figures differ.”
+- “Keep the answer to … characters or fewer.”
+
+**AI tools that do the same:** [`save_metric`](tools.md#save_metric)
+
 ## addField
 
 From the [tags](../modules/tags/README.md) module.
@@ -1938,7 +2092,7 @@ From the [tags](../modules/tags/README.md) module.
 
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 50 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 54 types.
 
 ### Answers
 
@@ -1946,6 +2100,22 @@ In `src/domain/problemLevels.ts`.
 
 ```ts
 export type Answers = Record<string, Answer>;
+```
+
+### BaselineInput
+
+In `src/modules/metrics/rulesQuality.ts`.
+
+```ts
+export interface BaselineInput { teamId: Id | null; part?: string; value: number; period: string; takenOn: string; how: string; reason?: string; read?: number | null }
+```
+
+### BaselinesIn
+
+In `src/modules/metrics/actions.ts`.
+
+```ts
+type BaselinesIn = { metricId: string; baselines: import('./rulesQuality').BaselineInput[] };
 ```
 
 ### CallKind
@@ -2673,6 +2843,22 @@ In `src/domain/tableFilter.ts`.
 
 ```ts
 export interface TableSort { col: string; dir: 1 | -1 }
+```
+
+### VerifyIn
+
+In `src/modules/metrics/actions.ts`.
+
+```ts
+type VerifyIn = { metricId: string } & import('./rulesVerify').VerifyInput;
+```
+
+### VerifyInput
+
+In `src/modules/metrics/rulesVerify.ts`.
+
+```ts
+export interface VerifyInput { period: string; figure: number; note: string; openedLink: boolean; outcome: 'verified' | 'couldnt_reproduce'; reading?: number | null }
 ```
 
 ### Via

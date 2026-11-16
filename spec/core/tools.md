@@ -82,13 +82,13 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`send_feedback`](#send_feedback) (feedback) | Send feedback about the app | changes | [sendFeedback](actions.md#sendfeedback) |
 | [`list_metrics`](#list_metrics) (metrics) | List the metric library | reads | — |
 | [`get_metric`](#get_metric) (metrics) | Read a metric | reads | — |
-| [`save_metric`](#save_metric) (metrics) | Add or change a metric | changes | [saveMetric](actions.md#savemetric) |
+| [`save_metric`](#save_metric) (metrics) | Add or change a metric | changes | [saveMetric](actions.md#savemetric), [confirmMetricOwner](actions.md#confirmmetricowner), [confirmMetricReword](actions.md#confirmmetricreword), [answerMetricAttempt](actions.md#answermetricattempt) |
 | [`remove_metric`](#remove_metric) (metrics) | Delete a metric no goal has used | changes; removes something | [removeMetric](actions.md#removemetric) |
 | [`retire_metric`](#retire_metric) (metrics) | Retire a metric, or bring one back | changes | [retireMetric](actions.md#retiremetric), [unretireMetric](actions.md#unretiremetric) |
 | [`merge_metrics`](#merge_metrics) (metrics) | Merge one metric into another | changes | [mergeMetrics](actions.md#mergemetrics) |
 | [`link_goal_metric`](#link_goal_metric) (metrics) | Say which metric measures a goal | changes | [linkGoalMetric](actions.md#linkgoalmetric), [unlinkGoalMetric](actions.md#unlinkgoalmetric) |
-| [`save_baselines`](#save_baselines) (metrics) | Set a metric’s baselines | changes | — |
-| [`verify_metric`](#verify_metric) (metrics) | Verify a metric | changes | — |
+| [`save_baselines`](#save_baselines) (metrics) | Set a metric’s baselines | changes | [saveBaselines](actions.md#savebaselines) |
+| [`verify_metric`](#verify_metric) (metrics) | Verify a metric | changes | [verifyMetric](actions.md#verifymetric) |
 | [`list_reviews`](#list_reviews) (reviews) | Reviews | reads | — |
 | [`get_review`](#get_review) (reviews) | A review’s agenda | reads | — |
 | [`review_call`](#review_call) (reviews) | Say something in a review | changes | [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed) |
@@ -5242,7 +5242,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “Say why, in a line. Every goal measured by it will show this.”
 - “Keep the reason to 300 characters or fewer.”
 
-**Does the same as:** [saveMetric](actions.md#savemetric), so it refuses with their words too.
+**Does the same as:** [saveMetric](actions.md#savemetric), [confirmMetricOwner](actions.md#confirmmetricowner), [confirmMetricReword](actions.md#confirmmetricreword), [answerMetricAttempt](actions.md#answermetricattempt), so it refuses with their words too.
 
 ## remove_metric
 
@@ -5628,7 +5628,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - ““…” is retired. Bring it back before setting its baselines.”
 - “Give at least one baseline.”
 
-**Does the same as:** no action: it reads, or does something only an assistant needs.
+**Does the same as:** [saveBaselines](actions.md#savebaselines), so it refuses with their words too.
 
 ## verify_metric
 
@@ -5721,7 +5721,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “Add a note: what differs, or what the definition doesn’t say.”
 - “Keep the note to … characters or fewer.”
 
-**Does the same as:** no action: it reads, or does something only an assistant needs.
+**Does the same as:** [verifyMetric](actions.md#verifymetric), so it refuses with their words too.
 
 ## list_reviews
 
