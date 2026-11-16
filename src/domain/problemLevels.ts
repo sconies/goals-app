@@ -71,7 +71,7 @@ export const MUST_KINDS = [
 export const CHECK_KINDS = [
   'near-ref', 'near-word', 'near-header', 'two-columns', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
-  'feeds-lower', 'for-someone-else', 'same-number', 'aim-changes', 'module-value',
+  'feeds-lower', 'for-someone-else', 'same-number', 'aim-changes', 'lapses-verified', 'module-value',
 ] as const;
 /** How a row was read: fine, and said on the change. */
 export const NOTE_KINDS = ['by-name', 'default', 'date-as-week', 'folded', 'same-name', 'left-alone', 'replaces', 'as-recorded', 'example'] as const;

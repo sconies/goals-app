@@ -32,6 +32,7 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
   const answer = onAnswer && ((g: IssueGroup, a: Answer, label: string) => { setSaid((x) => ({ ...x, [g.id]: { title: g.title, label } })); onAnswer(g.id, a); });
   // How rows were read: an owner found by their name rather than their email, say.
   const notes = cs.issues.filter((i) => i.severity === 'note');
+  const recordNotes = (cs.counts.records ?? []).flatMap((r) => r.notes ?? []);
   const groups = new Map<string, Item[]>();
   for (const it of cs.items) groups.set(it.goal, [...(groups.get(it.goal) ?? []), it]);
   const total = cs.items.length;
@@ -44,6 +45,12 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
         <span className="hint">{name}</span>
         <p className="lede">{total ? describe(cs) + '.' : errors.length ? `${errors.length} ${errors.length === 1 ? 'row has' : 'rows have'} a problem, so the file can’t be checked yet. Nothing has been saved.` : checks.length ? 'Answer the questions below to see what will change. Nothing has been saved.' : 'Nothing in this file changes anything.'}{cs.unchanged ? ` ${cs.unchanged} ${cs.unchanged === 1 ? 'row is' : 'rows are'} the same as now.` : ''}</p>
       </section>
+      {recordNotes.length > 0 && (
+        // A module's own sheet says what loading it would do (the Metrics sheet: stages, similar metrics, each Draft's gaps).
+        <section className="block" aria-label="What loading it does">
+          <ul className="issue-list">{recordNotes.map((x, i) => <li key={i}><span>{x}</span></li>)}</ul>
+        </section>
+      )}
 
       {errors.length > 0 && (
         <section className="block problems" aria-label="Problems to fix">

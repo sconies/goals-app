@@ -20,6 +20,7 @@ export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
   // A module's own sheet (MI): the metric library's Checks, raised by its planner (modules/metrics/sheetPlan).
   'same-number': { when: 'A Metrics row changes the meaning or source of a metric goals are measured by: is it still the same number?', raisedBy: 'The Metrics sheet’s planner (modules/metrics/sheetPlan.ts): spec/conformance/metrics.csv, rule sheet, case meaning-on-used.' },
   'aim-changes': { when: 'A Metrics row changes the direction of a metric goals are measured by, so they would aim the other way.', raisedBy: 'The Metrics sheet’s planner (modules/metrics/sheetPlan.ts), tested in modules/metrics/sheetPlan.test.ts.' },
+  'lapses-verified': { when: 'A Metrics row changes how a Verified metric is aggregated, its window, source link or what it counts, which takes it back to Defined until someone verifies it again.', raisedBy: 'The Metrics sheet’s planner (modules/metrics/sheetPlan.ts), tested in modules/metrics/sheetPlan.test.ts.' },
   // Must fix
   'required-empty': { when: 'A column a new row must have is empty: a goal’s name, owner, Start or Target, Limit or Stages for its type; a person’s name or email.' },
   'not-a-number': { when: 'A number column holds text: “six”, “12 days”, an effect that isn’t a number.' },

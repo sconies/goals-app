@@ -282,14 +282,14 @@ const help: Article[] = [
       { heading: 'Goals on a monthly metric check in monthly', list: [
         'A goal measured by a metric that refreshes monthly checks in once a month, by the month’s last due day, so the new figure is in first. One that refreshes quarterly checks in once a quarter. Nothing is due on it in between, and it never reads No recent update between refreshes.',
         'Linking the goal, or changing the metric’s refresh, sets this, with a line in the goal’s History. Unlinking it, or a refresh more often than monthly, puts it back on the workspace’s rhythm. Switching the Metric library off puts every goal back.',
-        'A Draft metric can still measure a goal. Linking one says what it still needs; the goal keeps working.',
+        'A Draft metric can still measure a goal, and the goal keeps working. Linking one through the AI assistant says what it still needs.',
       ] },
       { heading: 'When a metric’s owner leaves', list: [
         'When someone is marked as left, or leaves, the metrics they own pass to their team’s lead (to whoever takes over the team, if they led it). Each is listed under To sort out as “New owner, please confirm” until the new owner confirms. Its stage doesn’t change.',
       ] },
       { heading: 'Many metrics at once', list: [
         'The Metrics sheet in a download has a column for each part of the definition: What is measured, How aggregated, Counts, Filters, Leaves out, Numerator and Denominator with theirs, Formula, Window and Source link. Load it back to change many at once.',
-        'Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A new metric lands as Draft until all ten parts are said.',
+        'Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A change that would take a Verified metric back to Defined is asked first, and the Reason column says why. A new metric lands as Draft until all ten parts are said.',
       ] },
     ],
     routes: ['/metrics', '/metrics/:metricId'],

@@ -10695,6 +10695,7 @@ var init_problemLevels = __esmMin((() => {
 		"for-someone-else",
 		"same-number",
 		"aim-changes",
+		"lapses-verified",
 		"module-value"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
@@ -13342,9 +13343,12 @@ function* planChangesInChunks(input) {
 	const reviewsBefore = /* @__PURE__ */ new Map();
 	if (removals.length || leaving.length) {
 		const written = new Set(ciOut.map((o) => o.id));
+		const plannedRows = planned.reduce((m, p) => applyModuleRows(m, p.result.commit.modules), void 0);
+		const rowsNow = (base) => applyModuleRows(applyModuleRows(base, plannedRows), moduleOut) ?? {};
 		const xOf = () => ({
 			snapshot: {
 				...s,
+				modules: rowsNow(s.modules),
 				people: [...people.values()],
 				teams: [...teams.values()],
 				goals: [...work.values()],
@@ -13358,9 +13362,13 @@ function* planChangesInChunks(input) {
 			now,
 			newId,
 			...input.full ? {
-				full: input.full,
+				full: {
+					...input.full,
+					modules: rowsNow(input.full.modules)
+				},
 				allGoals: input.full.goals
-			} : {}
+			} : {},
+			...input.records ? { records: input.records } : {}
 		});
 		const merge = (c) => {
 			for (const g of c.goals ?? []) {
@@ -13387,6 +13395,7 @@ function* planChangesInChunks(input) {
 				if (!reviewsBefore.has(v.id)) reviewsBefore.set(v.id, s.reviews.find((x) => x.id === v.id));
 				reviewsOut.set(v.id, v);
 			}
+			if (c.modules) moduleOut = applyModuleRows(moduleOut, c.modules);
 			for (const t of c.teams ?? []) {
 				if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, {
 					before: savedTeam.get(t.id) ?? null,
@@ -17069,8 +17078,11 @@ function planMetricsSheet(api) {
 			const how = cell(api, r, "how aggregated").v;
 			if (how) {
 				const a = aggregateFrom(how);
-				if (a) Object.assign(base, a);
-				else must("How aggregated", `How aggregated says “${how}”. Use ${oneOf([
+				if (a) {
+					delete base.percentile;
+					delete base.per;
+					Object.assign(base, a);
+				} else must("How aggregated", `How aggregated says “${how}”. Use ${oneOf([
 					"total",
 					"mean",
 					"median",
@@ -17226,6 +17238,19 @@ function planMetricsSheet(api) {
 				continue;
 			}
 		}
+		let lapsed = "";
+		if (was && changing) {
+			const lapse = lapseChecks(ctx(), was, metricFrom(input, was, ctx()))[0];
+			if (lapse) {
+				const column = input.timeWindow ? "Window" : input.sourceLink ? "Source link" : "How aggregated";
+				const a = api.ask("lapses-verified", row, was.name, lapse.words, {
+					column,
+					answers: [...lapse.answers, LEAVE]
+				});
+				if (a === "leave" || a === null) continue;
+				lapsed = reason || `Loaded from the Metrics sheet: ${lapse.answers.find((c) => c.choice === a.choice)?.label ?? lapse.answers[0].label}.`;
+			}
+		}
 		if (act === "retire" && !reason) {
 			api.raise("required-empty", row, label, "Say why it is retired, in the Reason column. Its goals will show this.", { column: "Reason" });
 			continue;
@@ -17249,7 +17274,7 @@ function planMetricsSheet(api) {
 					...was ? { id: was.id } : {},
 					confirm: true,
 					...comparable !== void 0 ? { comparable } : {},
-					...reason ? { reason } : {}
+					...reason || lapsed ? { reason: reason || lapsed } : {}
 				});
 				if (res.commit) step(res.commit);
 				saved = res.metric;
@@ -17331,6 +17356,7 @@ var init_sheetPlan = __esmMin((() => {
 	init_records();
 	init_rulesDefine();
 	init_rulesChange();
+	init_rulesSave();
 	init_rules$1();
 	init_rulesStructure();
 	init_rulesQuality();
@@ -22662,7 +22688,7 @@ var help$5 = [
 				list: [
 					"A goal measured by a metric that refreshes monthly checks in once a month, by the month’s last due day, so the new figure is in first. One that refreshes quarterly checks in once a quarter. Nothing is due on it in between, and it never reads No recent update between refreshes.",
 					"Linking the goal, or changing the metric’s refresh, sets this, with a line in the goal’s History. Unlinking it, or a refresh more often than monthly, puts it back on the workspace’s rhythm. Switching the Metric library off puts every goal back.",
-					"A Draft metric can still measure a goal. Linking one says what it still needs; the goal keeps working."
+					"A Draft metric can still measure a goal, and the goal keeps working. Linking one through the AI assistant says what it still needs."
 				]
 			},
 			{
@@ -22671,7 +22697,7 @@ var help$5 = [
 			},
 			{
 				heading: "Many metrics at once",
-				list: ["The Metrics sheet in a download has a column for each part of the definition: What is measured, How aggregated, Counts, Filters, Leaves out, Numerator and Denominator with theirs, Formula, Window and Source link. Load it back to change many at once.", "Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A new metric lands as Draft until all ten parts are said."]
+				list: ["The Metrics sheet in a download has a column for each part of the definition: What is measured, How aggregated, Counts, Filters, Leaves out, Numerator and Denominator with theirs, Formula, Window and Source link. Load it back to change many at once.", "Before anything is saved, the preview says how many would be Draft, Defined and Verified, any new metric that looks like one already in the library, and what each Draft still needs. A change that would take a Verified metric back to Defined is asked first, and the Reason column says why. A new metric lands as Draft until all ten parts are said."]
 			}
 		],
 		routes: ["/metrics", "/metrics/:metricId"],

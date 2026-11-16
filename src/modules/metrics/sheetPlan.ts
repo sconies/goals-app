@@ -14,7 +14,8 @@ import type { Rec } from '../../domain/sheets';
 import type { Change, Goal } from '../../domain/types';
 import { nameChecks } from './rulesDefine';
 import { linkedGoals, retireMetric, saveMetricChange, unretireMetric } from './rulesChange';
-import { METRICS_KEY, metricsOf, MODULE, REFRESH_LABEL, type Metric, type MetricInput } from './rules';
+import { lapseChecks } from './rulesSave';
+import { METRICS_KEY, metricFrom, metricsOf, MODULE, REFRESH_LABEL, type Metric, type MetricInput } from './rules';
 import { CONFIDENCE_WORDS, CONFIDENCES, LEVEL_WORDS, LEVELS, parentRefusal, structureProblems } from './rulesStructure';
 import { AGGREGATE_LABEL, MEASURE_LABEL, missingLine, similarMetrics, stageOf, STAGE_LABEL, STAGES, windowFrom } from './rulesQuality';
 import type { MetricAggregate, MetricCalc, MetricMeasure } from './types';
@@ -159,7 +160,8 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
       const what = cell(api, r, 'what is measured').v;
       if (what) { const k = MEASURE_BY_WORD[fold(what)]; if (k) base.measure = k; else must('What is measured', `What is measured says “${what}”. Use ${oneOf(Object.values(MEASURE_LABEL))}, or leave it empty.`, what); }
       const how = cell(api, r, 'how aggregated').v;
-      if (how) { const a = aggregateFrom(how); if (a) Object.assign(base, a); else must('How aggregated', `How aggregated says “${how}”. Use ${oneOf(['total', 'mean', 'median', 'latest'])}, a percentile such as p90, or “mean per day”.`, how); }
+      // A new aggregate replaces the old one whole: p90 to median keeps no 90, mean per day to mean no per (#567 review).
+      if (how) { const a = aggregateFrom(how); if (a) { delete base.percentile; delete base.per; Object.assign(base, a); } else must('How aggregated', `How aggregated says “${how}”. Use ${oneOf(['total', 'mean', 'median', 'latest'])}, a percentile such as p90, or “mean per day”.`, how); }
       for (const [key, prefix] of [['part', ''], ['numerator', 'numerator '], ['denominator', 'denominator ']] as const) {
         const given = (['counts', 'filters', 'excludes'] as const).map((f) => [f, cell(api, r, key === 'part' ? PART_COLUMN[f] : `${prefix}${f === 'counts' ? '' : PART_COLUMN[f]}`.trim()).v] as const).filter(([, v]) => v);
         if (given.length) base[key] = { counts: '', filters: '', excludes: '', ...base[key], ...Object.fromEntries(given) };
@@ -224,6 +226,18 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
       }
       if ((comparable === false || (input.direction && input.direction !== was.direction)) && !reason) { api.raise('required-empty', row, label, `Say why, in the Reason column: ${goalsWord(n)} measured by ${was.name} and will show it.`, { column: 'Reason' }); continue; }
     }
+    // MQ2: a change that takes a Verified metric back to Defined is asked, as at every door (rulesSave lapseChecks); the
+    // Reason column, or else the answer, is kept as why it lapsed (#567 review).
+    let lapsed = '';
+    if (was && changing) {
+      const lapse = lapseChecks(ctx(), was, metricFrom(input, was, ctx()))[0];
+      if (lapse) {
+        const column = input.timeWindow ? 'Window' : input.sourceLink ? 'Source link' : 'How aggregated';
+        const a = api.ask('lapses-verified', row, was.name, lapse.words, { column, answers: [...lapse.answers, LEAVE] });
+        if (a === 'leave' || a === null) continue;
+        lapsed = reason || `Loaded from the Metrics sheet: ${lapse.answers.find((c) => c.choice === a.choice)?.label ?? lapse.answers[0]!.label}.`;
+      }
+    }
     if (act === 'retire' && !reason) { api.raise('required-empty', row, label, 'Say why it is retired, in the Reason column. Its goals will show this.', { column: 'Reason' }); continue; }
 
     // Saved through the library's own rules, in order: brought back, changed, retired.
@@ -234,7 +248,7 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
       const step = (c: { modules?: typeof snap.modules; goals?: Goal[]; changes: Change[] }) => { apply(c); rowChanges.push(...c.changes); for (const g of c.goals ?? []) goalsOut.set(g.id, g); };
       if (act === 'back') step(unretireMetric(ctx(), was!.id));
       if (changing) {
-        const res = saveMetricChange(ctx(), { ...input, ...(was ? { id: was.id } : {}), confirm: true, ...(comparable !== undefined ? { comparable } : {}), ...(reason ? { reason } : {}) });
+        const res = saveMetricChange(ctx(), { ...input, ...(was ? { id: was.id } : {}), confirm: true, ...(comparable !== undefined ? { comparable } : {}), ...(reason || lapsed ? { reason: reason || lapsed } : {}) });
         if (res.commit) step(res.commit);
         saved = res.metric;
       }
