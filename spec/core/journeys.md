@@ -141,7 +141,7 @@ Checks that Lane’s review notes stay fixed.
 | N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 | N27 | The rail’s Faro mark opens the workspace switcher, the Demo box stays on screen, and Escape returns focus to the mark | `RAIL-SWITCH` | `evals/notes/22-rail-switch.cjs` |
 | N28 | Small workspaces, quiet: no nought beside a tab or a menu row, and the empty Watching page says when you’d want it | `SMALL-QUIET` | `evals/notes/23-small-quiet.cjs` |
-| N30 | Small workspaces: a tab or a module’s row waits until it has something in it, and every address still opens | `SMALL-MENU` | `evals/notes/30-small-menu.cjs` |
+| N30 | Small workspaces: a tab waits until it has something in it, Metrics is in the menu from the first day, and every address still opens | `SMALL-MENU` | `evals/notes/30-small-menu.cjs` |
 | N31 | The check-in rhythm: the read-back counts what the rule counts; only an admin can change it | `RHYTHM-OPTIONAL` `ADMIN` | `evals/notes/31-rhythm.cjs` |
 
 ## How to read a journey’s steps
@@ -172,11 +172,12 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (359 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (366 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
 | `.about` | the about | [U49](../modules/reviews/journeys/U49.md), [U80](../modules/reviews/journeys/U80.md) |
+| `.agenda-line` | the agenda line | [U184](../modules/metrics/journeys/U184.md) |
 | `.ai-block` | the ai block | [U62](../modules/ai-access/journeys/U62.md) |
 | `.arow` | a goal’s attention row (its status shape, title and why) | [U2](journeys/U2.md), [U123](journeys/U123.md) |
 | `.arow .arow-who` | the owner’s name in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
@@ -322,8 +323,10 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.metric-readback` | the metric readback | [U106](../modules/metrics/journeys/U106.md) |
 | `.metric-retired` | the metric retired | [U106](../modules/metrics/journeys/U106.md) |
 | `.metric-row` | the metric row | [U81](../modules/metrics/journeys/U81.md), [U181](../modules/metrics/journeys/U181.md) |
+| `.metric-row .metric-name` | the metric name in the metric row | [U184](../modules/metrics/journeys/U184.md) |
 | `.metric-sortout` | the metric sortout | [U170](../modules/metrics/journeys/U170.md) |
 | `.metric-stage-menu > summary` | the summary in the metric stage menu | [U181](../modules/metrics/journeys/U181.md) |
+| `.metric-still` | the metric still | [U184](../modules/metrics/journeys/U184.md) |
 | `.metric-structure` | the metric structure | [U172](../modules/metrics/journeys/U172.md) |
 | `.metric-take-row` | the metric take row | [U182](../modules/metrics/journeys/U182.md) |
 | `.metric-top` | the metric top | [U181](../modules/metrics/journeys/U181.md), [U182](../modules/metrics/journeys/U182.md), [U183](../modules/metrics/journeys/U183.md) |
@@ -380,7 +383,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.read-back-n` | the read back n | [U115](journeys/U115.md) |
 | `.removed-block` | the removed block | [U43](journeys/U43.md) |
 | `.retro-row` | the retro row | [U117](journeys/U117.md) |
-| `.review-home` | the review’s page | [U3](../modules/reviews/journeys/U3.md) |
+| `.review-home` | the review’s page | [U3](../modules/reviews/journeys/U3.md), [U184](../modules/metrics/journeys/U184.md) |
 | `.review-rows` | the review rows | [U84](journeys/U84.md) |
 | `.reviewbar` | the reviewbar | [U3](../modules/reviews/journeys/U3.md) |
 | `.reviews-list` | the list of reviews | [U3](../modules/reviews/journeys/U3.md), [U104](../modules/reviews/journeys/U104.md), [U155](../modules/reviews/journeys/U155.md) |
@@ -452,7 +455,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-check="meaning"]` | the part `[data-check="meaning"]` | [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="name"]` | the part `[data-check="name"]` | [U83](../modules/metrics/journeys/U83.md), [U105](../modules/metrics/journeys/U105.md) |
 | `[data-check="part"]` | the part `[data-check="part"]` | [U160](../modules/metrics/journeys/U160.md), [U146](../modules/metrics/journeys/U146.md) |
-| `[data-check="similar"]` | the part `[data-check="similar"]` | [U180](../modules/metrics/journeys/U180.md) |
+| `[data-check="similar"]` | the part `[data-check="similar"]` | [U180](../modules/metrics/journeys/U180.md), [U184](../modules/metrics/journeys/U184.md) |
 | `[data-check="why"]` | the part `[data-check="why"]` | [U146](../modules/metrics/journeys/U146.md) |
 | `[data-field="target"]` | the part `[data-field="target"]` | [U163](journeys/U163.md) |
 | `[data-part="Baselines due"]` | the “Baselines due” part | [U182](../modules/metrics/journeys/U182.md) |
@@ -471,8 +474,9 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-part="Last time"]` | the “Last time” part | [U148](journeys/U148.md) |
 | `[data-part="No check-in this week"]` | the “No check-in this week” part | [U102](journeys/U102.md) |
 | `[data-part="No longer Verified"]` | the “No longer Verified” part | [U181](../modules/metrics/journeys/U181.md) |
+| `[data-part="Similar metric"]` | the “Similar metric” part | [U184](../modules/metrics/journeys/U184.md) |
 | `[data-part="Source"] a[href^="http"]` | the a in the “Source” part | [U181](../modules/metrics/journeys/U181.md) |
-| `[data-part="Still needed"]` | the “Still needed” part | [U182](../modules/metrics/journeys/U182.md) |
+| `[data-part="Still needed"]` | the “Still needed” part | [U182](../modules/metrics/journeys/U182.md), [U184](../modules/metrics/journeys/U184.md) |
 | `[data-part="Stopped goals"]` | the “Stopped goals” part | [U150](journeys/U150.md) |
 | `[data-part="Stopped goals"] li` | the list item in the “Stopped goals” part | [U150](journeys/U150.md) |
 | `[data-part="The workspace’s line"]` | the “The workspace’s line” part | [U176](journeys/U176.md) |
@@ -485,6 +489,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `#inbox` | the inbox | [U42](../modules/feedback/journeys/U42.md), [U47](../modules/feedback/journeys/U47.md), [U52](../modules/feedback/journeys/U52.md), [U175](../modules/ai-access/journeys/U175.md) |
 | `#metric-direction .level-fix` | the level fix in the metric direction | [U105](../modules/metrics/journeys/U105.md) |
 | `#metric-direction .seg[aria-invalid="true"]` | the seg in the metric direction | [U105](../modules/metrics/journeys/U105.md) |
+| `#metric-window` | the metric window | [U184](../modules/metrics/journeys/U184.md) |
 | `#more` | the more | [U136](journeys/U136.md) |
 | `#team-people` | the team people | [U53](../modules/feedback/journeys/U53.md) |
 | `a` | the link | [U72](../modules/metrics/journeys/U72.md) |
@@ -492,6 +497,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `a.home-team-needs` | the home team needs | [U123](journeys/U123.md) |
 | `a.teams-more` | the teams more | [U124](journeys/U124.md) |
 | `body` | the page | [U115](journeys/U115.md), [U117](journeys/U117.md), [U52](../modules/feedback/journeys/U52.md) |
+| `button, input, a` | the button, or the input, or the link | [U184](../modules/metrics/journeys/U184.md) |
 | `button[type=submit]` | the button | [U78](journeys/U78.md) |
 | `dl` | the dl | [U33](journeys/U33.md) |
 | `form.focus-body button[type=submit]` | the button in the focus body | [U38](journeys/U38.md), [U39](../modules/goal-map/journeys/U39.md) |
@@ -523,10 +529,11 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `section.habit` | the habit section | [U153](journeys/U153.md) |
 | `section[aria-labelledby="set-rec"]` | the section | [U62](../modules/ai-access/journeys/U62.md) |
 | `select` | the select | [U77](journeys/U77.md) |
-| `svg` | the svg | [U158](../modules/metrics/journeys/U158.md) |
+| `summary` | the summary | [U184](../modules/metrics/journeys/U184.md) |
+| `svg` | the svg | [U158](../modules/metrics/journeys/U158.md), [U184](../modules/metrics/journeys/U184.md) |
 | `svg.measure-shape` | the measure shape | [U170](../modules/metrics/journeys/U170.md) |
 | `svg.stage-shape` | the stage shape | [U181](../modules/metrics/journeys/U181.md) |
-| `svg[data-status]` | the svg | [U146](../modules/metrics/journeys/U146.md), [U106](../modules/metrics/journeys/U106.md), [U183](../modules/metrics/journeys/U183.md) |
+| `svg[data-status]` | the svg | [U146](../modules/metrics/journeys/U146.md), [U106](../modules/metrics/journeys/U106.md), [U183](../modules/metrics/journeys/U183.md), [U184](../modules/metrics/journeys/U184.md) |
 | `tbody tr` | the table row in the tbody | [U124](journeys/U124.md), [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
 | `td.hcell` | the hcell | [U38](journeys/U38.md) |
 | `td[tabindex="0"]` | the td | [U38](journeys/U38.md) |

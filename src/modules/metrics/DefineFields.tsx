@@ -10,6 +10,8 @@ import type { MetricAggregate, MetricCalc, MetricMeasure, MetricPart, MetricWind
 const MEASURE_HINT: Record<MetricMeasure, string> = { count: 'How many things', sum: 'Adds an amount up', value: 'A score or reading', duration: 'Time between two events', ratio: 'One over another', other: 'A formula in words' };
 const WINDOW_LABEL: Record<MetricWindow['kind'], string> = { point: 'Point in time', rolling: 'Rolling', period: 'Per period', cumulative: 'Cumulative since a date' };
 const empty: MetricPart = { counts: '', filters: '', excludes: '' };
+/** A mean's "per": each event, or per day, week or month (and one stored another way, kept as it is). */
+const PER_CHOICES = (per?: string): [string, string][] => [['', 'Each event'], ...[...new Set(['day', 'week', 'month', ...(per ? [per] : [])])].map((p): [string, string] => [p, `Per ${p}`])];
 
 /** The calculation's two fields and its parts. */
 export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undefined; onChange: (c: MetricCalc | null) => void }) {
@@ -45,12 +47,11 @@ export function CalcFields({ calc, onChange }: { calc: MetricCalc | null | undef
             {AGGREGATES.map((k) => <button key={k} type="button" aria-pressed={c.aggregate === k} onClick={() => aggregateTo(k as MetricAggregate)}>{k === 'percentile' ? 'Percentile (pXX)' : cap(AGGREGATE_LABEL[k])}</button>)}
           </div>
           {c.aggregate === 'mean' && (
-            <label className="field metric-pct"><span className="field-label">Per</span>
-              <select className="input" value={c.per ?? ''} onChange={(e) => onChange(e.target.value ? { ...c, per: e.target.value } : (({ per: _x, ...r }) => r)(c))}>
-                <option value="">Each event</option>
-                {[...new Set(['day', 'week', 'month', ...(c.per ? [c.per] : [])])].map((p) => <option key={p} value={p}>{`Per ${p}`}</option>)}
-              </select>
-            </label>
+            <div className="field metric-per"><span className="field-label" id="metric-per-l">Per</span>
+              <div className="seg metric-seg" role="group" aria-labelledby="metric-per-l">
+                {PER_CHOICES(c.per).map(([v, label]) => <button key={v} type="button" aria-pressed={(c.per ?? '') === v} onClick={() => onChange(v ? { ...c, per: v } : (({ per: _x, ...r }) => r)(c))}>{label}</button>)}
+              </div>
+            </div>
           )}
           {c.aggregate === 'percentile' && (
             <label className="field metric-pct"><span className="field-label">Percentile</span>

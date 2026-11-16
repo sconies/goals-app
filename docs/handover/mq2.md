@@ -37,32 +37,26 @@ Lane approved MQ2 on 15 Nov. The decisions are in the MQ2 row of `docs/backlog.m
 5. A goal's rhythm is a goal column (`check_in_rhythm`), filled in from the metric's refresh, like `unmeasured_since`.
 6. A monthly or quarterly goal is due by its period's last due day (Faro doesn't know the refresh day), and goes quiet after two periods (62 or 184 days). The demo's two goals on monthly metrics (cloud cost, developer satisfaction) now check in monthly, so the demo shows it.
 
-## Next (16 Nov, part 4 under way)
+## Part 4 (16 Nov)
 
-Part 4 is three PRs, A first, each merged with auto-merge when green:
-- **A: PR #571** (`claude/mq2-screens-a`), open with auto-merge on. When it merges, send its number to the reviewer.
-- **B** is `claude/mq2-screens-b` (one commit on A), and **C** is `claude/mq2-screens-c` (B, then C, then this note). Once #571 merges: merge main into B, run `npm run spec`, `npm run build:mcp` and the gate (`evals:changed` covers U182), open B with auto-merge, then the same for C (U183). The B and C commits have passed typecheck and unit tests; U182 and U183 haven't run under the gate yet.
-- Gate notes from A: F6, N18 and `clock.test.tsx` fail under the parallel full suite's load and pass alone. U105 caught a real one: the page's Source section had been labelled "Source", so it was found by the form field's `getByLabel('Source')` (fixed in A).
-
-- **A, the library and a metric's page** (sketches 1, 2, 6, 8, 11): `stageMark.tsx` (the three-step shape with its word), `MetricQuality.tsx` (top line, the outlined boxes for a lapse, a failed attempt, a handover and a rewording, the calculation, the source, baselines, the verification). The library sorts best stage first and has the stage control with counts. `findMetrics`' `sortout` now joins rule 3's needs and `sortOutOf` (list_metrics' `sort_out` uses it). New actions: `verifyMetric`, `saveBaselines`, `confirmMetricOwner`, `confirmMetricReword`, `answerMetricAttempt` (rulesVerify.ts loads on first use). Journey U181.
-- **B, defining and baselines** (sketches 3, 4, 9): `DefineFields.tsx` on the metric form (two-field calculation with its parts, structured window, source link and query, "To reach Defined, still needed: n of 10"), `BaselineForms.tsx` (`/metrics/:id/baseline`, `/metrics/baselines`, and Home's line in a quarter's first week through `home.blocks`). `lastQuarter` spells its own months (Chromium says "Sept"). Journey U182.
-- **C, verifying, the picker and the goal** (sketches 5, 7, 10): `VerifyForm.tsx` (`/metrics/:id/verify`), Measured by rows with stage, window and refresh, Defined and Verified first (`rulesMeasure.metricRow`, `searchMetrics`), quick add asking only name, unit and direction, and the Draft warning in `GoalMetric` (goal.sections) with the stage and refresh in `GoalMeasuredBy` (goal.facts). Journey U183.
-
-First download after C: 269 KB of 275. Every screen file loads lazily.
+- **A: #571, merged.** The library by stage and a metric's page (sketches 1, 2, 6, 8, 11). Journey U181.
+- **B: #574, merged 09:30 UTC.** Defining part by part and baselines (sketches 3, 4, 9). Journey U182. Its red smoke was `api/mcp.js` built in a git worktree: esbuild wrote `../goals-app/node_modules` into 37 path comments, so CI's freshness check failed. **Always build `api/mcp.js` from the repository root, never from a worktree.**
+- **C: #576**, auto-merge on. Verifying, Measured by with Defined first, a goal's Draft warning (sketches 5, 7, 10). Journey U183.
+- **D: branch `claude/mq2-screens-d`**, on C:
+  - The core place `review.row`: one read-only line under a review agenda's row, filled by `ReviewRowMetric` (journey 9).
+  - Sketch 12's similar card (`SimilarCheck` in `Metrics.tsx`).
+  - #571's three mediums: a Draft's page says "Still needs: …" with links; phone To sort out rows are full width; an admin confirms a rewording through `mayConfirmReword`.
+  - #574's three mediums: the window and aggregate wrap on a phone; a cleared window is sent as null and a half-set window isn't said; a new aggregate drops `percentile` and `per`, and Mean has a Per field.
+  - Lane's decision (16 Nov): Metrics is in the menu from a workspace's first day. `menu.waitsFor` is dropped for metrics; the mechanism stays. N30 is turned round; the empty library's Add a metric is its one primary.
+  - Journey U184. Docs follow the build; the backlog marks MQ2 Done, and a verifier's Home line (journey 3) is deferred there.
 
 ## Still to build
 
-### Part 4, what's left
-- **Review agenda rows** (journey 9): one quiet line under a goal's row, "Change failure rate · Verified 3 Nov · refreshed weekly", and "Draft metric" with the warning mark. Reviews has no place for it: add a named place (for example `review.row`) to `src/core/module.ts` PLACES and `src/core/app.tsx`, render it on the agenda row, document it in `docs/architecture.md` and the module map, and fill it from MetricPlaces. It touches the core, so the full suite runs.
-- **Sketch 12's look for the similar-metric check**: the form asks it since #566 (`data-check="similar"`); give it the sketch's card (the similar metric's stage, meaning, source, owner and goals, with Use this one and It's different, carry on).
-- **#570's medium** (from planning, 16 Nov): the import's check screen (`src/modules/spreadsheets/Check.tsx`) shows none of the Metrics sheet's stage notes; #570 drew them only in `src/ui/Preview.tsx` (the Data tables). Show the stage counts and each Draft row's needs on Check.tsx, with a journey step that fails on main (a pasted Metrics table whose new metric lands as Draft). Fits C or a small PR of its own; send its number to the reviewer.
-- "n metrics to verify" on a verifier's Home (journey 3) is not in the sketches' list; ask planning before building it.
-
-Each needs P6 (no stripes, pills or emoji), a journey, Help, the What's new `metric-quality` entry, the parity map and the rebuild exit lines.
+Nothing in MQ2 once D merges. Open lows are in the reviewer's log on `build-reviews`.
 
 ## How to run it
 - Read `CLAUDE.md`.
 - Mechanical work goes to Sonnet subagents: eval runs, `npm run spec`, `npm run build:mcp`, merging main and resolving What's new.
-- Report merges, failures and decisions Lane must make to planning (`session_012kbr91eefh4gwCAztBncNT`).
+- Report merges, failures and decisions Lane must make to planning (`session_012kbr91eefh4gwCAztBncNT`). The build session from 16 Nov, 08:00, is `session_012kbr8yw65g7pJoQjRG9q19`.
 - Send each merged PR number to the build reviewer (`session_012kbr8yhSnbewc3YnAc52AT`).
 - Hand over at about 300k tokens of context.

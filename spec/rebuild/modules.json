@@ -151,14 +151,12 @@
     "navigation": [
       "Metrics"
     ],
-    "menu": {
-      "waitsFor": "metrics"
-    },
     "places": [
       "home.blocks",
       "goal.facts",
       "goal.measure",
       "goal.sections",
+      "review.row",
       "people.person",
       "people.team",
       "checkin.number",
@@ -254,6 +252,7 @@
       "U181",
       "U182",
       "U183",
+      "U184",
       "U161",
       "U72"
     ],
