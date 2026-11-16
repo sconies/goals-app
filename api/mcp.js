@@ -18990,7 +18990,8 @@ var _virtual_faro_modules_default = [
 				"verify_metric",
 				"get_metric",
 				"list_metrics"
-			]
+			],
+			"HomeVerify": ["list_metrics", "get_metric"]
 		}
 	},
 	{
@@ -22821,7 +22822,8 @@ var help$5 = [
 			"MetricQuality",
 			"DefineFields",
 			"BaselineForms",
-			"VerifyForm"
+			"VerifyForm",
+			"HomeVerify"
 		],
 		reqs: [
 			"METRIC-STAGE",
@@ -26533,13 +26535,6 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
-		id: "metrics-to-verify-home",
-		date: "2026-11-16",
-		title: "Home says which metrics are yours to verify",
-		points: ["If you may verify a metric waiting on To verify, Home now says how many under Metrics to verify, such as “2 metrics to verify”, and names the ones due soonest, each opening its page.", "Nothing shows when none is yours to verify, or while the Metric library is off."],
-		articles: ["metric-quality"]
-	},
-	{
 		id: "metric-quality",
 		date: "2026-11-16",
 		title: "Metrics are Draft, Defined or Verified",
@@ -26548,7 +26543,7 @@ var WHATS_NEW = [
 			"A metric can say exactly how it is calculated: what is measured and how it is aggregated, with a ratio’s numerator and denominator, and a window such as “rolling 28 days”. Baselines are kept per team, with History; a changed figure needs a reason.",
 			"A goal measured by a metric that refreshes monthly or quarterly now checks in once a month or quarter, and never reads No recent update in between. A review’s agenda says under each goal what measures it, its stage and its refresh, or “Draft metric” with the warning mark.",
 			"Adding a metric shows a similar one already in the library first, as a card, with Use this one. When a metric’s owner leaves, their metrics pass to their team’s lead to confirm. The Metrics sheet takes every part of the definition, and its preview says how many metrics would be Draft, Defined and Verified.",
-			"Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source. Verify a metric from its page, and pick Defined metrics first in Measured by.",
+			"Metrics shows each metric’s stage first, with Refresh and Window columns and one control for Verified, Defined, Draft, To verify and To sort out. A metric’s page shows its calculation’s parts, its source, its baselines and who verified it. Its form defines it part by part and counts what is still needed to reach Defined, and Take this quarter’s baselines fills each figure from its source. Verify a metric from its page, and pick Defined metrics first in Measured by. Home tells anyone who may verify a metric how many are waiting for them (“2 metrics to verify”).",
 			"The AI assistant does all of it too: list_metrics, get_metric, save_metric and link_goal_metric show and take the new parts, and save_baselines and verify_metric are new."
 		],
 		articles: [
