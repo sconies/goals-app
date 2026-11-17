@@ -46,3 +46,21 @@ li:first-child > .grow, .grow:first-child { border-top: 0; }
   .grow > .grow-value > .result-tag::before { content: none; }
   .grow > .grow-act { align-self: start; }
 }
+
+/* A list whose rows are tasks (Home's goals, the check-in queue) keeps the action column on every row from 700px, with or
+   without a button, so the values line up down the list. */
+@container app (min-width: 700px) {
+  .grow[data-place="home-mine"]:not(.has-act), .grow[data-place="checkin-queue"]:not(.has-act) { grid-template-columns: 140px minmax(0, 1fr) 168px 108px; grid-template-areas: "status name value ." ". why value ." ". ctx value ."; }
+}
+/* The queue's list item only holds the row: the row lays itself out (the old .ciq-row grid squeezed it into 8.5rem). */
+.ciq-row:has(> .grow) { display: block; padding: 0; }
+/* The check-in queue sits in a narrow column (about 540px at 1440): there the row lays out by its list's width, as on a
+   phone, so the name keeps a full line (review of #591). */
+.ciq-list { container: rowlist / inline-size; }
+@container rowlist (max-width: 639px) {
+  .ciq-list .grow, .ciq-list .grow[data-place="checkin-queue"]:not(.has-act) { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "status value" "name name" "why why" "ctx ctx"; row-gap: 4px; column-gap: 8px; }
+  .ciq-list .grow.has-act { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "status act" "value act" "name name" "why why" "ctx ctx"; }
+  .ciq-list .grow > .grow-value { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; column-gap: 8px; text-align: left; }
+  .ciq-list .grow > .grow-value > * + *::before { content: '· '; color: var(--muted); }
+  .ciq-list .grow > .grow-act { align-self: start; }
+}

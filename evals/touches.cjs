@@ -50,6 +50,8 @@ const RULES = [
   [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'U77', 'U141', 'U78', 'U79', 'U80', 'F4', 'F14', 'N2', 'N9', 'N6', 'N15']],
   // One form footer (UX2b): the focused tasks' footers and exits.
   [/^src\/screens\/(CheckInFlow|GoalWizard|GoalEdit|Onboarding|QuickCheckIn|Review|Retro)\.tsx|^src\/domain\/formFooter\.ts/, ['P20']],
+  // One goal row (GOAL-ROW, UX2a): its rule, component and CSS score the row's check, its journey and the lists' journeys.
+  [/^src\/domain\/goalRow\.ts$|^src\/ui\/goalRows\.tsx$|^src\/styles\/goal-row\.css$|^src\/screens\/(CheckInQueue|Watching)\.tsx$/, ['P11', 'U186', 'U71', 'F1', 'F4', 'N1']],
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalFilters|GoalHistory)\.tsx|^src\/ui\/HealthLine\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6', 'N10']],
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
