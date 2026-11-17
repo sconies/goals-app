@@ -2973,3 +2973,9 @@ Read `docs/design/patterns/spec.md` in full, the backlog's new "Usability study,
 - **Low:** 1.5's stale case starts its reason with the warning mark, but 1.2 keeps the mark for a flag that isn't the status. Today the stale flag draws the dashed ring (`bits.tsx:167`).
 - **Low:** 3.3 rule 2, "the primary is never disabled", should except a save in progress, which every form disables today.
 - **Closed, all four, before merge** (the design session's fix, about 11:55 UTC): the Name slot carries `goalTell` and `rowParts` returns `tell`; the queue's reason is last week's own words, or nothing; the stale reason has no mark ("off", "risk" and "stale" are the status); the primary is disabled only while saving. Read in the diff.
+
+### #586 UX1 1/3: the review cadence wraps, P9 visits the forms, Settings links every section (merged c05194a6)
+
+Read the whole diff (six files, small). Checked: `set-rec` and `set-motion` always render, so no link is dead; the order of `SECTIONS` follows the page; P9's new route pattern (`/^\/check-in|\/new$|\/edit$/`) excuses only focus-mode forms; `.seg.full` is a tray with a gap, so a wrapped choice reads cleanly; Help's new line ("stays at the top… with the section you're in lit") matches `.section-links` (sticky) and `SectionLinks`' `lit`. P6 now skips `visibility: hidden` shapes. That is narrow (the map's nodes before they are measured), and a shape is still judged once it shows. No What's new (fixes, `[no news]`), as CLAUDE.md allows. #587 (CLAUDE.md, prompt-cache habits) is docs only.
+
+- **No findings.**
