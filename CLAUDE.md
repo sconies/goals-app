@@ -33,6 +33,14 @@
   - Routine commands can be pre-approved in `.claude/settings.json`. Lane decides what goes there; Claude adds an entry only when he asks for it (13 Nov: `create_session` and `send_message`, so planning starts and messages tracks without an approval each time).
 - **When a session hands over (Lane, 14 Nov; replaces the 13 Nov "80%" rule):** every turn re-reads the whole context. Cached reads are cheap per token, but at 500k+ tokens they are most of the bill: on 13 Nov, about $1,430 across 28 sessions, mostly re-reading (track 4 re-read 760M tokens to write 1.2M; the reviewer 664M). A fresh start costs 50–100k tokens to read in. So:
   - **Build sessions** hand over at about **300k tokens of context** (check with `get_session`, `context_usage.used_tokens`), when the list is done, or when they notice they are losing track, whichever comes first. Keep context lean while working: grep instead of reading whole files, and send eval runs and long logs to a subagent that returns only the result.
+  - **The prompt cache (Lane, 17 Nov; from inevolin/claude-code-usage-analysis):** most of the cost is the whole context being rewritten when the cache misses, not what is typed. Cloud sessions use a 1-hour cache. Resuming a large context after more than an hour idle costs about 10× a warm turn. So:
+    - a session with a large context (over about 150k tokens) that expects to wait more than an hour (for CI, a reply or a decision) hands over first, and a fresh session picks the work up;
+    - a session's own check-ins land within the hour (`send_later` at 30–50 minutes), never just after it;
+    - a session keeps its model and tool list from start to finish (a change mid-task rewrites the cache, about 22× a turn), so planning chooses the model when it starts a session;
+    - long output (eval logs, CI logs, diffs, file dumps) stays out of the main context: a subagent reads it and returns a few lines (+15–64% on the next turns otherwise);
+    - small related fixes go to a session that is already warm, not to a new one.
+
+    CLAUDE.md edits, an added MCP server and an effort change mid-session don't break the cache.
   - **Mechanical work goes to Sonnet subagents** (`model: "sonnet"`): merging main and resolving What's new, rebuilding `api/mcp.js` and `spec/`, eval runs and reruns, docs edits, watching CI. The build session keeps design, code and review decisions.
   - **The build reviewer** starts fresh every day, or after about 20 PRs, from its log on `build-reviews`.
   - **The planning session** keeps its context small (no PR subscriptions or CI relaying; builds report once) and hands over at about 300k, or after a long run, by updating `docs/handover/planning.md` (replacing its entry) and giving Lane a ready-to-paste prompt.
