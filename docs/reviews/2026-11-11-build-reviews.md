@@ -2985,3 +2985,11 @@ Read the whole diff (six files, small). Checked: `set-rec` and `set-motion` alwa
 Read the whole diff except spec/ and api/mcp.js. Checked: `beforeReviewText` is the one source (habit spec, rules.ts, unit tests and U153 all moved together); "this week" in the present tense is safe, because `week` is `min(s.week, app.week)`, so a still-to-come week is never past the due day; the fold is `details.disclose`, the panel stays above the agenda (HB2), and U153 now asserts the fold; the phone goal bar isn't sticky, so the utilities' new row adds no sticky height; the new 360 px check sits in `platformChecks`. Help is updated in both articles. No What's new (`[no news]`), which is right for study fixes.
 
 - **Low:** a review's page now says "19 flagged · 37 not flagged", while Home's review card still says "19 goals to discuss" and "…with nothing flagged to mark reviewed" (`src/domain/home.ts:213`), and the walk's Help says "the goals to discuss". These are two words for the same count on adjacent screens. UX2a's agenda row is a good moment to settle on one.
+
+### #589 UX1 3/3: the one table offered near the top of Check-in (F02; merged 79b02a70)
+
+Read the whole diff except spec/ and api/mcp.js. Lane agreed to F02 on 17 Nov (the backlog now says so). The top link counts `p.due`, the same "to do" list that Start with reads, and it uses the same two-number-goal threshold as the spec. It is a `linkish` paragraph, so Start with stays the one primary; U71 asserts both that it is in view and that there is only one `.btn.primary`. The check-in README and spec, Help (two articles) and What's new (`checkin-table-top`, right: a visible change to how a feature works) move with it. `lookup.test.ts` now skips the articles when it looks for the last release's id: narrow, and explained.
+
+- **No findings.** (Already true before this PR: the link under the list on the weekly view shows with one number goal, `CheckInQueue.tsx:117`, while the README says two. Not raised.)
+
+UX1 is complete: #586, #588, #589.
