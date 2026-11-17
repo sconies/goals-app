@@ -8858,10 +8858,12 @@ async function platformChecks() {
         if (wide) {
           // Values line up down one list: the rows of a place in one block of the page.
           const lists = new Map();
-          for (const e of rows) {
-            const key = (e.dataset.place || '') + '|' + [...document.querySelectorAll('section, .agenda, main')].indexOf(e.closest('section, .agenda, main'));
+          for (const e of rows.filter((x) => getComputedStyle(x).gridTemplateColumns.split(' ').length >= 3)) {
+            const key = (e.dataset.place || '') + '|' + [...document.querySelectorAll('ul, ol')].indexOf(e.closest('ul, ol'));
             lists.set(key, [...(lists.get(key) ?? []), Math.round(e.querySelector('.grow-value').getBoundingClientRect().right * 10) / 10]);
           }
+          // The name always has room: never squeezed into a sliver by a list item's own grid (review of #591).
+          for (const e of rows) { const nb = e.querySelector('.grow-name').getBoundingClientRect().width; if (nb < 160) { out.push(`a name is only ${Math.round(nb)}px wide in ${e.dataset.place}`); break; } }
           for (const [key, edges] of lists) if (Math.max(...edges) - Math.min(...edges) > 1) out.push(`the values’ right edges in ${key.split('|')[0]} differ by ${Math.round(Math.max(...edges) - Math.min(...edges))}px`);
         } else {
           for (const e of rows) {
