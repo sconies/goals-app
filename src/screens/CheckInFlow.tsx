@@ -35,7 +35,10 @@ import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 import { Place, useModules, type NumberStep } from '../core/app';
 import { readingLine } from '../domain/readingWords';
-import { dueWordsHere, reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn, watchingOn } from '../app/reads';
+import { goalsIn, watchScope } from '../domain/review';
+import { FormFooter } from '../ui/FormFooter';
+import { checkInNext, checkInPostSays } from '../domain/formFooter';
 
 /**
  * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
@@ -139,7 +142,7 @@ function Flow({ goalId }: { goalId?: string }) {
         <span className="small strong ci-week">{fixing ? 'Correct a check-in · ' : ''}Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <FormClose keeps onClose={() => nav(closeTo)} />
+          <FormClose keeps dirty={drafting && !justPosted} onClose={() => nav(closeTo)} />
         </span>
       </div>
       {justPosted ? (
@@ -519,8 +522,15 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
     go('account');
   };
 
-  // Continue until the step that posts; before a number is typed, the number's step isn't known to be the last.
-  const label = saving ? 'Posting…' : step === 'measure' && numberStep?.label ? numberStep.label : last && (step !== 'measure' || valueOk) ? 'Post check-in' : 'Continue';
+  // The primary names what happens (FORM-FOOTER): the next step by its question, or posting on the last. Before a number
+  // is typed the next step isn't known, so it says only "Next".
+  const nextStep = plan[plan.indexOf(step) + 1];
+  const nextLabel = checkInNext(nextStep === 'carry' || nextStep === 'account' ? nextStep : null, { why: needsWhy, reason: e.reason === 'ahead' ? 'ahead' : 'behind', milestone: goal.kind === 'milestone' });
+  const label = saving ? 'Posting…' : step === 'measure' && numberStep?.label ? numberStep.label : last && (step !== 'measure' || valueOk) ? 'Post check-in' : nextLabel;
+  // On the last step the status line says what posting does: on record for the week, and who sees it.
+  const watchingHere = watchingOn(useModules().on);
+  const watcherCount = watchingHere ? app.snapshot.people.filter((p) => p.id !== goal.ownerId && goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).length : 0;
+  const postSays = checkInPostSays(week, watcherCount);
   // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
   const carryOffered = useRef(false);
   if (canCarry) carryOffered.current = true;
@@ -726,13 +736,11 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
       )}
 
       {step !== 'carry' ? (
-        <div className="focus-foot" key="foot">
-          <div className="foot-row">
-            {(trail.length > 0 || step !== 'measure') && <button type="button" className="btn ghost" onClick={back}>Back</button>}
-            <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
-          </div>
-          {tried && step === 'measure' && !gate.go && <p className="hint tone-off foot-says" role="status">{gate.says}</p>}
-        </div>
+        <FormFooter key="foot" onBack={trail.length > 0 || step !== 'measure' ? back : undefined}
+          status={tried && step === 'measure' && !gate.go ? gate.says : last && label === 'Post check-in' && !correcting ? postSays : null}
+          statusTone={tried && step === 'measure' && !gate.go ? 'off' : undefined}>
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
+        </FormFooter>
       ) : (
         // Both answers live in the footer, so neither can load out of sight under it: the primary on the right. Its own
         // key, so React never turns "Something changed" into the next step's submit button mid-click.

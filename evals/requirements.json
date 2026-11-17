@@ -807,6 +807,12 @@
       "use": "copy"
     },
     {
+      "id": "FORM-FOOTER",
+      "area": "Navigation",
+      "text": "One form footer on every focused task: a status line above the buttons (what the primary does on the last step, or what is left to fix), Back at the left from the second step on, and one filled primary at the right labelled with a verb and an object or the next step by name (“Next: why it’s behind”, “Post check-in”, “Post 5 check-ins”), never “Continue”, “Submit”, “OK” or “Save” alone. The exit stays the header's, top right: a form that keeps drafts says “Close” until something is typed, then “Close and keep the draft”. A sheet has Cancel at the left. The footer is core: every form uses it, so it has no switch.",
+      "use": "copy"
+    },
+    {
       "id": "FIND-ANYWHERE",
       "area": "Finding",
       "text": "Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.",

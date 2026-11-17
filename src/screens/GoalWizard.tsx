@@ -84,7 +84,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const params = new URLSearchParams(loc.search);
   const defaultParent = app.goal(params.get('parent') ?? '')?.id ?? '';
   const viewerTeam = app.viewer.teamId ?? '';
-  const [d, set, clear, restored] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
+  const [d, set, clear, restored, touched] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   // The baseline's period (BL) starts folded into one link on the plan's line, so the step still fits two phone screens.
@@ -307,7 +307,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       <div className="focus-top wiz-top">
         <span className="small strong">New goal</span>
         <Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} />
-        <FormClose keeps onClose={() => nav('/goals')} />
+        <FormClose keeps dirty={touched} onClose={() => nav('/goals')} />
       </div>
       {firstBad != null && <Navigate replace to={atStep(firstBad)} />}
       <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>

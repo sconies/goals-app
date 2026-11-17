@@ -60,7 +60,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const { cycle, week } = app;
   const started = app.checkInsOf(goal).length > 0;
   // `base` is the goal as the form opened on it: what tells the person's changes from the rest (rebaseDraft below).
-  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string; base?: GoalDraft }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '', base: draftFor(goal) }));
+  const [d, set, clear, restored, touched] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string; base?: GoalDraft }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '', base: draftFor(goal) }));
   // Someone else saved the goal while it was open (seen on a reload, or on a save refused as stale: "check it and try
   // again", AX6): the form moves onto the latest, keeping only the fields the person changed, so saving again doesn't put
   // back the other person's change. A draft kept from before there was a base takes the goal as it is now as its base.
@@ -183,7 +183,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   return (
     <div className="focus goal-form goal-edit">
       <div className="focus-top">
-        <FormClose keeps onClose={back} />
+        <FormClose keeps dirty={touched} onClose={back} />
       </div>
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <h1 className="qtitle big">Change {goal.title}</h1>

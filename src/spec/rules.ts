@@ -73,6 +73,7 @@ import { movesSince } from '../app/moved';
 import { changedHeading, changedSet, changedSince, movement, sinceFor, seenToday, type StatusNow } from '../domain/changed';
 import { CHECK_IN_MOMENT } from './conformance';
 import { rowParts, type RowFacts, type RowPlace } from '../domain/goalRow';
+import { checkInNext, checkInPostSays, closeWords, fixSummary, primarySays } from '../domain/formFooter';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
 import { quarterResults } from '../domain/year';
@@ -643,6 +644,38 @@ The row is core, with no switch: every list uses it. The places that belong to a
       { given: 'Halt on failed contract tests (cfr-halt), a milestone off track: the row in Goals.', then: 'Off track | 2 of 3 stages · Late · Not met | Observability reprioritised, and our dependency moved to their next sprint. | — | —', run: () => rowExample('cfr-halt', 'goals-list') },
       { given: 'CI time (lead-ci-time), off track, waiting on Amara’s decision: the row in Watching, as Amara sees it.', then: 'Off track | 8 min · 3 min behind plan | Blocked on Infrastructure & Compute: we need their change before we can switch the runner pools on. | ⚠ Waiting on you: approve the extra CI runner budget for Q4. | —', run: () => rowExample('lead-ci-time', 'watching-needs', 'amara') },
       { given: 'The same goal in Rhea’s check-in queue, with a draft kept.', then: 'Off track | 8 min · 3 min behind plan | Last week: Half of the runner pools is done; the rest waits on Infrastructure & Compute’s release, now planned for next month. | Draft kept | Carry on', run: () => rowExample('lead-ci-time', 'checkin-queue', 'rhea', { draft: true }) },
+    ],
+  },
+  {
+    id: 'form-footer',
+    title: 'One form footer',
+    summary: 'What every focused task’s footer and its one exit say: a status line, Back from the second step, and one primary that says what happens.',
+    code: [{ file: 'src/domain/formFooter.ts', names: ['closeWords', 'primarySays', 'checkInNext', 'checkInPostSays', 'fixSummary', 'postCheckIns', 'tableSays'] }],
+    tests: ['src/domain/formFooter.test.ts'],
+    reqs: ['FORM-FOOTER', 'NAV-FORMS'],
+    body: `
+Every focused task (a check-in, the table check-in, New goal, Change a goal, set-up, a review's set-up, a metric's form, the import, the wrap-up) ends in one footer:
+
+\`\`\`
+[ Status line: what the primary will do, or what's left to fix                    ]
+[ Back (plain, only after step 1) ]                     [ Primary: verb and object ]
+\`\`\`
+
+1. **The primary** is the page's only filled button. It names what happens: a verb and an object ("Post check-in", "Save changes", "Publish goal", "Post 5 check-ins"), or on a step before the last, the next step by what it asks ("Next: why it’s behind"). Never "Continue", "Submit", "OK" or "Save" alone (\`primarySays\`). It is disabled only while saving, and then says so ("Posting…"); pressing it with something missing shows the errors and moves focus to the first field in error.
+2. **Back** is plain, at the left, from the second step of a stepped form, and keeps what was typed. A one-page form has no Back and no Cancel: its exit is the header's.
+3. **The status line** is one short line above the buttons: on the last step what the primary does (a check-in: \`checkInPostSays\`, "Goes on record for week 46. The 3 people watching see it on Home."), or what is left to fix. Otherwise it is empty and takes no space. A summary of errors only when it helps (\`fixSummary\`): two or more, or one out of view. The table check-in counts its rows (\`tableSays\`).
+4. **Errors sit beside their field**, under its label, in plain words, with the field outlined in the off-track ink, \`aria-invalid\` and \`aria-describedby\` pointing at the words.
+5. **The one exit is top right** (\`NAV-FORMS\`): a form that keeps drafts says "Close" until something is typed, then "Close and keep the draft"; one that keeps nothing says "Close without saving" and asks first when something was typed (\`closeWords\`).
+6. **Placement:** sticky at the bottom of the window on focused tasks, except below 600 px of height, where it sits in the page; the width of the form's column; on a phone the primary on the right and Back on the left, and when both don't fit the primary takes the full width with Back above it.
+7. **Sheets** (Watch, Add a next step, Respond) use the same footer with Cancel at the left, because a sheet has no header exit. That is the one place a footer has Cancel.
+
+The footer is core, with no switch: every form uses it.`,
+    examples: [
+      { given: 'A check-in that keeps drafts, before anything is typed, then after.', then: 'Close / Close and keep the draft', run: () => [closeWords(true, false), closeWords(true, true)].join(' / ') },
+      { given: 'A check-in behind plan, on its number’s step, with an account still to give.', then: 'Next: why it’s behind', run: () => checkInNext('account', { why: true, reason: 'behind', milestone: false }) },
+      { given: 'Its last step, in week 46, with three people watching.', then: 'Goes on record for week 46. The 3 people watching see it on Home.', run: () => checkInPostSays(46, 3) },
+      { given: 'New goal pressed with Target and Owner empty.', then: '2 things to fix: Target, Owner', run: () => fixSummary(['Target', 'Owner']) ?? '' },
+      { given: 'Is “Continue” a primary’s label? Is “Save changes”?', then: 'no / yes', run: () => [primarySays('Continue'), primarySays('Save changes')].map((x) => (x ? 'yes' : 'no')).join(' / ') },
     ],
   },
   {

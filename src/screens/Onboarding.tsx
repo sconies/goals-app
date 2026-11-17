@@ -236,7 +236,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const { search } = useLocation();
   // Set up from inside the app, you start as the person you are now (backlog WS); change anything.
   const viewer = app?.viewerChosen ? app.viewer : undefined; // No one chosen yet (from an invitation's arrival): nothing to fill in.
-  const [d, setDraft, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
+  const [d, setDraft, clear, restored, touched] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
     step: 0, v: 2, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
     me: viewer ? { name: viewer.name, email: viewer.email ?? '', title: viewer.role ?? '', team: app?.team(viewer.teamId ?? '')?.name ?? '', admin: true } : { name: '', email: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
     // "Add your own" is chosen to begin with (2.6): it needs nothing prepared.
@@ -493,7 +493,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       <div className="focus-top">
         <span className="small strong">Set up a workspace</span>
         <Steps at={idx + 1} of={SETUP_STEPS.length} label={SETUP_STEP_NAMES[step]} />
-        <FormClose keeps onClose={close} />
+        <FormClose keeps dirty={touched} onClose={close} />
       </div>
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
         {restored && (
