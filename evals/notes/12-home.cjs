@@ -36,7 +36,7 @@ module.exports = {
             text: home?.innerText ?? '',
             hrefs: [...(home?.querySelectorAll('a[href]') ?? [])].map((a) => a.getAttribute('href').replace(/^\/demo/, '')),
             // U2's measure: the first of your goals that needs attention, its title ending 8px above the fold.
-            firstGoal: (() => { const t = home?.querySelector('.home-mine .arow .arow-title'); return t ? t.getBoundingClientRect().bottom : null; })(),
+            firstGoal: (() => { const t = home?.querySelector('.home-mine .alist .grow-title'); return t ? t.getBoundingClientRect().bottom : null; })(),
             // Every ask's waiting line (the part before " · "), cut on a phone (review of #369, medium 4).
             cutMeta: [...(home?.querySelectorAll('.needs-you .need-meta') ?? [])].map((e) => {
               const node = [...e.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes(' · '));

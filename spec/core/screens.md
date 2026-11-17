@@ -91,7 +91,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)” | link | always |
 | “Show all …” | button | `asks.length > shown.length` |
-| “Check in” | link | `a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind ===…` |
 | “See them” | link | `sort` |
 | “See the wrap-up” | link | `wrapping` |
 | “See Cycles / Start …” | link | always |

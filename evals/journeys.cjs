@@ -540,15 +540,15 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   else if (await p.getByText('Goals you watch').count()) fail('Watching is off, but Home shows “Goals you watch”');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
-  const cards = p.locator('.arow');
-  if ((await cards.count()) < 1) fail('expected an attention card for Rhea’s own goals');
-  const reasons = await cards.locator('.arow-why').allInnerTexts();
-  h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon').count() > 0, 'attention rows lack a reason or a status icon');
+  const cards = p.locator('.home-mine .alist .grow');
+  if ((await cards.count()) < 1) fail('expected an attention row for Rhea’s own goals');
+  const reasons = await cards.locator('.grow-why').allInnerTexts();
+  h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.home-mine .alist .grow .grow-status svg').count() > 0, 'attention rows lack a reason or a status icon');
   // The first goal that needs attention starts on the first screen: its shape and title, with what needs your response
   // above it (Lane, 5 Nov). Its reason is two lines on Home, and in full on the goal's page.
   const top = await cards.first().evaluate((el) => {
     const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
-    const t = el.querySelector('.arow-title')?.getBoundingClientRect();
+    const t = el.querySelector('.grow-title')?.getBoundingClientRect();
     return { y: el.getBoundingClientRect().top, title: t ? t.bottom : null, fold: bar ? bar.getBoundingClientRect().top : innerHeight };
   });
   h.set('entry', top.y >= 0 && top.title != null && top.title <= top.fold - 8, `the first attention card's title ends at ${Math.round(top.title ?? -1)}px, fold ${Math.round(top.fold)}px`);
@@ -1494,7 +1494,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await h.inView(p.getByRole('link', { name: 'Set up a review' }), 'entry', 'Set up a review');
   await h.checkpoint('reviews');
   await h.click(p.getByRole('link', { name: 'Set up a review' }));
-  await p.getByRole('button', { name: 'Set up the review' }).click();
+  await p.getByRole('button', { name: 'Create review' }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the review a name' }).isVisible(), 'an unnamed review is not explained');
   await h.fill(p.getByLabel('Name', { exact: true }), 'SRE fortnightly');
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
@@ -1510,7 +1510,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await p.keyboard.press('Escape');
   await see(p, /[2-9] goals so far/, 'the form counts the goals picked');
   await h.checkpoint('set up');
-  await h.click(p.getByRole('button', { name: 'Set up the review' }));
+  await h.click(p.getByRole('button', { name: 'Create review' }));
   await see(p, 'SRE fortnightly');
   await see(p, 'Every 4 weeks, Fridays');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
@@ -2056,7 +2056,7 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   const wrapRows = await p.locator('.retro-row').count();
   await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
   await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
-  await h.click(p.getByRole('button', { name: /Save/ }));
+  await h.click(p.getByRole('button', { name: /^(Next: |Finish the wrap-up|Save)/ }));
   await p.waitForURL(/\/retro\/?(\?.*)?$/); // the list, not the wrap-up page (its address matches /retro too)
   const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
   const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
@@ -2291,7 +2291,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\nRunbooks with an owner,${NOW + 2},20\n`));
   await see(p, 'hasn’t happened yet', 'a future week was not refused');
   // With a row to fix, the preview's one action is choosing the corrected file: there is no Save to press.
-  h.set('errors', !(await p.getByRole('button', { name: /^Save/ }).count()), 'Save was offered with a row that needs fixing');
+  h.set('errors', !(await p.getByRole('button', { name: /^(Save|Import)/ }).count()), 'Save was offered with a row that needs fixing');
   await h.click(p.getByRole('button', { name: 'Choose the corrected file' }));
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\n`));
   await see(p, '2 check-ins (2 for past weeks)');
@@ -2880,7 +2880,7 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG', 'ONE-ASK'], 'Several
   await p.goto(url('/check-in/lead-merge'));
   // His week is posted already, so this is another check-in: the number hasn't moved.
   await h.click(p.getByRole('button', { name: /^Measured again/ }));
-  await h.click(p.getByRole('button', { name: /^(Continue|Post check-in)$/ }));
+  await h.click(p.getByRole('button', { name: /^(Next|Post check-in)/ }));
   if (await p.getByRole('button', { name: 'Something changed', exact: true }).isVisible().catch(() => false)) await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   await h.click(p.getByRole('button', { name: 'Waiting on a decision already asked for another goal?' }));
   const sheet = p.getByRole('dialog', { name: 'Waiting on the same decision' });
@@ -7100,7 +7100,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   // Changing the unit of a metric goals use is asked first; keeping it changes nothing.
   await p.goto(url('/metrics/queue-wait/edit'));
   await h.fill(p.getByLabel('Unit', { exact: true }), 's');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const confirm = p.getByRole('dialog');
   await see(confirm, /1 goal is measured by Pipeline queue wait \(p90\) in min\. Is “s” a new label for the same numbers, or a different scale\?/, 'changing a unit goals use is not asked first');
   await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
@@ -7207,13 +7207,13 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await p.getByLabel(/^Caveats/).waitFor();
   h.set('entry', true);
   await h.fill(p.getByLabel(/^Caveats/), 'Counts only services on the paved road.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
   h.set('progress', true);
   // The meaning: read back, the question, the goal named, and Why a Must fix once the number itself changes.
   await p.goto(url('/metrics/metric_lead-time/edit'));
   await h.fill(p.getByLabel(/^What it means/), 'From merge to production, the median over 30 days.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const rb = p.locator('.metric-readback');
   await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
   // The read-back is a sheet: it takes the focus, and its own button is the one primary action (#351 review).
@@ -7282,7 +7282,7 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   h.set('entry', true);
   await h.click(group.getByRole('button', { name: 'Gap' }));
   await h.fill(p.getByLabel(/^What’s missing/), 'The new runners send no results yet; Aiko is adding them.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
   h.set('progress', true);
   const sortout = p.locator('.metric-sortout');
@@ -7308,7 +7308,7 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   // Said to be measured again: the goal is held to its plan once more.
   await p.goto(url('/metrics/metric_flaky-rate/edit'));
   await h.click(p.getByRole('group', { name: 'Is it measured today' }).getByRole('button', { name: 'Measured' }));
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
   const after = await h.snapshot();
   const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
@@ -7328,7 +7328,7 @@ journey('U172', ['METRIC-STRUCTURE'], 'A register’s structure kept in the libr
   await h.click(p.getByRole('group', { name: 'How it relates' }).getByRole('button', { name: 'Control' }));
   await h.click(p.getByRole('group', { name: 'Confidence in the number' }).getByRole('button', { name: 'Medium' }));
   await h.fill(p.getByLabel('How it could be gamed'), 'Retrying failed tests until they pass hides the flakes.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
   h.set('progress', true);
   await see(p.locator('.metric-structure'), 'A control on', 'the metric does not say where it sits');
@@ -7707,7 +7707,7 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await h.fill(p.getByLabel('Source', { exact: true }), 'Release dashboard');
   await h.fill(p.getByLabel('Who owns that source'), 'Release engineering');
   await p.getByLabel('How often it refreshes').selectOption('daily');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await see(p.locator('.metric-head .metric-still'), /^Still needs: (?!.*(who owns the source|how often it refreshes)).*\.$/, 'the page still asks for the source’s owner or the refresh once they are said');
   const s = await h.snapshot();
   const added = (s.changes ?? []).filter((c) => c.entity === 'metric' && /Deploy sucess rate/.test(c.summary)).map((c) => c.action);
@@ -7843,7 +7843,7 @@ journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: a
   await see(p, 'Check this import');
   await see(p, '3 rows, 1 kind of problem', 'Must fix does not count its rows and kinds');
   await see(p, '2 questions cover 15 rows', 'the questions are not counted once each');
-  h.set('attention', !(await p.getByRole('button', { name: /^Save/ }).count()) && await p.getByRole('button', { name: 'Choose the corrected file' }).isVisible(), 'Save is offered while rows must be fixed');
+  h.set('attention', !(await p.getByRole('button', { name: /^(Save|Import)/ }).count()) && await p.getByRole('button', { name: 'Choose the corrected file' }).isVisible(), 'Save is offered while rows must be fixed');
   await h.checkpoint('preview');
   // One answer covers fourteen rows, and closes to what was asked and the answer.
   await h.click(p.getByRole('radio', { name: 'Use CI/CD' }));
@@ -7859,14 +7859,14 @@ journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: a
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('goals-u88.csv', head + many + orphans('Rhea Kapoor') + staged));
   await see(p, 'Your 1 answer still applies.', 'the corrected file forgot the answer');
   await h.click(p.getByRole('radio', { name: 'They’re not done' }));
-  const save = p.getByRole('button', { name: 'Save 18 changes' });
+  const save = p.getByRole('button', { name: 'Import 18 changes' });
   await save.waitFor({ timeout: 5000 }).catch(() => {});
   h.set('errors', await save.isEnabled().catch(() => false), 'Save is not ready once every question is answered');
   await h.checkpoint('answered');
   await h.click(p.getByRole('link', { name: 'Show the 18 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
   await see(p, 'the owner’s team; the row gave none', 'the changes list does not say where a default came from');
-  await h.click(p.getByRole('button', { name: 'Save 18 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 18 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const runners = s.goals.filter((g) => /^Runner pool \d+ wait$/.test(g.title));
@@ -7926,7 +7926,7 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
   await h.click(sheet.getByRole('button', { name: 'Leave them out' }));
   await see(p, '1 row was left out at your choice', 'the preview does not say a row was left out');
   await p.waitForTimeout(100);
-  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Save 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
+  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Import 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
   await h.click(p.getByRole('button', { name: 'Import 1 change' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   await see(p, '1 row was left out.', 'Imported does not say a row was left out');
@@ -7966,12 +7966,12 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   await see(p, 'Stopped. Nothing was saved.', 'Stop does not say nothing was saved');
   h.set('logged', !(await h.snapshot()).goals.some((g) => g.title.startsWith('Sized queue')), 'a stopped import saved something');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-small.csv', rows(1200, 'Paged')));
-  await see(p, 'Save 1,200 changes', 'a file of 1,200 rows does not offer to save', 15000);
+  await see(p, 'Import 1,200 changes', 'a file of 1,200 rows does not offer to save', 15000);
   await h.click(p.getByRole('link', { name: 'Show the 1,200 changes' }));
   const drawn = await p.locator('main li, main tr').count();
   h.set('attention', drawn <= 60, `the changes list draws ${drawn} rows at once`);
   await p.goBack();
-  await h.click(p.getByRole('button', { name: 'Save 1,200 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 1,200 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/, { timeout: 20000 });
   const s = await h.snapshot();
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
@@ -8005,7 +8005,7 @@ journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file 
   await h.click(p.getByRole('button', { name: 'Leave these 2 rows out and save the rest' }));
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Leave them out' }));
   h.set('one-action', (await p.locator('main .btn.primary').count()) === 1, 'the preview has more than one primary action');
-  await h.click(p.getByRole('button', { name: 'Save 3 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 3 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   await see(p, '2 new metrics, 1 metric changed', 'the saved import does not count the metrics');
   const s = await h.snapshot();
@@ -8053,13 +8053,13 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   await p.evaluate((k) => localStorage.setItem(k, 'pavel'), viewerKey);
   await p.goto(url('/metrics/metric_deploys/edit'));
   await h.fill(p.getByLabel('Source', { exact: true }), 'Deploy events warehouse');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const lapse = p.locator('[data-check="lapse"]');
   await see(lapse, '“Production deploys per day” is Verified.', 'the lapse Check is not on the form');
   h.set('attention', (await lapse.getByRole('button', { name: 'Change it, and lapse Verified' }).count()) === 1, 'the lapse Check has no answer to give');
   await h.click(lapse.getByRole('button', { name: 'Change it, and lapse Verified' }));
   await see(p.locator('.check-said'), 'You said: change it, and lapse Verified.', 'the answered lapse Check does not close to one line');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const sheet = p.getByRole('dialog');
   if (await sheet.count()) {
     const same = sheet.getByLabel(/Same number, better words/);
@@ -8114,9 +8114,9 @@ journey('U181', ['METRIC-STAGE', 'METRICS-LIBRARY'], 'Stages in the library and 
   await p.evaluate((k) => localStorage.setItem(k, 'pavel'), 'goals-app-viewer:platform-org');
   await p.goto(url('/metrics/metric_deploys/edit'));
   await h.fill(p.getByLabel('Source', { exact: true }), 'Deploy pipeline events');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await h.click(p.locator('[data-check="lapse"]').getByRole('button', { name: 'Change it, and lapse Verified' }));
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const sheet = p.getByRole('dialog');
   if (await sheet.count()) {
     const same = sheet.getByLabel(/Same number, better words/);
@@ -8141,7 +8141,7 @@ journey('U182', ['METRIC-STAGE', 'METRIC-BASELINES'], 'Defining and baselines: a
   h.set('attention', (await p.getByRole('button', { name: /^Ratio/ }).getAttribute('aria-pressed')) === 'true' && (await p.getByLabel('Numerator: Counts').inputValue()).length > 5, 'the form does not show the ratio and its numerator');
   await h.fill(p.getByLabel('Link to the report or query'), 'https://ci-analytics.example.com/tests/flaky-rate');
   await see(still, 'All 10 parts are said', 'the box does not say every part is said once the link is in');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const sheet = p.getByRole('dialog');
   if (await sheet.count()) await h.click(sheet.getByRole('button', { name: /^(Change the source|Save these changes|Save changes)$/ }).first());
   await p.waitForURL((u) => /\/metrics\/flaky-rate$/.test(u.pathname));
@@ -8451,7 +8451,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   await p.goto(url('/data/import'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
   await p.waitForURL(/\/data\/import\/check$/);
-  await h.click(p.getByRole('button', { name: 'Save 15 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 15 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   await see(p, `Saved 15 rows from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
   h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
@@ -8894,7 +8894,7 @@ async function platformChecks() {
       await f.goto(url(route));
       await f.locator('.focus-foot').first().waitFor({ timeout: 10000 }).catch(() => {});
       await f.waitForTimeout(300);
-      const seen = await f.evaluate(() => [...document.querySelectorAll('.btn.primary')].filter((e) => e.getClientRects().length).map((e) => ({ label: (e.textContent || '').trim(), inFoot: !!e.closest('.focus-foot') })));
+      const seen = await f.evaluate(() => [...document.querySelectorAll('.btn.primary')].filter((e) => e.getClientRects().length).map((e) => ({ label: (e.textContent || '').trim(), inFoot: !!e.closest('.focus-foot, .qfoot') })));
       if (seen.length !== 1) footProblems.push(`${name}: ${seen.length} filled buttons (${seen.map((x) => x.label).join(', ')})`);
       else if (!seen[0].inFoot) footProblems.push(`${name}: the filled button “${seen[0].label}” is not in the footer`);
       else if (/^(Continue|Submit|OK|Save)\.?$/i.test(seen[0].label)) footProblems.push(`${name}: the primary says only “${seen[0].label}”`);

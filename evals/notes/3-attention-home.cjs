@@ -124,7 +124,7 @@ module.exports = {
     // 88–90% against 90%, which isn't heading short since deep review T5, so it doesn't.
     {
       const [c, p] = await open(1280, 900, 'chen', '/');
-      const mine = await section(p, 'Your goals').locator('.alist .arow-title').allInnerTexts();
+      const mine = await section(p, 'Your goals').locator('.alist .grow-title').allInnerTexts();
       check(mine.includes('Jenkins jobs still running') && !mine.includes('Changes shipped with automated integration tests'), `[ATTENTION-HANDLED] Chen's goals that need attention are ${mine.join(', ')}`);
       await c.close();
     }

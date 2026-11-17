@@ -234,9 +234,7 @@ module.exports = {
         // Numbers 16: selects drop the browser's own arrow.
         const ap = await alerts.locator('select').first().evaluate((el) => getComputedStyle(el).appearance);
         if (ap !== 'none') fail(`numbers 16: a select has appearance ${ap}`);
-        // Numbers 22: Cancel's text lines up with the table's edge.
-        const edge = (await box(p.locator('.qgrid'))).x, cancel = await textLeft(p.getByRole('link', { name: 'Cancel' }));
-        if (Math.abs(cancel - edge) > 1) fail(`numbers 22: Cancel's text is at x ${Math.round(cancel)}, the table at ${Math.round(edge)}`);
+        // Numbers 22 (Cancel lining up with the table's edge) went with the footer's Cancel: the exit is the header's Close (UX2b).
       }
       if (w <= 390) {
         // Numbers 2: reasons in one column, the value under the name.

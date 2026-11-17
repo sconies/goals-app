@@ -176,18 +176,16 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (371 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (372 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
 | `.about` | the about | [U49](../modules/reviews/journeys/U49.md), [U80](../modules/reviews/journeys/U80.md) |
 | `.agenda-line` | the agenda line | [U184](../modules/metrics/journeys/U184.md) |
 | `.ai-block` | the ai block | [U62](../modules/ai-access/journeys/U62.md) |
-| `.arow` | a goal’s attention row (its status shape, title and why) | [U2](journeys/U2.md), [U123](journeys/U123.md) |
+| `.arow` | a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
 | `.arow .arow-who` | the owner’s name in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
 | `.arow .btn` | the button in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
-| `.arow-why` | the line saying why | [U2](journeys/U2.md) |
-| `.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon` | the status shape in a goal’s attention row (its status shape, title and why), marked at risk, or the status shape in a goal’s attention row (its status shape, title and why), marked off track | [U2](journeys/U2.md) |
 | `.arrival-person` | the arrival person | [U97](journeys/U97.md) |
 | `.attention-switch:visible` | the attention switch | [U33](journeys/U33.md), [U34](../modules/goal-map/journeys/U34.md), [U26](../modules/goal-map/journeys/U26.md) |
 | `.backlink` | the backlink | [U72](../modules/metrics/journeys/U72.md) |
@@ -274,6 +272,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.goals-toolbar` | the goals toolbar | [U48](../modules/spreadsheets/journeys/U48.md) |
 | `.group-menu > summary` | the summary in the group menu | [U135](../modules/goal-map/journeys/U135.md) |
 | `.grow` | the grow | [U3](../modules/reviews/journeys/U3.md), [U6](journeys/U6.md), [U33](journeys/U33.md), [U186](journeys/U186.md) |
+| `.grow-why` | the grow why | [U2](journeys/U2.md) |
 | `.grow[data-tone="stale"]` | the grow | [U8](../modules/watching/journeys/U8.md) |
 | `.gs-row` | the gs row | [U86](journeys/U86.md) |
 | `.gtable` | the gtable | [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
@@ -290,6 +289,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) | [U123](journeys/U123.md) |
 | `.home-hero` | Home’s lead | [U2](journeys/U2.md), [U49](../modules/reviews/journeys/U49.md), [U122](journeys/U122.md), [U71](journeys/U71.md), [U57](journeys/U57.md) |
 | `.home-main [data-part]` | each named part in the home main | [U49](../modules/reviews/journeys/U49.md) |
+| `.home-mine .alist .grow` | the grow in the alist in the “Your goals” block on Home | [U2](journeys/U2.md) |
+| `.home-mine .alist .grow .grow-status svg` | the svg in the grow status in the grow in the alist in the “Your goals” block on Home | [U2](journeys/U2.md) |
 | `.home-mine .home-counts` | the status counts (each a shape, a number and a word, linking to those goals) in the “Your goals” block on Home | [U122](journeys/U122.md) |
 | `.home-mine .home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) in the “Your goals” block on Home | [U122](journeys/U122.md) |
 | `.home-side` | the home side | [U103](../modules/reviews/journeys/U103.md) |
