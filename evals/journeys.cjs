@@ -8716,7 +8716,8 @@ async function platformChecks() {
       const at = `${w}px ${who} ${route}`;
       if (m.sideways > 1) widths.push(`${at}: ${m.sideways}px sideways`);
       if (m.cut.length) widths.push(`${at}: cut off at the edge: ${m.cut.join(', ')}`);
-      if (!m.nav && !route.startsWith('/check-in')) widths.push(`${at}: no navigation`);
+      // A check-in and a form open in focus mode, with no menu (NAV-FORMS): only their Close leaves.
+      if (!m.nav && !/^\/check-in|\/new$|\/edit$/.test(route)) widths.push(`${at}: no navigation`);
       if (m.wideProse) widths.push(`${at}: ${m.wideProse} paragraph(s) wider than 960px`);
     }
     await c8.close();
