@@ -41,8 +41,8 @@ Today there are six row shapes for one goal: `GoalRow`'s `full`, `line` and `bri
 |---|---|---|
 | **Status** | The status shape and word, from `goalStatus`. | Yes |
 | **Value** | The number now and its gap, in `nowText` and `gapBeside`'s words ("36 hours", "12 behind plan"). For stages: "Stage 2 of 5" and "1 week late" or "On plan". For a stale goal: the last number and "as of week 9". For a done goal: the result in small capitals ("Completed late"). For no check-in yet: "No number yet". | Yes |
-| **Name** | The goal's title as a link to its page, then its level where the place shows levels. The key ("G-48") is shown only where a list is searched by key. | Yes |
-| **Reason** | One line, and at most two on a phone, giving why the goal is in this list, in the words of the place's rule (1.4). It begins with the warning mark when it is a flag that isn't the status. | When the place has a rule for it |
+| **Name** | The goal's title as a link to its page. Then its tell (`goalTell`: its key, or else its team) whenever another goal with the same title could be on screen (`duplicateTitles`; `rules.ts`, Names). Then its level, where the place shows levels. Otherwise the key ("G-48") is shown only where a list is searched by key. | Yes |
+| **Reason** | One line, and at most two on a phone, giving why the goal is in this list, in the words of the place's rule (1.4). It begins with the warning mark when it is a flag that isn't the status. The "off", "risk" and "stale" flags are the status, so their details carry no mark. | When the place has a rule for it |
 | **Context** | An optional second line. It is used only for something that changes what the reader decides: an open ask ("Waiting on Amara: a decision on the second runner pool, since week 44"), or what puts a behind goal in hand ("Next step: Rhea, due week 47"). | Only then |
 | **Action** | One plain button, where the row is something to do: "Check in", "Carry on", "Correct it", "Respond". | Only in task lists |
 
@@ -89,7 +89,7 @@ Each place keeps the rule it already has. The row only fixes where the result go
 | **Watching: Being handled** | What puts it in hand (`handledFor`), as `HandledRow` says today | None | None | `HandledRow` |
 | **Watching: the rest** | What changed since you last looked (`statusChange`), or the owner and freshness | None | None | `GoalRow` full |
 | **Goals: List and trees** | The top attention flag, else the owner and freshness | None | None | `GoalRow` full |
-| **Check-in queue** | What it last said: "Last week: 36 hours · 8 behind plan" or "No check-in yet" (navigation 2.4) | "Draft kept" when there is one | "Check in", "Carry on" or "Correct it" | Its own row |
+| **Check-in queue** | What last week's check-in said that the value doesn't: the owner's reason, "Last week: builds queue for 40 minutes at peak." Nothing when there was no reason or no check-in, since the value already shows last week's number and gap, and the status already says "No check-in yet". This narrows navigation 2.4's line, which repeated the number | "Draft kept" when there is one | "Check in", "Carry on" or "Correct it" | Its own row |
 | **A review's agenda** | `agendaReason` (reviews spec, rule 1), as that spec already asks for each row | An open next step from the last session | None | The `brief` density, with no reason |
 
 **One reason, never a list of flags.** The goal's page shows the rest. The reason slot never says "and 2 more", because a count of flags is not a reason. The row's order of flags is `ATTENTION_FLAGS`' order: the shared weight that sorts Needs attention already.
@@ -101,7 +101,7 @@ These become unit tests of the row's parts (1.7) and the rows on sheet 01.
 | Case | Status | Value | Reason | Context |
 |---|---|---|---|---|
 | **On track with a forecast miss** (F07): "Pull requests with AI-assisted review", in Watching's Needs attention | ● On track | 64% · 2 pts ahead | ⚠ Getting worse: On track today, but the recent trend heads for 61–66% by week 13, against a target of 70%. | None |
-| **Stale with a last known value**: "Flaky test rate" | ◌ No recent update | 4.1% · as of week 9 | ⚠ No check-in for 23 days; the last was week 9 (at risk). | None |
+| **Stale with a last known value**: "Flaky test rate" | ◌ No recent update | 4.1% · as of week 9 | No check-in for 23 days; the last was week 9 (at risk). *(no warning mark: this flag is the status itself, which the dashed ring already shows, as `FlagPill` does)* | None |
 | **Off track with an open ask**: "Lead time for changes" (washed) | ◯ Off track | 36 hours · 12 behind plan | The runner pool is saturated at peak; builds queue for 40 minutes. *(the owner's why: the "off" flag's detail)* | ⚠ Waiting on Amara: a decision on the second runner pool, since week 44. |
 | **A milestone**: "Move builds to the new runners" | ◐ At risk | Stage 2 of 5 · 1 week late | Stage 3, Pilot with two teams, was due week 44. | None |
 | **Done** | ✓ Done | COMPLETED LATE | Finished week 11; the target was week 10. | None |
@@ -122,7 +122,7 @@ Why the off-track row's reason is the owner's why, and the ask is context: the s
 
 ### 1.7 For the code
 
-- **`src/domain/goalRow.ts`** (new, pure): `rowParts(goal, attention, place, viewer) → { status, value, gap, asOf, result, reason, reasonIsFlag, context, action }`, where `place` is one of the eight places in 1.4. It reads only what it is given (AR4). Its worked examples are 1.5's rows, as unit tests and conformance rows in `spec/conformance/goal-row.csv`.
+- **`src/domain/goalRow.ts`** (new, pure): `rowParts(goal, attention, place, viewer) → { status, value, gap, asOf, result, tell, reason, reasonIsFlag, context, action }`, where `place` is one of the eight places in 1.4. It reads only what it is given (AR4). Its worked examples are 1.5's rows, as unit tests and conformance rows in `spec/conformance/goal-row.csv`.
 - **`src/ui/GoalRow.tsx`** replaces the three densities with `<GoalRow goal place action? />`. `HandledRow` and the queue's row go. CSS: one `.grow` grid with the phone layout above. The `trow`, `gline` and `agenda-row` classes go.
 - **MCP:** `find_goals` and `get_overview` gain `reason` and `context` fields from `rowParts`, so an AI answer names the same reason as the screen. Run `npm run build:mcp`.
 - **Requirement** `GOAL-ROW` with its spec section. It is core: the row is part of every list, so it has no switch (its spec says so). The places that belong to modules (Watching, a review's agenda) are switched off with their modules.
@@ -244,7 +244,7 @@ A step's primary names the next step ("Next: why it's behind"), because the stud
 ### 3.3 Errors
 
 1. **An error sits beside its field**: under the label, above the input, in plain words ("Type this week's number, in hours."). It never says "Enter “”". The field gets a full outline in the off-track ink (`design-rules.md`: errors cover the whole element), and `aria-invalid` with `aria-describedby` pointing at the words.
-2. **The primary is never disabled.** Pressing it with something missing shows the errors and moves focus to the first field in error, scrolled into view below any sticky header.
+2. **The primary is never disabled for missing input.** It is disabled only while a save is in progress, as every form does today, with words that say so ("Posting…"). Pressing it with something missing shows the errors and moves focus to the first field in error, scrolled into view below any sticky header.
 3. **A summary only when it helps**: when there are two or more errors, or the one error is out of view, the status line says "2 things to fix: Target, Owner", each a link that moves focus to its field. One error that is in view needs no summary.
 4. **Rows in a table form** (the table check-in, Data's sheet) say their error in the row and count them in the status line ("2 need a reason"). Opening the first such row is the status line's link.
 

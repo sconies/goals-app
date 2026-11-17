@@ -68,7 +68,7 @@ const HARD = [
     why: 'The runner pool is saturated at peak; builds queue for 40 minutes.',
     ctx: warn('Waiting on Amara: a decision on the second runner pool, since week 44.') }),
   row({ k: 'stale', name: 'Flaky test rate', level: 'Team', value: '4.1%', gap: 'as of week 9',
-    why: warn('No check-in for 23 days; the last was week 9 (at risk).') }),
+    why: 'No check-in for 23 days; the last was week 9 (at risk).' }),
   row({ k: 'risk', name: 'Move builds to the new runners', level: 'Team', value: 'Stage 2 of 5', gap: '1 week late', gapTone: 'risk',
     why: 'Stage 3, Pilot with two teams, was due week 44.' }),
   row({ k: 'on', name: 'Pull requests with AI-assisted review', level: 'Group', value: '64%', gap: '2 pts ahead', gapTone: 'on',
@@ -94,9 +94,9 @@ screens['02-row-places'] = shell({ title: 'Check-in', cur: 'Check-in', who: 'rhe
 <div class="head"><div class="stack"><h1>Check-in</h1><p class="hint">Week 46, 10–16 Nov. Check-ins are due by Friday.</p></div><span class="btn primary">Start with Lead time for changes</span></div>
 <div class="sechead"><h2>To do this week</h2><span>3</span></div>
 <ul class="grows">
-${row({ k: 'off', name: 'Lead time for changes on the main monorepo pipeline', value: '36 hours', gap: '12 behind plan', gapTone: 'off', why: 'Last week: 36 hours · 12 behind plan', act: '<span class="btn">Check in</span>' })}
-${row({ k: 'risk', name: 'Move builds to the new runners', value: 'Stage 2 of 5', gap: '1 week late', gapTone: 'risk', why: 'Last week: Stage 2 · 1 week late', ctx: 'Draft kept', act: '<span class="btn">Carry on</span>' })}
-${row({ k: 'none', name: 'Build cache hit rate', value: 'No number yet', why: 'No check-in yet', act: '<span class="btn">Check in</span>' })}
+${row({ k: 'off', name: 'Lead time for changes on the main monorepo pipeline', value: '36 hours', gap: '12 behind plan', gapTone: 'off', why: 'Last week: builds queue for 40 minutes at peak.', act: '<span class="btn">Check in</span>' })}
+${row({ k: 'risk', name: 'Move builds to the new runners', value: 'Stage 2 of 5', gap: '1 week late', gapTone: 'risk', why: 'Last week: waiting on the pilot teams to agree dates.', ctx: 'Draft kept', act: '<span class="btn">Carry on</span>' })}
+${row({ k: 'none', name: 'Build cache hit rate', value: 'No number yet', act: '<span class="btn">Check in</span>' })}
 </ul>
 <p class="callout">The check-in queue: the same row with an action. The name opens the goal; the button opens its check-in. On a phone the action shares line 1 with the status and value.</p>
 <p class="sheetnote">The same row on a review's agenda (reason: the reviews spec's agendaReason)</p>
