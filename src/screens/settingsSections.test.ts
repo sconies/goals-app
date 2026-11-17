@@ -11,7 +11,7 @@ describe('Settings’ section links', () => {
   });
   it('link to every section the page has (usability study, 17 Nov: Recording and Motion lab had no link)', () => {
     const page = readFileSync(new URL('./Settings.tsx', import.meta.url), 'utf8');
-    const headings = [...page.matchAll(/className="block-title" id="([\w-]+)"/g)].map((m) => m[1]);
+    const headings = [...page.matchAll(/className="block-title" id="([\w-]+)"/g)].map((m) => m[1]!);
     const linked = settingsSections(true).map(([id]) => id);
     expect(headings.length).toBeGreaterThan(4);
     expect(headings.filter((id) => !linked.includes(id))).toEqual([]);
