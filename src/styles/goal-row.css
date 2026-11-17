@@ -27,6 +27,7 @@ li:first-child > .grow, .grow:first-child { border-top: 0; }
 .grow-value .result-tag { margin: 0; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 650; text-transform: none; letter-spacing: .03em; font-variant-caps: all-small-caps; }
 .grow > .grow-why { grid-area: why; font-size: var(--t-sm); line-height: 1.25rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 68ch; }
 .grow > .grow-context { grid-area: ctx; font-size: var(--t-sm); line-height: 1.25rem; color: var(--fg-2); }
+.grow[data-tone="off"] > .grow-why { color: var(--fg-2); } /* the muted ink is too pale on the off wash (P4) */
 .grow-why > svg, .grow-context > svg { color: var(--risk-fg); margin-right: 4px; vertical-align: -2px; }
 .grow > .grow-act { grid-area: act; align-self: center; min-height: 40px; }
 @media (pointer: coarse) { .grow > .grow-act { min-height: 44px; min-width: 44px; } }
