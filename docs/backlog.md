@@ -56,6 +56,27 @@ Lane's outside deep-dive test of the live app. Taken by the fix track (`docs/han
 - No titles or team leads in setup.
 - No per-goal team choice in setup.
 
+## Usability study, 17 Nov (not yet picked)
+
+An outside expert walkthrough of the live demo as Grace, Amara, Rhea and Oskar, at desktop and phone widths down to 340 px: `docs/reviews/2026-11-17-usability-study.md`. One evaluator; no participant data. Its main point is that some screens ask the reader to scan, diagnose and decide at once. Planning checked F01 and F02 against the code: both hold. The evals' phone pages are wider than 340 px, so F04 got past them. Placed in the study's own order, each part a PR or two. It is a design pass first where a screen changes shape (UX2, UX3), as RD and round 4 were:
+
+- **UX1, the weekly loop (do first; S–M).**
+  - F04: the review setup's cadence choices wrap at narrow widths, with an eval at 340 px.
+  - F02: **Check in one by one** and **Enter numbers in bulk** go above the queue (`CheckInQueue.tsx` puts the bulk link after the list today).
+  - F01: on a phone, the live review's decide actions open from a labelled **Decide** button near the top, as the desktop dock does.
+  - F03: a goal's title gets the full width, with Find, Demo and the avatar moved to the shell.
+  - F08: the review agenda names its denominators ("56 in scope", "53 due to check in", "19 flagged") and puts the discussion queue before the eight-week history.
+- **UX2, one goal row and the order on a goal page (M; a design pass first).** One compact goal row (name; status with value and gap; one reason or action) on Home, Watching, Goals List and the review agenda. Attention reasons are named on the row: "Forecast miss" beside "On track" (F07). On the goal page, Now, Why and Next action come together; older discussion and history fold away.
+- **UX3, dense views on a phone (M–L; a design pass first).**
+  - Board: compact cards and a status picker with counts (F05).
+  - Map: opens tree-first, with Overview as a separate mode.
+  - Data: a row view on a phone with "Open full grid" (F06).
+  - Goals History: shorter on a phone.
+  - Table: keeps value and gap on a phone.
+- **UX4, shared page chrome (M).** One page header for each kind of page (list, detail, task). One filter toolbar. Section headings at one level. A section picker on a phone for Workspace and Settings. One form footer, with errors beside their field.
+
+The study's own words are the detail for each. The design rules still apply: status is a shape plus a word, with no coloured stripes or pastel pills.
+
 ## Build, in order
 
 | # | Item | Why here | Effort | Depends on | Source |
