@@ -115,7 +115,11 @@
   .goal-page .bar-now { font-size: 1.5rem; line-height: 2rem; }
   .goal-page .goal-col { gap: var(--s4); }
   .goal-page > .backlink { margin-bottom: calc(-1 * var(--s3)); }
-  .goal-page .bar-me { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+  /* The utilities (Find, Demo, you) take a row of their own above the title, so the title has the full width (usability
+     study F03, 17 Nov: beside them a short title broke over two or three lines). */
+  .goal-page .bar-1 { flex-wrap: wrap; row-gap: 0; }
+  .goal-page .bar-1 > .bar-title { flex: 1 1 100%; }
+  .goal-page .bar-me { display: flex; align-items: center; justify-content: flex-end; gap: 4px; order: -1; flex: 1 1 100%; margin: -6px 0 0; }
   .goal-page .bar-me .profilebtn { min-width: 44px; min-height: 44px; border: 0; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
   .goal-page .bar-me .demo-entry.compact { min-height: 44px; padding: 0 8px; align-items: center; }
   .goal-page .bar-actions { justify-content: flex-start; margin-top: 6px; }

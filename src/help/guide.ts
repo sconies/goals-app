@@ -1530,6 +1530,9 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'The menu', moduleOff: 'reviews', list: [
         'The menu is in four groups: your work (Home, Check-in when you have a goal to check in on, Goals with up to four saved views under it), things to look up (People, Activity, Data, and any feature’s own place), New goal, and this workspace and you (Workspace, Settings, Help, Feedback). Your name and role are at the foot; in the demo they open the Demo panel.',
       ] },
+      { heading: 'On a phone', list: [
+        'On a goal’s page, Find, Demo and your picture sit on a row of their own above the goal’s name, so the name has the full width.',
+      ] },
       { heading: 'The menu', list: [
         'Collapsed to icons, each icon names itself when you point at it or move to it with the keyboard. Between a phone and a computer the menu is always icons.',
       ] },
