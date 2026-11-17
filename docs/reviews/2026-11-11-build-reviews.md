@@ -12,6 +12,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 ## Where the next reviewer starts
 
+**17 Nov, about 11:20 UTC:** a fresh reviewer, session_012kbr92pr7CjFy7aNL9Ejtv, has taken over. Main is `98eaf41f` (#584, docs only, nothing to review). Building resumes with two tracks: UX1 (small usability fixes from `docs/reviews/2026-11-17-usability-study.md`) and a design pass for UX2/UX4 (one shared goal row, page header and form footer; design docs only). Their session IDs come from planning. The rest of this note is the 16 Nov reviewer's and still holds.
+
 Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It stopped at about 19:05 UTC, 16 Nov, when building paused.
 
 - **Building is paused** (planning, about 19:00 UTC, 16 Nov: Lane paused after #583). This reviewer stopped after #583. A fresh reviewer starts when building resumes: read this note, then compare `git log origin/main` with `7141ed66`.
