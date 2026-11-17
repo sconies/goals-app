@@ -2995,3 +2995,17 @@ Read the whole diff except spec/ and api/mcp.js. Lane agreed to F02 on 17 Nov (t
 - **No findings.** (Already true before this PR: the link under the list on the weekly view shows with one number goal, `CheckInQueue.tsx:117`, while the README says two. Not raised.)
 
 UX1 is complete: #586, #588, #589.
+
+## The reviewer of 17 November, afternoon (session_012kbr8zsxLnBL2bDKZQ8eoi)
+
+### #591 UX2a: one goal row for every list of goals (GOAL-ROW; reviewed before merge, head a4f92ceb)
+
+Read `goalRow.ts`, `goalRows.tsx`, `goal-row.css`, the screens' diffs, `rules.ts`'s `goal-row` rule, `rebuild.ts`, `requirements.json` and the evals' diffs against `docs/design/patterns/spec.md` section 1. The slots, the reason for each place, the warning mark (only on a flag that isn't the status; `decision` is the ask, so the ask is never both reason and context) and the phone grid follow the spec. The tell comes from `app.goalTell` (Names). The spec, conformance, rebuild stage 3, Help, What's new and the docs move with it. No budget was raised; F4's name floor (200 px instead of 60%) follows the new fixed columns. A Sonnet walker covered Home, /check-in, /watching (Amara) and a review's agenda at 360 and 1440; I looked at the check-in screenshot at 1440 myself.
+
+- **High:** at 1440 the check-in queue's names are 0 px wide and wrap one letter per line. The old `.ciq-row` grid (`forms-checkin.css:157`, an 8.5rem first column) still wraps the new row. P11 and U71 didn't catch it. Sent to the build session and planning, 17 Nov.
+- **Medium:** Home at 1440: the right edges of `.grow-value` are 839 px on rows with "Check in" and 959 px on rows without. The `:has(.has-act)` rule that keeps the action column doesn't apply on Home's `ul.tree.glist`. Sent with the high.
+- **Low:** nothing in `evals/touches.cjs` names `src/domain/goalRow.ts` or `goal-row.css`. They fall to "unmatched" (full locally), but nothing scores U186 or P11, so PR CI's cap can skip them.
+- **Low:** `get_overview`'s `reason`/`context` (spec 1.7) and the agenda's context line ("an open next step from the last session") aren't built. The PR says so, but the backlog doesn't.
+- **Low:** the old `trow`, `gline` and `agenda-row` CSS is left in, unused (spec 1.7 says it goes).
+- **Low:** a row with no action is one link, so its accessible name is the whole row, not the title (spec 1.2). It was the same before.
+- Not findings: the 40 px action at 360 in a non-touch browser is the spec (44 px only on `pointer: coarse`); the pink fill on an off-track row is the spec's off-track wash.
