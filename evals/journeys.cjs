@@ -373,7 +373,9 @@ const navTo = async (h, p, label) => {
 const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) => {
   const near = (e) => { let box = e.parentElement; while (box && !box.innerText.trim()) box = box.parentElement; return box ? box.innerText : ''; };
   if (typeof window.__shapeAgrees !== 'function') return ['the page does not expose the shape rule (window.__shapeAgrees)'];
-  return els.filter((e) => e.getClientRects().length && !e.closest('.hgrid') && !window.__shapeAgrees(e.dataset.status, near(e)))
+  // Only shapes someone can see: the map keeps a node hidden (visibility) until it has measured it, and a hidden node
+  // has no words of its own yet, so its shape was read against the map's key (no-rhythm smoke on a slow runner, 17 Nov).
+  return els.filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && !e.closest('.hgrid') && !window.__shapeAgrees(e.dataset.status, near(e)))
     .map((e) => `the ${e.dataset.status} shape beside “${near(e).replace(/\s+/g, ' ').trim().slice(0, 60)}”`);
 });
 
