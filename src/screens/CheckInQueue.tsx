@@ -2,6 +2,7 @@
    the first form: what's due, in the order the walk takes them, each with what it last said; what's done; and the table.
    "Start with …" walks them all as before (/check-in?start=1, which Home's Start check-in also opens); any row opens
    that goal's form on its own. Not focus mode: the sidebar stays. */
+import { GoalRow } from '../ui/goalRows';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
@@ -12,7 +13,7 @@ import { weekDates } from '../domain/plan';
 import { summarise } from '../domain/summary';
 import type { Goal } from '../domain/types';
 import { StatusWord } from '../ui/bits';
-import { LABEL, STATUS } from '../domain/vocabulary';
+import { STATUS } from '../domain/vocabulary';
 
 /** Where a form opened from here goes back to when it's closed: the queue, not Home. */
 export const FROM_QUEUE = { from: 'queue' } as const;
@@ -46,7 +47,6 @@ export function CheckInQueue() {
     </div>
   );
   if (!rhythmOf(app.cycle)) return <NoRhythmList />;
-  const sum = (g: Goal) => summarise(g, app.snapshot, app.cycle, app.today, app.week);
   const first = p.due[0];
   const upcoming = !p.due.length && !p.done.length && p.upcoming.length > 0;
   // The first check-ins' deadline, on day one: the review day of the earliest week any of them is due.
@@ -74,20 +74,11 @@ export function CheckInQueue() {
         <section className="block ciq-block" aria-label="To do this week" data-part="To do this week">
           <h2 className="block-title">To do this week <span className="hint">· {p.due.length}</span></h2>
           <ul className="ciq-list">
+            {/* The shared row (GOAL-ROW): status, last week's number and gap, the name, what last week's check-in said, and
+                the one button. A draft kept says so and the button carries on. */}
             {p.due.map((g) => {
-              const s = sum(g);
               const kept = hasDraft(checkInDraftKey(app.ws.id, g.id, app.week));
-              const said = s.lastWeek == null ? LABEL.none : `${s.lastWeek === app.week - 1 ? 'Last week' : `Week ${s.lastWeek}`}: ${s.now}${s.gap ? ` · ${s.gap}` : ''}`;
-              return (
-                <li key={g.id} className="ciq-row">
-                  <StatusWord k={s.status} className="ciq-status" />
-                  <span className="ciq-text">
-                    <span className="ciq-title">{g.title}</span>
-                    <span className="hint ciq-said">{kept ? <><span className="strong ciq-draft">Draft kept</span> · </> : null}{said}</span>
-                  </span>
-                  <Link className="btn ciq-go" to={`/check-in/${g.id}`} state={FROM_QUEUE} aria-label={`${kept ? 'Carry on' : 'Check in'}: ${g.title}`}>{kept ? 'Carry on' : 'Check in'}</Link>
-                </li>
-              );
+              return <li key={g.id} className="ciq-row"><GoalRow g={g} place="checkin-queue" queue={{ draft: kept }} to={`/check-in/${g.id}`} linkState={FROM_QUEUE} /></li>;
             })}
           </ul>
         </section>
@@ -97,19 +88,9 @@ export function CheckInQueue() {
           <h2 className="block-title">Done this week <span className="hint">· {p.done.length}</span></h2>
           <ul className="ciq-list">
             {p.done.map((g) => {
-              const s = sum(g);
               const c = [...app.checkInsOf(g)].reverse().find((x) => x.week === app.week);
               const on = c ? WEEKDAY[(new Date(c.postedAt).getUTCDay() + 6) % 7] : '';
-              return (
-                <li key={g.id} className="ciq-row">
-                  <StatusWord k={s.status} className="ciq-status" />
-                  <span className="ciq-text">
-                    <span className="ciq-title">{g.title}</span>
-                    <span className="hint ciq-said">{s.now}{on ? ` · Checked in ${on}` : ''}</span>
-                  </span>
-                  <Link className="btn ghost ciq-go" to={`/check-in/${g.id}?correct=1`} state={FROM_QUEUE} aria-label={`Correct it: ${g.title}`}>Correct it</Link>
-                </li>
-              );
+              return <li key={g.id} className="ciq-row"><GoalRow g={g} place="checkin-queue" queue={{ done: true, postedDay: on }} to={`/check-in/${g.id}?correct=1`} linkState={FROM_QUEUE} /></li>;
             })}
           </ul>
         </section>

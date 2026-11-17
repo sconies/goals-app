@@ -13,6 +13,7 @@ import type { Goal, Level, Watch } from '../domain/types';
 import { Icon } from '../ui/Icon';
 import { ChangeItem } from '../ui/ChangeItem';
 import { GoalRow } from '../ui/goalRows';
+import type { RowPlace } from '../domain/goalRow';
 import { HandledGroup } from '../ui/HandledGroup';
 
 
@@ -49,7 +50,7 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
       {bad.length + groups.handled.length > 0 && (
         <div className="split-a">
           {/* The one Needs attention rule (domain/attention.ts): each row says why, a goal with no recent update included. */}
-          <Group title={ATTENTION.needs.label} hint={ATTENTION.needs.meaning} goals={bad} />
+          <Group title={ATTENTION.needs.label} hint={ATTENTION.needs.meaning} goals={bad} place="watching-needs" />
           <HandledGroup list={groups.handled} />
         </div>
       )}
@@ -63,7 +64,7 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
       )}
       </aside>
       <div className="split-b">
-      <Group title={bad.length || groups.handled.length ? 'Nothing flagged' : 'Nothing flagged in what you watch'} goals={fine} collapsed={fine.length > 6} />
+      <Group title={bad.length || groups.handled.length ? 'Nothing flagged' : 'Nothing flagged in what you watch'} goals={fine} collapsed={fine.length > 6} place="watching-rest" />
       <section className="block" data-part="What you watch">
         <div className="row between">
           <h2 className="block-title">What you watch</h2>
@@ -87,7 +88,7 @@ function summary(n: number, bad: number, handled: number, quiet: number, changed
   return parts.join(' · ') + '.';
 }
 
-function Group({ title, hint, goals, collapsed }: { title: string; hint?: string; goals: Goal[]; collapsed?: boolean }) {
+function Group({ title, hint, goals, collapsed, place }: { title: string; hint?: string; goals: Goal[]; collapsed?: boolean; place: RowPlace }) {
   const [open, setOpen] = useState(!collapsed);
   if (!goals.length) return null;
   const shown = open ? goals : goals.slice(0, 5);
@@ -97,7 +98,7 @@ function Group({ title, hint, goals, collapsed }: { title: string; hint?: string
         <h2 className="block-title">{title} <span className="hint">· {goals.length}</span></h2>
         {hint && <span className="hint">{hint}</span>}
       </div>
-      <ul className="tree">{shown.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}</ul>
+      <ul className="tree">{shown.map((g) => <li key={g.id}><GoalRow g={g} place={place} /></li>)}</ul>
       {!open && <button className="linkish small" onClick={() => setOpen(true)}>Show all {goals.length}</button>}
     </section>
   );

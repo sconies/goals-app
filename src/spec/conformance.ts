@@ -5,6 +5,7 @@
 import { guardBreaches } from '../domain/guards';
 import { ZONE_CASE, ZONE_HEADER, zoneRowsOf, type ZoneCase } from './zones';
 import { attentionFor, attentionGroup, needsAttention } from '../domain/attention';
+import { rowParts, type RowPlace } from '../domain/goalRow';
 import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
 import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../domain/plan';
 import { cycleDates } from '../domain/cycle';
@@ -254,6 +255,27 @@ export function goalsQueryRowsOf(w: ConformanceWorkspace): string[][] {
     const page = allGoalsNow(port.now!, { query });
     const c = port.now!.counts({ query });
     return [q, String(page.total), page.near ?? '', ...STATUS_ORDER.map((k) => String(c.status[k])), String(c.attention), page.rows.map((r) => r.goal.id).join(' ')];
+  });
+}
+
+/* ---------- one goal row (GOAL-ROW) ---------- */
+
+/** The places goal-row.csv lists every live goal in, and who is looking. */
+export const ROW_CSV_PLACES: RowPlace[] = ['goals-list', 'watching-needs', 'watching-handled', 'checkin-queue', 'agenda', 'home-mine'];
+const ROW_VIEWER = 'amara';
+export const GOAL_ROW_HEADER = ['goal', 'place', 'viewer', 'status', 'value', 'gap', 'as_of', 'result', 'reason', 'reason_flag', 'context', 'context_flag', 'action'];
+
+/** What rowParts gives for every live goal in each place, as amara, on the workspace as it was built for. */
+export function goalRowRowsOf(w: ConformanceWorkspace): string[][] {
+  const moment = new Date(w.builtFor);
+  const s = asOf(w, moment);
+  const week = currentWeek(w.cycle, moment);
+  return s.goals.filter((g) => !g.stoppedAt).flatMap((g) => {
+    const att = attentionFor(g, s, w.cycle, moment);
+    return ROW_CSV_PLACES.map((place) => {
+      const p = rowParts(g, att, place, { checkIns: s.checkIns, people: s.people, asks: s.requests ?? [], cycle: w.cycle, today: moment, week, viewerId: ROW_VIEWER });
+      return [g.id, place, ROW_VIEWER, p.status, p.value, p.gap?.text ?? '', p.asOf ?? '', p.result?.text ?? '', p.reason ?? '', p.reasonIsFlag ? '1' : '', p.context ?? '', p.contextIsFlag ? '1' : '', p.action ?? ''];
+    });
   });
 }
 
@@ -673,7 +695,7 @@ export function conformanceFiles(w: ConformanceWorkspace, cases: ScreenCases = s
   if (w.edge) return edgeFiles(w);
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'goal-row.csv': toCsv(GOAL_ROW_HEADER, goalRowRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

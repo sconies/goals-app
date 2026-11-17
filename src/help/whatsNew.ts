@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-goal-row',
+    date: '2026-11-17',
+    title: 'Every list of goals reads the same way',
+    points: [
+      'Home, Watching, Goals, your check-ins and a review’s agenda now draw one row: the status first, then the number and how it stands against the plan, then the name.',
+      'Under the name is one reason, in that list’s words. A goal on track that is heading short of its target says so: “Getting worse: On track today, but…”.',
+      'An ask a goal is waiting on gets a line of its own, and says “Waiting on you” when it’s yours to answer.',
+      'On a phone the status and number come first, and the name has a full line of its own.',
+    ],
+    articles: ['needs-attention'],
+  },
+  {
     id: 'checkin-table-top',
     date: '2026-11-17',
     title: 'The one table, near the top of Check-in',

@@ -6,29 +6,32 @@ const n = (x) => (x == null ? 'none' : Math.round(x));
 
 /** Every agenda row on the page: what it shows, and anything in it that is clipped, clamped or squeezed. */
 const agendaReport = (p) => p.evaluate(() => {
-  const rows = [...document.querySelectorAll('.agenda-row')].filter((r) => r.getClientRects().length);
+  const rows = [...document.querySelectorAll('.agenda .grow')].filter((r) => r.getClientRects().length);
   const out = { rows: rows.length, clipped: [], clamped: [], squeezed: [], outside: [], shape: 0, words: 0, extra: [], nums: 0, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth };
   for (const r of rows) {
     const rb = r.getBoundingClientRect();
-    const title = r.querySelector('.agenda-title');
+    const title = r.querySelector('.grow-title');
     for (const e of [r, ...r.querySelectorAll('*')]) {
-      if (e.closest('svg')) continue;
+      // The screen-reader-only level text is clipped to a pixel by design.
+      if (e.closest('svg') || e.classList.contains('sr')) continue;
       const cs = getComputedStyle(e);
       if (e.scrollWidth > e.clientWidth + 1 && cs.display !== 'inline') out.clipped.push(`${e.className} "${e.textContent.trim().slice(0, 30)}" ${e.scrollWidth}>${e.clientWidth}`);
-      if ((cs.webkitLineClamp && cs.webkitLineClamp !== 'none') || cs.textOverflow === 'ellipsis') out.clamped.push(String(e.className));
+      // The reason is clamped to two lines by design (UX2a 1.3; its whole sentence is in its title): the rest is not.
+      if (((cs.webkitLineClamp && cs.webkitLineClamp !== 'none') || cs.textOverflow === 'ellipsis') && !e.classList.contains('grow-why')) out.clamped.push(String(e.className));
       const b = e.getBoundingClientRect();
       if (b.width && (b.right > rb.right + 1 || b.left < rb.left - 1)) out.outside.push(String(e.className));
     }
     // The name has the room: a line of its own on a narrow list, and never a sliver beside the status on a wide one.
     const narrow = r.parentElement.parentElement.getBoundingClientRect().width < 620;
-    const nb = r.querySelector('.agenda-name').getBoundingClientRect();
+    const nb = r.querySelector('.grow-name').getBoundingClientRect();
     if (narrow ? nb.width < rb.width - 40 : nb.width < rb.width * 0.3) out.squeezed.push(`${title.textContent.slice(0, 24)} ${Math.round(nb.width)}/${Math.round(rb.width)}`);
-    if (r.querySelector('.agenda-status svg.status-shape')) out.shape++;
-    if (/^(On track|At risk|Off track|No recent update|Done|Not started)$/.test(r.querySelector('.agenda-status').innerText.trim())) out.words++;
-    if (r.querySelector('.agenda-num')?.textContent.trim()) out.nums++;
-    // Nothing but status, name and level, number and gap: no reasons, owners or check-in sentences.
-    const kids = [...r.children].map((c) => c.className);
-    if (kids.join(',') !== 'agenda-status tone-' + r.dataset.tone + ',agenda-name,agenda-now' || /\.\s|days ago|Checked in|No check-in/.test(r.innerText)) out.extra.push(kids.join(','));
+    if (r.querySelector('.grow-status svg.status-shape')) out.shape++;
+    if (/^(On track|At risk|Off track|No recent update|Done|Not started)$/.test(r.querySelector('.grow-word').innerText.trim())) out.words++;
+    if (r.querySelector('.grow-num')?.textContent.trim()) out.nums++;
+    // Status, value, name, then at most the reason and the context (the one goal row, UX2a): no owners or check-in sentences of its own.
+    const kids = [...r.children].map((c) => c.className).filter((c) => c !== 'sr');
+    const bare = [...r.children].filter((c) => !/grow-why|grow-context/.test(c.className)).map((c) => c.innerText).join(' ');
+    if (kids.slice(0, 3).join(',') !== 'grow-status tone-' + r.dataset.tone + ',grow-value,grow-name' || kids.slice(3).some((c) => !/^grow-(why|context)$/.test(c)) || /\.\s|days ago|Checked in|No check-in/.test(bare)) out.extra.push(kids.join(','));
   }
   return out;
 });
@@ -73,7 +76,7 @@ module.exports = {
     // ---------- The agenda: one line per goal, nothing cut off, at every width ----------
     for (const [w, h] of [[360, 740], [390, 844], [768, 1024], [915, 832], [1024, 768], [1280, 800], [1440, 900], [2560, 1300]]) {
       const [c, p] = await open(w, h, 'amara', '/reviews/weekly', w <= 1024);
-      await p.locator('.agenda-row').first().waitFor();
+      await p.locator('.agenda .grow').first().waitFor();
       // Open the healthy group too, so its rows are measured.
       await p.locator('.healthy-group summary').click();
       await p.waitForTimeout(150);
@@ -82,11 +85,11 @@ module.exports = {
       fail(!m.clipped.length && !m.clamped.length && !m.outside.length, `Agenda ${w}: clipped ${m.clipped.slice(0, 2).join('; ')} clamped ${m.clamped.slice(0, 2).join(',')} outside ${m.outside.slice(0, 2).join(',')}`);
       fail(!m.squeezed.length, `Agenda ${w}: names squeezed: ${m.squeezed.slice(0, 2).join('; ')}`);
       fail(m.shape === m.rows && m.words === m.rows && m.nums === m.rows, `Agenda ${w}: ${m.shape} shapes, ${m.words} words, ${m.nums} numbers on ${m.rows} rows`);
-      fail(!m.extra.length, `Agenda ${w}: rows carry more than status, name, number and gap (${m.extra[0]})`);
+      fail(!m.extra.length, `Agenda ${w}: rows carry more than status, value, name, reason and context (${m.extra[0]})`);
       fail(m.sideways <= 1, `Agenda ${w}: ${m.sideways}px sideways scroll`);
       if (w === 1280 || w === 915) {
         // Wide enough for one line: status, name, number and gap share a top line.
-        const line = await p.evaluate(() => { const r = document.querySelector('.agenda-row'); const t = (s) => r.querySelector(s).getBoundingClientRect().top; return Math.max(t('.agenda-status'), t('.agenda-name'), t('.agenda-now')) - Math.min(t('.agenda-status'), t('.agenda-name'), t('.agenda-now')); });
+        const line = await p.evaluate(() => { const r = document.querySelector('.agenda .grow'); const t = (s) => r.querySelector(s).getBoundingClientRect().top; return Math.max(t('.grow-status'), t('.grow-name'), t('.grow-value')) - Math.min(t('.grow-status'), t('.grow-name'), t('.grow-value')); });
         fail(line <= 4, `Agenda ${w}: a row's status, name and number are not on one line (${n(line)}px apart)`);
       }
       await c.close();
@@ -117,7 +120,7 @@ module.exports = {
       await p.locator('.reviewbar').waitFor();
       await p.getByRole('button', { name: 'Close the review' }).click();
       await p.waitForURL(/\/reviews\/weekly(\?|$)/);
-      fail(await p.locator('.agenda-row').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Close (×): ${p.url()} shows no agenda`);
+      fail(await p.locator('.agenda .grow').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Close (×): ${p.url()} shows no agenda`);
       await c.close();
     }
 
@@ -184,7 +187,7 @@ module.exports = {
           h1: document.querySelector('h1').textContent, t: page.innerText, prim, blocks,
           line: document.querySelector('.hero .review-line')?.innerText.trim(),
           record: document.querySelector('.session-record .block-title')?.innerText.trim(),
-          reviewed: document.querySelectorAll('.session-record .agenda-row').length,
+          reviewed: document.querySelectorAll('.session-record .grow').length,
           print: [...page.querySelectorAll('a')].some((a) => /\/reviews\/small\/print$/.test(a.getAttribute('href')) && a.getClientRects().length),
           reviewsLink: [...page.querySelectorAll('a')].some((a) => /\/reviews(\?|$)/.test(a.getAttribute('href')) && a.getClientRects().length),
         };

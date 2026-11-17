@@ -24,6 +24,7 @@ export const RULE_PAGES: [string, string, string][] = [
 /** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
     (src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
 export const MORE_RULE_PAGES: [string, string][] = [
+  ['goal-row', 'One goal row'],
   ['field-table', 'The field table'],
   ['import-levels', 'Kinds, levels and near misses'],
   ['import-preview', 'What an import read, and leaving rows out'],

@@ -256,6 +256,12 @@
       "use": "copy"
     },
     {
+      "id": "GOAL-ROW",
+      "area": "Attention",
+      "text": "One goal row in every list of goals (Home, Watching, Goals, the check-in queue, a review's agenda): the status's shape and word first, then the number and its gap, then the name (with its tell when another goal has the same title), then one reason in the words of that list's rule (a flag that isn't the status takes the warning mark), an optional second line for an open ask or a kept draft, and one button only where the list is something to do. On a phone the status and value share the first line and the name has its own full-width line. The row is core: every list uses it, so it has no switch.",
+      "use": "copy"
+    },
+    {
       "id": "REVIEW",
       "area": "Reviews",
       "text": "A review walks its goals worst and stalest first, one goal page at a time, with next and previous.",

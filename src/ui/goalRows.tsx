@@ -1,7 +1,7 @@
 /* A goal where goals are listed: one row component at three densities, the trees built from it, the card at the top of
    a tree, and the Watch button. Every row leads with its status as a shape and a word, says its number the same way
    ("No value yet" when there isn't one), and never repeats it as the gap. */
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { watchingOn } from '../app/reads';
@@ -9,121 +9,79 @@ import { useModules } from '../core/app';
 import { fmt, gapBeside, nowText } from '../domain/format';
 import { readingFrom } from '../domain/reading';
 import { isEveryday, levelName } from '../domain/levels';
-import { daysSince, notStarted, resultWeek } from '../domain/plan';
-import { startsSays } from '../domain/weeks';
 import { coveringWatches, watchOf } from '../domain/review';
-import { assessPosted, checkInsFor, LABEL, projects } from '../domain/status';
-import { goalResult, RESULT_TEXT } from '../domain/story';
-import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
+import { assessPosted, LABEL, projects } from '../domain/status';
+import { descendants, forecastText, type TreeNode } from '../domain/tree';
 import { feederHead } from '../domain/feeder';
 import { rollup } from '../domain/rollup';
 import type { Goal, Watch } from '../domain/types';
-import { Spark, StageSpark } from './sparks';
-import { Chip, LevelTag, Sheet, StatusWord, TitleTell } from './bits';
+import { Chip, LevelTag, Sheet, StatusWord, TitleTell, WarnMark } from './bits';
+import { freshnessOf, rowParts, type RowAction, type RowFacts, type RowPlace } from '../domain/goalRow';
 import { Icon } from './Icon';
-import { valueSeries } from '../domain/plan';
-import { LABEL as STATUS_WORD } from '../domain/vocabulary';
-import { rhythmOf } from '../domain/thresholds';
 
 type App = ReturnType<typeof useApp>;
 
 /** "Checked in 2 days ago", "No check-in for 24 days", "No check-in yet", "No check-in yet · starts week 50". */
 export function freshness(g: Goal, app: App): { text: string; stale: boolean } {
-  const own = checkInsFor(g, app.snapshot.checkIns);
-  const last = own[own.length - 1];
-  // A plan whose From is still to come says when it starts (goal entry, rule 13), and isn't late.
-  if (!last) return notStarted(g, app.week) && g.kind === 'metric' ? { text: `${STATUS_WORD.none} · ${startsSays(app.cycle, g.plan.fromWeek!)}`, stale: false } : { text: STATUS_WORD.none, stale: app.week > 1 };
-  const d = daysSince(last.postedAt, app.today);
-  const stale = app.statusOf(g).status === 'stale';
-  return { text: stale ? `No check-in for ${d} days` : d < 1 ? 'Checked in today' : d === 1 ? 'Checked in yesterday' : `Checked in ${d} days ago`, stale };
+  return freshnessOf(g, app.statusOf(g).status, app.snapshot.checkIns, app.cycle, app.today, app.week);
+}
+
+/** The facts a row reads, from the app (domain/goalRow's rowParts is pure). */
+export function rowFacts(app: App, g: Goal, extra: Partial<RowFacts> = {}): RowFacts {
+  return { checkIns: app.snapshot.checkIns, people: app.snapshot.people, asks: app.snapshot.requests ?? [], cycle: app.cycle, today: app.today, week: app.week, viewerId: app.viewer.id, tell: app.goalTell(g), ...extra };
 }
 
 /**
- * One goal in a list.
- * - `full` (the default): status, name and level, why it's listed (what changed, a flag, or the owner and how fresh it
- *   is), and its number over the gap, with a missed result in words.
- * - `line` (Home's own goals): status, name, the number and gap on one line, and a sparkline.
- * - `brief` (a review's agenda): status, name and level, the number and gap. No reasons: the walk shows them.
+ * One goal in a list (GOAL-ROW; docs/design/patterns/spec.md section 1). The same slots in the same order in every list:
+ * status (shape and word), the value and its gap, the name, then why it is in this list, an optional second line, and
+ * one button where the list is something to do. The place picks what fills the reason; it never moves a slot.
+ * Links open things and buttons act: a row with no action is one link; a row with an action links only its name.
  */
-export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, className }: {
+export function GoalRow({ g, place = 'goals-list', showOwner = true, queue, act, to: href, linkState, className }: {
   g: Goal;
-  density?: 'full' | 'line' | 'brief';
+  place?: RowPlace;
   showOwner?: boolean;
-  /** In place of the usual reason line (`full` only), such as what's in hand for a goal being handled. */
-  why?: ReactNode;
-  whyTitle?: string;
+  /** The check-in queue: a draft kept, or this week's check-in already posted. */
+  queue?: RowFacts['queue'];
+  /** A button the place offers whatever the rule says (Home with no set rhythm: every goal not checked in this week). */
+  act?: RowAction;
+  /** Where the action goes (the check-in, or correcting it). */
+  to?: string;
+  linkState?: unknown;
   className?: string;
 }) {
   const app = useApp();
-  // Only the full row says why a goal is listed, so only it needs the goal's attention; the others need its status.
-  const att = density === 'full' ? app.attentionOf(g) : null;
-  const st = att?.status ?? app.statusOf(g);
-  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapBeside(g, a);
-  const now = nowText(g, a);
-  const stale = st.status === 'stale';
-  // With no set rhythm (FT1) a status not from this week says which week it is from, in words beside the number.
-  const asOf = stale && st.latest ? `as of week ${st.latest.week}` : !rhythmOf(app.cycle) && st.asOfWeek != null && st.status !== 'done' ? `as of week ${st.asOfWeek}` : null;
+  const parts = rowParts(g, app.attentionOf(g), place, rowFacts(app, g, { showOwner, queue }));
+  const p = act ? { ...parts, action: act } : parts;
+  // On a review's agenda, where a confirmed number came from, after it in the quiet ink (NR 2.4); a typed number says nothing.
+  const from = place === 'agenda' && g.kind !== 'milestone' ? readingFrom(app.checkInsOf(g).filter((c) => c.week <= app.week).at(-1), g.decimals) : null;
   const to = '/goals/' + g.id;
-
-  if (density === 'line') {
-    return (
-      <Link to={to} className={'gline' + (className ? ' ' + className : '')}>
-        <StatusWord k={st.status} className="gline-status" />
-        <span className="gline-title">{g.title}</span><TitleTell goal={g} />
-        <span className="gline-now">{now}{(stale || gap) && <span className={'tone-' + (stale ? 'stale' : gap!.tone)}> · {stale ? 'no recent update' : gap!.short}</span>}{!stale && asOf && <span className="muted"> · {asOf}</span>}</span>
-        <span className="gline-spark">
-          {g.kind !== 'milestone' ? <Spark goal={g} weeks={app.cycle.weeks} series={valueSeries(app.checkInsOf(g))} /> : a.kind === 'milestone' ? <StageSpark a={a} /> : null}
-        </span>
-      </Link>
-    );
-  }
-
-  if (density === 'brief') {
-    // Where a confirmed number came from, after it in the quiet ink (NR 2.4); a typed number says nothing.
-    const from = g.kind === 'milestone' ? null : readingFrom(app.checkInsOf(g).filter((c) => c.week <= app.week).at(-1), g.decimals);
-    return (
-      <Link to={to} className={'agenda-row' + (className ? ' ' + className : '')} data-tone={st.status}>
-        <StatusWord k={st.status} className="agenda-status" />
-        <span className="agenda-name"><span className="agenda-title">{g.title}</span><TitleTell goal={g} /><LevelTag level={g.level} /></span>
-        <span className="agenda-now">
-          <span className="agenda-num">{now}{from && <span className="muted agenda-from"> · from {from}</span>}</span>
-          {stale ? (asOf ? <span className="agenda-gap muted">{asOf}</span> : null) : <>{gap && <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}{asOf && <span className="agenda-gap muted">{asOf}</span>}</>}
-        </span>
-      </Link>
-    );
-  }
-
-  const flag = att!.flags.find((f) => f.kind !== 'due');
-  const moved = statusChange(g, app.snapshot.checkIns);
-  const owner = app.person(g.ownerId);
-  const fresh = freshness(g, app);
-  const result = goalResult(g, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today));
-  const reason = flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`;
-  const title = whyTitle ?? `${moved?.worse ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ` : ''}${reason}`;
-  return (
-    <Link to={to} className={'trow' + (className ? ' ' + className : '')} data-tone={st.status}>
-      {/* Status is always a shape and a word, in a slot of its own so they line up down a list. */}
-      <StatusWord k={st.status} className="trow-icon" wordClass="trow-status" />
-      <span className="trow-main">
-        <span className="trow-title"><span className="trow-name">{g.title}</span><TitleTell goal={g} /><LevelTag level={g.level} /></span>
-        {/* The whole reason is in the title when a wide row clamps it to three lines. */}
-        <span className="trow-why" title={title}>
-          {why ?? <>
-            {moved?.worse && <span className="tone-risk">Was {LABEL[moved.from].toLowerCase()} in week {moved.week}. </span>}
-            {reason}
-          </>}
-        </span>
+  const cls = 'grow' + (p.action ? ' has-act' : '') + (className ? ' ' + className : '');
+  const name = <><span className="grow-title">{p.title}</span>{p.tell && <span className="gkey title-tell" title="Another goal has this title">{p.tell}</span>}<LevelTag level={g.level} /></>;
+  const body = (
+    <>
+      {/* Status is always a shape and a word, first, in a slot of its own so they line up down a list. */}
+      <StatusWord k={p.status} className="grow-status" wordClass="grow-word" />
+      {/* The number, how it stands against the plan, which week it is from, and a finished goal's result. */}
+      <span className="grow-value">
+        <span className="grow-num">{p.value}{from && <span className="muted grow-from"> · from {from}</span>}</span>
+        {p.gap && <span className={'grow-gap tone-' + p.gap.tone}>{p.gap.text}</span>}
+        {p.asOf && <span className="grow-asof">{p.asOf}</span>}
+        {p.result && <span className={'result-tag result-' + p.result.kind}>{p.result.text}</span>}
       </span>
-      {/* The value, how it stands against the plan, and a missed result in words under them. A goal gone quiet says when
-          its number is from, rather than repeating "no recent update". */}
-      <span className="trow-now">
-        <span>{now}</span>
-        {stale ? (asOf ? <span className="trow-asof">{asOf}</span> : null) : <>{gap && <span className={'tone-' + gap.tone}>{gap.short}</span>}{asOf && <span className="trow-asof">{asOf}</span>}</>}
-        {result && <span className={'result-tag result-' + result.kind}>{RESULT_TEXT[result.kind]}</span>}
-      </span>
+      {p.action ? <Link className="grow-name" to={to}>{name}</Link> : <span className="grow-name">{name}</span>}
+      {/* One reason; the whole sentence is in the title when a wide row clamps it. */}
+      {p.reason && <span className="grow-why" title={p.reason}>{p.reasonIsFlag && <WarnMark />}{p.reason}</span>}
+      {p.context && <span className="grow-context">{p.contextIsFlag && <WarnMark />}{p.context}</span>}
       {!isEveryday(app.cycle, g.level) && <span className="sr">{levelName(app.cycle, g.level)} level</span>}
-    </Link>
+    </>
+  );
+  if (!p.action) return <Link to={to} className={cls} data-tone={p.status} data-place={place}>{body}</Link>;
+  return (
+    <div className={cls} data-tone={p.status} data-place={place}>
+      {body}
+      <Link className={'btn grow-act' + (p.action === 'Correct it' ? ' ghost' : '')} to={href ?? '/check-in/' + g.id} state={linkState} aria-label={`${p.action}: ${g.title}`}>{p.action}</Link>
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 /* The shard plan: which journeys and which platform checks run in which shard, so every check runs in exactly one.
    Shared by evals/journeys.cjs (to pick what to run) and evals/run.mjs (to print and verify the plan).
 
-   Journeys and platform checks (P1–P4, P6–P10, P15 and every F/N module) are placed by weight: heaviest first, each
+   Journeys and platform checks (P1–P4, P6–P11, P15 and every F/N module) are placed by weight: heaviest first, each
    into the shard with the least work so far. The weights are measured seconds (from a four-shard run); a journey that
    isn't listed counts as JOURNEY_SECONDS and a check as DEFAULT.
    P5 is not placed: it is computed from the console errors of every journey, in every shard, when the results merge. */
@@ -19,7 +19,7 @@ const JOURNEY_WEIGHTS = {
 };
 const DEFAULT = 30;
 const WEIGHTS = {
-  P1: 1, P2: 13, P3: 64, P4: 63, P6: 28, P7: 15, P8: 5, P9: 50, P10: 6, P15: 2,
+  P1: 1, P2: 13, P3: 64, P4: 63, P6: 28, P7: 15, P8: 5, P9: 50, P10: 6, P11: 8, P15: 2,
   F1: 32, F2: 18, F3: 25, F16: 20, F4: 29, F5: 17, F6: 36, F7: 29, F8: 34, F9: 20, F10: 12, F11: 10, F14: 45, F25: 90,
   N1: 21, N2: 98, N3: 18, N4: 62, N5: 19, N6: 32, N7: 256, N8: 34, N9: 43, N10: 40, N12: 120, N15: 40, N25: 30, N26: 150,
 };
@@ -31,7 +31,7 @@ function moduleIds() {
 
 /** Every platform check that is placed in a shard (P5 is aggregated, not placed). */
 function checkIds() {
-  return ['P1', 'P2', 'P3', 'P4', 'P6', 'P7', 'P8', 'P9', 'P10', 'P15', ...moduleIds()];
+  return ['P1', 'P2', 'P3', 'P4', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11', 'P15', ...moduleIds()];
 }
 
 /** The plan for n shards: [{ k, journeys: [ids], checks: [ids], seconds }]. Deterministic. Everything (journeys and

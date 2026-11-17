@@ -104,9 +104,9 @@ function ReviewLine({ s }: { s: ReviewSession }) {
 }
 
 function Agenda({ goals }: { goals: Goal[] }) {
-  // A review's agenda: the shared goal row at its briefest. No reasons: the walk shows them on each goal's page.
+  // A review's agenda: the shared goal row (GOAL-ROW), its reason what is in hand or the top flag.
   // A module may add one quiet line under a row (review.row): what measures it, and whether to trust it (MQ2).
-  return <ul className="agenda">{goals.map((g) => <li key={g.id}><GoalRow g={g} density="brief" /><Place name="review.row" goal={g} /></li>)}</ul>;
+  return <ul className="agenda">{goals.map((g) => <li key={g.id}><GoalRow g={g} place="agenda" /><Place name="review.row" goal={g} /></li>)}</ul>;
 }
 
 /** What was said in a session: actions (who, by when), questions for owners (with any answer), notes, and the goals reviewed. */

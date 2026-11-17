@@ -131,10 +131,8 @@ function YourGoals({ news }: { news?: ReactNode }) {
       <HandledGroup list={handled} folded />
       {rest.length > 0 && (
         <div className="home-sub">
-          <div className="glist">{shown.map((g) => checkInHere?.(g)
-            // No set rhythm: every live goal without a check-in this week has its own button (an ordinary one, nothing due).
-            ? <div key={g.id} className="gline-with"><GoalRow g={g} density="line" /><Link className="btn sm" to={'/check-in/' + g.id}>Check in</Link></div>
-            : <GoalRow key={g.id} g={g} density="line" />)}</div>
+          {/* No set rhythm: every live goal without a check-in this week has its own button (an ordinary one, nothing due). */}
+          <ul className="tree glist">{shown.map((g) => <li key={g.id}><GoalRow g={g} place="home-mine" act={checkInHere?.(g) ? 'Check in' : undefined} /></li>)}</ul>
           {rest.length > shown.length && <button type="button" className="linkish small" onClick={() => setAll(true)}>Show the {rest.length - shown.length} with nothing flagged</button>}
         </div>
       )}

@@ -624,7 +624,7 @@ Anyone saves their own views. Admins can pin a view for everyone.
 
 `needs-attention`. Needs attention means something new since anyone looked. A goal that is behind but already in hand is shown as being handled.
 
-Routes: `/goals?show=attention`. Requirements: `ATTENTION`, `ATTENTION-HANDLED`, `EXCEPTIONS-FIRST`, `ONE-ATTENTION-RULE`.
+Routes: `/goals?show=attention`. Requirements: `ATTENTION`, `ATTENTION-HANDLED`, `EXCEPTIONS-FIRST`, `ONE-ATTENTION-RULE`, `GOAL-ROW`.
 
 #### What it’s for
 
@@ -664,7 +664,8 @@ These have an action with an owner and a date, or an answer to their request, ag
 
 #### How to use it
 
-- Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.
+- Every list of goals draws the same row: the status (its shape and word), then the number and how it stands against the plan, then the name. Under the name is one reason, in that list’s words, in numbers where there are numbers; a flag that isn’t the status says its word first, beside the warning mark. A goal on track that is getting worse keeps its on-track shape: “Getting worse: On track today, but the recent trend heads for 78–79% by week 53, against a target of 80%.”
+- A second line appears only when it changes what you do: an ask the goal is waiting on (“Waiting on you: …” when it’s yours to answer), or a check-in draft you kept. Only a list of things to do has a button on the row: Check in, Carry on or Correct it. On a phone the status and number come first, and the name has a line of its own.
 - A new check-in, or a new flag, makes a goal that is being handled need attention again.
 - Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.
 

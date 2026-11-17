@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (189): build it as Faro does.
+- **Copy** (190): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -747,6 +747,15 @@ Off track, stale, a worsening trend, a missed or missing path to green, and pend
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Journeys and checks:** U2, U3, U6, U8, U16, U36, U37
 
+### GOAL-ROW
+
+One goal row in every list of goals (Home, Watching, Goals, the check-in queue, a review's agenda): the status's shape and word first, then the number and its gap, then the name (with its tell when another goal has the same title), then one reason in the words of that list's rule (a flag that isn't the status takes the warning mark), an optional second line for an open ask or a kept draft, and one button only where the list is something to do. On a phone the status and value share the first line and the name has its own full-width line. The row is core: every list uses it, so it has no switch.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [One goal row](rules/goal-row.md)
+- **Help:** “Needs attention, and being handled” (`needs-attention`)
+- **Journeys and checks:** P11, U186
+
 ### ATTENTION-HANDLED
 
 Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card.
@@ -1062,7 +1071,7 @@ A status shape always agrees with the word beside it, everywhere: the shape come
 - **Copy:** build it as Faro does.
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/shapes.eval.ts` (2)
-- **Journeys and checks:** P3, P4, P6
+- **Journeys and checks:** P3, P4, P6, P11
 
 ## Trust
 

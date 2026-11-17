@@ -33,7 +33,7 @@ module.exports = {
         for (const typed of ['G-48', 'g48', '48']) {
           await p.goto(url('/goals?scope=all&q=' + encodeURIComponent(typed)));
           await settle(p);
-          const names = await p.evaluate(() => [...document.querySelectorAll('.trow-name')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
+          const names = await p.evaluate(() => [...document.querySelectorAll('.grow-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
           chk(names.includes(g.title), `U28: searching “${typed}” doesn't find G-48 (${g.title}); found ${names.length}`);
           if (typed !== '48') chk(names.length === 1, `U28: searching “${typed}” finds ${names.length} goals, not just G-48`);
         }
@@ -66,7 +66,7 @@ module.exports = {
     {
       const [c, p] = await open(1280, 900, 'amara', '/goals?show=teams');
       const teams = await p.evaluate(() => [...document.querySelectorAll('main section.block')].filter((s) => s.querySelector('.team-counts')).map((s) => ({
-        name: s.getAttribute('aria-label'), counts: s.querySelector('.team-counts').innerText.replace(/\s+/g, ' '), rows: s.querySelectorAll('.trow').length,
+        name: s.getAttribute('aria-label'), counts: s.querySelector('.team-counts').innerText.replace(/\s+/g, ' '), rows: s.querySelectorAll('.grow').length,
         shapes: s.querySelectorAll('.team-counts .team-count svg.status-shape').length, items: s.querySelectorAll('.team-counts .team-count').length,
       })));
       chk(teams.length >= 10, `U24: By team shows ${teams.length} teams with counts`);
@@ -84,7 +84,7 @@ module.exports = {
     {
       const [c, p] = await open(1280, 900, 'amara', '/goals?scope=all&needs=decision&sort=worst');
       await settle(p);
-      const view = await p.evaluate(() => [...document.querySelectorAll('.trow-name')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
+      const view = await p.evaluate(() => [...document.querySelectorAll('.grow-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
       const shown = await shownOf(p);
       chk(view.length > 0 && view.length === shown, `U25: the saved view lists ${view.length} goals and says ${shown}`);
       await p.goto(url('/goals?scope=all&view=table'));

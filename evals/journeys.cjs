@@ -572,8 +572,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await p.goto(url('/goals?scope=all'));
   await p.locator('.outcome-card').first().waitFor();
   const cards = await p.locator('.outcome-card').count();
-  const firstRow = p.locator('.outcome').first().locator('.trow').first();
-  h.set('attention', cards >= 2 && await p.getByText(/Projected/).first().isVisible() && ['off', 'risk', 'stale'].includes(await firstRow.getAttribute('data-tone')) && (await firstRow.locator('.trow-why').innerText()).length > 15,
+  const firstRow = p.locator('.outcome').first().locator('.grow').first();
+  h.set('attention', cards >= 2 && await p.getByText(/Projected/).first().isVisible() && ['off', 'risk', 'stale'].includes(await firstRow.getAttribute('data-tone')) && (await firstRow.locator('.grow-why').innerText()).length > 15,
     'the tree does not lead with the worst goal and its reason');
   const s0 = await h.snapshot();
   // Reviews lists the sessions she's in, one under way first; the Reliability weekly picks up where it was left.
@@ -1343,8 +1343,8 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   // Santiago owns the Kafka migration: a milestone, off track, with late stages and a worsening trend.
   const p = h.use(await newPage(device, 'santiago'));
   await p.goto(url('/goals?scope=all&attention=1'));
-  await h.inView(p.locator('.trow').first(), 'entry', 'the first goal');
-  await h.click(p.locator('.trow', { hasText: 'Kafka moved to the managed service' }).first());
+  await h.inView(p.locator('.grow').first(), 'entry', 'the first goal');
+  await h.click(p.locator('.grow', { hasText: 'Kafka moved to the managed service' }).first());
   await p.locator('.goal-bar').waitFor();
   // The summary bar says off track and how many stages are late; Why opens with the reason (the scorecard, 5 Nov).
   h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && /^[1-9]\d*$/.test((await p.locator('.goal-bar .sc-late .sc-value').innerText()).trim()) && (await p.locator('.why-block .why-text').innerText()).length > 10, 'off track and its reasons are not shown');
@@ -1423,7 +1423,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   await see(p, /\d+ goals · .*need/, 'the summary line counts what needs attention');
   h.set('parity', /^Watching/.test(await openShow(p)) && await p.locator('.goals-page .filterbar-row').filter({ visible: true }).count() > 0, 'Watching is not a Goals tab with the Goals toolbar');
   // A goal with no recent update needs attention (the one rule): it's in that group, saying its status.
-  const quiet = p.locator('section', { has: p.getByRole('heading', { name: /Needs attention/ }) }).locator('.trow[data-tone="stale"]').first();
+  const quiet = p.locator('section', { has: p.getByRole('heading', { name: /Needs attention/ }) }).locator('.grow[data-tone="stale"]').first();
   await h.inView(p.getByRole('heading', { name: /Needs attention/ }), 'entry', 'Needs attention');
   await h.checkpoint('watching');
   h.set('attention', /No check-in for \d+ days/.test(await quiet.innerText()), 'a quiet goal does not say how long it has been');
@@ -1456,8 +1456,8 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   h.set('parity', await p.locator('.dash-watch').count() === 0 && await p.locator('.home-watch').count() === 1, 'Home shows the goals you watch more than once');
   // Oskar's team (Developer Experience) comes before what he watches (Home rule 4, HM3), so the rows are a scroll away on a phone.
   await p.locator('.home-watch').scrollIntoViewIfNeeded();
-  await h.inView(p.locator('.tree .trow').first(), 'entry', 'the goals Oskar watches');
-  h.set('attention', (await p.locator('.tree .trow').count()) > 0 && (await p.locator('.tree .trow .trow-why').first().innerText()).length > 10, 'watched goals are not shown with what changed or how fresh they are');
+  await h.inView(p.locator('.tree .grow').first(), 'entry', 'the goals Oskar watches');
+  h.set('attention', (await p.locator('.tree .grow').count()) > 0 && (await p.locator('.tree .grow .grow-why').first().innerText()).length > 10, 'watched goals are not shown with what changed or how fresh they are');
   await h.checkpoint('home');
   // Watch a whole tree from a goal page.
   await p.goto(url('/goals/ns-lead'));
@@ -1516,7 +1516,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
   // Exceptions are listed; goals on track with nothing flagged are one named group with a count.
   const healthyN = Number(((await p.locator('.healthy-group .block-title').innerText().catch(() => '')).match(/(\d+)\s*$/) || ['', '0'])[1]);
-  h.set('attention', (await p.locator('.agenda .agenda-row').count()) + healthyN >= 2, 'the review does not list its goals');
+  h.set('attention', (await p.locator('.agenda .grow').count()) + healthyN >= 2, 'the review does not list its goals');
   h.set('finish', await p.getByRole('button', { name: /^Start review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
@@ -2594,7 +2594,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   await see(coach, 'step 2 of 4', 'opening Check-in did not move the walkthrough on');
   await see(coach, 'correct it', 'step 2 does not explain the week is done');
   h.set('attention', await p.locator('.coach-ring').isVisible(), 'the walkthrough points at nothing');
-  await h.click(p.locator('.ciq-go').first());
+  await h.click(p.locator('.ciq-row .grow-act').first());
   await p.getByLabel('This week’s value').waitFor();
   await see(coach, 'Type this week’s number', 'the walkthrough did not pick up once the number field was there');
   h.set('finish', true);
@@ -2685,7 +2685,7 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   // Pinned at the top of What feeds it, with why, instead of a second copy above (the flagship page, 5 Nov).
   const threats = p.locator('#feeds .pinned');
   await threats.waitFor();
-  h.set('attention', (await threats.locator('.trow, .gline').count()) > 0 && /Most likely to make it miss/.test(await threats.innerText()), 'the north star does not name what threatens it');
+  h.set('attention', (await threats.locator('.grow').count()) > 0 && /Most likely to make it miss/.test(await threats.innerText()), 'the north star does not name what threatens it');
   await h.checkpoint('threats');
   // The goal waiting on Amara's decision: Respond is on its row in Next steps and asks and opens the one Respond panel, ready to answer.
   const request = p.locator('.step-row', { hasText: 'approve the extra CI runner budget' });
@@ -4268,7 +4268,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   await todo.waitFor();
   const rows = todo.locator('.ciq-row');
   const n = await rows.count();
-  const first = (await rows.first().locator('.ciq-title').innerText()).trim();
+  const first = (await rows.first().locator('.grow-title').innerText()).trim();
   const start = p.getByRole('link', { name: n === 1 ? `Check in on ${first}` : `Start with ${first}` });
   await h.inView(start, 'entry', 'Start with the first');
   // The table is offered near the top too, as a quiet link under Start with, so it's on screen without scrolling
@@ -4276,7 +4276,9 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   if (n >= 2) await h.inView(p.locator('.ciq-table-top').getByRole('link', { name: 'Or type all your numbers in one table' }), 'entry', 'the table near the top');
   h.set('entry', await p.locator('.checkin-queue .btn.primary').count() === 1, 'the queue has more than one primary action');
   h.set('attention', n >= 2 && /^Week \d+, .+\. Check-ins are due by \w+/.test((await p.locator('.ciq-when').innerText()).trim())
-    && (await rows.locator('.ciq-status').allInnerTexts()).every((t) => t.trim().length > 0) && (await rows.locator('.ciq-said').allInnerTexts()).every((t) => /^(Last week|Week \d+): |^No check-in yet$/.test(t.trim())),
+    && (await rows.locator('.grow-word').allInnerTexts()).every((t) => t.trim().length > 0)
+    // UX2a: the number it last said is the row's value; the line under the name is only the owner's reason from the last check-in.
+    && (await rows.locator('.grow-value').allInnerTexts()).every((t) => t.trim().length > 0) && (await rows.locator('.grow-why').allInnerTexts()).every((t) => /^Last week: /.test(t.trim())),
     `the list has ${n} rows, or a row doesn’t say its status and what it last said`);
   // The sidebar stays (not focus mode); Check-in is lit.
   h.set('parity', device === 'phone' || await p.locator('.side [aria-current="page"]', { hasText: 'Check-in' }).count() === 1, 'Check-in is not lit on its list');
@@ -4292,7 +4294,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   await todo.waitFor();
   // Any row opens its own goal; closing keeps the draft, back on the list, which says so on that row.
   const pick = rows.nth(n - 1);
-  const title = (await pick.locator('.ciq-title').innerText()).trim();
+  const title = (await pick.locator('.grow-title').innerText()).trim();
   await h.click(pick.getByRole('link', { name: /^Check in: / }));
   await p.waitForURL(/\/check-in\/[^/?]+/);
   await h.fill(p.getByLabel('This week’s value'), '1');
@@ -6619,7 +6621,7 @@ journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as
   const agendaRow = async (p) => {
     await p.goto(url('/reviews/devprod'));
     await p.locator('.review-home').waitFor();
-    const row = p.locator('.agenda-row').filter({ hasText: 'CI pipeline time on main (p90)' }).first();
+    const row = p.locator('.agenda .grow').filter({ hasText: 'CI pipeline time on main (p90)' }).first();
     if (!(await row.isVisible().catch(() => false))) {
       const show = p.locator('summary').filter({ hasText: /^Show \d+ goals?$/ });
       if (await show.count()) await h.click(show.first());
@@ -8240,7 +8242,7 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   // Every part of the agenda, folded or not: Show n goals and Reviewed · n (the demo has reviewed Change failure rate).
   const folded = p.locator('details:not([open]) > summary');
   while (await folded.count()) await h.click(folded.first());
-  const lineOf = (name) => p.locator('.agenda > li').filter({ has: p.locator('.agenda-row', { hasText: name }) }).first().locator('.agenda-line');
+  const lineOf = (name) => p.locator('.agenda > li').filter({ has: p.locator('.grow', { hasText: name }) }).first().locator('.agenda-line');
   const cfr = lineOf('Change failure rate');
   await see(cfr, /^Change failure rate\s*· Verified \d{1,2} \w{3}( \d{4})? · Refreshed \w+/, 'the agenda does not say Change failure rate is Verified, when and how often it refreshes');
   h.set('entry', true);
@@ -8325,6 +8327,52 @@ journey('U185', ['METRIC-VERIFY'], 'A verifier’s Home: as Amara, Home says “
   h.set('errors', true);
   await p.context().close();
 }, []);
+/** The rows of spec/conformance/goal-row.csv, each by its columns (quoted fields may hold commas and doubled quotes). */
+function goalRowCsv() {
+  const text = fs.readFileSync(path.join(__dirname, '..', 'spec', 'conformance', 'goal-row.csv'), 'utf8');
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) { if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (ch === '"') quoted = false; else cell += ch; }
+    else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  const [head, ...body] = rows.filter((r) => r.length > 1);
+  return body.map((r) => Object.fromEntries(head.map((k, i) => [k, r[i] ?? ''])));
+}
+journey('U186', ['GOAL-ROW'], 'One goal row on Watching: as Amara, a “Getting worse” goal, a goal with an ask waiting on her and a slipping milestone show the value, gap, result, reason and open ask exactly as spec/conformance/goal-row.csv gives them, the flag’s reason starting with its warning mark', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/watching'));
+  await p.locator('.grow').first().waitFor({ timeout: 10000 });
+  const want = goalRowCsv().filter((r) => r.viewer === 'amara' && r.place === 'watching-needs' && ['mttr-detect', 'lead-ci-time', 'fresh-lakehouse'].includes(r.goal));
+  if (want.length !== 3) fail(`spec/conformance/goal-row.csv has ${want.length} of the 3 goal rows this journey reads`);
+  const rowOf = (id) => p.locator('.grow').filter({ has: p.locator(`a[href$="/goals/${id}"]`) }).or(p.locator(`a.grow[href$="/goals/${id}"]`)).first();
+  await h.inView(p.locator('.grow').first(), 'entry', 'the first goal row');
+  const said = [];
+  for (const w of want) {
+    const row = rowOf(w.goal);
+    await row.waitFor({ timeout: 8000 }).catch(() => {});
+    const m = await row.evaluate((r) => {
+      const t = (s) => r.querySelector(s)?.textContent.replace(/\s+/g, ' ').trim() ?? '';
+      const why = r.querySelector('.grow-why');
+      return { place: r.dataset.place, num: t('.grow-num'), gap: t('.grow-gap'), result: t('.result-tag'), why: why ? why.textContent.replace(/\s+/g, ' ').trim() : '', whyMark: !!why?.querySelector('svg'), ctx: t('.grow-context') };
+    }).catch(() => null);
+    if (!m) { said.push(`${w.goal}: not on Watching`); continue; }
+    if (m.place !== 'watching-needs') said.push(`${w.goal}: drawn as ${m.place}`);
+    if (m.num !== w.value) said.push(`${w.goal} value “${m.num}”, not “${w.value}”`);
+    if (m.gap !== w.gap) said.push(`${w.goal} gap “${m.gap}”, not “${w.gap}”`);
+    if (m.result !== w.result) said.push(`${w.goal} result “${m.result}”, not “${w.result}”`);
+    if (m.why !== w.reason) said.push(`${w.goal} reason “${m.why}”, not “${w.reason}”`);
+    if (m.whyMark !== (w.reason_flag === '1')) said.push(`${w.goal} reason ${m.whyMark ? 'has' : 'lacks'} a warning mark, the rule says ${w.reason_flag === '1' ? 'it has one' : 'none'}`);
+    if (m.ctx !== w.context) said.push(`${w.goal} context “${m.ctx}”, not “${w.context}”`);
+  }
+  h.set('attention', !said.length, said.slice(0, 4).join(' | '));
+  await h.checkpoint('hard cases');
+  await p.context().close();
+}, ['one-action', 'progress', 'errors', 'finish', 'parity', 'a11y', 'logged']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
@@ -8780,6 +8828,58 @@ async function platformChecks() {
   }
   lap('P10');
   if (want('P10')) add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
+  // P11: one goal row (GOAL-ROW; docs/design/patterns/spec.md 1.9). On Home, Watching, Goals, the check-in queue and a review's
+  // agenda, at 1440 and 360: every row has its status with its word, then its value, then its name, in that order; from
+  // 700px the values' right edges in one list agree; at 360 the name spans the row's content; no link holds a button or link.
+  const growProblems = [];
+  for (const [w, hgt] of want('P11') ? [[1440, 900], [360, 740]] : []) {
+    const c6 = await browser.newContext({ viewport: { width: w, height: hgt } });
+    const r = await c6.newPage();
+    for (const [who, route, name] of [['rhea', '/', 'Home'], ['rhea', '/watching', 'Watching'], ['amara', '/goals', 'Goals'], ['rhea', '/check-in', 'the check-in queue'], ['amara', '/reviews/weekly', 'a review’s agenda']]) {
+      await r.goto(url(route));
+      await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
+      await r.reload();
+      await r.locator('.grow').first().waitFor({ timeout: 10000 }).catch(() => {});
+      // The lists load after the page is up; let them settle before measuring.
+      await r.waitForTimeout(400);
+      const found = await r.evaluate((wide) => {
+        const out = [];
+        const rows = [...document.querySelectorAll('.grow')].filter((e) => e.getClientRects().length);
+        if (!rows.length) return ['no goal rows'];
+        const cls = (e) => (e.className && typeof e.className === 'string' ? e.className : '');
+        for (const e of rows) {
+          const kids = [...e.children].filter((k) => !/\bsr\b/.test(cls(k)));
+          const at = (c) => kids.findIndex((k) => cls(k).split(/\s+/).includes(c));
+          const [a, b, n] = [at('grow-status'), at('grow-value'), at('grow-name')];
+          if (!(a === 0 && b === 1 && n === 2)) out.push(`a row’s parts are in the order ${kids.map((k) => cls(k).split(/\s+/)[0]).join(', ')}`);
+          if (!(e.querySelector('.grow-status svg.status-shape') && e.querySelector('.grow-status .grow-word')?.textContent.trim())) out.push('a row has a status without its shape and word');
+          if (e.tagName === 'A' && e.querySelector('a, button, [role="button"]')) out.push('a goal link holds a button or link');
+        }
+        if (wide) {
+          // Values line up down one list: the rows of a place in one block of the page.
+          const lists = new Map();
+          for (const e of rows.filter((x) => getComputedStyle(x).gridTemplateColumns.split(' ').length >= 3)) {
+            const key = (e.dataset.place || '') + '|' + [...document.querySelectorAll('ul, ol')].indexOf(e.closest('ul, ol'));
+            lists.set(key, [...(lists.get(key) ?? []), Math.round(e.querySelector('.grow-value').getBoundingClientRect().right * 10) / 10]);
+          }
+          // The name always has room: never squeezed into a sliver by a list item's own grid (review of #591).
+          for (const e of rows) { const nb = e.querySelector('.grow-name').getBoundingClientRect().width; if (nb < 160) { out.push(`a name is only ${Math.round(nb)}px wide in ${e.dataset.place}`); break; } }
+          for (const [key, edges] of lists) if (Math.max(...edges) - Math.min(...edges) > 1) out.push(`the values’ right edges in ${key.split('|')[0]} differ by ${Math.round(Math.max(...edges) - Math.min(...edges))}px`);
+        } else {
+          for (const e of rows) {
+            const cs = getComputedStyle(e), inner = e.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+            const nb = e.querySelector('.grow-name').getBoundingClientRect().width;
+            if (Math.abs(nb - inner) > 3) { out.push(`a name is ${Math.round(nb)}px of a ${Math.round(inner)}px row`); break; }
+          }
+        }
+        return [...new Set(out)];
+      }, w >= 700);
+      found.forEach((x) => growProblems.push(`${w}px ${name}: ${x}`));
+    }
+    await c6.close();
+  }
+  lap('P11');
+  if (want('P11')) add('P11', ['GOAL-ROW', 'SHAPE-MATCHES-WORD'], 'One goal row in every list: status and its word, then the value, then the name; values line up from 700px; the name spans the row on a phone; no link holds a button', !growProblems.length, growProblems.slice(0, 6).join(' | '));
   await finishChecks(add);
   if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));

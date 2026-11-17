@@ -36,7 +36,7 @@ export const TOURS: Tour[] = [
       { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: '.hero a.btn.primary[href*="/check-in?start=1"]' }, doneWhen: { route: /^\/check-in/ },
         ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' }, when: { text: /check-ins are in|check-ins? (is )?posted|all set/i } } },
       { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict:not([data-same])' },
-        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals and correct it: the newer check-in becomes the week’s.', target: { selector: '.again-links a, .ciq-go' } } },
+        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals and correct it: the newer check-in becomes the week’s.', target: { selector: '.again-links a, .ciq-row .grow-act' } } },
       { say: 'Off plan, it asks why and how it gets back on track. Keep what you said last week if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
       { say: 'Saved, and in the change log. Anyone watching the goal sees it, and the review picks it up. You can check in again any time; every check-in is kept.' },
     ],
@@ -53,7 +53,7 @@ export const TOURS: Tour[] = [
   {
     id: 'quiet', title: 'Chase a goal with no recent update', role: 'Goal owner', personId: 'rhea', start: '/watching',
     steps: [
-      { say: `Watching gathers the goals Rhea follows, among them everything feeding the self-service environments north star. ${LABEL.stale}: ${lower(STATUS.stale)} means ${STATUS.stale.meaning.charAt(0).toLowerCase()}${STATUS.stale.meaning.slice(1, -1)}. Open that goal.`, target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
+      { say: `Watching gathers the goals Rhea follows, among them everything feeding the self-service environments north star. ${LABEL.stale}: ${lower(STATUS.stale)} means ${STATUS.stale.meaning.charAt(0).toLowerCase()}${STATUS.stale.meaning.slice(1, -1)}. Open that goal.`, target: { selector: '.grow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
       { say: 'It says when it was last heard of. Ask its owner for an update.', target: { selector: 'button', text: 'Ask' }, doneWhen: { text: 'Asked' } },
       { say: 'The owner sees the ask on their Home, and it stays open until they check in. No goal is left without an update for long without someone noticing.' },
     ],

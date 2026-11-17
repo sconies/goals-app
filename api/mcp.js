@@ -259,10 +259,11 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$5, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
+var DAY$5, hasEnded, notStarted, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
 var init_plan = __esmMin((() => {
 	DAY$5 = 864e5;
 	hasEnded = (cycle, today) => resultWeek(cycle, today) > cycle.weeks;
+	notStarted = (goal, week) => goal.kind === "metric" && (goal.plan.fromWeek ?? 0) > week;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
 	DAY_ONLY = new Intl.DateTimeFormat("en-GB", {
@@ -2694,6 +2695,11 @@ function targetText(g) {
 	const last = g.stages[g.stages.length - 1];
 	return last ? "All by week " + last.dueWeek : "No stages";
 }
+/** The gap shown beside a goal's number, or null when it would only say "No value yet" a second time. */
+function gapBeside(g, a) {
+	const gap = gapText(g, a);
+	return gap.short === nowText(g, a) ? null : gap;
+}
 /** Short words for the gap against plan, and its tone for colour. */
 function gapText(g, a) {
 	if (a.calc === "planned") return {
@@ -3779,7 +3785,7 @@ function weeksProblem(c, from, to) {
 	};
 	return null;
 }
-var DAY$4, MONTHS$3, mondayOf$1, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
+var DAY$4, MONTHS$3, mondayOf$1, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo, startsSays;
 var init_weeks = __esmMin((() => {
 	init_year();
 	DAY$4 = 864e5;
@@ -3807,6 +3813,7 @@ var init_weeks = __esmMin((() => {
 	};
 	firstWeekOffered = (c) => spanOf(c, spanOf(c, 1).first - 1).first;
 	defaultTo = (c, from) => from < c.weeks ? c.weeks : lastWeekOffered(c);
+	startsSays = (c, from) => `starts ${weekSays(c, from, "short")}`;
 }));
 // src/domain/baseline.ts
 /** Rule 1. The baseline a goal's plan start, period and flag make: null when no period is given. */
@@ -4365,6 +4372,17 @@ function makesLoop$1(goalId, parentId, goals) {
 		p = goals.find((g) => g.id === p)?.parentId ?? null;
 	}
 	return false;
+}
+/** How the owner's call moved at the latest check-in, if it did. */
+function statusChange(goal, checkIns) {
+	const own = checkInsFor(goal, checkIns);
+	const last = own[own.length - 1], prev = own[own.length - 2];
+	if (!last || !prev || last.status === prev.status) return null;
+	return {
+		from: prev.status,
+		week: prev.week,
+		worse: RANK[last.status] > RANK[prev.status]
+	};
 }
 /**
 * Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
@@ -19516,6 +19534,151 @@ async function loadSheetPlanners() {
 		sh.plan = await sh.loadPlan();
 	}));
 }
+// src/domain/goalRow.ts
+init_asks();
+init_checkin();
+init_format();
+init_plan();
+init_status();
+init_story();
+init_thresholds();
+init_tree();
+init_vocabulary();
+init_weeks();
+/** The flags that are a status: the status shape already says them, so their detail carries no mark (spec 1.5). */
+var STATUS_FLAGS = /* @__PURE__ */ new Set([
+	"off",
+	"risk",
+	"stale"
+]);
+/** A flag as the reason: a status flag says its detail; any other says its word first ("Getting worse: …"). */
+function flagReason(f) {
+	return STATUS_FLAGS.has(f.kind) ? {
+		text: f.detail,
+		isFlag: false
+	} : {
+		text: `${f.label}: ${f.detail}`,
+		isFlag: true
+	};
+}
+/** "Checked in 2 days ago", "No check-in for 24 days", "No check-in yet", "No check-in yet · starts week 50". */
+function freshnessOf(g, status, checkIns, cycle, today, week) {
+	const last = checkInsFor(g, checkIns).at(-1);
+	if (!last) return notStarted(g, week) && g.kind === "metric" ? {
+		text: `${LABEL.none} · ${startsSays(cycle, g.plan.fromWeek)}`,
+		stale: false
+	} : {
+		text: LABEL.none,
+		stale: week > 1
+	};
+	const d = daysSince(last.postedAt, today);
+	const stale = status === "stale";
+	return {
+		text: stale ? `No check-in for ${d} days` : d < 1 ? "Checked in today" : d === 1 ? "Checked in yesterday" : `Checked in ${d} days ago`,
+		stale
+	};
+}
+/** The parts of one goal's row in one place (spec 1.2 to 1.5). */
+function rowParts(goal, att, place, f) {
+	const { checkIns, people, cycle, today, week } = f;
+	const st = att.status;
+	const a = assessPosted(goal, cycle, checkIns, week);
+	const gap = gapBeside(goal, a);
+	const stale = st.status === "stale";
+	const asOf = stale && st.latest ? `as of week ${st.latest.week}` : !rhythmOf(cycle) && st.asOfWeek != null && st.status !== "done" ? `as of week ${st.asOfWeek}` : null;
+	const res = goalResult(goal, cycle, checkIns, resultWeek(cycle, today));
+	const top = att.flags.find((x) => x.kind !== "due") ?? null;
+	const due = att.flags.find((x) => x.kind === "due") ?? null;
+	const owner = people.find((p) => p.id === goal.ownerId)?.name ?? null;
+	const fresh = () => freshnessOf(goal, st.status, checkIns, cycle, today, week).text;
+	const ownerFresh = () => `${f.showOwner !== false && owner ? owner + ". " : ""}${fresh()}.`;
+	const askLine = () => {
+		if (!top || top.kind === "decision" || st.status === "done") return null;
+		const asks = openFor(goal.id, { requests: f.asks });
+		if (!asks.length) return null;
+		return `Waiting on ${asks.map((r) => r.recipientId === f.viewerId ? `you: ${r.ask}` : askText(r, people)).join("; ")}.`;
+	};
+	let reason = null, isFlag = false, context = null, contextIsFlag = false, action = null;
+	const useFlag = (x) => {
+		const r = flagReason(x);
+		reason = r.text;
+		isFlag = r.isFlag;
+	};
+	const useAsk = () => {
+		context = askLine();
+		contextIsFlag = context != null;
+	};
+	switch (place) {
+		case "home-mine":
+			if (top) {
+				useFlag(top);
+				useAsk();
+			} else reason = due ? due.detail : `${fresh()}.`;
+			if (due) action = "Check in";
+			break;
+		case "watching-needs":
+			if (top) {
+				useFlag(top);
+				useAsk();
+			}
+			break;
+		case "watching-handled": {
+			const h = att.handled;
+			const said = h?.said || top?.detail || "";
+			reason = h ? `${h.text}${said ? " · " + said : ""}` : top ? flagReason(top).text : null;
+			break;
+		}
+		case "home-watching":
+		case "watching-rest": {
+			const moved = statusChange(goal, checkIns);
+			if (top) useFlag(top);
+			else if (moved) reason = `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ${fresh()}.`;
+			else reason = ownerFresh();
+			break;
+		}
+		case "goals-list":
+			if (top) useFlag(top);
+			else reason = ownerFresh();
+			break;
+		case "checkin-queue": {
+			const q = f.queue ?? {};
+			if (q.done) {
+				reason = q.postedDay ? `Checked in ${q.postedDay}.` : null;
+				action = "Correct it";
+				break;
+			}
+			const last = checkInsFor(goal, checkIns).filter((c) => c.week < week).at(-1);
+			const why = last?.why && last.why !== "On plan." ? last.why : null;
+			if (why) reason = `${last.week === week - 1 ? "Last week" : `Week ${last.week}`}: ${why}`;
+			if (q.draft) context = "Draft kept";
+			action = q.draft ? "Carry on" : "Check in";
+			break;
+		}
+		case "agenda": if (att.handled) reason = att.handled.text + ".";
+		else if (top) useFlag(top);
+	}
+	return {
+		status: st.status,
+		statusWord: LABEL[st.status],
+		value: nowText(goal, a),
+		gap: stale || !gap ? null : {
+			text: gap.short,
+			tone: gap.tone
+		},
+		asOf,
+		result: res ? {
+			kind: res.kind,
+			text: RESULT_TEXT[res.kind]
+		} : null,
+		title: goal.title,
+		tell: f.tell ?? null,
+		reason,
+		reasonIsFlag: isFlag,
+		context,
+		contextIsFlag,
+		action
+	};
+}
 // src/mcp/moduleOff.ts
 /** "Reviews is switched off in {ws}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features." */
 var moduleOffSentence = (module, workspace, tool) => `${module} is switched off in ${workspace}, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
@@ -24491,7 +24654,8 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.",
+					"Every list of goals draws the same row: the status (its shape and word), then the number and how it stands against the plan, then the name. Under the name is one reason, in that list’s words, in numbers where there are numbers; a flag that isn’t the status says its word first, beside the warning mark. A goal on track that is getting worse keeps its on-track shape: “Getting worse: On track today, but the recent trend heads for 78–79% by week 53, against a target of 80%.”",
+					"A second line appears only when it changes what you do: an ask the goal is waiting on (“Waiting on you: …” when it’s yours to answer), or a check-in draft you kept. Only a list of things to do has a button on the row: Check in, Carry on or Correct it. On a phone the status and number come first, and the name has a line of its own.",
 					`A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
 					"Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not."
 				]
@@ -24527,7 +24691,8 @@ var CORE_ARTICLES = [
 			"ATTENTION",
 			"ATTENTION-HANDLED",
 			"EXCEPTIONS-FIRST",
-			"ONE-ATTENTION-RULE"
+			"ONE-ATTENTION-RULE",
+			"GOAL-ROW"
 		],
 		keywords: [
 			"attention",
@@ -26541,6 +26706,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "one-goal-row",
+		date: "2026-11-17",
+		title: "Every list of goals reads the same way",
+		points: [
+			"Home, Watching, Goals, your check-ins and a review’s agenda now draw one row: the status first, then the number and how it stands against the plan, then the name.",
+			"Under the name is one reason, in that list’s words. A goal on track that is heading short of its target says so: “Getting worse: On track today, but…”.",
+			"An ask a goal is waiting on gets a line of its own, and says “Waiting on you” when it’s yours to answer.",
+			"On a phone the status and number come first, and the name has a full line of its own."
+		],
+		articles: ["needs-attention"]
+	},
+	{
 		id: "checkin-table-top",
 		date: "2026-11-17",
 		title: "The one table, near the top of Check-in",
@@ -28321,6 +28498,7 @@ var RULE_PAGES = [
 /** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
 (src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
 var MORE_RULE_PAGES = [
+	["goal-row", "One goal row"],
 	["field-table", "The field table"],
 	["import-levels", "Kinds, levels and near misses"],
 	["import-preview", "What an import read, and leaving rows out"],
@@ -34176,7 +34354,7 @@ var CORE_TOOLS = [
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal. Answers as JSON, the same keys every time: week, weeks, total (how many match), offset, goals (at most limit of them, 50 unless asked), more (how to ask for the next page, or null) and why (why nothing matches, or null).`,
+		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal. Each goal says why it is listed (reason) and any ask it waits on (context), as the Goals screen’s row does. Answers as JSON, the same keys every time: week, weeks, total (how many match), offset, goals (at most limit of them, 50 unless asked), more (how to ask for the next page, or null) and why (why nothing matches, or null).`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -34328,6 +34506,25 @@ var CORE_TOOLS = [
 			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
 			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => columnPasses(c.col, x.goal, c.v)) && !(notMine && x.goal.ownerId === ctx.actor.id));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
+			const rowWords = (s) => {
+				if (s.state === "proposed") return {
+					reason: null,
+					context: null
+				};
+				const p = rowParts(s.goal, s.attention, "goals-list", {
+					checkIns: ctx.snapshot.checkIns,
+					people: ctx.snapshot.people,
+					asks: ctx.snapshot.requests ?? [],
+					cycle: ctx.cycle,
+					today: ctx.today,
+					week: ctx.week,
+					viewerId: ctx.actor.id
+				});
+				return {
+					reason: p.reason,
+					context: p.context
+				};
+			};
 			return listed(goalPage(list.map((s) => ({
 				key: s.goal.key ?? null,
 				id: s.goal.id,
@@ -34346,6 +34543,7 @@ var CORE_TOOLS = [
 					label: f.label,
 					code: f.kind
 				})),
+				...rowWords(s),
 				now: s.now,
 				planThisWeek: s.planNow != null ? s.planNowText : null,
 				target: s.target,

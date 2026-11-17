@@ -66,9 +66,11 @@ module.exports = {
     await p.locator('svg.chart').waitFor();
     const head = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
-      const rows = [...document.querySelectorAll('.goal-page .tree .trow')].filter((t) => t.getClientRects().length);
-      const narrowTitle = rows.filter((t) => r(t.querySelector('.trow-title')).width < r(t).width * 0.6 - 1).length;
-      const clamped = [...document.querySelectorAll('.goal-page .trow-why')].filter((w) => w.scrollHeight > w.clientHeight + 1).length;
+      const rows = [...document.querySelectorAll('.goal-page .tree .grow')].filter((t) => t.getClientRects().length);
+      // The goal row's grid (UX2a) keeps 140px for the status and 168px for the value, so in this narrow column the name takes what is left: at least 200px.
+      const narrowTitle = rows.filter((t) => r(t.querySelector('.grow-name')).width < 200 - 1).length;
+      // The reason is two lines at most by design, with its whole sentence in its title: a clamped reason without one is the fault.
+      const clamped = [...document.querySelectorAll('.goal-page .grow-why')].filter((w) => w.scrollHeight > w.clientHeight + 1 && (w.getAttribute('title') || '').length < w.textContent.length).length;
       const why = [...document.querySelectorAll('.pinned-why')].map((w) => { const cs = getComputedStyle(w); return r(w).height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom); });
       const sa = document.querySelector('#history .show-all');
       return {
@@ -83,7 +85,7 @@ module.exports = {
         back: document.querySelector('.goal-page > .backlink')?.getAttribute('aria-label')?.trim() ?? '',
       };
     });
-    if (head.narrowTitle) fails.push(`head 1280: ${head.narrowTitle} goal rows give the title under 60%`);
+    if (head.narrowTitle) fails.push(`head 1280: ${head.narrowTitle} goal rows give the name under 200px`);
     if (head.clamped) fails.push(`head 1280: ${head.clamped} reasons clamped`);
     if (!head.why.length || head.why.some((h) => h > 22)) fails.push(`head 1280: the pinned goal's “most likely to make it miss” line is ${head.why.length ? Math.round(Math.max(...head.why)) + 'px tall' : 'missing'}`);
     // (Lead time for changes is fed by four goals in two behind states, so two counts to show; the old head had six inputs and three.)
@@ -102,8 +104,8 @@ module.exports = {
     await p.locator('svg.chart').waitFor();
     const ph = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
-      const rows = [...document.querySelectorAll('#feeds .trow')];
-      const stacked = rows.length > 0 && rows.every((t) => r(t.querySelector('.trow-title')).width > r(t).width * 0.8);
+      const rows = [...document.querySelectorAll('#feeds .grow')];
+      const stacked = rows.length > 0 && rows.every((t) => r(t.querySelector('.grow-name')).width > r(t).width * 0.8);
       return { stacked, sideways: document.documentElement.scrollWidth - innerWidth };
     });
     await p.locator('#history .ci-week').first().scrollIntoViewIfNeeded();
