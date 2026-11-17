@@ -82,7 +82,7 @@ An outside expert walkthrough of the live demo, at desktop and phone widths: `do
 1. **UX1 (S):**
    - **Done (17 Nov):** F04's wrap, with `/reviews/new` and the other forms added to P9 at 360 px (every `.seg.full` choice now wraps when it can't fit; P9 also opens `/goals/new`, a goal's edit form and Settings);
    - **Done (17 Nov):** Settings' missing anchors (a unit test now checks every section heading has a link);
-   - **Done (17 Nov):** F08's labels and the folded eight-week row ("56 in scope · 19 flagged for discussion"; "53 goals due to check in this week: 48 in so far"; the readiness panel stays where HB2 put it);
+   - **Done (17 Nov):** F08's labels and the folded eight-week row ("56 in scope · 19 flagged · 37 not flagged"; "53 goals due to check in this week: 48 in so far"; the readiness panel stays where HB2 put it);
    - **Done (17 Nov):** F03's title line (on a phone, Find, Demo and you sit on a row above the goal's title; P10 checks the title has its row at 360 px).
 2. **F02's quiet top link (S)**, if Lane agrees.
 3. **UX2/UX4 (M–L):** a design pass for one goal row, one page header and one form footer, then the build.

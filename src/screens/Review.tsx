@@ -233,8 +233,9 @@ export function ReviewHome() {
     ? [sessionStateText(st), next]
     : st.kind === 'in-progress'
       ? [sessionWhen(s, app.today), reviewedText(s), next]
-      // Each number says what it counts (usability study F08, 17 Nov): the goals in the review, then how they split.
-      : [sessionWhen(s, app.today), s.total ? `${s.total} in scope` : '', exceptions.length ? `${exceptions.length} flagged for discussion` : '', healthy.length ? `${healthy.length} with nothing flagged` : '', next]).filter(Boolean).join(' · ');
+      // Each number says what it counts (usability study F08, 17 Nov): the goals in the review, then how they split. Kept
+      // to one terse line (N1: 60 characters), so "flagged" rather than "flagged for discussion".
+      : [sessionWhen(s, app.today), s.total ? `${s.total} in scope` : '', exceptions.length ? `${exceptions.length} flagged` : '', healthy.length ? `${healthy.length} not flagged` : '', next]).filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home" data-part="Review">
