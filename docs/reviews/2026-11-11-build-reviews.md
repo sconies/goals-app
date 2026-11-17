@@ -3009,3 +3009,6 @@ Read `goalRow.ts`, `goalRows.tsx`, `goal-row.css`, the screens' diffs, `rules.ts
 - **Low:** the old `trow`, `gline` and `agenda-row` CSS is left in, unused (spec 1.7 says it goes).
 - **Low:** a row with no action is one link, so its accessible name is the whole row, not the title (spec 1.2). It was the same before.
 - Not findings: the 40 px action at 360 in a non-touch browser is the spec (44 px only on `pointer: coarse`); the pink fill on an off-track row is the spec's off-track wash.
+- **Closed, high and medium** (3d120e0c): `.ciq-row:has(> .grow)` drops the old grid, and the queue's narrow list (about 540 px at 1440) stacks its rows by its own width. Home and the queue keep the action column on every row from 700 px. P11 now groups rows by list. The walker checked again at 360 and 1440: the queue's names are 524 px at 1440 and the values are equal within each list. The touches rule and the backlog notes close the first two lows.
+- **Low (new):** Home's "N need attention" block under Your goals still draws its own older row (status, then the flag word, then the reason inline), not GOAL-ROW. Spec 1.1 didn't count it among the row shapes. Sent to planning as a UX2 follow-up.
+- Told planning: no high or medium; it can merge on green CI.
