@@ -2979,3 +2979,9 @@ Read `docs/design/patterns/spec.md` in full, the backlog's new "Usability study,
 Read the whole diff (six files, small). Checked: `set-rec` and `set-motion` always render, so no link is dead; the order of `SECTIONS` follows the page; P9's new route pattern (`/^\/check-in|\/new$|\/edit$/`) excuses only focus-mode forms; `.seg.full` is a tray with a gap, so a wrapped choice reads cleanly; Help's new line ("stays at the top… with the section you're in lit") matches `.section-links` (sticky) and `SectionLinks`' `lit`. P6 now skips `visibility: hidden` shapes. That is narrow (the map's nodes before they are measured), and a shape is still judged once it shows. No What's new (fixes, `[no news]`), as CLAUDE.md allows. #587 (CLAUDE.md, prompt-cache habits) is docs only.
 
 - **No findings.**
+
+### #588 UX1 2/3: the review's counts say what they count, the eight weeks fold, a goal's title gets its own line on a phone (merged d159becc)
+
+Read the whole diff except spec/ and api/mcp.js. Checked: `beforeReviewText` is the one source (habit spec, rules.ts, unit tests and U153 all moved together); "this week" in the present tense is safe, because `week` is `min(s.week, app.week)`, so a still-to-come week is never past the due day; the fold is `details.disclose`, the panel stays above the agenda (HB2), and U153 now asserts the fold; the phone goal bar isn't sticky, so the utilities' new row adds no sticky height; the new 360 px check sits in `platformChecks`. Help is updated in both articles. No What's new (`[no news]`), which is right for study fixes.
+
+- **Low:** a review's page now says "19 flagged · 37 not flagged", while Home's review card still says "19 goals to discuss" and "…with nothing flagged to mark reviewed" (`src/domain/home.ts:213`), and the walk's Help says "the goals to discuss". These are two words for the same count on adjacent screens. UX2a's agenda row is a good moment to settle on one.
