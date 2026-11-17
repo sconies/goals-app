@@ -373,7 +373,9 @@ const navTo = async (h, p, label) => {
 const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) => {
   const near = (e) => { let box = e.parentElement; while (box && !box.innerText.trim()) box = box.parentElement; return box ? box.innerText : ''; };
   if (typeof window.__shapeAgrees !== 'function') return ['the page does not expose the shape rule (window.__shapeAgrees)'];
-  return els.filter((e) => e.getClientRects().length && !e.closest('.hgrid') && !window.__shapeAgrees(e.dataset.status, near(e)))
+  // Only shapes someone can see: the map keeps a node hidden (visibility) until it has measured it, and a hidden node
+  // has no words of its own yet, so its shape was read against the map's key (no-rhythm smoke on a slow runner, 17 Nov).
+  return els.filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && !e.closest('.hgrid') && !window.__shapeAgrees(e.dataset.status, near(e)))
     .map((e) => `the ${e.dataset.status} shape beside “${near(e).replace(/\s+/g, ' ').trim().slice(0, 60)}”`);
 });
 
@@ -8691,7 +8693,9 @@ async function platformChecks() {
     const c8 = await browser.newContext({ viewport: { width: w, height: hgt }, hasTouch: w <= 1024 });
     const r = await c8.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['amara', '/goals'], ['amara', '/goals?scope=all&view=table'], ['amara', '/goals?scope=all&view=history'], ['amara', '/goals?scope=all&view=history&hist=weekly&weeks=year'], ['amara', '/goals?scope=all&view=board'],
-      ['rhea', '/goals/ns-lead'], ['mateo', '/check-in/mttr-pir'], ['amara', '/reviews/weekly'], ['oskar', '/watching'], ['amara', '/activity'], ['grace', '/data'], ['grace', '/workspace']]) {
+      ['rhea', '/goals/ns-lead'], ['mateo', '/check-in/mttr-pir'], ['amara', '/reviews/weekly'], ['oskar', '/watching'], ['amara', '/activity'], ['grace', '/data'], ['grace', '/workspace'],
+      // The forms too (F04, usability study 17 Nov: the review's cadence choices overflowed at 360px, and P9 never opened a form).
+      ['amara', '/reviews/new'], ['amara', '/goals/new'], ['rhea', '/goals/ns-lead/edit'], ['amara', '/settings']]) {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
@@ -8714,7 +8718,8 @@ async function platformChecks() {
       const at = `${w}px ${who} ${route}`;
       if (m.sideways > 1) widths.push(`${at}: ${m.sideways}px sideways`);
       if (m.cut.length) widths.push(`${at}: cut off at the edge: ${m.cut.join(', ')}`);
-      if (!m.nav && !route.startsWith('/check-in')) widths.push(`${at}: no navigation`);
+      // A check-in and a form open in focus mode, with no menu (NAV-FORMS): only their Close leaves.
+      if (!m.nav && !/^\/check-in|\/new$|\/edit$/.test(route)) widths.push(`${at}: no navigation`);
       if (m.wideProse) widths.push(`${at}: ${m.wideProse} paragraph(s) wider than 960px`);
     }
     await c8.close();

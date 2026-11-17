@@ -80,8 +80,8 @@ An outside expert walkthrough of the live demo, at desktop and phone widths: `do
 
 **If picked, in this order:**
 1. **UX1 (S):**
-   - F04's wrap, with `/reviews/new` and the other forms added to P9 at 360 px;
-   - Settings' missing anchors;
+   - **Done (17 Nov):** F04's wrap, with `/reviews/new` and the other forms added to P9 at 360 px (every `.seg.full` choice now wraps when it can't fit; P9 also opens `/goals/new`, a goal's edit form and Settings);
+   - **Done (17 Nov):** Settings' missing anchors (a unit test now checks every section heading has a link);
    - F08's labels and the folded eight-week row;
    - F03's title line.
 2. **UX2a, one goal row (M):** `rowParts` and one `GoalRow` for Home, Watching, Goals List, the check-in queue and a review's agenda, with the hard cases as tests (`docs/design/patterns/spec.md`, section 1). The design pass is done (#585; Lane's answers, 17 Nov). One track with UX2b and UX4, in this order.

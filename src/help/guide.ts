@@ -1365,6 +1365,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
+        'On this page, under the title: a link to every section, from You to Leave. It stays at the top as you scroll, with the section you’re in lit.',
         'Light or dark: light, dark, or follow your device.',
         'Accent colour: Faro’s teal (the default), or the earlier cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
         'Motion lab, at the bottom: play with how a goal’s page moves. It is off by default, so a goal’s page shows its chart and number the moment it opens; switch on “Play the story when a goal’s page opens” to watch the chart draw itself in and the number land. Then speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.',
