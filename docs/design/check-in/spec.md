@@ -52,7 +52,7 @@ Rows come from rule 9 (`checkInQueue`). Content, in order:
 | 1 | The saved line, when arriving from a post | The same |
 | 2 | Title "Check-in" | Title "Check in on a goal" |
 | 3 | "Week {n} · {dates with year}. Check-ins are due by {weekday} {date}{, tomorrow \| , today}." After the day: "…were due on {weekday} {date}." | "Week {n} · {dates with year}. Check in when there’s news; nothing is due." |
-| 4 | Primary: **"Start with {short title}"** → that goal with `?walk=1`. One to do: **"Check in on {short title}"**. None to do: no button | No primary button |
+| 4 | Primary: **"Start with {short title}"** → that goal with `?walk=1`. One to do: **"Check in on {short title}"**. None to do: no button. Under it, with two or more number goals to do, the quiet link "Or type all your numbers in one table" (F02, 17 Nov) | No primary button |
 | 5 | "To do this week · {n}" | "No check-in this week · {n}" (never-checked-in goals first, then oldest first) |
 | 6 | "Type all your numbers in one table" → `/check-in/table`, when two or more number goals are in group 5 | The same |
 | 7 | "Done this week · {n}" | "Checked in this week · {n}" |

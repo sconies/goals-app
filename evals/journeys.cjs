@@ -4271,6 +4271,10 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   const first = (await rows.first().locator('.ciq-title').innerText()).trim();
   const start = p.getByRole('link', { name: n === 1 ? `Check in on ${first}` : `Start with ${first}` });
   await h.inView(start, 'entry', 'Start with the first');
+  // The table is offered near the top too, as a quiet link under Start with, so it's on screen without scrolling
+  // (usability study F02; Lane, 17 Nov). Start with stays the one primary action.
+  if (n >= 2) await h.inView(p.locator('.ciq-table-top').getByRole('link', { name: 'Or type all your numbers in one table' }), 'entry', 'the table near the top');
+  h.set('entry', await p.locator('.checkin-queue .btn.primary').count() === 1, 'the queue has more than one primary action');
   h.set('attention', n >= 2 && /^Week \d+, .+\. Check-ins are due by \w+/.test((await p.locator('.ciq-when').innerText()).trim())
     && (await rows.locator('.ciq-status').allInnerTexts()).every((t) => t.trim().length > 0) && (await rows.locator('.ciq-said').allInnerTexts()).every((t) => /^(Last week|Week \d+): |^No check-in yet$/.test(t.trim())),
     `the list has ${n} rows, or a row doesn’t say its status and what it last said`);
@@ -4299,7 +4303,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   await row.waitFor({ timeout: 5000 }).catch(() => {});
   h.set('finish', /Draft kept/.test(await row.innerText().catch(() => '')) && await row.getByRole('link', { name: /^Carry on: / }).isVisible().catch(() => false), `closing did not come back to the list with “Draft kept” on ${title}`);
   // The table is one line away, and it is Check-in's too.
-  await h.click(p.getByRole('link', { name: 'Or type all your numbers in one table' }));
+  await h.click(p.locator('.ciq-table').getByRole('link', { name: 'Or type all your numbers in one table' }));
   await p.waitForURL(/\/quick-check-in/);
   await p.locator('main h1, .focus h1, h1').first().waitFor();
   h.set('progress', /Check-in/.test(await p.title()), `the table's page is called “${await p.title()}”`);
