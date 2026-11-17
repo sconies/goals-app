@@ -33,13 +33,7 @@ export function HandledGroup({ list, folded }: { list: GoalAttention[]; folded?:
   );
 }
 
-/** A goal being handled: the usual row, with what's in hand as its reason. */
+/** A goal being handled: the shared row, with what's in hand as its reason. */
 export function HandledRow({ a }: { a: GoalAttention }) {
-  const h = a.handled!;
-  const flag = a.flags.find((f) => f.kind !== 'due');
-  const said = h.said || flag?.detail || '';
-  return (
-    <GoalRow g={a.goal} className="handled-row" whyTitle={`${h.text}${said ? '. ' + said : ''}`}
-      why={<><span className="handled-what">{h.text}</span>{said ? ` · ${said}` : ''}</>} />
-  );
+  return <GoalRow g={a.goal} place="watching-handled" className="handled-row" />;
 }

@@ -246,7 +246,7 @@ export function WatchedGoals() {
       {shown.length > 0 && (
         <ul className="tree">
           {/* Each row says itself when it got worse ("Was on track in week 43") or went quiet. */}
-          {shown.map((a) => <li key={a.goal.id}><GoalRow g={a.goal} /></li>)}
+          {shown.map((a) => <li key={a.goal.id}><GoalRow g={a.goal} place="home-watching" /></li>)}
         </ul>
       )}
       {exceptions.length > shown.length && <Link className="small linkish" to="/goals?scope=watching&attention=1">{exceptions.length - shown.length} more need attention</Link>}

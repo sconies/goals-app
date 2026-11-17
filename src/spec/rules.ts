@@ -72,6 +72,7 @@ import { goalRows, liveGoals, personRows, scopeFacts, standingIn, teamRows } fro
 import { movesSince } from '../app/moved';
 import { changedHeading, changedSet, changedSince, movement, sinceFor, seenToday, type StatusNow } from '../domain/changed';
 import { CHECK_IN_MOMENT } from './conformance';
+import { rowParts, type RowFacts, type RowPlace } from '../domain/goalRow';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
 import { quarterResults } from '../domain/year';
@@ -197,6 +198,13 @@ function asPerson<T>(actor: string, run: (x: ActionContext) => T): T | string {
   try { return run(x); } catch (e) { return `refused: ${(e as Error).message}`; }
 }
 const goalIn = (id: string) => demo!.goals.find((g) => g.id === id)!;
+/** One goal's row in the demo workspace, as its slots: status | value · gap | reason (⚠ when a flag) | context | action. */
+function rowExample(id: string, place: RowPlace, viewerId = 'rhea', queue?: RowFacts['queue']): string {
+  const s = demo!; const cycle = s.cycles[0]!; const today = new Date(CHECK_IN_MOMENT);
+  const g = goalIn(id);
+  const p = rowParts(g, attentionFor(g, s, cycle, today), place, { checkIns: s.checkIns, people: s.people, asks: s.requests ?? [], cycle, today, week: currentWeek(cycle, today), viewerId, queue });
+  return [p.statusWord, [p.value, p.gap?.text ?? p.asOf, p.result?.text].filter(Boolean).join(' · '), (p.reasonIsFlag ? '⚠ ' : '') + (p.reason ?? '—'), p.context ? (p.contextIsFlag ? '⚠ ' : '') + p.context : '—', p.action ?? '—'].join(' | ');
+}
 /** What a module's spec.ts uses for its worked examples: the demo workspace (built before any example runs), an action
     in it by one of its people, one of its goals, and what a commit says. */
 export const exampleKit = { demo: () => demo!, asPerson, goalIn, summaryOf: (c: { changes: { summary: string }[] } | null | string) => summaryOf(c) };
@@ -588,6 +596,55 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
   },
 
   /* ---------- scorecard ---------- */
+  {
+    id: 'goal-row',
+    title: 'One goal row',
+    summary: 'What a goal says wherever goals are listed: the same slots in the same order, each list choosing only what fills the reason, the second line and the button.',
+    code: [{ file: 'src/domain/goalRow.ts', names: ['rowParts', 'flagReason', 'freshnessOf'] }],
+    tests: ['src/domain/goalRow.test.ts'],
+    reqs: ['GOAL-ROW'],
+    body: `
+Every list of goals (Home, Watching, Goals' list and trees, a goal's contributing goals, the check-in queue, a review's agenda) draws one row. \`rowParts(goal, attention, place, facts)\` gives its parts; the row only lays them out. It writes no sentence of its own: each part is a shared rule's words (the flags, \`nowText\`, \`gapBeside\`, \`statusChange\`, \`goalResult\`, the vocabulary), so the screens and the AI assistant's \`find_goals\` (its \`reason\` and \`context\`) say the same reason for the same goal.
+
+### The slots, in this order
+
+| Slot | Holds | Always there |
+|---|---|---|
+| Status | The status's shape and word. | Yes |
+| Value | The number now (\`nowText\`), and under it how it stands against the plan (\`gapBeside\`), or, for a goal gone quiet or (with no set rhythm) a status not from this week, "as of week {n}"; a finished goal's result in the vocabulary's words. | Yes |
+| Name | The title, a link to the goal's page; its tell (its key, else its team) when another goal has the same title (see Names in [numbers and names](numbers-and-names.md)); its level where the workspace shows levels. | Yes |
+| Reason | One sentence: why it is in this list, by the place's rule below. A flag that isn't the status says its word first ("${FLAG.trend.label}: …") and takes the warning mark; the ${FLAG.off.label}, ${FLAG.risk.label} and ${FLAG.stale.label} flags are the status, so their detail has no mark. | When the place has a rule |
+| Context | A second line, only when it changes what the reader does: an open ask the goal waits on, when the reason isn't already that ask ("Waiting on {name}: {ask}.", or "Waiting on you: …" for the person asked), with the warning mark; or "Draft kept" in the check-in queue. | Only then |
+| Action | One button, only in a task list: "Check in", "Carry on" (a draft is kept) or "Correct it" (this week's check-in is posted). | Only in task lists |
+
+A row with no action is one link, edge to edge. A row with an action links only its name, because a button inside a link is invalid.
+
+### What fills the reason, by place
+
+The flags are taken worst first by the shared weight (see [flags](flags.md)); the \`due\` flag is never a reason except on Home. One reason, never a list or a count of flags.
+
+| Place (\`place\`) | Reason | Context | Action |
+|---|---|---|---|
+| Home, your goals (\`home-mine\`) | The top flag; else the \`due\` flag's words; else how fresh it is ("Checked in 2 days ago.") | An open ask | "Check in" while one is due |
+| Watching, needs attention (\`watching-needs\`) | The top flag | An open ask | None |
+| Being handled (\`watching-handled\`) | What puts it in hand (\`handledFor\`'s line), then " · " and what was said | None | None |
+| Watching's other goals, and Home's goals you watch (\`watching-rest\`, \`home-watching\`) | The top flag; else "Was {status} in week {n}." and how fresh it is, when its status changed at its latest check-in; else the owner and how fresh it is | None | None |
+| Goals, and a goal's contributing goals (\`goals-list\`) | The top flag; else the owner (left out in a list of your own goals) and how fresh it is | None | None |
+| The check-in queue (\`checkin-queue\`) | What the latest check-in before this week said that the value doesn't: "Last week: {the owner's reason}" (or "Week {n}: …"); nothing when there was no reason. Once posted this week, "Checked in {day}." | "Draft kept" | "Check in", "Carry on" or "Correct it" |
+| A review's agenda (\`agenda\`) | What is in hand (\`handledFor\`'s line), else the top flag | None | None |
+
+### Layout
+
+At 700 px and wider a list's rows share four columns, so values line up down a list: status (140 px, never truncated), the name with the reason and context under it, the value (168 px, right-aligned, tabular figures), and the action. Narrower, the status and value share the first line (the value wraps under the status word as one unit) with the action at its right, never smaller than 44 × 44 px; the name has its own full-width line; the reason takes two lines at most. Colour belongs to the status shape and word, the gap's words and the off-track wash over the whole row; the warning mark takes the at-risk ink; nothing else is coloured. Long names wrap; they never truncate.
+
+The row is core, with no switch: every list uses it. The places that belong to a module (Watching, a review's agenda) go with their module.`,
+    examples: [
+      { given: 'Cost: requests right-sized (cost-requests), on track, the trend heading short of its target: the row in Watching’s Needs attention.', then: 'On track | 73% · 1 pt behind plan | ⚠ Getting worse: On track today, but the recent trend heads for 78–79% by week 53, against a target of 80%. | — | —', run: () => rowExample('cost-requests', 'watching-needs') },
+      { given: 'Halt on failed contract tests (cfr-halt), a milestone off track: the row in Goals.', then: 'Off track | 2 of 3 stages · Late · Not met | Observability reprioritised, and our dependency moved to their next sprint. | — | —', run: () => rowExample('cfr-halt', 'goals-list') },
+      { given: 'CI time (lead-ci-time), off track, waiting on Amara’s decision: the row in Watching, as Amara sees it.', then: 'Off track | 8 min · 3 min behind plan | Blocked on Infrastructure & Compute: we need their change before we can switch the runner pools on. | ⚠ Waiting on you: approve the extra CI runner budget for Q4. | —', run: () => rowExample('lead-ci-time', 'watching-needs', 'amara') },
+      { given: 'The same goal in Rhea’s check-in queue, with a draft kept.', then: 'Off track | 8 min · 3 min behind plan | Last week: Half of the runner pools is done; the rest waits on Infrastructure & Compute’s release, now planned for next month. | Draft kept | Carry on', run: () => rowExample('lead-ci-time', 'checkin-queue', 'rhea', { draft: true }) },
+    ],
+  },
   {
     id: 'scorecard',
     title: 'The scorecard',

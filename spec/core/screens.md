@@ -88,7 +88,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open the review, Continue the review, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them” | primary | always |
 | “the quiet line’s buttons, as [Home](rules/home.md) words them: Check in early; See the goals and Set up a goal” | link | `quiet.buttons.length > 0` |
-| “Check in” | link | `rest.length > 0` and `checkInHere?.(g)` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)” | link | always |
 | “Show all …” | button | `asks.length > shown.length` |
@@ -1698,8 +1697,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Button | Kind | Shown when |
 |---|---|---|
 | “Check in on … / Start with …” | primary | `first` |
-| “Carry on / Check in” | link | `p.due.length > 0` |
-| “Correct it” | link | `p.done.length > 0` |
 | “(…: …)” | link | always |
 
 ### Check-in: the status sheet

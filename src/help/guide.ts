@@ -565,7 +565,8 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it means', text: [HANDLED_LINE] },
       { heading: 'Why a goal is flagged', list: [...(['off', 'risk', 'stale'] as const).map((k) => `${STATUS[k].label}: ${STATUS[k].meaning}`), ...(['decision', 'no-path', 'missed-path', 'trend', 'greener', 'due'] as const).map((k) => define(FLAG[k]))] },
       { heading: 'How to use it', list: [
-        'Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.',
+        'Every list of goals draws the same row: the status (its shape and word), then the number and how it stands against the plan, then the name. Under the name is one reason, in that list’s words, in numbers where there are numbers; a flag that isn’t the status says its word first, beside the warning mark. A goal on track that is getting worse keeps its on-track shape: “Getting worse: On track today, but the recent trend heads for 78–79% by week 53, against a target of 80%.”',
+        'A second line appears only when it changes what you do: an ask the goal is waiting on (“Waiting on you: …” when it’s yours to answer), or a check-in draft you kept. Only a list of things to do has a button on the row: Check in, Carry on or Correct it. On a phone the status and number come first, and the name has a line of its own.',
         `A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
         'Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.',
       ] },
@@ -587,7 +588,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/goals?show=attention'],
     screens: [],
-    reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'EXCEPTIONS-FIRST', 'ONE-ATTENTION-RULE'],
+    reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'EXCEPTIONS-FIRST', 'ONE-ATTENTION-RULE', 'GOAL-ROW'],
     keywords: ['attention', 'handled', 'exceptions', 'flag', 'warning', 'slipping', 'worse', 'getting worse', 'decision', 'path to green', 'greener', 'red'],
     related: ['status', 'home', 'reviews', 'watching'],
   },

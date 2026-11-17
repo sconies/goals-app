@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (189): build it as Faro does.
+- **Copy** (190): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -746,6 +746,14 @@ Off track, stale, a worsening trend, a missed or missing path to green, and pend
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Journeys and checks:** U2, U3, U6, U8, U16, U36, U37
+
+### GOAL-ROW
+
+One goal row in every list of goals (Home, Watching, Goals, the check-in queue, a review's agenda): the status's shape and word first, then the number and its gap, then the name (with its tell when another goal has the same title), then one reason in the words of that list's rule (a flag that isn't the status takes the warning mark), an optional second line for an open ask or a kept draft, and one button only where the list is something to do. On a phone the status and value share the first line and the name has its own full-width line. The row is core: every list uses it, so it has no switch.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [One goal row](rules/goal-row.md)
+- **Help:** “Needs attention, and being handled” (`needs-attention`)
 
 ### ATTENTION-HANDLED
 
