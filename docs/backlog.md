@@ -56,26 +56,37 @@ Lane's outside deep-dive test of the live app. Taken by the fix track (`docs/han
 - No titles or team leads in setup.
 - No per-goal team choice in setup.
 
-## Usability study, 17 Nov (not yet picked)
+## Usability study, 17 Nov (evaluated; not yet picked)
 
-An outside expert walkthrough of the live demo as Grace, Amara, Rhea and Oskar, at desktop and phone widths down to 340 px: `docs/reviews/2026-11-17-usability-study.md`. One evaluator; no participant data. Its main point is that some screens ask the reader to scan, diagnose and decide at once. Planning checked F01 and F02 against the code: both hold. The evals' phone pages are wider than 340 px, so F04 got past them. Placed in the study's own order, each part a PR or two. It is a design pass first where a screen changes shape (UX2, UX3), as RD and round 4 were:
+An outside expert walkthrough of the live demo, at desktop and phone widths: `docs/reviews/2026-11-17-usability-study.md`. One evaluator, no participants. Planning checked it against the code and Lane's earlier decisions.
 
-- **UX1, the weekly loop (do first; S–M).**
-  - F04: the review setup's cadence choices wrap at narrow widths, with an eval at 340 px.
-  - F02: **Check in one by one** and **Enter numbers in bulk** go above the queue (`CheckInQueue.tsx` puts the bulk link after the list today).
-  - F01: on a phone, the live review's decide actions open from a labelled **Decide** button near the top, as the desktop dock does.
-  - F03: a goal's title gets the full width, with Find, Demo and the avatar moved to the shell.
-  - F08: the review agenda names its denominators ("56 in scope", "53 due to check in", "19 flagged") and puts the discussion queue before the eight-week history.
-- **UX2, one goal row and the order on a goal page (M; a design pass first).** One compact goal row (name; status with value and gap; one reason or action) on Home, Watching, Goals List and the review agenda. Attention reasons are named on the row: "Forecast miss" beside "On track" (F07). On the goal page, Now, Why and Next action come together; older discussion and history fold away.
-- **UX3, dense views on a phone (M–L; a design pass first).**
-  - Board: compact cards and a status picker with counts (F05).
-  - Map: opens tree-first, with Overview as a separate mode.
-  - Data: a row view on a phone with "Open full grid" (F06).
-  - Goals History: shorter on a phone.
-  - Table: keeps value and gap on a phone.
-- **UX4, shared page chrome (M).** One page header for each kind of page (list, detail, task). One filter toolbar. Section headings at one level. A section picker on a phone for Workspace and Settings. One form footer, with errors beside their field.
+**A caveat on its phone numbers.** It made its 340 and 454 px views by zooming the browser, so the pages were only 234 and 312 px tall. Faro's smallest phone is 360 px wide (design-rules.md, "from a 360px phone"), and the phone evals run at 390×844. Below 600 px of height, sticky footers stop sticking on purpose (`map-reviews.css` `.goal-page .decide`; `forms-checkin.css`). So some of its scroll distances come from the test set-up, not from the app.
 
-The study's own words are the detail for each. The design rules still apply: status is a shape plus a word, with no coloured stripes or pastel pills.
+**Verdicts:**
+
+| Finding | Verdict | Why |
+|---|---|---|
+| F04: the review setup's cadence buttons overflow | **Agree. A bug.** | They don't wrap, and they need about 350 px, so they overflow at 360 too. P9's narrow-page check doesn't visit `/reviews/new`. |
+| F08: the agenda's counts | **Agree in part** | Saying what each number counts ("56 in scope", "53 due to check in", "19 flagged") is cheap. The readiness panel sits above the queue by decision (HB2, habit/spec.md), so fold its eight-week row rather than move the panel. |
+| F02: two equal check-in routes above the queue | **Agree in part** | The table link sits under the list on purpose (check-in/README.md; K8: the table was slower for goals that are behind). Two equal buttons would break "one primary action". But with seven goals the link is below the fold even at 390×844, so add a quiet link near the top as well. This changes a check-in decision, so it is Lane's call. |
+| F03: the goal title is squeezed on a phone | **Agree in part** | Give the title its own line at phone width (cheap). The order Next steps, then Why is the goal spec's (goal/spec.md); leave it. |
+| F01: the live review's decide bar is off-screen on a phone | **Disagree** | It sticks to the bottom on real phones. F24 already checks it is on screen at 390×844. The zoom's 312 px height triggered the short-screen exception. |
+| F07: "On track" inside "Needs attention" in Watching | **Already as decided** | A forecast miss needs attention whatever the status (round-3/README.md), and the row says why. At most, drop the count repeated on adjacent lines. |
+| F05: Board | **Agree in part** | A status picker with counts on a phone helps. Taking the status off cards conflicts with "status first on every card" (design-rules.md). |
+| F06: a row view for Data on a phone | **Disagree, low value** | Data is a desktop admin tool that the platform's grid will replace. Keeping the row's name in view while scrolling sideways on desktop is worth it. |
+| Shared goal row, page headers and form footer (UX2, UX4) | **Agree, after a design pass** | One pattern for each is what a rebuild copies most. |
+| Settings' anchor links | **Agree. A bug.** | Recording and Motion lab have no link. |
+| Map tree-first, the Activity strip, Metrics' chips, Demo, Help and What's new folding | **Taste or demo-only** | Not worth building for a model app. |
+
+**If picked, in this order:**
+1. **UX1 (S):**
+   - F04's wrap, with `/reviews/new` and the other forms added to P9 at 360 px;
+   - Settings' missing anchors;
+   - F08's labels and the folded eight-week row;
+   - F03's title line.
+2. **F02's quiet top link (S)**, if Lane agrees.
+3. **UX2/UX4 (M–L):** a design pass for one goal row, one page header and one form footer, then the build.
+4. **Later:** Board's status picker on a phone, and Data's row name kept in view on desktop.
 
 ## Build, in order
 
