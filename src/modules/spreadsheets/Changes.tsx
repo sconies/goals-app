@@ -102,7 +102,7 @@ export function Changes() {
       {problem && <p className="hint tone-off" role="alert">{problem}</p>}
       <div className="foot-row import-foot">
         <Link className="btn big-btn preview-again" to="/data/import/check">Back to the summary</Link>
-        <button type="button" className="btn primary big-btn" disabled={!ready || busy} onClick={() => void save()}>{busy ? 'Saving…' : `Save ${n(items.length, 'change')}`}</button>
+        <button type="button" className="btn primary big-btn" disabled={!ready || busy} onClick={() => void save()}>{busy ? 'Saving…' : `Import ${n(items.length, 'change')}`}</button>
       </div>
     </div>
   );

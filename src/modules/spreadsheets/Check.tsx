@@ -338,7 +338,7 @@ function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: An
 
 /** The foot (2.3, item 7): what still stands in the way, and the one primary action. */
 function Foot({ mustRows, questions, total, nothing, ready, onlyReason, tried, busy, onSave, onChoose }: { mustRows: number; questions: number; total: number; nothing: boolean; ready: boolean; onlyReason: boolean; tried: boolean; busy: boolean; onSave: () => void; onChoose: () => void }) {
-  const saveLabel = busy ? 'Saving…' : `Save ${n(total, 'change')}`;
+  const saveLabel = busy ? 'Saving…' : `Import ${n(total, 'change')}`;
   if (nothing) return <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={onChoose}>Choose another file</button></div>;
   if (mustRows) {
     return (

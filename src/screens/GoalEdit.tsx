@@ -27,6 +27,7 @@ import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
+import { FormFooter } from '../ui/FormFooter';
 import { MAX_GUARDS } from '../domain/guards';
 import { guardRefusal } from '../domain/guardWords';
 
@@ -308,9 +309,9 @@ function EditSheet({ goal }: { goal: Goal }) {
         </details>
 
         {tried && valid && !confirmed && <FixLine>{openLine(open)}</FixLine>}
-        <div className="focus-foot">
+        <FormFooter>
           <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk) || !confirmed))}>{label}</button>
-        </div>
+        </FormFooter>
         {/* GE10: only an active goal with no check-ins can go back to proposed (the goal's "…" menu). */}
         {started && !isProposed(goal) && <p className="hint small">{HAS_CHECK_INS}</p>}
       </form>

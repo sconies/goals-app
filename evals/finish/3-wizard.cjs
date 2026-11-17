@@ -7,7 +7,7 @@ const col = (p) => box(p.locator('.focus-body'));
 const name = async (p, t = 'Runbooks with an owner') => p.getByLabel(/Name it the way/).fill(t);
 // Mateo leads SRE, which owns north stars, so New goal asks his level (OB1, rule 1).
 const team = (p) => p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
-const cont = async (p) => { await p.getByRole('button', { name: /Continue/ }).click(); await p.waitForTimeout(150); };
+const cont = async (p) => { await p.getByRole('button', { name: /^Next(: |$)/ }).click(); await p.waitForTimeout(150); };
 // New goal's order (OB1): what, who and where, how it's measured, check. The plan table is folded under the chart.
 const toNumbers = async (p, table = true) => {
   await name(p); await cont(p); await team(p); await cont(p);

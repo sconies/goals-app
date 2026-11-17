@@ -86,7 +86,6 @@
 .metric-form .metric-later { border: 0; margin: 0; padding: 0; min-width: 0; }
 .metric-form .metric-later legend { padding: 0; margin-bottom: var(--s2); }
 .metric-form .metric-foot p { margin: 0; }
-.metric-form .metric-count { font-weight: 600; }
 .metric-form .metric-still { color: var(--fg-2); }
 .metric-form .level-check .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .metric-form .level-check .level-actions .btn { min-height: 44px; }

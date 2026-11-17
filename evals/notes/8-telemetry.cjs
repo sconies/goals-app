@@ -76,7 +76,7 @@ module.exports = {
       await p.waitForTimeout(100);
       const meant = p.locator('.level-check .level-actions button').first();
       if (await meant.isVisible().catch(() => false)) await meant.click();
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       const changed = p.getByRole('button', { name: 'Something changed', exact: true });
       if (await changed.count()) await changed.click();
       await p.getByRole('group', { name: 'Main cause' }).getByRole('button', { name: 'Something else' }).click();

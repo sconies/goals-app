@@ -103,6 +103,7 @@ Checks run across every screen: design rules, widths, motion, errors.
 | P11 | One goal row in every list: status and its word, then the value, then the name; values line up from 700px; the name spans the row on a phone; no link holds a button | `GOAL-ROW` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P15 | A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so | `DEMO-STORAGE` | `evals/journeys.cjs` |
 | P17 | Checked within F11: Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
+| P20 | One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in’s exit says Close until something is typed | `FORM-FOOTER` | `evals/journeys.cjs` |
 
 ## Fit and finish
 
@@ -250,6 +251,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.focus-foot` | the focus foot | [U93](journeys/U93.md) |
 | `.focus-foot button[type=submit]` | the check-in’s main button | [U1](journeys/U1.md), [U7](../modules/watching/journeys/U7.md), [U27](journeys/U27.md), [U85](journeys/U85.md) |
 | `.focus-top` | the top of the check-in | [U72](../modules/metrics/journeys/U72.md) |
+| `.form-foot .foot-status` | the foot status in the form foot | [U105](../modules/metrics/journeys/U105.md) |
 | `.from-metric` | the from metric | [U146](../modules/metrics/journeys/U146.md) |
 | `.goal-bar` | the goal’s summary bar | [U141](journeys/U141.md), [U6](journeys/U6.md), [U8](../modules/watching/journeys/U8.md), [U9](../modules/watching/journeys/U9.md), [U41](../modules/feedback/journeys/U41.md), [U70](journeys/U70.md), [U44](journeys/U44.md), [U164](../modules/watching/journeys/U164.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md), [U81](../modules/metrics/journeys/U81.md), [U162](journeys/U162.md), [U150](journeys/U150.md), [U170](../modules/metrics/journeys/U170.md), [U174](../modules/tags/journeys/U174.md), [U85](journeys/U85.md) |
 | `.goal-bar .bar-actions` | the buttons on the goal’s summary bar | [U141](journeys/U141.md), [U77](journeys/U77.md), [U80](../modules/reviews/journeys/U80.md) |
@@ -319,7 +321,6 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.measured-by` | the Measured by line | [U82](../modules/metrics/journeys/U82.md), [U159](../modules/metrics/journeys/U159.md), [U160](../modules/metrics/journeys/U160.md), [U145](../modules/metrics/journeys/U145.md), [U146](../modules/metrics/journeys/U146.md) |
 | `.metric-block` | the metric block | [U146](../modules/metrics/journeys/U146.md) |
 | `.metric-children` | the metric children | [U172](../modules/metrics/journeys/U172.md) |
-| `.metric-count` | the metric count | [U105](../modules/metrics/journeys/U105.md) |
 | `.metric-facts` | the metric facts | [U172](../modules/metrics/journeys/U172.md) |
 | `.metric-facts .measure-gap` | the measure gap in the metric facts | [U170](../modules/metrics/journeys/U170.md) |
 | `.metric-goals tbody tr` | the table row in the tbody in the metric goals | [U81](../modules/metrics/journeys/U81.md) |

@@ -11,7 +11,7 @@ module.exports = {
     const box = (loc) => loc.evaluate((el) => { const b = el.getBoundingClientRect(); return { x: b.left, y: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; });
     const sideways = (p) => p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     // Rhea's lead time (hours, lower is better) is off track with a reason and a path from last week to carry; 40 hours is far behind plan.
-    const kofiToCarry = async (p) => { await p.locator('.bignum input').fill('40'); await p.getByRole('button', { name: 'Continue' }).click(); await p.getByRole('button', { name: 'Something changed' }).waitFor(); };
+    const kofiToCarry = async (p) => { await p.locator('.bignum input').fill('40'); await p.getByRole('button', { name: /^Next(: |$)/ }).click(); await p.getByRole('button', { name: 'Something changed' }).waitFor(); };
 
     // ---------- the check-in ----------
     // Demo review, 8 Nov, item 2: a draft reopened at step 2 has Back, so a wrong number is corrected without posting,
@@ -152,7 +152,7 @@ module.exports = {
     {
       const [c, p] = await open(1280, 900, 'rhea', '/check-in/ns-lead');
       await p.locator('.bignum input').fill('abc');
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       const field = p.locator('.bignum');
       const border = await field.evaluate((el) => getComputedStyle(el).borderTopColor);
       if (border !== 'rgb(180, 35, 24)') fail(`check-in 14: a wrong number leaves the border ${border}`);

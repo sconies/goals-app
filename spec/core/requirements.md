@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (190): build it as Faro does.
+- **Copy** (191): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -1249,8 +1249,18 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Copy:** build it as Faro does.
+- **Rule:** [One form footer](rules/form-footer.md)
 - **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** U72, U136
+
+### FORM-FOOTER
+
+One form footer on every focused task: a status line above the buttons (what the primary does on the last step, or what is left to fix), Back at the left from the second step on, and one filled primary at the right labelled with a verb and an object or the next step by name (“Next: why it’s behind”, “Post check-in”, “Post 5 check-ins”), never “Continue”, “Submit”, “OK” or “Save” alone. The exit stays the header's, top right: a form that keeps drafts says “Close” until something is typed, then “Close and keep the draft”. A sheet has Cancel at the left. The footer is core: every form uses it, so it has no switch.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [One form footer](rules/form-footer.md)
+- **Help:** “Getting around” (`getting-around`), screens `NotFound`
+- **Journeys and checks:** P20
 
 ### RAIL-SWITCH
 

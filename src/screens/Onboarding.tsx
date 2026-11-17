@@ -8,6 +8,8 @@ import { useDraft } from '../app/drafts';
 import { searchOver, usePrefs } from '../app/search';
 import { draftStep, firstUnfilled, isSetupStep, SETUP_STEPS, startOf, type SetupStart, type SetupStep } from '../domain/dayOne';
 import { howWeWork, SETUP_STEP_NAMES } from '../domain/arrival';
+import { FormFooter } from '../ui/FormFooter';
+import { nextLabel } from '../domain/formFooter';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { tooLarge } from '../domain/importLimits';
 import { saveAndSay } from '../app/files';
@@ -478,7 +480,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: rowsOf.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const wsName = d.name.trim() || 'workspace';
-  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? `Create ${wsName}` : `Continue to ${SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase()}`;
+  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? `Create ${wsName}` : nextLabel(SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase());
   // Set up from inside a workspace, you are one line until you change it (2.3).
   const known = !!viewer && !meOpen && !meErr.name && !meErr.email && !meErr.team;
   const fileGoals = d.fileTables?.goals?.length ?? 0;
@@ -702,12 +704,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           </section>
         )}
 
-        <div className="focus-foot">
-          <div className="foot-row">
-            {idx > 0 && !fromCheck && <button type="button" className="btn ghost" onClick={back}>Back</button>}
-            <button className="btn primary big-btn" type="submit" disabled={busy}>{label}</button>
-          </div>
-        </div>
+        <FormFooter onBack={idx > 0 && !fromCheck ? back : undefined} status={step === 'check' && !busy ? 'You can change all of this later in Workspace.' : undefined}>
+          <button className="btn primary big-btn" type="submit" disabled={busy}>{label}</button>
+        </FormFooter>
       </form>
       <Sheet open={howOpen} onClose={() => setHowOpen(false)} title="How you’ll work">
         <div className="stack" style={{ gap: 'var(--s4)' }}>

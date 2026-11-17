@@ -51,7 +51,7 @@ module.exports = {
         if (step === 'what') await p.getByLabel(/Name it the way/).fill('Runbooks with an owner');
         // Mateo leads SRE, which owns north stars, so his level is asked (OB1, rule 1).
         if (step === 'who') await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
-        if (step !== 'check') await p.getByRole('button', { name: 'Continue' }).click();
+        if (step !== 'check') await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       }
       await c.close();
     }

@@ -181,7 +181,7 @@ module.exports = {
       const last = await p.evaluate(async () => { const s = await window.__goalsStore.load('platform-org'); return s.checkIns.filter((x) => x.goalId === 'lead-merge').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1).value; });
       await p.goto(url('/check-in/lead-merge'));
       await p.getByLabel('This week’s value').fill(String(last));
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       await p.getByRole('button', { name: /Still true: post check-in/ }).click();
       await p.getByText('Check-in saved').first().waitFor().catch(() => {});
       await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));

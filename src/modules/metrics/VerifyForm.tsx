@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../../app/state';
 import { FormClose } from '../../ui/FormClose';
+import { FormFooter } from '../../ui/FormFooter';
 import { WarnMark } from '../../ui/bits';
 import { StageMark } from './stageMark';
 import { refusalFor, stageFor } from './MetricQuality';
@@ -95,10 +96,10 @@ export function VerifyForm() {
             <p className="small hint">Recorded as {app.viewer.name}, today. Due again in 12 months. {owner} is told.</p>
             {error && <div className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{error}</span></div>}
             {tried && (!has || !note.trim() || !period.trim()) && <p className="small metric-retake" role="alert">Give the period, the figure from the link and a note.</p>}
-            <div className="foot-row">
+            <FormFooter>
               <button type="button" className="btn ghost big-btn" disabled={busy} onClick={() => void run('couldnt_reproduce')}>Couldn’t reproduce</button>
               <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : 'Mark as Verified'}</button>
-            </div>
+            </FormFooter>
           </form>
         )}
       </div>

@@ -306,7 +306,7 @@ The example is one division of about 100 people in 14 teams, with 12 north stars
 
 `getting-around`. Every page names itself and lights its place in the menu; one back link above the title agrees with your browser’s Back; and a form has one way out.
 
-Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
+Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`, `FORM-FOOTER`.
 
 #### Where you are
 
@@ -350,7 +350,8 @@ Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 
 #### Leaving a form
 
-- A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.
+- A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.
+- At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix.
 
 #### Leaving a form
 

@@ -1,5 +1,7 @@
 /* Closing the cycle: each owner wraps up their goals (how it landed, what we learned, carry on or stop),
    everyone sees the summary, and an admin starts the next cycle with the goals that carry on. */
+import { FormFooter } from '../ui/FormFooter';
+import { nextLabel } from '../domain/formFooter';
 import { OWNER_VIEW_LABEL } from '../domain/vocabulary';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -180,7 +182,7 @@ function RetroForm({ goal }: { goal: Goal }) {
           </div>
           <span className="hint">{next === 'carry' ? (goal.kind === 'metric' ? `It starts next ${periodWord(app.cycle)} from where it ended; you can change the target then.` : `It starts next ${periodWord(app.cycle)} with what’s left.`) : `It stays in this ${periodWord(app.cycle)}’s history.`}</span>
         </div>
-        <div className="focus-foot"><div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : before ? 'Save changes' : 'Save and continue'}</button></div></div>
+        <FormFooter><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : before ? 'Save changes' : mineLeft.length ? nextLabel(mineLeft[0]!.title) : 'Finish the wrap-up'}</button></FormFooter>
       </form>
     </div>
   );

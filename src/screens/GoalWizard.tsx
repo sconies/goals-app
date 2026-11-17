@@ -39,6 +39,8 @@ import { Place, useFilled, useModules, type MeasurePick } from '../core/app';
 import { reviewsOn } from '../app/reads';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
+import { FormFooter } from '../ui/FormFooter';
+import { nextLabel } from '../domain/formFooter';
 import { recentsOf, usePrefs } from '../app/search';
 
 const KINDS = GOAL_KINDS;
@@ -537,13 +539,11 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         )}
 
         {shown && !gate.go && step < 3 && <FixLine>{gate.says}</FixLine>}
-        <div className="focus-foot nav-foot">
-          {step > 0 && <button type="button" className="btn" onClick={back}>Back</button>}
-          <span style={{ flex: 1 }} />
+        <FormFooter onBack={step > 0 ? back : undefined}>
           {/* Proposed, how it's measured can be said later: straight from Who and where to Check (2.15, item 4). */}
           {step === 1 && proposing && <button type="button" className="linkish skip-measure" onClick={() => go(3)}>Skip: say how it’s measured later</button>}
-          <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? (proposing ? 'Proposed' : 'Published') : saving ? 'Saving…' : step < 3 ? 'Continue' : proposing ? 'Propose goal' : 'Publish goal'}</button>
-        </div>
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? (proposing ? 'Proposed' : 'Published') : saving ? 'Saving…' : step < 3 ? nextLabel(step === 2 ? 'check it' : NEW_GOAL_STEPS[step + 1]!.name.toLowerCase()) : proposing ? 'Propose goal' : 'Publish goal'}</button>
+        </FormFooter>
       </form>
     </div>
   );

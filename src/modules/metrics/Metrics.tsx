@@ -37,6 +37,7 @@ import { decimalsWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS,
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
+import { FormFooter } from '../../ui/FormFooter';
 import { changeKinds, linkedGoals } from './rulesChange';
 import { lapseChecks } from './rulesSave';
 import { readWhen } from '../../domain/readingWords';
@@ -941,9 +942,8 @@ export function MetricForm() {
         <StillNeeded metric={next} ownerIsHere={!!ownerName(app.snapshot.people, next)} />
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {checkFor('lapse')}
-          {count && <p className="small metric-count" role="status">{count}</p>}
         </div>
-        <div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
+        <FormFooter status={count || undefined}><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save metric' : 'Add metric'}</button></FormFooter>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
     </div>
