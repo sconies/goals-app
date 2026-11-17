@@ -88,7 +88,9 @@ An outside expert walkthrough of the live demo, at desktop and phone widths: `do
 3. **UX2b, one form footer (M):** `FormFooter`, verb-object labels, errors beside their fields, "Close" until something is typed (patterns spec, section 3).
 4. **UX4, one page header (S–M):** `PageHeader` and `TaskHeader`; utilities out of headers; the phone's bar names the page once the title has scrolled away (patterns spec, section 2). After UX1's goal title line.
 5. **Done (17 Nov):** F02's quiet top link (Lane agreed, 17 Nov): "Or type all your numbers in one table" just under Start with when two or more number goals are due; Start with stays the one primary action and the link under the list stays. U71 checks it is on screen.
-6. **Later:** Board's status picker on a phone, and Data's row name kept in view on desktop.
+6. **UX5, a goal's History by week first (S–M; Lane, 17 Nov, not yet picked):** on a goal's page, History opens on the weeks (the more useful view), with the quarters as a switch rather than above them; each week can be opened for that week's details (its check-in, reasons, asks and activity); the activity log underneath can sit folded away. Needs a short design pass on the goal page's order (goal spec 2.1) before building; after UX4, since the header changes the same page.
+7. **Question for Lane: finishing a goal (17 Nov).** Today only a stage goal can be called Done (when all its stages are done, in the check-in's status choice). A number goal can't be marked done or failed: its result (Met, Met late, Not met) is worked out when its due week passes; the owner's own view (Landed, Missed) is said at the wrap-up; Stop this goal (in More on its page) takes it out of the lists. If people need to close a number goal early, that's a new rule (status, check-in and import), to decide before building.
+8. **Later:** Board's status picker on a phone, and Data's row name kept in view on desktop.
 
 ## Build, in order
 

@@ -25,7 +25,7 @@ import { asTeams, homeSets, standingOver, standingSet, standingWords, type SetFa
 import { watchedGoals } from '../domain/review';
 import { statusChange } from '../domain/tree';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
-import { AttentionCard, StatusShape } from './bits';
+import { StatusShape } from './bits';
 import { GoalRow } from './goalRows';
 import { HandledGroup } from './HandledGroup';
 
@@ -127,7 +127,7 @@ export function YourTeam() {
         : <p className="hint">{set.needs.length ? 'Nothing that isn’t yours needs attention.' : 'Nothing in it needs attention.'}</p>}
       {set.teams
         ? <MovedTeamsTable teams={set.teams} scope="team" goalsWord="Its goals in your teams" />
-        : k > 0 && <div className="alist">{set.rows.slice(0, 4).map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} who={app.person(a.goal.ownerId)?.name ?? undefined} />)}</div>}
+        : k > 0 && <ul className="tree alist">{set.rows.slice(0, 4).map((a) => <li key={a.goal.id}><GoalRow g={a.goal} place="watching-needs" /></li>)}</ul>}
     </section>
   );
 }
