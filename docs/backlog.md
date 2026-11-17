@@ -84,9 +84,11 @@ An outside expert walkthrough of the live demo, at desktop and phone widths: `do
    - **Done (17 Nov):** Settings' missing anchors (a unit test now checks every section heading has a link);
    - F08's labels and the folded eight-week row;
    - F03's title line.
-2. **F02's quiet top link (S)**, if Lane agrees.
-3. **UX2/UX4 (M–L):** a design pass for one goal row, one page header and one form footer, then the build.
-4. **Later:** Board's status picker on a phone, and Data's row name kept in view on desktop.
+2. **UX2a, one goal row (M):** `rowParts` and one `GoalRow` for Home, Watching, Goals List, the check-in queue and a review's agenda, with the hard cases as tests (`docs/design/patterns/spec.md`, section 1). The design pass is done (#585; Lane's answers, 17 Nov). One track with UX2b and UX4, in this order.
+3. **UX2b, one form footer (M):** `FormFooter`, verb-object labels, errors beside their fields, "Close" until something is typed (patterns spec, section 3).
+4. **UX4, one page header (S–M):** `PageHeader` and `TaskHeader`; utilities out of headers; the phone's bar names the page once the title has scrolled away (patterns spec, section 2). After UX1's goal title line.
+5. **F02's quiet top link (S)**, if Lane agrees.
+6. **Later:** Board's status picker on a phone, and Data's row name kept in view on desktop.
 
 ## Build, in order
 
