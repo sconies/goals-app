@@ -2,7 +2,7 @@
 
 The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` branch (draft PR #134). Read its "Where the next reviewer starts" note, which is this one, and only the sections you need.
 
-**17 Nov, about 11:20 UTC:** a fresh reviewer, session_012kbr92pr7CjFy7aNL9Ejtv, has taken over. Main is `98eaf41f` (#584, docs only, nothing to review). Building resumes with two tracks: UX1 (small usability fixes from `docs/reviews/2026-11-17-usability-study.md`) and a design pass for UX2/UX4 (one shared goal row, page header and form footer; design docs only). Their session IDs come from planning. The rest of this note is the 16 Nov reviewer's and still holds.
+**17 Nov, about 11:20 UTC:** a fresh reviewer, session_012kbr92pr7CjFy7aNL9Ejtv, has taken over. Main is `98eaf41f` (#584, docs only, nothing to review). Building resumes with two tracks: UX1 (small usability fixes from `docs/reviews/2026-11-17-usability-study.md`) and a design pass for UX2/UX4 (one shared goal row, page header and form footer; design docs only). UX1 build: session_012kbr8yjMdyy131NTXJSJxw (sends each PR number as it merges). UX2/UX4 design pass: session_012kbr8zkg36ewTBWd5FyWsR (docs only; review its PR against the design rules and Lane's earlier decisions). The rest of this note is the 16 Nov reviewer's and still holds.
 
 Written 16 November 2026, about 12:30 UTC, by the reviewer of 16 November, afternoon, after #577; updated at about 13:00 UTC. The reviewer is now session_012kbr91MPMFHiESAut3BVig (it carries on from session_012kbr91ft63Kw65jNoeTADG, which has gone). It stopped at about 19:05 UTC, 16 Nov, when building paused.
 
