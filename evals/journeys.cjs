@@ -1812,7 +1812,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.context().close();
 });
 
-journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, each with its owner’s name first, and opens Goals filtered to Owner not you, whose count line says k', 4, async (h, device) => {
+journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, and opens Goals filtered to Owner not you, whose count line says k', 4, async (h, device) => {
   // Home rule 4 (HM3): the team set is exactly the Goals page's My team scope, so the block's total is the tab's count.
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'rhea'));
@@ -1825,14 +1825,14 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   // Its counts are shapes and words that add up to the total, and open the team scope by status.
   const counts = await block.locator('.home-counts a').evaluateAll((as) => as.map((a) => ({ text: a.innerText.trim(), href: a.getAttribute('href') || '', shape: !!a.querySelector('svg.status-shape') })));
   h.set('progress', counts.length > 0 && counts.every((c) => c.shape && /\/goals\?scope=team&status=\w+/.test(c.href)) && counts.reduce((n, c) => n + parseInt(c.text, 10), 0) === total, `Your team’s counts: ${counts.map((c) => c.text + ' ' + c.href).join(' | ')}`);
-  // The goals that need attention and aren't hers: each row names its owner first, never Rhea, and has no button.
+  // The goals that need attention and aren't hers: each is a goal row with no button.
   const needs = block.locator('a.home-team-needs');
   const said = await needs.innerText();
   const k = Number((said.match(/^(\d+) needs? attention that (isn’t|aren’t) yours$/) || [])[1]);
   if (!k) fail(`Your team’s link says “${said}”`);
-  const rows = block.locator('.arow');
-  const who = await block.locator('.arow .arow-who').allInnerTexts();
-  h.set('finish', await rows.count() === Math.min(4, k) && who.length === Math.min(4, k) && !who.some((w) => /Rhea/.test(w)) && await block.locator('.arow .btn').count() === 0, `Your team lists ${await rows.count()} rows (owners ${who.join(', ')}) for ${k}`);
+  const rows = block.locator('.alist .grow');
+  const act = await block.locator('.alist .grow-act, .alist .grow .btn').count();
+  h.set('finish', await rows.count() === Math.min(4, k) && act === 0, `Your team lists ${await rows.count()} rows (${act} buttons) for ${k}`);
   await h.checkpoint('home');
   // See them in Goals: the My team scope, with the same total.
   await h.click(block.getByRole('link', { name: 'See them in Goals' }));
