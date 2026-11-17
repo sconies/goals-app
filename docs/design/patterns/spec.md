@@ -1,6 +1,6 @@
 # Shared patterns: one goal row, one page header, one form footer
 
-17 November 2026. Design and spec only: no app code was changed, and nothing here is built. Lane asked for it after the usability study ([`docs/reviews/2026-11-17-usability-study.md`](../../reviews/2026-11-17-usability-study.md), "Shared patterns to standardize", F05 and F07) and planning's evaluation of it (backlog, "Usability study, 17 Nov", UX2 and UX4: "agree, after a design pass").
+17 November 2026. Design and spec only: no app code was changed, and nothing here is built. **Decided:** Lane took the recommended answer to every question (section 6). Lane asked for it after the usability study ([`docs/reviews/2026-11-17-usability-study.md`](../../reviews/2026-11-17-usability-study.md), "Shared patterns to standardize", F05 and F07) and planning's evaluation of it (backlog, "Usability study, 17 Nov", UX2 and UX4: "agree, after a design pass").
 
 These three patterns are what a rebuild copies most, because every list, every page and every form uses one of them. Faro adopts them too. Each is written once here and referred to everywhere else.
 
@@ -311,7 +311,17 @@ Each item adds its spec section (`GOAL-ROW`, `PAGE-HEADER`, `FORM-FOOTER`), conf
 
 ## 6. Questions for Lane
 
-One batch. The recommended answer is first.
+**Lane's answers (17 Nov), relayed by planning:** (a) on all seven. Planning decided 4 to 6 on the recommended answers. So:
+
+1. On a phone, status, value and gap come first, and the name has its own line. `design-rules.md` is unchanged.
+2. The flag keeps the word "Getting worse", with its "On track today, but…" sentence. The vocabulary is unchanged.
+3. A detail page has the primary, one standing button, then "More".
+4. A form's exit stays top right (U72). The footer has Back and the primary; sheets have Cancel.
+5. A draft form says "Close" until something is typed.
+6. The phone's top bar names the page once the title has scrolled away.
+7. Build after UX1, as one track: UX2a (the row), then UX2b (the footer), then UX4 (the header). They are in the backlog's "Usability study, 17 Nov" section.
+
+The questions as asked, kept for the record. The recommended answer is first.
 
 1. **A goal row on a phone: what comes first?**
    - (a) Status, value and gap on line 1, then the name on its own full line. This keeps "status first", and the action sits at the right of line 1. *Recommended.*
