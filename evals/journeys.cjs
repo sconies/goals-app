@@ -6692,9 +6692,13 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   const says = (await panel.locator('.habit-sum').innerText()).trim();
   // A review held on another day than the one check-ins are due is headed by the week, never "Before this review" (review of #432).
   const head = (await p.locator('#habit-head').innerText()).trim();
-  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
+  h.set('entry', /^\d+ goals? due to check in this week: \d+ in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
+  // The row of weeks starts folded on a review's page, so the agenda comes sooner (usability study F08, 17 Nov).
+  const fold = panel.locator('details.habit-fold');
+  const folded = (await fold.count()) === 1 && !(await fold.evaluate((d) => d.open));
+  if (folded) await h.click(fold.locator('summary'));
   const cells = await panel.locator('.habit-week').allInnerTexts();
-  h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
+  h.set('progress', folded && cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `${folded ? '' : 'the row of weeks was not folded; '}the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
   // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.
   const s0 = await h.snapshot();
   const text = await panel.innerText();

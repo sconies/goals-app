@@ -131,10 +131,12 @@ export function habitShown(goals: readonly Pick<Goal, 'ownerId'>[], viewerId: st
     the words are RS1's "on time, without being asked". Without `words`, a review's own page: "before it". */
 export function beforeReviewText(h: HabitCounts, past: boolean, words?: Pick<DueWords, 'review' | 'onTime'>): string {
   const by = !words || words.review ? 'before it' : words.onTime;
-  if (!past) return `${h.inTime} of ${h.due} ${h.due === 1 ? 'goal is' : 'goals are'} checked in so far.`;
-  if (!h.inTime) return h.due === 1 ? `Its one goal wasn’t checked in ${by}.` : `None of the ${h.due} goals was checked in ${by}.`;
-  if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? `Its one goal was checked in ${by}, without anyone asking.` : `All ${h.due} goals were checked in ${by}, without anyone asking.`;
-  return `${h.inTime} of ${h.due} goals were checked in ${by}, ${h.unasked === h.inTime ? 'all without being asked' : `${h.unasked} without being asked`}.`;
+  // Each count says what it counts: the goals due to check in, which can be fewer than the goals in the review
+  // (usability study F08, 17 Nov: "0 of 53" beside a review of 56 read as an error).
+  if (!past) return `${h.due} ${h.due === 1 ? 'goal' : 'goals'} due to check in this week: ${h.inTime} in so far.`;
+  if (!h.inTime) return h.due === 1 ? `The one goal due wasn’t checked in ${by}.` : `None of the ${h.due} goals due was checked in ${by}.`;
+  if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? `The one goal due was checked in ${by}, without anyone asking.` : `All ${h.due} goals due were checked in ${by}, without anyone asking.`;
+  return `${h.inTime} of the ${h.due} goals due were checked in ${by}, ${h.unasked === h.inTime ? 'all without being asked' : `${h.unasked} without being asked`}.`;
 }
 
 /** What "Before this review" says for a set of goals in a week (spec 2.3), as the review's page, a team's page and

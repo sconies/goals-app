@@ -233,7 +233,8 @@ export function ReviewHome() {
     ? [sessionStateText(st), next]
     : st.kind === 'in-progress'
       ? [sessionWhen(s, app.today), reviewedText(s), next]
-      : [sessionWhen(s, app.today), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : '', next]).filter(Boolean).join(' · ');
+      // Each number says what it counts (usability study F08, 17 Nov): the goals in the review, then how they split.
+      : [sessionWhen(s, app.today), s.total ? `${s.total} in scope` : '', exceptions.length ? `${exceptions.length} flagged for discussion` : '', healthy.length ? `${healthy.length} with nothing flagged` : '', next]).filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home" data-part="Review">
@@ -274,7 +275,7 @@ export function ReviewHome() {
       {/* Before this review (habit spec 2.3): how many of its goals were checked in before it, and the last 8 weeks. A
           session in a later week is counted as this week so far: nothing can be in for a week that hasn't started. It is
           judged against the workspace's due day, so a review held on another day says "on time", never "before it". */}
-      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading={beforeReviewHeading(onDueDay, app.cycle, Math.min(s.week, app.week))} held={onDueDay} />
+      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading={beforeReviewHeading(onDueDay, app.cycle, Math.min(s.week, app.week))} held={onDueDay} foldWeeks />
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (

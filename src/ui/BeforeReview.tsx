@@ -22,14 +22,29 @@ function WeekMark({ mark }: { mark: HabitWeek['mark'] }) {
 /**
  * The panel and the row for `goals` in `week`. `link` is the Goals parameter that names the set (`inreview=…` or
  * `team=…`), so each count opens exactly its goals. `heading` is the panel's label. `held`: the deadline is a review
- * (app/reads heldForGoals; a review's own page leaves it true), so the words name one only then (RS1).
+ * (app/reads heldForGoals; a review's own page leaves it true), so the words name one only then (RS1). `foldWeeks`: the
+ * row of weeks starts folded, so on a review's page the agenda comes sooner (usability study F08, 17 Nov; the panel
+ * itself stays above the agenda, HB2).
  */
-export function BeforeReview({ goals, week, link, heading, held = true }: { goals: Goal[]; week: number; link: string; heading: string; held?: boolean }) {
+export function BeforeReview({ goals, week, link, heading, held = true, foldWeeks = false }: { goals: Goal[]; week: number; link: string; heading: string; held?: boolean; foldWeeks?: boolean }) {
   const app = useApp();
   const b = beforeReview(goals, week, { checkIns: app.snapshot.checkIns, asks: app.snapshot.requests ?? [] }, app.cycle, app.today, app.viewer.id, held);
   if (!b) return null;
   const h = b.counts, row = b.weeks;
   const to = (v: string) => `/goals?${link}&checkedin=${v}&sort=worst`;
+  const weeks = (
+    <>
+      <ol className="habit-weeks">
+        {row.map((x) => (
+          <li key={x.week} className="habit-week">
+            <span className="tiny muted">Week {x.week}</span>
+            <span className="habit-cell"><WeekMark mark={x.mark} /><span className="small">{weekWords(x)}</span></span>
+          </li>
+        ))}
+      </ol>
+      <p className="tiny muted">“All in” means every goal due that week was checked in {b.words.review ? b.words.onTime : `by its ${b.words.day}`}. Weeks, not people: nobody is named here.</p>
+    </>
+  );
   return (
     <section className="block habit" data-part={heading} aria-labelledby="habit-head">
       <span className="field-label" id="habit-head">{heading}</span>
@@ -42,20 +57,9 @@ export function BeforeReview({ goals, week, link, heading, held = true }: { goal
           {h.none > 0 && <Link className="linkish" data-n={h.none} to={to('no')}>{h.none} {h.none === 1 ? 'has' : 'have'} no check-in for week {week} yet</Link>}
         </p>
       )}
-      {row.length > 0 && (
-        <>
-          <h3 className="field-label habit-row-head">The last {row.length} weeks</h3>
-          <ol className="habit-weeks">
-            {row.map((x) => (
-              <li key={x.week} className="habit-week">
-                <span className="tiny muted">Week {x.week}</span>
-                <span className="habit-cell"><WeekMark mark={x.mark} /><span className="small">{weekWords(x)}</span></span>
-              </li>
-            ))}
-          </ol>
-          <p className="tiny muted">“All in” means every goal due that week was checked in {b.words.review ? b.words.onTime : `by its ${b.words.day}`}. Weeks, not people: nobody is named here.</p>
-        </>
-      )}
+      {row.length > 0 && (foldWeeks
+        ? <details className="disclose habit-fold"><summary>The last {row.length} weeks</summary>{weeks}</details>
+        : <><h3 className="field-label habit-row-head">The last {row.length} weeks</h3>{weeks}</>)}
     </section>
   );
 }

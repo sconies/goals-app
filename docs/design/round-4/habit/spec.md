@@ -58,9 +58,9 @@ Wireframe 1, lower half. On the receipt of the check-in that does it, one panel 
 
 Wireframe 2. At the top of a review's page, above "Still to review", a panel labelled "Before this review":
 
-- Heading: "{a} of {n} goals were checked in before it, {u} without being asked". When `a` equals `u`: "…before it, all without being asked". When `a` is `n` and `u` is `n`: "All {n} goals were checked in before it, without anyone asking".
+- Heading: "{a} of the {n} goals due were checked in before it, {u} without being asked". When `a` equals `u`: "…before it, all without being asked". When `a` is `n` and `u` is `n`: "All {n} goals due were checked in before it, without anyone asking".
 - Under it, links, each only when not nought: "{k} came in after an ask" (`checkedin=asked`) · "{m} have no check-in for week {w} yet" (`checkedin=no`). Both open goals, worst first.
-- Before the due day the heading is in the present: "{a} of {n} goals are checked in so far."
+- Before the due day the heading is in the present: "{n} goals due to check in this week: {a} in so far."
 
 Under the panel, **"The last 8 weeks"**: one row of eight weeks for the review's own goals (backlog L (4)). Each cell is the week's number, a square mark and its words:
 
@@ -125,8 +125,8 @@ Counts rule 1 over a set of goals. `inTime = unasked + asked`. The measure is `u
 
 | Given (17 goals due) | Reads |
 |---|---|
-| 14 unasked, 1 asked, 2 none | "15 of 17 goals were checked in before it, 14 without being asked" · measure 82% (not shown under 20 goals) |
-| 17 unasked | "All 17 goals were checked in before it, without anyone asking" |
+| 14 unasked, 1 asked, 2 none | "15 of the 17 goals due were checked in before it, 14 without being asked" · measure 82% (not shown under 20 goals) |
+| 17 unasked | "All 17 goals due were checked in before it, without anyone asking" |
 | 118 due; 91 unasked, 7 asked, 12 after, 8 none | Home: "91 of 118 goals · 77%" |
 
 ### Rule 3. A moment: `moment(before, after, goal): 'reached' | 'back' | null`

@@ -159,16 +159,16 @@ describe('the measure (rule 2) and never a person (rule 4)', () => {
     const goals = set(17);
     const h = habit(goals, 46, rows(goals, [...Array(14).fill('unasked'), 'asked', 'none', 'none']), '2026-11-12', due);
     expect([h.due, h.inTime, h.unasked, h.asked, h.after, h.none]).toEqual([17, 15, 14, 1, 0, 2]);
-    expect(beforeReviewText(h, true)).toBe('15 of 17 goals were checked in before it, 14 without being asked.');
-    expect(beforeReviewText(h, false)).toBe('15 of 17 goals are checked in so far.');
+    expect(beforeReviewText(h, true)).toBe('15 of the 17 goals due were checked in before it, 14 without being asked.');
+    expect(beforeReviewText(h, false)).toBe('17 goals due to check in this week: 15 in so far.');
     const all = habit(goals, 46, rows(goals, Array(17).fill('unasked')), '2026-11-12', due);
-    expect(beforeReviewText(all, true)).toBe('All 17 goals were checked in before it, without anyone asking.');
+    expect(beforeReviewText(all, true)).toBe('All 17 goals due were checked in before it, without anyone asking.');
     const some = habit(goals, 46, rows(goals, [...Array(10).fill('unasked'), ...Array(7).fill('none')]), '2026-11-12', due);
-    expect(beforeReviewText(some, true)).toBe('10 of 17 goals were checked in before it, all without being asked.');
+    expect(beforeReviewText(some, true)).toBe('10 of the 17 goals due were checked in before it, all without being asked.');
     // Reviews switched off, or on with no review held that day: the due day is a deadline (RS1's words).
-    expect(beforeReviewText(all, true, dueWords(false, cycle, 46))).toBe('All 17 goals were checked in on time, without anyone asking.');
-    expect(beforeReviewText(all, true, dueWords(true, cycle, 46, false))).toBe('All 17 goals were checked in on time, without anyone asking.');
-    expect(beforeReviewText(all, true, dueWords(true, cycle, 46, true))).toBe('All 17 goals were checked in before it, without anyone asking.');
+    expect(beforeReviewText(all, true, dueWords(false, cycle, 46))).toBe('All 17 goals due were checked in on time, without anyone asking.');
+    expect(beforeReviewText(all, true, dueWords(true, cycle, 46, false))).toBe('All 17 goals due were checked in on time, without anyone asking.');
+    expect(beforeReviewText(all, true, dueWords(true, cycle, 46, true))).toBe('All 17 goals due were checked in before it, without anyone asking.');
   });
   it('gives the row of weeks with words', () => {
     const goals = set(4);
@@ -197,7 +197,7 @@ describe('before this review (build review of #416)', () => {
   it('says “on time”, not “before it”, for a review held on another day', () => {
     const goals = ['a', 'b', 'c'].map((o, i) => g(`g${i}`, o, '2026-01-05T09:00:00Z'));
     const b = beforeReview(goals, 46, { checkIns: [], asks: [] }, cy, new Date('2026-11-13T12:00:00Z'), 'z', false)!;
-    expect(b.says).toBe('None of the 3 goals was checked in on time.');
+    expect(b.says).toBe('None of the 3 goals due was checked in on time.');
   });
 });
 
