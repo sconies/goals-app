@@ -2972,3 +2972,4 @@ Read `docs/design/patterns/spec.md` in full, the backlog's new "Usability study,
 - **Low:** sheet 02's queue row says its value twice ("36 hours · 12 behind plan" in Value and Reason) and "No check-in yet" twice, next to "No number yet".
 - **Low:** 1.5's stale case starts its reason with the warning mark, but 1.2 keeps the mark for a flag that isn't the status. Today the stale flag draws the dashed ring (`bits.tsx:167`).
 - **Low:** 3.3 rule 2, "the primary is never disabled", should except a save in progress, which every form disables today.
+- **Closed, all four, before merge** (the design session's fix, about 11:55 UTC): the Name slot carries `goalTell` and `rowParts` returns `tell`; the queue's reason is last week's own words, or nothing; the stale reason has no mark ("off", "risk" and "stale" are the status); the primary is disabled only while saving. Read in the diff.
