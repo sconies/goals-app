@@ -22891,6 +22891,7 @@ var help$4 = [{
 			list: [
 				"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.",
 				"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.",
+				"Under a review’s name, each number says what it counts: how many goals are in scope, how many are flagged (to discuss) and how many are not flagged. The check-in count below counts only the goals due to check in that week, which can be fewer.",
 				"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
 				"With Metrics on, each row has one quiet line under it: the metric that measures the goal, its stage and how often it refreshes, or “Draft metric” with the warning mark, so the room knows which numbers to trust.",
 				"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
@@ -22905,7 +22906,7 @@ var help$4 = [{
 			heading: "Before this review",
 			list: [
 				"At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.",
-				"Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.",
+				"Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, folded on a review’s page (open “The last 8 weeks”), one square each: All in, how many came after, None in, or Nothing due.",
 				"It is headed “Before this review” only in a week the review is held on the day check-ins are due. A review held on another day, or a fortnightly, monthly or quarterly one in a week it isn’t held, shows the week and its due date instead (“Week 46, due by Thursday 12 Nov”) and counts check-ins on time.",
 				"It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it."
 			]
@@ -26347,6 +26348,10 @@ var CORE_ARTICLES = [
 				heading: "The menu",
 				moduleOff: "reviews",
 				list: ["The menu is in four groups: your work (Home, Check-in when you have a goal to check in on, Goals with up to four saved views under it), things to look up (People, Activity, Data, and any feature’s own place), New goal, and this workspace and you (Workspace, Settings, Help, Feedback). Your name and role are at the foot; in the demo they open the Demo panel."]
+			},
+			{
+				heading: "On a phone",
+				list: ["On a goal’s page, Find, Demo and your picture sit on a row of their own above the goal’s name, so the name has the full width."]
 			},
 			{
 				heading: "The menu",
@@ -32786,10 +32791,10 @@ the deadline isn't a review (`words` from dueWords: Reviews off, or no review he
 the words are RS1's "on time, without being asked". Without `words`, a review's own page: "before it". */
 function beforeReviewText(h, past, words) {
 	const by = !words || words.review ? "before it" : words.onTime;
-	if (!past) return `${h.inTime} of ${h.due} ${h.due === 1 ? "goal is" : "goals are"} checked in so far.`;
-	if (!h.inTime) return h.due === 1 ? `Its one goal wasn’t checked in ${by}.` : `None of the ${h.due} goals was checked in ${by}.`;
-	if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? `Its one goal was checked in ${by}, without anyone asking.` : `All ${h.due} goals were checked in ${by}, without anyone asking.`;
-	return `${h.inTime} of ${h.due} goals were checked in ${by}, ${h.unasked === h.inTime ? "all without being asked" : `${h.unasked} without being asked`}.`;
+	if (!past) return `${h.due} ${h.due === 1 ? "goal" : "goals"} due to check in this week: ${h.inTime} in so far.`;
+	if (!h.inTime) return h.due === 1 ? `The one goal due wasn’t checked in ${by}.` : `None of the ${h.due} goals due was checked in ${by}.`;
+	if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? `The one goal due was checked in ${by}, without anyone asking.` : `All ${h.due} goals due were checked in ${by}, without anyone asking.`;
+	return `${h.inTime} of the ${h.due} goals due were checked in ${by}, ${h.unasked === h.inTime ? "all without being asked" : `${h.unasked} without being asked`}.`;
 }
 function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
 	if (week < 1) return null;

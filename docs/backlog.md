@@ -82,8 +82,8 @@ An outside expert walkthrough of the live demo, at desktop and phone widths: `do
 1. **UX1 (S):**
    - **Done (17 Nov):** F04's wrap, with `/reviews/new` and the other forms added to P9 at 360 px (every `.seg.full` choice now wraps when it can't fit; P9 also opens `/goals/new`, a goal's edit form and Settings);
    - **Done (17 Nov):** Settings' missing anchors (a unit test now checks every section heading has a link);
-   - F08's labels and the folded eight-week row;
-   - F03's title line.
+   - **Done (17 Nov):** F08's labels and the folded eight-week row ("56 in scope · 19 flagged · 37 not flagged"; "53 goals due to check in this week: 48 in so far"; the readiness panel stays where HB2 put it);
+   - **Done (17 Nov):** F03's title line (on a phone, Find, Demo and you sit on a row above the goal's title; P10 checks the title has its row at 360 px).
 2. **UX2a, one goal row (M):** `rowParts` and one `GoalRow` for Home, Watching, Goals List, the check-in queue and a review's agenda, with the hard cases as tests (`docs/design/patterns/spec.md`, section 1). The design pass is done (#585; Lane's answers, 17 Nov). One track with UX2b and UX4, in this order.
 3. **UX2b, one form footer (M):** `FormFooter`, verb-object labels, errors beside their fields, "Close" until something is typed (patterns spec, section 3).
 4. **UX4, one page header (S–M):** `PageHeader` and `TaskHeader`; utilities out of headers; the phone's bar names the page once the title has scrolled away (patterns spec, section 2). After UX1's goal title line.

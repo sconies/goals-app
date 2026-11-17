@@ -6694,9 +6694,13 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   const says = (await panel.locator('.habit-sum').innerText()).trim();
   // A review held on another day than the one check-ins are due is headed by the week, never "Before this review" (review of #432).
   const head = (await p.locator('#habit-head').innerText()).trim();
-  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
+  h.set('entry', /^\d+ goals? due to check in this week: \d+ in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
+  // The row of weeks starts folded on a review's page, so the agenda comes sooner (usability study F08, 17 Nov).
+  const fold = panel.locator('details.habit-fold');
+  const folded = (await fold.count()) === 1 && !(await fold.evaluate((d) => d.open));
+  if (folded) await h.click(fold.locator('summary'));
   const cells = await panel.locator('.habit-week').allInnerTexts();
-  h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
+  h.set('progress', folded && cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `${folded ? '' : 'the row of weeks was not folded; '}the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
   // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.
   const s0 = await h.snapshot();
   const text = await panel.innerText();
@@ -8750,6 +8754,11 @@ async function platformChecks() {
     await r.goto(url('/data')); await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'grace')); await r.reload(); await r.waitForTimeout(400);
     const sw = await r.evaluate(() => document.querySelector('.filter-search .input')?.getBoundingClientRect().width ?? 0);
     if (sw < 280) finish.push(`360px Data search is ${Math.round(sw)}px wide`);
+    // A goal's title has a full-width line of its own on a phone: Find, Demo and you sit above it (usability study F03, 17 Nov).
+    await r.goto(url('/goals/ns-lead')); await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea')); await r.reload();
+    await r.locator('h1.bar-title').waitFor({ timeout: 15000 }).catch(() => {}); await r.waitForTimeout(300);
+    const tt = await r.evaluate(() => { const t = document.querySelector('h1.bar-title')?.getBoundingClientRect(), row = document.querySelector('.goal-bar .bar-1')?.getBoundingClientRect(), me = document.querySelector('.goal-bar .bar-me')?.getBoundingClientRect(); return t && row ? { share: Math.round(t.width / row.width * 100), beside: !!me && me.bottom > t.top + 1 && me.top < t.bottom - 1 } : null; });
+    if (!tt || tt.share < 95 || tt.beside) finish.push(`360px goal page: the title gets ${tt ? tt.share + '% of its row' + (tt.beside ? ', with Find and you beside it' : '') : 'no row'}`);
     await c.close();
     [c, r] = await at(1024, 768, 'amara', '/reviews/weekly', true);
     const go = r.getByRole('link', { name: /Start|Continue|Open/ }).first(); if (await go.count()) { await go.click(); await r.waitForTimeout(500); }

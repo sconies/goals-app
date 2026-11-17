@@ -173,7 +173,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (367 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (369 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -502,6 +502,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `button, input, a` | the button, or the input, or the link | [U184](../modules/metrics/journeys/U184.md) |
 | `button[type=submit]` | the button | [U78](journeys/U78.md) |
 | `details:not([open]) > summary` | the summary in the details | [U184](../modules/metrics/journeys/U184.md) |
+| `details.habit-fold` | the habit fold | [U153](journeys/U153.md) |
 | `dl` | the dl | [U33](journeys/U33.md) |
 | `form.focus-body button[type=submit]` | the button in the focus body | [U38](journeys/U38.md), [U39](../modules/goal-map/journeys/U39.md) |
 | `input[data-field="limit"]` | the input | [U171](journeys/U171.md) |
@@ -532,6 +533,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `section.habit` | the habit section | [U153](journeys/U153.md) |
 | `section[aria-labelledby="set-rec"]` | the section | [U62](../modules/ai-access/journeys/U62.md) |
 | `select` | the select | [U77](journeys/U77.md) |
+| `summary` | the summary | [U153](journeys/U153.md) |
 | `svg` | the svg | [U158](../modules/metrics/journeys/U158.md), [U184](../modules/metrics/journeys/U184.md), [U185](journeys/U185.md) |
 | `svg.measure-shape` | the measure shape | [U170](../modules/metrics/journeys/U170.md) |
 | `svg.stage-shape` | the stage shape | [U181](../modules/metrics/journeys/U181.md) |
