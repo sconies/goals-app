@@ -2961,3 +2961,14 @@ Reviewed by session_012kbr91MPMFHiESAut3BVig. No findings; closes #579’s low.
 - **MQ2a.** `toVerifyFor` (`rulesLibrary.ts`) takes the To verify rows and keeps those for which rule 14’s `whyCantVerify` says nothing, so the Home count follows the same rule as the verify form; it sorts no-due-date first, then due soonest, then A to Z. `HomeVerify` loads lazily, behind a cheap check that someone else owns a live metric, and draws hairline rows with no status shapes. U185 covers Amara (5), Rhea (none) and the library switched off.
 - **MQ2b.** `personLeft`’s body moved into `passMetrics`. The `switched` hook, on, runs `passLeftBehind`: every left or removed person who still owns a live metric passes it to `leadOf`, which falls back to the person switching when there is no lead, as leaving does. `setModule` (`domain/actions.ts`) now carries the hook’s `modules` rows in the same save. 0058 lets that save through, since it reads the switches the save leaves in force.
 - Ran `src/modules/metrics`, `src/domain/actions`, `src/domain/removal` and `src/data/modulesOff.test.ts`: 257 pass. Not walked on screen.
+
+## The reviewer of 17 November
+
+### #585 Patterns: one goal row, one page header, one form footer (design pass, docs only; reviewed before merge)
+
+Read `docs/design/patterns/spec.md` in full, the backlog's new "Usability study, 17 Nov" section, the study's head, and sheets 01 and 02 at 360 px. I checked it against `vocabulary.ts` (`ATTENTION_FLAGS` order: the ask is fourth, as the spec says), `goalRows.tsx` (only the `line` density draws a sparkline), `rules.ts` and the forms' buttons. The mockups use 1px hairlines only, with no single-side stripe, emoji or capsule. Lane's seven answers are recorded in section 6. It needs no switch, spec or What's new (docs only, `[no news]`).
+
+- **Medium:** the Name slot (1.2) shows the key "only where a list is searched by key", and `rowParts` (1.7) has no tell. That drops the rule in `src/spec/rules.ts` (Names): where two same-titled goals could both be on screen, each shows its key or else its team (`duplicateTitles`, `goalTell`, drawn by `TitleTell`). Sent to the design session and planning, 17 Nov, about 12:00 UTC.
+- **Low:** sheet 02's queue row says its value twice ("36 hours · 12 behind plan" in Value and Reason) and "No check-in yet" twice, next to "No number yet".
+- **Low:** 1.5's stale case starts its reason with the warning mark, but 1.2 keeps the mark for a flag that isn't the status. Today the stale flag draws the dashed ring (`bits.tsx:167`).
+- **Low:** 3.3 rule 2, "the primary is never disabled", should except a save in progress, which every form disables today.
