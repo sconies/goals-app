@@ -90,22 +90,23 @@ module.exports = {
         // On a phone the tabs are one row that scrolls (goals spec, 2.4): the lit one is scrolled into view, in full.
         const lit = document.querySelector('.goals-tabs [role="tab"][aria-selected="true"]'), track = document.querySelector('.goals-tabs > .seg.tabs');
         const lr = lit?.getBoundingClientRect(), tr = track?.getBoundingClientRect();
-        const stale = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.trow-icon.tone-stale'));
-        const now = stale?.querySelector('.trow-now > span:last-child');
-        const row = document.querySelector('.trow'), title = row.querySelector('.trow-title').getBoundingClientRect(), value = row.querySelector('.trow-now').getBoundingClientRect();
-        return { inView: !!lr && /^All/.test(lit.textContent) && lr.left >= tr.left - 1 && lr.right <= tr.right + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
-          staleColour: now && getComputedStyle(now).color, titleW: title.width, valueLeft: value.left, titleLeft: title.left, valueBelow: value.top >= title.bottom - 1, valueSize: parseFloat(getComputedStyle(row.querySelector('.trow-now')).fontSize) };
+        const stale = document.querySelector('.grow[data-tone="stale"]');
+        const now = stale?.querySelector('.grow-value > span:last-child');
+        const row = document.querySelector('.grow'), title = row.querySelector('.grow-name').getBoundingClientRect(), value = row.querySelector('.grow-value').getBoundingClientRect(), status = row.querySelector('.grow-status').getBoundingClientRect();
+        return { inView: !!lr && /^All/.test(lit.textContent) && lr.left >= tr.left - 1 && lr.right <= tr.right + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .grow').length,
+          staleColour: now && getComputedStyle(now).color, titleW: title.width, valueBeside: Math.abs(value.top - status.top) <= 4 && value.bottom <= title.top + 1, valueSize: parseFloat(getComputedStyle(row.querySelector('.grow-value')).fontSize) };
       });
       chk(m.inView, 'L&T 2: the lit tab, All, is not in view in full');
       chk(m.glines === 0 && m.trows > 5, `L&T 21: By team draws ${m.glines} rows of another kind`);
       chk(m.staleColour === 'rgb(70, 87, 89)', `L&T 19: “no recent update” is ${m.staleColour}`);
-      chk(m.titleW >= 300 && m.valueBelow && Math.abs(m.valueLeft - m.titleLeft) <= 1 && m.valueSize === 14, `L&T 22: phone row title ${r0(m.titleW)}px, value ${m.valueBelow ? 'below' : 'beside'} it at x ${r0(m.valueLeft)} vs ${r0(m.titleLeft)}, ${m.valueSize}px`);
+      // UX2a: on a phone the status and the value share line 1 and the name has its own full-width line under them.
+      chk(m.titleW >= 300 && m.valueBeside && m.valueSize === 14, `L&T 22: phone row name ${r0(m.titleW)}px, value ${m.valueBeside ? 'on the status line' : 'not on the status line'}, ${m.valueSize}px`);
       await c.close();
     }
     // L&T 20: on a desktop the status slot fits "No recent update" on one line.
     {
       const [c, p] = await open(1280, 800, 'amara', '/goals?show=teams');
-      const h = await p.evaluate(() => { const s = [...document.querySelectorAll('.trow-icon.tone-stale')][0]; return s && [s.getBoundingClientRect().width, s.getBoundingClientRect().height]; });
+      const h = await p.evaluate(() => { const s = [...document.querySelectorAll('.grow-status.tone-stale')][0]; return s && [s.getBoundingClientRect().width, s.getBoundingClientRect().height]; });
       chk(h && h[1] <= 22, `L&T 20: “No recent update” wraps (${h && h.map(r0).join('×')})`);
       await c.close();
     }
@@ -358,7 +359,7 @@ module.exports = {
       const m = await p.evaluate(() => ({
         tab: Number([...document.querySelectorAll('.attention-switch')].find((e) => e.getClientRects().length)?.textContent.match(/(\d+)$/)?.[1]),
         line: Number(document.querySelector('.goals-line')?.textContent.match(/^\d+/)?.[0]),
-        rows: document.querySelectorAll('.goals-page section.block:first-of-type .trow').length,
+        rows: document.querySelectorAll('.goals-page section.block:first-of-type .grow').length,
         h: document.querySelector('.goals-line').getBoundingClientRect().height,
       }));
       chk(m.tab === m.line && m.line === m.rows, `U13: the switch says ${m.tab}, the count line ${m.line}, the first group has ${m.rows} rows`);

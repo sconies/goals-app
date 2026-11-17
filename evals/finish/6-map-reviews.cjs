@@ -360,7 +360,7 @@ module.exports = {
       const m = await p.evaluate(() => {
         const a = [...document.querySelectorAll('.hero .actions .btn')].map((b) => b.getBoundingClientRect().width);
         const hw = document.querySelector('.hero').getBoundingClientRect().width;
-        const t = document.querySelector('.agenda .agenda-name').getBoundingClientRect().width;
+        const t = document.querySelector('.agenda .grow-name').getBoundingClientRect().width;
         return { a, t, hw };
       });
       fail(m.a.length >= 2 && m.a.every((x) => Math.abs(x - m.hw) < 1), `RV 10: hero buttons ${m.a.map(n).join('/')} wide at 390`);
@@ -379,10 +379,10 @@ module.exports = {
     }
     {
       const [c, p] = await open(1280, 800, 'amara', '/reviews/weekly');
-      await p.locator('.agenda .agenda-row').first().waitFor();
-      const cols = await p.evaluate(() => getComputedStyle(document.querySelector('.agenda .agenda-row')).gridTemplateColumns.split(' '));
-      // The agenda's own rows (Lane, 5 Nov): one fixed status column so the names line up, the name taking the room.
-      fail(cols[0] === '144px' && parseFloat(cols[1]) >= 200, `RV 11: Still to review columns ${cols.join(' ')}`);
+      await p.locator('.agenda .grow').first().waitFor();
+      const cols = await p.evaluate(() => getComputedStyle(document.querySelector('.agenda .grow')).gridTemplateColumns.split(' '));
+      // The agenda's rows are the one goal row (UX2a): its fixed 140px status column so the names line up, the name taking the room.
+      fail(cols[0] === '140px' && parseFloat(cols[1]) >= 200, `RV 11: Still to review columns ${cols.join(' ')}`);
       await p.goto(p.url().replace(/\/reviews\/weekly/, '/reviews'));
       await p.locator('a.arow').first().waitFor();
       const ap = await p.evaluate(() => getComputedStyle(document.querySelector('a.arow')).padding);

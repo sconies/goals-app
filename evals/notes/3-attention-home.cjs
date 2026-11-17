@@ -8,7 +8,7 @@ const noSideways = (p) => p.evaluate(() => document.documentElement.scrollWidth 
 const STATUS_WORD = /on track|at risk|off track|no recent update|done|not started|no check-in/i;
 /** A section on a page by its heading. */
 const section = (p, name) => p.locator('section', { has: p.getByRole('heading', { name, exact: false }) }).last();
-const rowsIn = async (loc) => (await loc.count()) ? loc.locator('.trow').allInnerTexts() : [];
+const rowsIn = async (loc) => (await loc.count()) ? loc.locator('.grow').allInnerTexts() : [];
 
 module.exports = {
   id: 'N3',
@@ -43,7 +43,7 @@ module.exports = {
       check(handled.some((t) => t.includes(mine.title) && t.includes(mine.said) && /At risk/.test(t)), `[ATTENTION-HANDLED] ${who}'s Watching does not show ${mine.title} as being handled, with what's in hand and its status`);
       check(!needs.some((t) => t.includes(mine.title)), `[ATTENTION-HANDLED] ${who}'s Watching still lists ${mine.title} under Needs attention`);
       check(needs.some((t) => /Merge-to-deploy time/.test(t)), `[ATTENTION-HANDLED] ${who}'s Watching lost the off-track goal nobody has looked at`);
-      const shape = await p.locator('section.handled-block .trow-icon svg.status-shape').count();
+      const shape = await p.locator('section.handled-block .grow-status svg.status-shape').count();
       check(shape >= 1, `[ATTENTION-HANDLED] being-handled rows on ${who}'s Watching have no status shape`);
       const lede = await p.locator('.page.watching .lede').innerText();
       check(/\d+ need(s)? attention( \(\d+ with no recent update\))? · 1 being handled/.test(lede), `[ATTENTION-HANDLED] the Watching summary does not count what is being handled ("${lede}")`);
@@ -112,7 +112,7 @@ module.exports = {
           check(/\d+ needs? attention/.test(first), `[HOME-OWNER] ${at}: Goals you watch does not lead with a team that needs attention (${first})`);
           if (w === 1280) {
             await fold.locator('summary').click();
-            const row = await fold.locator('.trow').first().innerText().catch(() => '');
+            const row = await fold.locator('.grow').first().innerText().catch(() => '');
             check(/At risk/.test(row) && row.includes(IN_HAND[who].title) && row.includes(IN_HAND[who].said), `[ATTENTION-HANDLED] ${at}: the folded row does not show its status and what's in hand`);
           }
         }

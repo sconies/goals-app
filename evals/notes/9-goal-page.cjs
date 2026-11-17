@@ -280,11 +280,11 @@ module.exports = {
         const [c, p] = await at(browser, url, { w, h, touch, who: 'rhea', route: '/goals/ns-lead' });
         const pinned = p.locator('#feeds .pinned');
         const why = (await pinned.innerText()).replace(/\s+/g, ' ');
-        const child = (await pinned.locator('.trow-title').first().innerText()).split('\n')[0].trim();
+        const child = (await pinned.locator('.grow-title').first().innerText()).split('\n')[0].trim();
         const at6 = `J6 ${dev}`;
         chk(/Most likely to make it miss: .+\./.test(why), `${at6}: the pinned goal says “${why.slice(0, 100)}”`);
         // It's listed once: not again below, and no separate block above.
-        chk(await p.locator('#feeds .trow-title').filter({ hasText: child }).count() === 1, `${at6}: ${child} is listed more than once`);
+        chk(await p.locator('#feeds .grow-title').filter({ hasText: child }).count() === 1, `${at6}: ${child} is listed more than once`);
         await pinned.locator('a').first().click();
         await p.locator('.goal-bar .bar-title').filter({ hasText: child }).waitFor();
         const back = p.locator('.goal-page > .backlink');

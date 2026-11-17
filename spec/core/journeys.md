@@ -83,6 +83,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | [U171](journeys/U171.md) | A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track |  | `GUARDRAILS` | 24 | `evals/journeys.cjs` |
 | [U176](journeys/U176.md) | The admin’s workspace line on Home, drawn: in a workspace with 12 people and one admin, Rosa’s Home has a block headed with the workspace’s name, “{n} things to sort out” with the first one’s sentence and “See them”; See them opens About, whose To sort out list has the same {n}; a member sees none of it, and a two-person workspace just set up has none either |  | `HOME-LEADER` | 5 | `evals/journeys.cjs` |
 | [U185](journeys/U185.md) | A verifier’s Home: as Amara, Home says “5 metrics to verify” under Metrics to verify, names the three soonest, each opening its page where she can verify it, and “2 more in To verify” opens the library’s To verify; Rhea, who may verify none, sees no such line; with the Metric library switched off, Amara’s Home has none either |  | `METRIC-VERIFY` | 8 | `evals/journeys.cjs` |
+| [U186](journeys/U186.md) | One goal row on Watching: as Amara, a “Getting worse” goal, a goal with an ask waiting on her and a slipping milestone show the value, gap, result, reason and open ask exactly as spec/conformance/goal-row.csv gives them, the flag’s reason starting with its warning mark |  | `GOAL-ROW` | 6 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -99,6 +100,7 @@ Checks run across every screen: design rules, widths, motion, errors.
 | P8 | The goals start in the first screen: the Goals header stays short on a phone and a desktop | `WIDE-SCREENS` `PHONE` | `evals/journeys.cjs` |
 | P9 | Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width | `EVERY-WIDTH` | `evals/journeys.cjs` |
 | P10 | Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge | `FIT-AND-FINISH` | `evals/journeys.cjs` |
+| P11 | One goal row in every list: status and its word, then the value, then the name; values line up from 700px; the name spans the row on a phone; no link holds a button | `GOAL-ROW` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P15 | A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so | `DEMO-STORAGE` | `evals/journeys.cjs` |
 | P17 | Checked within F11: Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 
@@ -173,7 +175,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (372 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (371 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -209,8 +211,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.ci-reading-block` | the reading of the number in the check-in | [U156](../modules/metrics/journeys/U156.md), [U157](../modules/metrics/journeys/U157.md), [U158](../modules/metrics/journeys/U158.md), [U159](../modules/metrics/journeys/U159.md), [U161](../modules/metrics/journeys/U161.md) |
 | `.ci-result` | the ci result | [U151](journeys/U151.md) |
 | `.ci-week` | a week in the check-in | [U71](journeys/U71.md), [U57](journeys/U57.md) |
-| `.ciq-go` | the ciq go | [U31](../modules/watching/journeys/U31.md) |
 | `.ciq-row` | a goal’s row in the check-in’s list | [U71](journeys/U71.md), [U102](journeys/U102.md) |
+| `.ciq-row .grow-act` | the grow act in a goal’s row in the check-in’s list | [U31](../modules/watching/journeys/U31.md) |
 | `.ciq-table` | the ciq table | [U71](journeys/U71.md) |
 | `.ciq-table-top` | the ciq table top | [U71](journeys/U71.md) |
 | `.coach` | the coach | [U39](../modules/goal-map/journeys/U39.md), [U27](journeys/U27.md) |
@@ -269,6 +271,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.goals-page .filterbar-row` | the filterbar row in the goals page | [U8](../modules/watching/journeys/U8.md) |
 | `.goals-toolbar` | the goals toolbar | [U48](../modules/spreadsheets/journeys/U48.md) |
 | `.group-menu > summary` | the summary in the group menu | [U135](../modules/goal-map/journeys/U135.md) |
+| `.grow` | the grow | [U3](../modules/reviews/journeys/U3.md), [U6](journeys/U6.md), [U33](journeys/U33.md), [U186](journeys/U186.md) |
+| `.grow[data-tone="stale"]` | the grow | [U8](../modules/watching/journeys/U8.md) |
 | `.gs-row` | the gs row | [U86](journeys/U86.md) |
 | `.gtable` | the gtable | [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
 | `.gtable tbody tr` | the table row in the tbody in the gtable | [U32](journeys/U32.md) |
@@ -434,10 +438,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.teams-table` | the teams table | [U124](journeys/U124.md) |
 | `.toast` | the message that pops up | [U3](../modules/reviews/journeys/U3.md) |
 | `.toast-action` | the button in the message that pops up | [U14](journeys/U14.md), [U60](journeys/U60.md), [U43](journeys/U43.md), [U44](journeys/U44.md), [U134](../modules/goal-map/journeys/U134.md), [U83](../modules/metrics/journeys/U83.md), [U106](../modules/metrics/journeys/U106.md) |
-| `.tree .trow` | the trow in the tree | [U9](../modules/watching/journeys/U9.md) |
-| `.trow` | the trow | [U3](../modules/reviews/journeys/U3.md), [U6](journeys/U6.md) |
-| `.trow, .gline` | the trow, or the gline | [U33](journeys/U33.md) |
-| `.trow[data-tone="stale"]` | the trow | [U8](../modules/watching/journeys/U8.md) |
+| `.tree .grow` | the grow in the tree | [U9](../modules/watching/journeys/U9.md) |
 | `.verdict[data-tone=off]` | the verdict, marked off plan | [U1](journeys/U1.md) |
 | `.views-menu > summary` | the Views menu | [U32](journeys/U32.md), [U135](../modules/goal-map/journeys/U135.md) |
 | `.week-inspector` | the week inspector | [U38](journeys/U38.md) |

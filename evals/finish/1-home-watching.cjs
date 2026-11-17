@@ -18,11 +18,12 @@ module.exports = {
       {
         const [c0, q] = await open(390, 844, 'oskar', '/', true);
         // Goals you watch loads after the first download (as at 1280 below).
-        await q.waitForSelector('.home-watch .tree .trow-why', { timeout: 10000 });
-        check(await css(q, '.tree .trow', 'display') === 'flex', '[Home] 1: a phone row is not stacked');
-        const t = await box(q, '.tree .trow-title'), row = await box(q, '.tree .trow');
+        await q.waitForSelector('.home-watch .tree .grow-why', { timeout: 10000 });
+        check(await css(q, '.tree .grow', 'display') === 'grid', '[Home] 1: a phone row is not the goal row’s grid');
+        const t = await box(q, '.tree .grow-name'), row = await box(q, '.tree .grow');
         check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
-        check(await css(q, '.tree .trow-why', '-webkit-line-clamp') === 'none', '[Home] 1: phone reason is still clamped');
+        // UX2a: the reason is two lines at most on a phone too (its whole sentence in the title).
+        check(await css(q, '.tree .grow-why', '-webkit-line-clamp') === '2', '[Home] 1: phone reason is not clamped to two lines');
         await c0.close();
       }
       // [Home] 8: a goal row's level tag, on the first of these Homes that shows one at 390.
@@ -30,11 +31,11 @@ module.exports = {
         let seen = false;
         for (const who of ['oskar', 'rhea', 'tunde']) {
           const [cl, l] = await open(390, 844, who, '/', true);
-          await l.waitForSelector('.tree .trow', { timeout: 10000 }).catch(() => {});
-          const tag = await box(l, '.trow-title .level');
+          await l.waitForSelector('.tree .grow', { timeout: 10000 }).catch(() => {});
+          const tag = await box(l, '.grow-name .level');
           if (tag) {
             seen = true;
-            check(await css(l, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
+            check(await css(l, '.grow-name .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
             check(Math.round(tag.h) === 20, `[Home] 8: the level tag is ${Math.round(tag.h)}px tall, not 20`);
           }
           await cl.close();
@@ -94,9 +95,9 @@ module.exports = {
         // Oskar's watched goals are rows (Amara's are a table of teams, rule 4).
         const [c0, q] = await open(w, 900, 'oskar', '/');
         // Goals you watch load after Home's first download (HM3): wait for its rows.
-        await q.waitForSelector('.home-watch .tree .trow-why', { timeout: 10000 });
-        const why = await q.$eval('.home-watch .tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
-        check(why.clamp === '3' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
+        await q.waitForSelector('.home-watch .tree .grow-why', { timeout: 10000 });
+        const why = await q.$eval('.home-watch .tree .grow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
+        check(why.clamp === '2' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
         await c0.close();
       }
       const [c, p] = await open(w, 900, 'amara', '/');
@@ -121,20 +122,20 @@ module.exports = {
     // [Home] 9, [WA] 11, 27, 28: Maya's Watching, the row gone quiet and the missed result.
     for (const w of [768, 1440]) {
       const [c, p] = await open(w, 900, 'rhea', '/watching');
-      const stale = p.locator('.trow[data-tone="stale"]').first();
-      const icon = await stale.locator('.trow-icon').boundingBox();
+      const stale = p.locator('.grow[data-tone="stale"]').first();
+      const icon = await stale.locator('.grow-status').boundingBox();
       check(icon && icon.height <= 21, `[WA] 11: at ${w} "No recent update" wraps (${icon && Math.round(icon.height)}px)`);
-      const now = (await stale.locator('.trow-now').innerText()).toLowerCase();
+      const now = (await stale.locator('.grow-value').innerText()).toLowerCase();
       check(!now.includes('no recent update'), '[WA] 27: the value line repeats "No recent update"');
-      const miss = p.locator('.trow-now .result-missed').first();
+      const miss = p.locator('.grow-value .result-missed').first();
       check(await miss.count() === 1, '[WA] 28: "Not met" is not in the value column');
       if (await miss.count()) check(await miss.evaluate((e) => getComputedStyle(e).textTransform) === 'none', '[WA] 28: the result is still uppercase');
       if (w === 768) {
-        const why = await p.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
-        check(why.clamp === '3' && why.title.length > 20, `[WA] 2: at 768 the reason is clamped to ${why.clamp} with no title`);
+        const why = await p.$eval('.tree .grow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
+        check(why.clamp === '2' && why.title.length > 20, `[WA] 2: at 768 the reason is clamped to ${why.clamp} with no title`);
       } else {
-        check(Math.round(icon.width) === 136, `[WA] 11: status column is ${icon && Math.round(icon.width)}px, not 136`);
-        const main = await box(p, '.tree .trow-main');
+        check(Math.round(icon.width) === 140, `[WA] 11: status column is ${icon && Math.round(icon.width)}px, not 140`);
+        const main = await box(p, '.tree .grow-name');
         check(main && main.w >= 320, `[Home] 1: title column is ${main && Math.round(main.w)}px at ${w}`);
       }
       check(await noSideways(p), `[WA] sideways scroll at ${w}`);

@@ -11,7 +11,12 @@
   color: inherit; text-decoration: none; border-top: 1px solid var(--line-2);
 }
 li:first-child > .grow, .grow:first-child { border-top: 0; }
-.grow.has-act { grid-template-columns: 140px minmax(0, 1fr) 168px auto; grid-template-areas: "status name value act" ". why value act" ". ctx value act"; }
+.grow.has-act { grid-template-columns: 140px minmax(0, 1fr) 168px 108px; grid-template-areas: "status name value act" ". why value act" ". ctx value act"; }
+.grow > .grow-act { justify-self: end; }
+/* A list that has some buttons keeps the action's column in every row, so the values still line up (spec 1.3). */
+@container app (min-width: 700px) {
+  :is(.tree, ul):has(> li > .grow.has-act) > li > .grow:not(.has-act) { grid-template-columns: 140px minmax(0, 1fr) 168px 108px; grid-template-areas: "status name value ." ". why value ." ". ctx value ."; }
+}
 .grow[data-tone="off"] { background: var(--off-wash); }
 .grow > .grow-status { grid-area: status; display: block; white-space: nowrap; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; }
 .grow-status svg { display: inline-block; width: 14px; height: 14px; margin: 0 6px 0 0; vertical-align: -2px; }

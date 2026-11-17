@@ -9,12 +9,12 @@ import { StatusLegend } from './StatusLegend';
 describe('StatusWord', () => {
   it('draws the status shape and its word together, in the status colour', () => {
     for (const k of ['on', 'risk', 'off', 'stale', 'done'] as DisplayStatus[]) {
-      const { container, unmount } = render(<StatusWord k={k} className="trow-icon" wordClass="trow-status" />);
+      const { container, unmount } = render(<StatusWord k={k} className="grow-status" wordClass="grow-word" />);
       const slot = container.firstElementChild as HTMLElement;
       // The slot's own class first, then the tone: lists and evals find it by both.
-      expect(slot.className).toBe('trow-icon tone-' + k);
+      expect(slot.className).toBe('grow-status tone-' + k);
       expect(slot.querySelector('svg.status-shape')).not.toBeNull();
-      expect(slot.querySelector('.trow-status')?.textContent).toBe(LABEL[k]);
+      expect(slot.querySelector('.grow-word')?.textContent).toBe(LABEL[k]);
       expect(slot.textContent).toBe(LABEL[k]);
       unmount();
     }

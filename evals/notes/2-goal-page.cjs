@@ -172,8 +172,8 @@ module.exports = {
       [c, p] = await open(w, 900, 'rhea', '/goals/ns-lead');
       const clash = await p.evaluate(() => {
         let n = 0;
-        for (const row of document.querySelectorAll('.goal-page .tree .trow')) {
-          const parts = [...row.querySelectorAll(':scope > .trow-icon, :scope .trow-title, :scope > .trow-now')].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+        for (const row of document.querySelectorAll('.goal-page .tree .grow')) {
+          const parts = [...row.querySelectorAll(':scope > .grow-status, :scope .grow-title, :scope > .grow-value')].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
           for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
             const a = parts[i], b = parts[j];
             if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2) n++;

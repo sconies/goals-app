@@ -754,6 +754,7 @@ One goal row in every list of goals (Home, Watching, Goals, the check-in queue, 
 - **Copy:** build it as Faro does.
 - **Rule:** [One goal row](rules/goal-row.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
+- **Journeys and checks:** P11, U186
 
 ### ATTENTION-HANDLED
 
@@ -1070,7 +1071,7 @@ A status shape always agrees with the word beside it, everywhere: the shape come
 - **Copy:** build it as Faro does.
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/shapes.eval.ts` (2)
-- **Journeys and checks:** P3, P4, P6
+- **Journeys and checks:** P3, P4, P6, P11
 
 ## Trust
 
