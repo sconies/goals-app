@@ -8691,7 +8691,9 @@ async function platformChecks() {
     const c8 = await browser.newContext({ viewport: { width: w, height: hgt }, hasTouch: w <= 1024 });
     const r = await c8.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['amara', '/goals'], ['amara', '/goals?scope=all&view=table'], ['amara', '/goals?scope=all&view=history'], ['amara', '/goals?scope=all&view=history&hist=weekly&weeks=year'], ['amara', '/goals?scope=all&view=board'],
-      ['rhea', '/goals/ns-lead'], ['mateo', '/check-in/mttr-pir'], ['amara', '/reviews/weekly'], ['oskar', '/watching'], ['amara', '/activity'], ['grace', '/data'], ['grace', '/workspace']]) {
+      ['rhea', '/goals/ns-lead'], ['mateo', '/check-in/mttr-pir'], ['amara', '/reviews/weekly'], ['oskar', '/watching'], ['amara', '/activity'], ['grace', '/data'], ['grace', '/workspace'],
+      // The forms too (F04, usability study 17 Nov: the review's cadence choices overflowed at 360px, and P9 never opened a form).
+      ['amara', '/reviews/new'], ['amara', '/goals/new'], ['rhea', '/goals/ns-lead/edit'], ['amara', '/settings']]) {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();

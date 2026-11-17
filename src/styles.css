@@ -574,6 +574,9 @@ svg.chart { display: block; overflow: visible; }
 .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
 .seg.full { display: flex; }
 .seg.full button { flex: 1; justify-content: center; }
+/* A choice that doesn't fit on one line wraps onto the next instead of pushing the page sideways (F04, usability
+   study 17 Nov: the review's "How often" needed about 350px, wider than a 360px phone's form). */
+.seg.full:not(.tabs):not(.scroll) { flex-wrap: wrap; }
 
 /* Check-in steps */
 .foot-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--s3); }

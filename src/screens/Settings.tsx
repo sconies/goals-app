@@ -99,7 +99,7 @@ export function Settings() {
 
 /** Settings' sections, as links to them (navigation spec 2.5): under the title, sticking to the top as you scroll,
     with the one in view lit. On a phone the row scrolls sideways inside itself, keeping the lit one in view. */
-const SECTIONS: [string, string][] = [['set-you', 'You'], ['set-look', 'Appearance'], ['set-nav', 'Navigation'], ['ai-mine', 'Your MCP tokens'], ['set-leave', 'Leave']];
+const SECTIONS: [string, string][] = [['set-you', 'You'], ['set-look', 'Appearance'], ['set-nav', 'Navigation'], ['ai-mine', 'Your MCP tokens'], ['set-rec', 'Recording'], ['set-motion', 'Motion lab'], ['set-leave', 'Leave']];
 /** The sections the page has: no Your MCP tokens while AI access is off, as the section itself isn't there (drill, 15 Nov). */
 export const settingsSections = (aiOn: boolean): [string, string][] => SECTIONS.filter(([id]) => aiOn || id !== 'ai-mine');
 function SectionLinks({ sections: SECTIONS }: { sections: [string, string][] }) {
