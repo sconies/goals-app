@@ -75,7 +75,7 @@ From the walk of 11 Nov 2026, 10:53 to 11:20 UTC, on the live demo (`/demo?today
 
 One list of the viewer's goals, in two groups. With a weekly rhythm: "To do this week" and "Done this week", the week with its dates, the day it is due with its date, and one primary action, "Start with {goal}", which walks the list. With no set rhythm: "Check in on a goal", "No check-in this week" and "Checked in this week", no primary action, no count, no streak (round 2's toggles design, kept).
 
-Each row says the goal's status and what it last said, so a person can see which will be a number and which may need words. A row with a draft says what the draft holds. A done row has the button "Check in again" and the link "Correct it": two verbs, because they are two acts (section 5). Under the list: "Type all your numbers in one table" (two or more number goals), a line for any draft left from an earlier week, and "Add or correct an earlier week".
+Each row says the goal's status and what it last said, so a person can see which will be a number and which may need words. A row with a draft says what the draft holds. A done row has the button "Check in again" and the link "Correct it": two verbs, because they are two acts (section 5). Under the list: "Type all your numbers in one table" (two or more number goals; since 17 Nov also as a quiet link just under "Start with", as with seven goals the one under the list was below the fold, usability study F02), a line for any draft left from an earlier week, and "Add or correct an earlier week".
 
 ### 2. One goal (wireframes 2, 3, 9)
 

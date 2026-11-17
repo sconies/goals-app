@@ -87,7 +87,7 @@ An outside expert walkthrough of the live demo, at desktop and phone widths: `do
 2. **UX2a, one goal row (M):** `rowParts` and one `GoalRow` for Home, Watching, Goals List, the check-in queue and a review's agenda, with the hard cases as tests (`docs/design/patterns/spec.md`, section 1). The design pass is done (#585; Lane's answers, 17 Nov). One track with UX2b and UX4, in this order.
 3. **UX2b, one form footer (M):** `FormFooter`, verb-object labels, errors beside their fields, "Close" until something is typed (patterns spec, section 3).
 4. **UX4, one page header (S–M):** `PageHeader` and `TaskHeader`; utilities out of headers; the phone's bar names the page once the title has scrolled away (patterns spec, section 2). After UX1's goal title line.
-5. **F02's quiet top link (S)**, if Lane agrees.
+5. **Done (17 Nov):** F02's quiet top link (Lane agreed, 17 Nov): "Or type all your numbers in one table" just under Start with when two or more number goals are due; Start with stays the one primary action and the link under the list stays. U71 checks it is on screen.
 6. **Later:** Board's status picker on a phone, and Data's row name kept in view on desktop.
 
 ## Build, in order

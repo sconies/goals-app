@@ -173,7 +173,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (369 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (372 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -203,6 +203,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.changes .change` | the change in the changes | [U7](../modules/watching/journeys/U7.md) |
 | `.changes > li` | the list item in the changes | [U31](../modules/watching/journeys/U31.md) |
 | `.check-said` | the check said | [U83](../modules/metrics/journeys/U83.md), [U180](../modules/metrics/journeys/U180.md) |
+| `.checkin-queue .btn.primary` | the main button in the checkin queue | [U71](journeys/U71.md) |
 | `.ci-corrected` | the ci corrected | [U142](journeys/U142.md) |
 | `.ci-moment` | the ci moment | [U151](journeys/U151.md) |
 | `.ci-reading-block` | the reading of the number in the check-in | [U156](../modules/metrics/journeys/U156.md), [U157](../modules/metrics/journeys/U157.md), [U158](../modules/metrics/journeys/U158.md), [U159](../modules/metrics/journeys/U159.md), [U161](../modules/metrics/journeys/U161.md) |
@@ -210,6 +211,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.ci-week` | a week in the check-in | [U71](journeys/U71.md), [U57](journeys/U57.md) |
 | `.ciq-go` | the ciq go | [U31](../modules/watching/journeys/U31.md) |
 | `.ciq-row` | a goal’s row in the check-in’s list | [U71](journeys/U71.md), [U102](journeys/U102.md) |
+| `.ciq-table` | the ciq table | [U71](journeys/U71.md) |
+| `.ciq-table-top` | the ciq table top | [U71](journeys/U71.md) |
 | `.coach` | the coach | [U39](../modules/goal-map/journeys/U39.md), [U27](journeys/U27.md) |
 | `.coach-ring` | the coach ring | [U31](../modules/watching/journeys/U31.md), [U27](journeys/U27.md), [U29](journeys/U29.md) |
 | `.connect` | the connect | [U42](../modules/feedback/journeys/U42.md), [U175](../modules/ai-access/journeys/U175.md) |

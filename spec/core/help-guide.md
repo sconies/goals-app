@@ -390,7 +390,7 @@ Check-ins are how everyone knows where a goal stands. Home, charts, quarter resu
 
 #### How to use it
 
-- Check-in in the menu opens on the week’s list: the goals to do this week, in the order the check-in takes them, each with its status and what it last said (“Last week: 36 hours · 8 behind plan”, or “No check-in yet”); then what you’ve done this week, each with Correct it; then a line to type all your numbers in one table.
+- Check-in in the menu opens on the week’s list: the goals to do this week, in the order the check-in takes them, each with its status and what it last said (“Last week: 36 hours · 8 behind plan”, or “No check-in yet”); then what you’ve done this week, each with Correct it; then a line to type all your numbers in one table. With two or more number goals to do, the same line is also just under Start with, so you can choose the table without scrolling.
 - Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.
 - Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.
 - With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.
@@ -472,7 +472,7 @@ A faster weekly check-in when most of your goals are on plan.
 
 #### How to use it
 
-- On Home, choose “Or type all your numbers in one table” under Start check-in.
+- On Home, choose “Or type all your numbers in one table” under Start check-in. On Check-in it is just under Start with, and again under the list.
 - Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.
 - Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.
 - A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.

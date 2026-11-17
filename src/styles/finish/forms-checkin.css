@@ -164,6 +164,7 @@
 .ciq-draft { color: var(--fg); }
 .ciq-go { justify-self: end; white-space: nowrap; }
 .ciq-table { margin: 0; }
+.ciq-table-top { margin: calc(-1 * var(--s2)) 0 0; }
 @media (pointer: coarse) { .ciq-go { min-height: 44px; } }
 /* A phone: the status over the title, the button beside them. */
 @container app (max-width: 600px) {

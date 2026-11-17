@@ -63,6 +63,10 @@ export function CheckInQueue() {
           <Link className="btn primary big-btn" to="/check-in?start=1" state={FROM_QUEUE}>{p.due.length === 1 ? `Check in on ${first.title}` : `Start with ${first.title}`}</Link>
         </p>
       )}
+      {/* The table, offered near the top as well as under the list, as a quiet link: one by one stays the one primary
+          action (K8: the table was slower for goals that are behind). With seven goals the link under the list was below
+          the fold even on a 390×844 phone (usability study F02; Lane, 17 Nov). */}
+      {first && p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <p className="small ciq-table-top"><Link className="linkish" to="/quick-check-in">Or type all your numbers in one table</Link></p>}
       {!first && (upcoming
         ? <p className="ciq-empty">Nothing to check in yet. The first check-ins are due by {firstDue}.</p>
         : <p className="ciq-empty">You’re all set for week {app.week}.</p>)}

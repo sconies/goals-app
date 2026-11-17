@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'checkin-table-top',
+    date: '2026-11-17',
+    title: 'The one table, near the top of Check-in',
+    points: [
+      'With two or more number goals to check in on, Check-in now offers “Or type all your numbers in one table” just under Start with, so you can choose it without scrolling past the list. It is still under the list too.',
+      'Start with stays the main way in: one goal at a time is quicker for goals that are behind.',
+    ],
+    articles: ['check-in', 'check-in-table'],
+  },
+  {
     id: 'metric-quality',
     date: '2026-11-16',
     title: 'Metrics are Draft, Defined or Verified',
