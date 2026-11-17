@@ -31,7 +31,7 @@ import { goalStatus } from '../domain/status';
 import { rhythmOf } from '../domain/thresholds';
 import type { Goal } from '../domain/types';
 import type { AskKind } from '../domain/types';
-import { AttentionCard, Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
+import { Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { HomeNews } from '../ui/HelpLinks';
@@ -214,19 +214,20 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
   );
 }
 
-/** Your goals that need attention: each row is a link to its goal, with "Check in" when that's what it needs (never "Open"). */
+/** Your goals that need attention, in the one goal row (GOAL-ROW): its top flag as the reason, an ask it waits on as the
+    second line, and "Check in" when that's what it needs (never "Open"). */
 function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
   const app = useApp();
   const checkInHere = useCheckInHere();
   return (
-    <div className="alist">
+    <ul className="tree alist">
       {list.map((a) => (
-        <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} who={a.goal.ownerId === app.viewer.id ? undefined : app.person(a.goal.ownerId)?.name ?? undefined}
-          action={a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path') || !!checkInHere?.(a.goal))
-            ? <Link className="btn sm" to={'/check-in/' + a.goal.id}>Check in</Link>
-            : undefined} />
+        <li key={a.goal.id}>
+          <GoalRow g={a.goal} place="home-mine" showOwner={a.goal.ownerId !== app.viewer.id}
+            act={a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path') || !!checkInHere?.(a.goal)) ? 'Check in' : undefined} />
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
