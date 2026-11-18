@@ -3073,3 +3073,15 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
 - **Quick-run progress:** a tee of PASS/FAIL and `EVALS_PROGRESS` lines to the console; the log file still gets everything. Exit codes are unchanged.
 - **Low:** nothing pins F1. No eval or unit test checks that a Home lead's row title is the reason without the owner's name. Add a line to 1-home-watching's [Home] 1 when UX2c touches it.
 - Told planning: no high or medium; it can merge on green CI.
+
+**#596 (UX2c, the form footer's rest; build session_012kbr8y49hPphtbVAk83bJL), reviewed at 83f9843b.** Read the diff. No walker run. #593's lows are closed ("Create workspace"; no bare "Next"; quiet step changes keep a draft but make none; no alert inside Review's status line; Confirm baselines and Import's paste, changes and check are never disabled; F1's title is now pinned in [Home] 1). The evals were strengthened, not loosened.
+- **Medium:** `src/spec/rules.ts` FORM-FOOTER says "Built in Faro (UX2c): all of the above, on every form and the sheets". 17 sheets use `<FormFooter sheet>`, but about 20 still draw their own `foot-row` or `sheet-foot`:
+  - NextStepSheet ("Add a next step", named in rule 7);
+  - RemoveSheets ×4, ProposeInReview, People ×3, Workspace ×3, BulkEdit, StartNext, Inspect;
+  - AiAssistants ×3, Metrics ×4 (delete, retire, merge, unit), CheckInFlow:179 (skip), FieldsSection, GoalScreen:561, goalRows:191.
+
+  Four primaries are still disabled for missing input (3.3.2): BulkEdit.tsx:87 (`!value`, and a bare "Save"), Workspace.tsx:421 (`!chosen`), Workspace.tsx:715 (`!lines.length`), Metrics.tsx:642 (Merge, `!other`). Fix: convert them, or make the Built line list what's left.
+- **Low:** at 420 px or less, Back is always a text link (`.has-back`), while rule 6 and patterns spec 3.5 say "when both don't fit". The build flagged it. Words and build should match.
+- **Low:** P20's Import-paste case is skipped silently when "Check these rows" isn't found.
+- **Low:** FixSummary's link buttons sit inside the footer's `role="status"`.
+- The build session was inactive when I sent this, so the medium went to planning to relay.
