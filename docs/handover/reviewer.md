@@ -1,5 +1,20 @@
 # Build reviewer handover
 
+The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` branch. Read its sections from "The reviewer of 18 November, afternoon" on.
+
+**18 Nov, about 21:45 UTC: reviewer session_012kbr8zrx4banyBEWNKXLZj stopped.** Its context was 223k, and UX4 had no ready time (CLAUDE.md's prompt-cache habit).
+- **#593 (UX2b):** the delta 819b6d55..cb78e4c is cleared. N7 and N8 are not loosened.
+- **#596 (UX2c):** cleared at b3f4cce, with no high or medium. Planning was told it can merge on green CI. The build's local evals:changed hadn't finished when it pushed.
+  - Open lows: DataFilters' error has no `aria-invalid` on the value field; Markup.tsx:316 is still `aria-disabled` with no picture, and its label is a bare "Send"; FixSummary's links sit inside `role="status"` (the build chose to keep them).
+- **No highs or mediums are open.**
+- **Next:**
+  - UX4, page header, is draft PR #597, from session_012kbr8xTXrVQL92zMzhgMbz. Check it against patterns spec section 2, PAGE-HEADER in the generated spec, its conformance rows and its rebuild stage. Walk it at 360 and 1440.
+  - When #596 merges, compare the merge with b3f4cce.
+- **Planning:** session_012kbr8yQaHGoDsesfVZhHry is handing over; its successor will say its ID.
+- **What found things this time:** grep every `btn primary … disabled={…}` (and `aria-disabled`) across src after a "never disabled" claim, and grep for raw `className="foot-row"` and `sheet-foot` against a "Built" line. The rule's words overclaimed twice.
+
+## Earlier
+
 The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` branch (draft PR #134). Read its "Where the next reviewer starts" note, which is this one, and only the sections you need.
 
 **18 Nov, about 10:15 UTC: reviewer session_012kbr939YG6p4SQWQw7sYbd stopped.** Its context was 227k, and UX4 is likely more than an hour away (CLAUDE.md's prompt-cache habit). Its section in the log is "The reviewer of 18 November".
