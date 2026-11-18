@@ -117,8 +117,8 @@ function measure(root: Element, els: HTMLElement[], keys: string[]): Map<string,
 
 /**
  * Watches the work area: when the rows in it change order or membership (a sort, a filter, a goal moving status) on the
- * same page, each kept row slides from where it was to its new place and each new row fades in. Only transforms and
- * opacity move, so nothing shifts the layout, and the rows are clickable at their final place throughout.
+ * same page, each kept row slides from where it was to its new place and each new row rises into place (no fade).
+ * Only transforms move, so nothing shifts the layout, and the rows are clickable at their final place throughout.
  */
 export function installFlip(root: HTMLElement): () => void {
   let keys: string[] = [];
@@ -145,7 +145,9 @@ export function installFlip(root: HTMLElement): () => void {
         const k = c.keys[i]!;
         const d = moved.get(k);
         if (d) el.animate([{ transform: `translate(${d.x}px, ${d.y}px)` }, { transform: 'none' }], { duration: MOTION_MS - 20, easing: 'cubic-bezier(.2, .8, .2, 1)', id: 'flip' });
-        else if (!pos.has(k)) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out', id: 'flip' });
+        // A new row rises into place without fading, so its words are readable from the first frame (as `rise`, backlog T):
+        // a fade let a contrast check, or a reader, catch the text half-transparent while Home's rows arrive.
+        else if (!pos.has(k)) el.animate([{ transform: 'translateY(4px)' }, { transform: 'none' }], { duration: 160, easing: 'ease-out', id: 'flip' });
       });
     }
     keys = c.keys;
