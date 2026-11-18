@@ -3129,3 +3129,9 @@ Checked against patterns spec section 2 and Lane's 18 Nov answers on F15 and N2/
   - task heads keep the exit on the first line;
   - no console errors.
 - **Next:** re-check the delta that fixes M1 to M3.
+- **Re-check at 2c4876d: cleared, no high or medium.**
+  - **M1:** `useCompact` measures `.mtop` by offsetHeight. At 360 it turns once each way (428↔432), and N2 now steps through the turn in 4 px steps.
+  - **M2:** the print rule is restored. In print the bar is static and `.bar-actions` is hidden.
+  - **M3:** `phoneTitleShown` makes the CSV and the app say Goals for /goals and /watching.
+  - `/metrics/baselines` is a list. The other lows stay open. Build and planning told.
+- **When #597 merges:** compare the merge with 2c4876d.
