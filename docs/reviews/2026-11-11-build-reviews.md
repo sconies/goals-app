@@ -3037,4 +3037,11 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
 - **Low:** a `role="alert"` sits inside the footer's `role="status"` (`Review.tsx`, about line 427).
 - **Low:** README, `docs/architecture.md` and `docs/handoff.md` aren't updated. `handoff.md:22` still says the footer follows in UX2b.
 - **N26 (dfd5e1c3), not a finding:** N26 now measures the first goal row's status and number, not its title. On a phone the title can end 30 to 40 px past the fold. Lane chose this through the build session's question, answered 18 Nov 07:55 UTC ("Check the row's start"), as I confirmed in that session's events. **Low:** the decision isn't recorded in `patterns/spec.md` section 6 or the backlog, and the commit dates it 17 Nov. Also, before 9faf47b5 the old `.arow-title` selector matched nothing, so N26 was skipped silently. It still skips silently if `.grow-num` is missing.
+- **From the screen walk (Sonnet, demo, 360 and 1440; I looked at the check-in's step 2 at 360):**
+  - **Medium (adds to 3.3.2):** the check-in's empty press leaves focus on the button. On the last step its three errors set no `aria-invalid`. Take baselines shows a disabled "Confirm 0 baselines".
+  - **Medium (adds to 3.6):** the check-in's step 2 ("still true?") keeps a plain `.focus-foot`, not FormFooter.
+  - **Medium:** the check-in overflows at 360 on steps 2 and 3 (scrollWidth 377). The cause is `button.linkish.link-request`, whose text is wider than its box. Not yet checked against main.
+  - **Low:** the error reads 'Must fix “” Type this week’s number.' (3.3.1: never “”).
+  - Passes: New goal; GoalEdit; the table check-in; "Close without saving" on Review set-up and baselines; Home's rows (values line up per list at 1440, no overflow at 360 or 390). Mateo's first title ends at 860 px at 390×844, and its number at 834, which is within Lane's N26 answer.
+  - Sent to the build session as an addendum.
 - Sent the highs and mediums to the build session and planning, 18 Nov about 09:00 UTC.
