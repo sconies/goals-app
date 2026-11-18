@@ -142,7 +142,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
 | error | “Say why it’s better than the numbers: tap Change.” | `step === 'measure' and valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0) and tried && e.codes.includes('greener-why')` |
 | error | “Pick a cause, then write a sentence. / Write a sentence about what happened.” | `step === 'account' and needsWhy and tried and !whyOk` |
-| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried and !wayOk` |
+| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried && !wayOk && !(wayLong && draft.ptgState === 'help' && !helpFrom)` |
 | error | “Pick who it goes to.” | `step === 'account' and needsWay and draft.ptgState === 'help' and tried and !helpFrom` |
 | error | “Change what’s different, or tick Still true this week.” | `alert` |
 | error | “Write a sentence so people watching know why.” | `e.greener and tried and !okWhy` |
@@ -173,7 +173,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
-| “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
 | “Add a next step” | button | `!open` |
@@ -1595,7 +1594,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
 | error | “Say why it’s better than the numbers: tap Change.” | `step === 'measure' and valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0) and tried && e.codes.includes('greener-why')` |
 | error | “Pick a cause, then write a sentence. / Write a sentence about what happened.” | `step === 'account' and needsWhy and tried and !whyOk` |
-| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried and !wayOk` |
+| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried && !wayOk && !(wayLong && draft.ptgState === 'help' && !helpFrom)` |
 | error | “Pick who it goes to.” | `step === 'account' and needsWay and draft.ptgState === 'help' and tried and !helpFrom` |
 
 **Buttons, and who sees them**
@@ -1613,7 +1612,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
-| “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
 

@@ -30,7 +30,8 @@ export function MustFixBlock({ id, read, fix }: { id: string; read: string; fix:
   // What was read, in bold, unless the fix already starts with it (“0.415 has 3 decimal places…”): said once.
   const bare = read.replace(/^“|”$/g, '');
   const lead = [read, bare].find((x) => !!x && fix.startsWith(x));
-  const says = lead ? <><strong>{lead}</strong>{fix.slice(lead.length)}</> : <><strong>{read}</strong> {fix}</>;
+  // Nothing typed reads as nothing: the fix alone, never empty quotes (“” Type this week’s number.).
+  const says = !bare.trim() ? fix : lead ? <><strong>{lead}</strong>{fix.slice(lead.length)}</> : <><strong>{read}</strong> {fix}</>;
   return (
     <div className="level-block level-fix" id={id} role="alert">
       <span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span>

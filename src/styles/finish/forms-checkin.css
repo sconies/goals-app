@@ -27,9 +27,14 @@
 /* The note step: both answers in the footer, the primary on the right (Check-in 2). */
 .ci .carry-foot .btn.primary { min-width: 0; }
 @container app (max-width: 560px) {
-  .ci .carry-foot { flex-wrap: wrap; row-gap: var(--s2); }
-  .ci .focus-foot .carry-foot .btn.primary { order: 3; flex: 1 1 100%; width: 100%; }
+  .ci .carry-foot .foot-row { flex-wrap: wrap; row-gap: var(--s2); }
+  .ci .focus-foot.carry-foot .btn.big-btn { flex: 1 1 100%; width: 100%; }
+  .ci .focus-foot.carry-foot .btn.primary { order: 3; }
 }
+
+/* "Waiting on a decision already asked for another goal?" is a sentence, not a short link: it wraps rather than pushing the
+   page sideways at 360px (the shared .linkish.tap keeps short links on one line). */
+.ci .linkish.tap.link-request { white-space: normal; overflow-wrap: anywhere; max-width: 100%; min-height: 44px; }
 
 /* The number: a problem turns the field's border red, and the message sits 8px under it, above last week's line (Check-in 14). */
 .ci .bignum.invalid { border-color: var(--off-fg); }

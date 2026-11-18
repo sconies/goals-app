@@ -38,6 +38,8 @@ export interface PickProps {
   /** A hint under the label. */
   hint?: ReactNode;
   invalid?: boolean;
+  /** The id of the words saying what's wrong, read with the field while it is invalid. */
+  describedBy?: string;
   /** A chosen row that can't be removed (a review's creator, say). */
   keep?: (id: string) => boolean;
   /** In a table cell or a filter row: the label is for screen readers only (the column or the row says it), and the
@@ -74,7 +76,7 @@ export function Pick(p: PickProps) {
 }
 
 /** A picker that asks the source it is given: set-up's people, before the workspace exists. */
-export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, compact = false, shown, first = [], add }: PickProps & { source: PickSource }) {
+export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, describedBy, keep, compact = false, shown, first = [], add }: PickProps & { source: PickSource }) {
   const { search, viewerId, ws } = source;
   const app = { viewer: { id: viewerId }, ws: { id: ws } };
   const prefs = usePrefs();
@@ -210,10 +212,10 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
       {!several && (chosen[0] || (shown !== undefined && value[0])) ? (
         <div className={'pick-field' + (invalid ? ' invalid' : '')}>
           {compact || !chosen[0] ? <span className="pick-name">{chosen[0]?.name ?? shown}</span> : <RowText person={source.person} row={chosen[0]} you={chosen[0].id === app.viewer.id} />}
-          <button type="button" className="linkish" ref={opener} aria-expanded={open} aria-label={`${label}: ${chosen[0]?.name ?? shown}. Change`} onClick={() => setOpen((o) => !o)}>Change</button>
+          <button type="button" className="linkish" ref={opener} aria-expanded={open} aria-label={`${label}: ${chosen[0]?.name ?? shown}. Change`} aria-invalid={invalid || undefined} aria-describedby={invalid ? describedBy : undefined} onClick={() => setOpen((o) => !o)}>Change</button>
         </div>
       ) : (
-        <button type="button" className={'input pick-open' + (invalid ? ' invalid' : '')} ref={opener} aria-expanded={open} aria-labelledby={`${id}-l ${id}-b`} onClick={() => setOpen((o) => !o)}>
+        <button type="button" className={'input pick-open' + (invalid ? ' invalid' : '')} ref={opener} aria-expanded={open} aria-labelledby={`${id}-l ${id}-b`} aria-invalid={invalid || undefined} aria-describedby={invalid ? describedBy : undefined} onClick={() => setOpen((o) => !o)}>
           <span id={`${id}-b`}>{several && chosen.length ? `Add another ${w.thing}` : !several && none ? none : `Choose a ${w.thing}`}</span>
         </button>
       )}
