@@ -33,6 +33,7 @@ Added 18 Nov, reworded the same day for people who use the app: each line says w
 | SU-3 | Set-up: choose a team for each goal | S | idea |
 | 3a | Draw on a goal's page, pin notes and send it to a colleague as a question, decision, help request or update request; they answer in the Respond panel and it stays on the goal and in Activity | M | not picked |
 | 0t | Behind the scenes: a saved test database so the database tests run reliably | S | not picked |
+| N8 | Behind the scenes: the automatic check N8 [STALE-RELOAD] fails when run alone on a local machine ("the Map's file gone once: expected one reload then the Map, saw 1 page loads") but passes in CI's full runs on main (#591, #592). Look at the check, not the app; seen 18 Nov by the patterns track | S | idea (planning, 18 Nov) |
 | WM | Let an AI assistant create and set up a whole workspace (cycle, teams, people, features), not only fill one in. Needs a security decision first about who may hold that power | M, after a security decision | not picked (needs Lane's security decision first); check, the 12 Nov handover says "WM built with the set-up token rules" |
 | R-F05 | The Map re-fits when you change scope (confirm it is built; #76 says it is) | S | check |
 | R-F15 | Each agenda row says why it is there | S | check |
