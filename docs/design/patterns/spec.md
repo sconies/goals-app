@@ -177,6 +177,10 @@ Why the off-track row's reason is the owner's why, and the ask is context: the s
 7. **Sticky on scroll, on detail pages only.** It becomes one line: status, title (one line, truncated with its full text in `title`), number, the primary action, "More". This is today's goal bar, made the rule. Its height is subtracted when the page scrolls to an anchor, so a section's heading lands in view (study: "the chart anchor lands below the sticky header").
 8. **The phone's top bar names the page only once the title has scrolled away.** Until then it shows the workspace, Find and you, so the page's name isn't said twice on one screen (study, "Page header"). This changes navigation spec 2.3 slightly (question 6).
 
+**Lane's answers, 18 Nov (UX4's build, relayed by planning).** Two of the rules above ran into budgets the evals already keep:
+- **F15 (the metric library's first row within 300 px):** on a phone, a list page's one action goes to the end of its list bar, and the header keeps only the title and its line. Rule 3 still holds: nothing shares the title's line.
+- **N2 and N9 (a goal's compact bar at the top; its reason in the first two screens):** on a detail page, once the sticky line is compact it takes the top bar's place, and the top bar shows only at the very top of the page. If N9's count still fails after that, the build reports the numbers. No budget is raised.
+
 ### 2.3 A goal's header, on a phone (F03)
 
 At 360 px, from the top:
