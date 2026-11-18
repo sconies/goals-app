@@ -43,3 +43,12 @@ html.goal-compact .mtop { transform: translateY(-100%); visibility: hidden; }
 .metric-count-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
 .metric-count-row > .count-line { margin: 0; min-width: 0; }
 .metric-count-row > .view-menu { flex: none; margin-block: -12px; }
+
+
+/* A goal's page on a phone: its section links are one row you swipe, as Settings' are, not two, so the reason starts
+   inside the first two screens (Lane, 18 Nov; N9). Every link stays on the page, in the same order. */
+@container app (max-width: 699px) {
+  .goal-page .goal-links { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--s4)); padding-inline: var(--s4); scroll-padding-inline: var(--s4); }
+  .goal-page .goal-links::-webkit-scrollbar { display: none; }
+  .goal-page .goal-links > .goal-link { flex: none; }
+}
