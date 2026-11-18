@@ -2,6 +2,25 @@
 
 The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` branch (draft PR #134). Read its "Where the next reviewer starts" note, which is this one, and only the sections you need.
 
+**18 Nov, about 10:15 UTC: reviewer session_012kbr939YG6p4SQWQw7sYbd stopped.** Its context was 227k, and UX4 is likely more than an hour away (CLAUDE.md's prompt-cache habit). Its section in the log is "The reviewer of 18 November".
+- **Main is reviewed to `b034bf71`.** Two PRs are cleared before merge, with planning told it may merge them:
+  - #592 (docs, backlog Open list): no findings;
+  - #593 (UX2b, FORM-FOOTER), cleared at head 819b6d55, after two highs and seven mediums were fixed or moved to UX2c (backlog 3a).
+- **When those merge, nothing new needs reviewing on main:** compare the merge with 819b6d55 and ed354925.
+- **No highs or mediums are open.**
+- **Sessions:**
+  - the patterns track is now session_012kbr92THq15KYkf3KVSny7 (it took over from …nZCpMz97iHEoe2xU);
+  - planning is session_012kbr8yQaHGoDsesfVZhHry.
+- **Next:**
+  - UX4, page header (patterns spec section 2; PAGE-HEADER in the generated spec, conformance, rebuild stage);
+  - then UX2c, the footer's rest (backlog 3a lists what each part must do).
+- **Lane's answer, 18 Nov:** N26 checks that the first goal row's status and number are in the first phone screen, not its title (recorded in patterns spec section 6). Don't raise it again.
+- **What found things this time:**
+  - **Read the spec's "build" table row by row against the diff.** UX2b left five rows of 3.6 unbuilt, and the PR didn't say so.
+  - **Ask the walker for `document.activeElement` and `aria-invalid` after an empty press.** That is how the check-in's focus fault turned up.
+  - **When a place's props change, check who sees the action.** `act` left undefined fell back to `rowParts`' "Check in" on other people's goals.
+- **Watch:** the build reports that N8 [STALE-RELOAD] fails alone on origin/main. It's in my log for planning.
+
 **17 Nov, about 18:10 UTC: reviewer session_012kbr8zsxLnBL2bDKZQ8eoi stopped** (no UX2b PR yet, and a long idle wait with a large context; CLAUDE.md's prompt-cache habit). Main is reviewed to `b034bf71` (#591, UX2a, merged at 3d120e0c, the head I re-checked). No highs or mediums are open. #591's section in the log has a high (the check-in queue collapsed at 1440) and a medium (Home's values not lining up), both closed by 3d120e0c and re-walked at 360 and 1440. It also has one open low for planning: Home's "N need attention" block under Your goals still draws its own older row, not GOAL-ROW. Next: UX2b (form footer, spec section 3), then UX4 (page header, section 2), both from the patterns track session_012kbr92nZCpMz97iHEoe2xU. For each, check the pattern lands in the generated spec (FORM-FOOTER, PAGE-HEADER; conformance; rebuild stage) and walk the screens at 360 and 1440. The #591 walker found what the evals missed: a screen's old wrapper CSS around a new shared component. Look for a parent grid still applying (`.ciq-row` was the case), and compare value edges within each list.
 
 **17 Nov, about 14:50 UTC: this reviewer stopped** (context 244k, and no PR expected for over an hour; CLAUDE.md's prompt-cache habit, #587). Start fresh from here: main is reviewed to `79b02a70` (#589); no highs or mediums are open; the next PRs come from the patterns track below.
