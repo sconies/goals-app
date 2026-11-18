@@ -1,6 +1,6 @@
-# Planning: handover (Wednesday 18 November, ~17:40 UTC)
+# Planning: handover (Wednesday 18 November, ~23:20 UTC)
 
-Planning was session_012kbr8yQaHGoDsesfVZhHry. It handed over at about 720k tokens, too late (the rule is 300k). Main is at 75785fe8 (#593).
+Planning was session_012kbr8yQaHGoDsesfVZhHry. It handed over at about 720k tokens, too late (the rule is 300k). Main is at 1478535 (#597). **The shared-patterns track is finished and building is paused.**
 
 ## Where it stands
 
@@ -10,8 +10,11 @@ The handoff plan, MQ2, the drill bugs and the MQ2 follow-ups were all done by 16
 - **Design pass: done.** #585, `docs/design/patterns/spec.md`, with Lane's answers recorded there.
 - **UX2a, one goal row (GOAL-ROW): done.** #591.
 - **UX2b, one form footer (FORM-FOOTER): done.** #593. It also fixed two eval-harness bugs: N8 now models a deploy; N7 no longer waits out 30 s timeouts.
-- **UX2c, the footer's unbuilt parts, plus an eval that pins F1's title: building.** Session session_012kbr8y49hPphtbVAk83bJL.
-- **UX4, one page header (PAGE-HEADER): blocked on Lane.** It is built (4 commits on branch claude/ux4-page-header), but only in the container of session_012kbr92THq15KYkf3KVSny7. That session refused to push on a go-ahead relayed by planning, so Lane must tell it himself: "Push UX4 to claude/ux4-page-header as a draft WIP PR." Then the UX2c session finishes it. Lane's 18 Nov answers are recorded in patterns spec §2 on that branch: F15, a list page's one action goes to the end of its list bar on a phone; N2/N9, on a detail page the compact sticky line takes the top bar's place. If Lane declines, rebuild UX4 from the spec.
+- **UX2c, the rest of the form footer: done.** #596 (it also stops P3's fade-in contrast flake).
+- **UX4, one page header (PAGE-HEADER): done.** #597. Lane's 18 Nov answers:
+  - F15: on a phone, a list page's one action goes to the end of its list bar.
+  - N2/N9: the compact sticky line takes the top bar's place.
+  - N9's last 24 px were recovered by putting the section links on one row you swipe, with nothing hidden and no limit raised.
 
 Also done on 17–18 Nov:
 - **#587:** CLAUDE.md's prompt-cache habits (Lane, from inevolin/claude-code-usage-analysis).
@@ -24,10 +27,9 @@ After UX4 and UX2c, building pauses again and Faro is handed over (planning's ad
 
 | Role | Session | State |
 |---|---|---|
-| Patterns build, part 3 (UX2c, then UX4) | session_012kbr8y49hPphtbVAk83bJL | Building UX2c from main. Takes UX4 once its branch is on origin. |
-| UX4 holder | session_012kbr92THq15KYkf3KVSny7 | Stopped. Waits for Lane to tell it to push. Archive it once the branch is on origin. |
-| Build reviewer | session_012kbr8zrx4banyBEWNKXLZj | Cleared #593's last commits. Reviews UX2c and UX4. Hands over at 300k, or before a long idle wait past 150k. |
-| Backlog chat (Sonnet) | session_012kbr922AUWjVwhm6E6S6Vh | Lane's standing chat about the backlog. It adds ideas and sends small docs PRs for planning to merge. Two adds are pending: the eval reads that wait 30 s, and N8 now fixed. |
+| Backlog chat (Sonnet) | session_012kbr922AUWjVwhm6E6S6Vh | Lane's standing chat about the backlog. It adds ideas and sends small docs PRs for planning to merge. |
+
+No build or reviewer is running. The reviewer's log and note are on `build-reviews` (docs/handover/reviewer.md). Start a fresh reviewer from that note when building resumes.
 
 ## Decided by Lane, 17–18 Nov
 
@@ -46,7 +48,6 @@ After UX4 and UX2c, building pauses again and Faro is handed over (planning's ad
 
 ## Waiting for Lane
 
-- Tell session_012kbr92THq15KYkf3KVSny7 to push UX4.
 - The GitHub About description: "Faro: a goals (OKR) tool built as a model for an internal team to copy, with its spec, rebuild kit and a demo that needs no sign-in."
 - PR CI caps by the number of checks, not by time, so a heavy PR (about 23 min locally) can still hit the 30-minute job limit. Planning recommends capping by estimated minutes. Not yet in the backlog.
 
@@ -64,4 +65,4 @@ After UX4 and UX2c, building pauses again and Faro is handed over (planning's ad
 
 ## Prompt for the next planning session
 
-"You are Faro's planning session. Read CLAUDE.md, docs/handover/planning.md and the Open list at the top of docs/backlog.md. Get your session ID with get_session, run list_sessions, and send_message the open sessions in planning.md's table: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Read reports with ReadNotifications. Merge the shared-patterns track's PRs once CI is green and the reviewer has no high or medium. When UX4 and UX2c are in, pause building and rewrite the handover. Fix anything that breaks main at once. Put Lane's ideas in the backlog (or let the backlog chat do it) and build only what he picks. Check your own context with get_session every few hours, and hand over at about 300k tokens by rewriting docs/handover/planning.md."
+"You are Faro's planning session. Read CLAUDE.md, docs/handover/planning.md and the Open list at the top of docs/backlog.md. Get your session ID with get_session, run list_sessions, and send_message the open sessions in planning.md's table: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Read reports with ReadNotifications. Building is paused. Ask Lane in one batch what comes next. Fix anything that breaks main at once. Put Lane's ideas in the backlog (or let the backlog chat do it) and build only what he picks. Check your own context with get_session every few hours, and hand over at about 300k tokens by rewriting docs/handover/planning.md."
