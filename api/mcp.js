@@ -19657,7 +19657,11 @@ function rowParts(goal, att, place, f) {
 		case "agenda": if (att.handled) reason = att.handled.text + ".";
 		else if (top) useFlag(top);
 	}
-	if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !reason.startsWith(owner)) reason = `${owner}. ${reason}`;
+	let reasonOwner;
+	if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !reason.startsWith(owner)) {
+		reason = `${owner}. ${reason}`;
+		reasonOwner = owner;
+	}
 	return {
 		status: st.status,
 		statusWord: LABEL[st.status],
@@ -19675,6 +19679,7 @@ function rowParts(goal, att, place, f) {
 		tell: f.tell ?? null,
 		reason,
 		reasonIsFlag: isFlag,
+		...reasonOwner ? { reasonOwner } : {},
 		context,
 		contextIsFlag,
 		action
