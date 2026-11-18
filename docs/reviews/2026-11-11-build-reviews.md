@@ -3103,3 +3103,29 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
     The build should fix Preview, and fix the others or have the Built line name them. Sent to the build.
 - **Re-check at b3f4cce: cleared, no high or medium.** The bulk-change preview, Save layout, Add filter, Make it active and Send the report are enabled. Each now shows a field error or status line and moves focus there. Delete the workspace is named as the one type-to-confirm exception.
   - **Lows:** DataFilters' new error doesn't mark the value field `aria-invalid`. Markup.tsx:316 is still `aria-disabled` with no picture, and its primary says a bare "Send". (Metrics' delete and UndoImport are disabled only while busy: not a finding.) The build's local evals:changed hadn't finished when it pushed (Lane asked), so CI decides.
+
+## The reviewer of 18 November, night (session_012kbr8zjMQvR4NinBoh3hHo)
+
+### #597, UX4, page header (session_012kbr8xTXrVQL92zMzhgMbz), walked at c43d761, with 7fbbae2's CSS read
+Checked against patterns spec section 2 and Lane's 18 Nov answers on F15 and N2/N9; PAGE-HEADER's rule, requirement, page-header.csv and rebuild stage 3; walked at 360 and 1440. N9 is not counted (Lane's call).
+- **No highs. Three mediums, sent to the build and planning:**
+  - **M1:** at 360 the goal's compact bar flips every 4 px from scrollY 428 to 504. `useCompact`'s `above(true)` reads the translated `.mtop` as 0.
+  - **M2:** the goal page's print rule was deleted with `.bar-me`. Under print, the compact bar stays fixed and `.bar-actions` prints.
+  - **M3:** page-header.csv gives the workspace for /goals, /goals?scope=mine and /watching with the title in view. Rule 8 and the app say Goals.
+- **Lows:**
+  - the review agenda's h1 is 80 px right of the content edge at 1440 (on Not yet);
+  - `pageKind('/metrics/baselines')` gives detail;
+  - Reviews' "Set up a review" is plain, not filled;
+  - Shell picks the switcher by comparing names (`barSays === app.ws.name`);
+  - 7fbbae2's swipe row has no off-screen cue, like Settings';
+  - the anchor offset is on Not yet, though 2.5 counted it (headings do land below the bar at 1440).
+- **Fine:**
+  - the title is at the left edge everywhere else;
+  - nothing shares the h1's line at 360;
+  - no shell utility sits in a header;
+  - at most one filled button per header;
+  - Metrics' and Feedback's action is at the list bar's end at 360, with no sideways scroll;
+  - the top bar shows the workspace, then the page name, on 14 pages;
+  - task heads keep the exit on the first line;
+  - no console errors.
+- **Next:** re-check the delta that fixes M1 to M3.
