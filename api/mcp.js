@@ -26133,7 +26133,13 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.", "At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix."]
+				list: [
+					"A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.",
+					"At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix. On a phone the main button takes the width and Back sits above it as a link.",
+					"The main button is never greyed out because something is missing. Press it and each field to fix says why beside it, and you are taken to the first. With more than one, the line above the buttons names them, each a link to its field.",
+					"A draft you come back to says so beside the step, “Draft from Tuesday”. The first time a form keeps a draft, the line above the buttons says “Draft kept in this browser.” once.",
+					"A panel that opens over the page (Watch, Add a next step, Respond) has the same foot, with Cancel on the left, because it has no Close at the top."
+				]
 			},
 			{
 				heading: "Leaving a form",
@@ -26720,7 +26726,8 @@ var WHATS_NEW = [
 			"The main button at the foot of a form now says what it does: “Next: why it’s behind” names the next question, “Post check-in” posts, “Post 5 check-ins” posts the table.",
 			"Back is on the left, from the second step. The line above the buttons says what posting does, or what is left to fix.",
 			"The way out stays at the top right. On a form that keeps drafts it says “Close” until you type something, then “Close and keep the draft”.",
-			"The table check-in no longer has a Cancel at its foot: Close at the top does the same."
+			"A button is never greyed out because something is missing: press it and the field to fix is marked, says why, and takes you there. With more than one, the line above the buttons names each, as a link.",
+			"A draft you come back to says so beside the step (“Draft from Tuesday”), and the first time one is kept the line says “Draft kept in this browser.” New goal, a metric and Import also say what pressing will do."
 		],
 		articles: ["getting-around"]
 	},

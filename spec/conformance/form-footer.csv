@@ -1,0 +1,33 @@
+case,given,says
+close,"keeps drafts, nothing typed",Close
+close,"keeps drafts, something typed",Close and keep the draft
+close,keeps nothing,Close without saving
+next,"check-in, carried words",Next: what you said last time
+next,"check-in, behind plan",Next: why it’s behind
+next,"check-in, ahead of plan",Next: why it’s ahead
+next,"check-in, a stage late",Next: why it’s late
+next,"check-in, on plan",Next: what changes
+status,"check-in last step, week 46, 3 watching",Goes on record for week 46. The 3 people watching see it on Home.
+status,"check-in last step, week 46, 1 watching",Goes on record for week 46. The person watching sees it on Home.
+status,"check-in last step, week 46, nobody watching",Goes on record for week 46.
+primary,"table check-in, 5 ready",Post 5 check-ins
+primary,"table check-in, none ready",Post check-ins
+status,"table check-in, 5 ready, 2 need a reason",5 ready. 2 need a reason before they can post.
+status,"table check-in, 1 ready, 1 needs a reason",1 ready. 1 needs a reason before it can post.
+status,"New goal last step, publishing in Platform Engineering",Publishes to everyone in Platform Engineering.
+status,"New goal last step, proposing","Listed as Proposed: in no count, no agenda and nobody’s check-ins."
+status,"Change a goal, check-ins started, plan changed","Check-ins have started, so this needs a reason. Watchers see it flagged."
+status,"a metric form, every part filled in",Defined: every part is filled in.
+status,"a metric form, 2 parts missing",Draft: 2 parts still to fill in.
+status,"Import, 12 goals change",12 goals change. You can undo this from Past imports.
+status,the first step after a draft is first kept,Draft kept in this browser.
+fix,"two fields in error: Target, Owner","2 things to fix: Target, Owner"
+fix,"one field in error, in view",
+fix,"one field in error, out of view",1 thing to fix: Target
+draft,"resumed, kept today",Draft from today
+draft,"resumed, kept yesterday",Draft from yesterday
+draft,"resumed, kept three days ago",Draft from Sunday
+draft,"resumed, kept 16 days ago",Draft from 2 Nov
+primary-ok,Continue,no
+primary-ok,Save,no
+primary-ok,Save changes,yes

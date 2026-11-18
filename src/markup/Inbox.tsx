@@ -30,6 +30,7 @@ import type { InboxData } from './inboxData';
 import { PAGE_SIZE, TABS, filterChoices, filterItems, inboxItems, itemFor, itemIds, itemLine, itemParam, itemSize, nextAfter, pageOf, stepKey, tabCounts, tabOf, type InboxFilter, type InboxItem, type InboxTab } from './inboxList';
 import { ADMINS_TRIAGE, mayTriage, MOOD_WORD, STATUS_WORD, namedParts, problemText, sentFrom, stepText, type Markup, type MarkupStatus, type StatusChange } from './model';
 import type { ListedMarkup, OpenedMarkup } from './ops';
+import { FormFooter } from '../ui/FormFooter';
 
 /** A markup's status: its shape and its word, always together. Diamonds, so they're never read as a goal's status. */
 export function MarkupStatusMark({ status }: { status: MarkupStatus }) {
@@ -254,10 +255,10 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
                 </select>
               </label>
               <PickOne kind="person" label="From" none="Anyone" source={senders} value={filter.person || null} onChange={(name) => setF({ person: name ?? '' })} />
-              <div className="sheet-foot">
+              <FormFooter sheet>
                 {parts.length > 0 && <button type="button" className="linkish small" onClick={clearFilters}>Clear filters</button>}
                 <button type="button" className="btn primary" onClick={() => setFilters(false)}>Show {rows.length} {rows.length === 1 ? ITEMS.thing : ITEMS.things}</button>
-              </div>
+              </FormFooter>
             </div>
           </Sheet>
         </>

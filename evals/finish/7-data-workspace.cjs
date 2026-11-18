@@ -250,7 +250,9 @@ module.exports = {
     const pv = await r.evaluate(() => { const g = document.querySelector('.import-change'); const title = g.querySelector('.strong').getBoundingClientRect(); const t = g.querySelector('.plan-diff'); return { off: t ? t.getBoundingClientRect().left - title.left : 99, table: !!g.querySelector('.plan-diff-table') }; });
     pv.save = save0;
     if (Math.abs(pv.off) > 1 || !pv.table) fails.push(`[W9] plan details ${Math.round(pv.off)}px off the title; week table ${pv.table}`);
-    if (pv.save !== '1 rgb(210, 206, 196) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
+    // UX2c (patterns spec 3.3.2): not ready is no longer a greyed button. The primary keeps its own ink and is pressable;
+    // the line above it says what's missing, and pressing it takes focus to the reason.
+    if (pv.save === '1 rgb(210, 206, 196) nowrap' || !/^1 .* nowrap$/.test(pv.save)) fails.push(`[W16] Save not ready looks disabled: ${pv.save}`);
     await c.close();
     /* ---------- Data search (build review of #234): a goal key, a decimal, and the columns it reads ---------- */
     [c, r] = await open(1280, 800, 'rhea', '/data?t=checkIns');

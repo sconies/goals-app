@@ -1,12 +1,14 @@
 /* Data's columns: which a table shows and in what order, their widths (kept in this browser), moving and sizing them
    from the headings, and saving the whole arrangement as a named layout. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { FieldError } from '../ui/GoalFields';
 import { useApp } from '../app/state';
 import { GOAL_DERIVED_COLUMNS } from '../domain/export';
 import type { SavedView } from '../domain/types';
 import { MAX_WIDTH, minWidth, moveColumn, TABLES, visibleColumns, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { FormFooter } from '../ui/FormFooter';
 
 /** This browser's layout of each table: columns in order and widths. (Saved layouts go with the person.) */
 export type Local = { cols: string[] | null; widths: Record<string, number> };
@@ -163,13 +165,13 @@ export function ColumnsSheet({ tab, order, always, all, onCols, onClose }: { tab
             </fieldset>
           );
         })}</div>
-        <div className="sheet-foot">
+        <FormFooter sheet>
           <span className="row" style={{ gap: 'var(--s3)' }}>
             <button type="button" className="linkish small" onClick={() => onCols(null)}>The usual columns</button>
             <button type="button" className="linkish small" onClick={() => onCols([...rest, ...all.filter((c) => !rest.includes(c))])}>Every column</button>
           </span>
           <button type="button" className="btn primary" onClick={onClose}>Done</button>
-        </div>
+        </FormFooter>
       </div>
     </Sheet>
   );
@@ -180,6 +182,8 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
   const app = useApp();
   const mine = views.filter((v) => v.personId === app.viewer.id);
   const [name, setName] = useState(active && active.personId === app.viewer.id ? active.name : '');
+  const [noName, setNoName] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const same = mine.find((v) => v.name.trim().toLowerCase() === name.trim().toLowerCase());
   const save = async () => {
@@ -196,10 +200,13 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
   const bits = [`${n} columns`, set ? `${set} ${set === 1 ? 'width' : 'widths'} set` : '', layout.filters.length ? `${layout.filters.length} ${layout.filters.length === 1 ? 'filter' : 'filters'}` : '', layout.q ? `the search “${layout.q}”` : '', layout.sort ? `sorted by ${layout.sort.col}` : ''].filter(Boolean);
   return (
     <Sheet open onClose={onClose} title={`Save this ${TABLES[tab].label.toLowerCase()} layout`}>
-      <form className="stack save-table-view" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
+      <form className="stack save-table-view" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); if (!name.trim()) { setNoName(true); nameRef.current?.focus(); return; } void save(); }}>
         <span className="hint">Keeps the columns, their order and widths, and the search, filters and sort ({bits.join(', ')}). It opens from Saved layouts, on any computer you use.</span>
         <label className="field"><span className="field-label">Name</span>
-          <input className="input" autoFocus value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="e.g. Owners and gaps" />
+          {/* Pressed with no name: said here and focused (patterns spec 3.3.1), never a disabled button. */}
+          {noName && <FieldError id="layout-name-err">Give the layout a name first.</FieldError>}
+          <input ref={nameRef} className={'input' + (noName ? ' invalid' : '')} autoFocus value={name} maxLength={80} onChange={(e) => { setName(e.target.value); setNoName(false); }} placeholder="e.g. Owners and gaps"
+            aria-invalid={noName || undefined} aria-describedby={noName ? 'layout-name-err' : undefined} />
         </label>
         {same && <span className="hint">You already have a saved layout called “{same.name}”: this saves over it.</span>}
         {mine.length > 0 && (
@@ -211,10 +218,10 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
             ))}</ul>
           </div>
         )}
-        <div className="sheet-foot">
+        <FormFooter sheet>
           <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn primary" disabled={!name.trim() || busy}>{same ? 'Save over it' : 'Save layout'}</button>
-        </div>
+          <button type="submit" className="btn primary" disabled={busy}>{same ? 'Save over it' : 'Save layout'}</button>
+        </FormFooter>
       </form>
     </Sheet>
   );

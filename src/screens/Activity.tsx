@@ -18,6 +18,7 @@ import { ChangeItem } from '../ui/ChangeItem';
 import { historyStep, nearMiss, type ListChange } from '../domain/find';
 import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
 import { Pick, PickOne } from '../ui/Pick';
+import { FormFooter } from '../ui/FormFooter';
 
 function dayLabel(iso: string, today: Date) {
   const d = new Date(iso);
@@ -167,11 +168,11 @@ function ActivityFilters({ onClose, onSave }: { onClose: () => void; onSave: (()
         </fieldset>
       </div>
       {/* On a phone, Save .csv lives here rather than taking a row of the filter bar. */}
-      <div className="sheet-foot activity-foot">
+      <FormFooter sheet className="activity-foot">
         <button type="button" className="linkish small" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, kind: cur.kind, watching: cur.watching, since: cur.since }))}>Clear filters</button>
         <button type="button" className="btn activity-foot-save" onClick={() => onSave?.()} disabled={!onSave}>Save .csv</button>
         <button type="button" className="btn primary" onClick={onClose}>Show the changes</button>
-      </div>
+      </FormFooter>
     </Sheet>
   );
 }

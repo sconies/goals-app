@@ -14,6 +14,7 @@ import { Icon } from '../ui/Icon';
 import { PersonPick } from '../ui/PersonPick';
 import { ASK_STATUS, DECIDED, EDITED, LABEL } from '../domain/vocabulary';
 import { loadReviewOrder, saveReviewOrder } from './reviewOrder';
+import { FormFooter } from '../ui/FormFooter';
 
 /* "Propose a new goal" (GE10, decision 15): its sheet loads only when opened. */
 const ProposeInReview = lazy(() => import('../ui/ProposeInReview').then((m) => ({ default: m.ProposeInReview })));
@@ -232,7 +233,7 @@ function SayComposer({ goal, mode, existing, needDate, onClose, onSaved, onPropo
         )}
         {/* A new goal the room agrees on is proposed, not an action (GE10, decision 15): here too, so a phone has it. */}
         {mode === 'action' && !existing && propose && <button type="button" className="linkish small" onClick={propose}>Propose a new goal instead</button>}
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={() => { forget(); onClose(); }}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : mode === 'accept' ? 'Save the decision' : mode === 'action' && needDate ? 'Save the next step' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></div>
+        <FormFooter sheet onCancel={() => { forget(); onClose(); }}><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : mode === 'accept' ? 'Save the decision' : mode === 'action' && needDate ? 'Save the next step' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></FormFooter>
       </form>
     </Sheet>
   );

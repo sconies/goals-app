@@ -24,6 +24,7 @@ import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';
 import { WorkspaceSwitcher, WorkspaceSwitchProvider } from './WorkspaceSwitch';
 import { Find, FIND_KEY, isFindKey } from './Find';
+import { FormFooter } from './FormFooter';
 
 /** Marking up a screen loads only when someone starts one (src/markup). */
 const MarkupFlow = lazy(() => import('../markup/Markup'));
@@ -101,7 +102,7 @@ function FeedbackSheet({ onClose, onMarkup, path, fromPage }: { onClose: () => v
           <textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="What were you trying to do?" />
         </label>
         <span className="hint">Sent with your name and this screen ({path}).</span>
-        <div className="sheet-foot"><button className="btn ghost" type="button" onClick={onClose}>Cancel</button><button className="btn primary" type="submit" aria-disabled={busy || undefined}>{busy ? 'Sending…' : 'Send'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary" type="submit" aria-disabled={busy || undefined}>{busy ? 'Sending…' : 'Send'}</button></FormFooter>
       </form>
     </Sheet>
   );

@@ -13,6 +13,7 @@ import { captureScreen, type Capture } from './capture';
 import { HALO, HALO_WIDTH, INK, WIDTH, arrowHead, makePictures, noteLabel, penPath, type Pictures } from './ink';
 import { MOODS, PIN, STEPS_MAX, buildMarkup, problemText, stepText, partsUnder, strokeBox, type Mood, type Pt, type Stroke, type Tool } from './model';
 import { newMarkupId, sendMarkup } from './backend';
+import { FormFooter } from '../ui/FormFooter';
 
 const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: 'pen', label: 'Pen', key: 'p' },
@@ -308,13 +309,13 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
               ? <details className="mk-steps"><summary className="small">See the {visit.length === 1 ? 'step' : `${visit.length} steps`}{problems.length ? ` and ${problems.length === 1 ? 'error' : 'errors'}` : ''}</summary><ol className="small">{visit.map((s, i) => <li key={i}>{stepText(s)}</li>)}{problems.map((e, i) => <li key={'e' + i}>{problemText(e)}</li>)}</ol></details>
               : <p className="hint">No steps on this visit yet.</p>}
             <p className="hint">Sent with your name, this page ({appRouteFor(pathname) ?? pathname}), your screen size, light or dark, accent and the app’s version. The steps and errors go only if ticked. <Link to="/help/feedback" target="_blank" rel="noopener">What’s sent, and who sees it</Link></p>
-            <div className="sheet-foot mk-foot">
+            <FormFooter sheet className="mk-foot">
               <button type="button" className="btn ghost" onClick={() => { setPhase('drawing'); setPics(null); }}>Back</button>
               <span className="row" style={{ gap: 'var(--s2)' }}>
                 <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
                 <button type="submit" className="btn primary" aria-disabled={busy || !pics || undefined}>{busy ? 'Sending…' : 'Send'}</button>
               </span>
-            </div>
+            </FormFooter>
           </form>
         </div>
       )}

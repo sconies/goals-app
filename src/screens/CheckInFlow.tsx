@@ -9,7 +9,7 @@ import { useApp } from '../app/state';
 import { isProposed } from '../domain/proposed';
 import { NOTHING_TO_CHECK_IN } from '../domain/proposedActions';
 import { periodWord, quarterOf, isYear } from '../domain/year';
-import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
+import { checkInDraftKey, checkInStepKey, draftSavedAt, useDraft } from '../app/drafts';
 import { draftFrom, CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, stepState, unanswered, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
 import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
@@ -38,8 +38,8 @@ import { Place, useModules, type NumberStep } from '../core/app';
 import { readingLine } from '../domain/readingWords';
 import { dueWordsHere, reviewsOn, watchingOn } from '../app/reads';
 import { goalsIn, watchScope } from '../domain/review';
-import { FormFooter } from '../ui/FormFooter';
-import { checkInNext, checkInPostSays } from '../domain/formFooter';
+import { FormFooter, useKeptOnce } from '../ui/FormFooter';
+import { checkInNext, checkInPostSays, draftFromDay } from '../domain/formFooter';
 
 /**
  * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
@@ -176,7 +176,7 @@ function NoDataSheet({ goal, onClose, onDone }: { goal: Goal; onClose: () => voi
         <label className="field"><span className="field-label">Why? <span className="hint">optional</span></span>
           <textarea className="input" rows={2} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="e.g. The dashboard is down until Tuesday" />
         </label>
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>Save and skip</button></div>
+        <FormFooter sheet onCancel={onClose}><button type="submit" className="btn primary big-btn" disabled={busy}>Save and skip</button></FormFooter>
       </form>
     </Sheet>
   );
@@ -332,6 +332,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week) + (correcting ? ':correct' : ''), () => (correcting && existing ? draftFrom(existing) : emptyDraft(goal, previous)));
   // Once something is typed it's a draft, and can be discarded.
   const [touched, setTouched] = useState(false);
+  const [draftWords] = useState(() => draftFromDay(draftSavedAt(checkInDraftKey(app.ws.id, goal.id, week) + (correcting ? ':correct' : '')), Date.now()));
   const set = (patch: Partial<Draft>) => { setTouched(true); keep(patch); };
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -539,6 +540,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   // is typed the next step isn't known, so it says only "Next".
   const nextStep = plan[plan.indexOf(step) + 1];
   const nextLabel = checkInNext(nextStep === 'carry' || nextStep === 'account' ? nextStep : null, { why: needsWhy, reason: e.reason === 'ahead' ? 'ahead' : 'behind', milestone: goal.kind === 'milestone' });
+  const kept = useKeptOnce(touched && !restored, restored, step);
   const label = saving ? 'Posting…' : step === 'measure' && numberStep?.label ? numberStep.label : last && (step !== 'measure' || valueOk) ? 'Post check-in' : nextLabel;
   // On the last step the status line says what posting does: on record for the week, and who sees it.
   const watchingHere = watchingOn(useModules().on);
@@ -568,11 +570,10 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           </div>
         </Sheet>
       )}
-      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={!isEveryday(app.cycle, goal.level) ? `${levelName(app.cycle, goal.level)} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
+      <GoalHead goal={goal} draft={restored ? draftWords : null} previous={existing ?? previous} compact={step !== 'measure'} teamLine={!isEveryday(app.cycle, goal.level) ? `${levelName(app.cycle, goal.level)} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
       {existing && step === 'measure' && (correcting
         ? <p className="hint">This replaces your {own.filter((c) => c.week === week).length > 1 ? 'latest ' : ''}week {week} check-in{goal.kind !== 'milestone' && existing.value != null ? ` (${fmt(existing.value, goal)})` : ''}. Its History keeps what it was, and why you changed it.</p>
         : <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>)}
-      {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
       {step === 'measure' && (
         <section className="qsection" aria-label="This week">
@@ -753,7 +754,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
 
       {step !== 'carry' ? (
         <FormFooter key="foot" onBack={trail.length > 0 || step !== 'measure' ? back : undefined}
-          status={tried && step === 'measure' && !gate.go ? gate.says : last && label === 'Post check-in' && !correcting ? postSays : null}
+          status={tried && step === 'measure' && !gate.go ? gate.says : last && label === 'Post check-in' && !correcting ? postSays : kept}
           statusTone={tried && step === 'measure' && !gate.go ? 'off' : undefined}>
           <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
         </FormFooter>
@@ -843,12 +844,14 @@ function WeekPicks({ week, weeks, value, onPick, from = week + 1, labelledBy = '
   );
 }
 
-function GoalHead({ goal, previous, teamLine, compact, steps }: { goal: Goal; previous: CheckIn | null; teamLine?: string; compact?: boolean; steps?: { at: number; of: number } }) {
+function GoalHead({ goal, previous, teamLine, compact, steps, draft }: { goal: Goal; previous: CheckIn | null; teamLine?: string; compact?: boolean; steps?: { at: number; of: number }; draft?: string | null }) {
   const app = useApp();
   return (
     <div className="goalhead">
       <div className="row between nowrap">
         {teamLine ? <span className="eyebrow">{teamLine}</span> : <span />}
+        {/* A resumed draft says so in the step line, not in a line above the title (patterns spec 3.4.3). */}
+        {draft && <span className="tiny muted ci-draft">{draft}</span>}
         {steps && <span className="dots" role="img" aria-label={`Step ${steps.at} of ${steps.of}`}>{Array.from({ length: steps.of }, (_, k) => <i key={k} className={k + 1 < steps.at ? 'done' : k + 1 === steps.at ? 'now' : ''} />)}</span>}
       </div>
       <h1 className="title-xl">{goal.title}</h1>

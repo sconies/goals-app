@@ -154,7 +154,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Home” | link | always |
 | “Open the goal” | primary | always |
 | “Discard draft” | button | `drafting` and `!justPosted` |
-| “Cancel” | button | always |
 | “Save and skip” | primary | always |
 | “Check in on …” | primary | `p.due.length > 0` |
 | “Back to home” | primary | always |
@@ -222,6 +221,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start over” | button | `goals.length > 0` and `hasDraft` |
 | “Confirm …” | button | `goals.length > 0` and `unconfirmed` and `read` |
 | “Confirm all readings” | button | `goals.length > 0` and `toConfirm.length > 0` and `toConfirm.length > 1` |
+| “Go to the first” | button | `goals.length > 0` and `summary` and `firstBad` |
 | “… (worked out when it shows: `busy ? 'Posting…' : postCheckIns(ready.length)`)” | primary | `goals.length > 0` |
 
 ## Research
@@ -355,7 +355,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it at … or under” | button | `hold != null` |
 | “Keep it at … or over” | button | `hold != null` |
 | “Keep …” | button | `e?.id === 'too-precise' && e.keep != null` |
-| “Start a new one” | button | `restored` and `!asking` |
+| “Start a new goal instead” | button | `restored` and `!asking` and `step === 0` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
 | “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
@@ -425,7 +425,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Withdraw” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `x.button === 'Withdraw'` |
 | “the row’s one button: Respond (a decision asked of the viewer), Answer (a question), Mark done (a next step); Check in and Withdraw are drawn on their own rows above” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `!(x.button === 'Withdraw')` |
 | “Change” | button | `canChange` |
-| “Cancel” | button | always |
 | “Asking… / Ask” | primary | always |
 | “Not now” | button | always |
 | “Posting… / Post your reply” | primary | always |
@@ -435,6 +434,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Weeks … – …” | button | always |
 | “Add a comment” | button | always |
 | “Posting… / Post comment” | button | always |
+| “Cancel” | button | always |
 | “Week … The reason is above, under Why. Same reason …” | button | always |
 | “Show all … check-ins” | button | `own.length > limit` and `!all` |
 
@@ -665,15 +665,15 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Yes, delete it” | button | `asking === c.id` |
 | “Cancel” | button | `asking === c.id` |
 | “Add an admin” | primary | always |
-| “Cancel” | button | always |
 | “Make … an admin / Make them an admin” | primary | always |
 | “Saving… / Save the name” | button | always |
+| “Cancel” | button | always |
 | “Rename” | button | an admin |
 | “Yes, turn it on” | button | an admin and `asking` |
 | “Cancel” | button | an admin and `asking` |
 | “See the token / See the … tokens” | button | always |
 | “Change” | button | always |
-| “Save” | primary | always |
+| “Save the rhythm” | primary | always |
 | “… (worked out when it shows: `primary`)” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
@@ -825,7 +825,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Add it” | button | `(t.objective \|\| admin)` and `!t.objective` |
 | “Change its name, lead or purpose” | button | an admin |
 | “Remove this team…” | button | an admin |
-| “Cancel” | button | always |
 | “Saving… / Save / Add the team” | primary | always |
 | “Removing… / Move them and remove / Remove the team” | button | `(!has \|\| others.length > 0)` |
 | “Show … more” | button | `missing.length > limit` |
@@ -1047,7 +1046,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Done?” | button | `last` and `a.state !== 'done' && canMarkDone(a.ask, app.viewer)` |
 | “Mark … reviewed” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `inIt` and `first` |
 | “Walk them one at a time instead” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `listHealthy` and `inIt` |
-| “Not yet” | button | always |
 | “Saving… / Finish the review / Mark … reviewed” | primary | always |
 | “Every week / Every … weeks” | button | always |
 | “Save review / Create review” | primary | always |
@@ -1169,7 +1167,6 @@ Each is drawn inside a screen, over every screen, or when nothing else can be (`
 | Button | Kind | Shown when |
 |---|---|---|
 | “Mark up the last screen / Mark up this screen Go back to it, draw / Draw on a picture of it and say what shou…” | button | always |
-| “Cancel” | button | always |
 | “Sending… / Send” | primary | always |
 | “Find” | button | always |
 | “Switch person / Not you? (…, admin here)” | button | always |
@@ -1272,7 +1269,7 @@ None.
 | Field | Kind | Shown when |
 |---|---|---|
 | “New owner” | PickOne | `kind === 'owner'` |
-| “Level Choose…” | select | `!(kind === 'owner')` |
+| “Level Choose the level first. Choose…” | select | `!(kind === 'owner')` |
 
 **States**
 
@@ -1286,8 +1283,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change level” | button | always |
 | “Watch” | button | `watching` |
 | “Clear” | button | always |
-| “Cancel” | button | always |
-| “Saving… / Save” | primary | always |
+| “Saving… / Change the owner / Change the level” | primary | always |
 
 ### Goals: the board
 
@@ -1790,7 +1786,6 @@ None: nothing to type or choose here.
 | “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
 | “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `propose` |
-| “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
 
 ### Data: filters
@@ -1832,7 +1827,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Name” | text | always |
+| “Name Give the layout a name first.” | text | always |
 
 **States**
 

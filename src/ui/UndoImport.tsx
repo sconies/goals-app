@@ -6,6 +6,7 @@ import { useApp } from '../app/state';
 import { canUndoImport, importName, importUndone, keptText, nothingToUndo, type KeptRow } from '../domain/removal';
 import type { Change } from '../domain/types';
 import { Sheet } from './bits';
+import { FormFooter } from './FormFooter';
 
 const rows = (n: number) => `${n} ${n === 1 ? 'row' : 'rows'}`;
 const onDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -51,14 +52,14 @@ function UndoSheet({ entry, onClose }: { entry: Change; onClose: () => void }) {
       onClose();
     } catch { setBusy(false); }
   };
-  if (!plan) return <Sheet open onClose={onClose} title={`Undo ${name}?`}><p>{problem}</p><div className="sheet-foot"><button type="button" className="btn" onClick={onClose}>Close</button></div></Sheet>;
+  if (!plan) return <Sheet open onClose={onClose} title={`Undo ${name}?`}><p>{problem}</p><FormFooter sheet><button type="button" className="btn" onClick={onClose}>Close</button></FormFooter></Sheet>;
   const { restores, skipped } = plan;
   if (!restores) {
     return (
       <Sheet open onClose={onClose} title={`Undo ${name}?`}>
         <p className="undo-sheet-lead">{nothingToUndo(skipped.length)}</p>
         <Kept rows={skipped} />
-        <div className="sheet-foot"><button type="button" className="btn primary" onClick={onClose}>Close</button></div>
+        <FormFooter sheet><button type="button" className="btn primary" onClick={onClose}>Close</button></FormFooter>
       </Sheet>
     );
   }
@@ -69,10 +70,9 @@ function UndoSheet({ entry, onClose }: { entry: Change; onClose: () => void }) {
         {skipped.length ? ` ${skipped.length} stay${skipped.length === 1 ? 's' : ''} as ${skipped.length === 1 ? 'it is' : 'they are'}, because ${skipped.length === 1 ? 'it' : 'they'} changed after the import:` : ''}
       </p>
       <Kept rows={skipped} />
-      <div className="sheet-foot">
-        <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+      <FormFooter sheet onCancel={onClose}>
         <button type="button" className="btn danger" disabled={busy} onClick={() => void go()}>{busy ? 'Undoing…' : `Undo ${rows(restores)}`}</button>
-      </div>
+      </FormFooter>
     </Sheet>
   );
 }

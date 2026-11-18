@@ -19,12 +19,15 @@ Every focused task (a check-in, the table check-in, New goal, Change a goal, set
 3. **The status line** is one short line above the buttons: on the last step what the primary does (a check-in: `checkInPostSays`, "Goes on record for week 46. The 3 people watching see it on Home."), or what is left to fix. Otherwise it is empty and takes no space. A summary of errors only when it helps (`fixSummary`): two or more, or one out of view. The table check-in counts its rows (`tableSays`).
 4. **Errors sit beside their field**, under its label, in plain words, with the field outlined in the off-track ink, `aria-invalid` and `aria-describedby` pointing at the words.
 5. **The one exit is top right** (`NAV-FORMS`): a form that keeps drafts says "Close" until something is typed, then "Close and keep the draft"; one that keeps nothing says "Close without saving" and asks first when something was typed (`closeWords`).
-6. **Placement:** sticky at the bottom of the window on focused tasks, except below 600 px of height, where it sits in the page; the width of the form's column; on a phone the primary on the right and Back on the left, and when both don't fit the primary takes the full width with Back above it.
+6. **Placement:** sticky at the bottom of the window on focused tasks, except below 600 px of height, where it sits in the page; the width of the form's column; on a phone (420 px or narrower) the primary takes the full width with Back above it as a text link; wider, the primary is on the right and Back on the left.
 7. **Sheets** (Watch, Add a next step, Respond) use the same footer with Cancel at the left, because a sheet has no header exit. That is the one place a footer has Cancel.
 
 The footer is core, with no switch: every form uses it.
 
-**Built in Faro, and not yet (18 Nov).** Built: the footer on the check-in, the table check-in, New goal, Change a goal, set-up, a review's set-up, the wrap-up, the metric, baseline and verify forms; "Close" until something is typed (`closeWords`); the check-in's step labels (`checkInNext`) and its last step's line (`checkInPostSays`); "Post N check-ins" (`postCheckIns`). Not yet in Faro, so a rebuild should build them from the words above: the error summary (`fixSummary`) and the table's ready line (`tableSays`) on screen; sheets on the shared footer; Import's status line; New goal's Publish or Propose line and its resumed draft in the step line; Change a goal's reason line; "Draft kept in this browser."; and three primaries still disabled for missing input (the import's paste and changes, and Change a goal's "Fix the highlighted fields"). Faro's backlog item UX2c holds them.
+8. **Drafts.** "Draft kept in this browser." is said once, in the status line, on the first step after a draft is first saved, and not again. A resumed draft says so in the step line ("Step 2 of 4 · Who and where · Draft from Tuesday": `draftFromDay`), not in a banner above the title. Moving between steps is not typing: it keeps a draft that exists but makes none, so the exit still says "Close".
+9. **The other status lines:** New goal's last step says who it publishes to (`publishSays`, "Publishes to everyone in Platform Engineering.") or what Proposed means; Change a goal says "Check-ins have started, so this needs a reason. Watchers see it flagged." only when it does; a metric's form "Defined: every part is filled in." or "Draft: 2 parts still to fill in." (`metricSays`); Import "12 goals change. You can undo this from Past imports." (`importSays`); the table check-in its ready count first (`tableSays`).
+
+Built in Faro (UX2c, 18 Nov): all of the above, on every focused form and every sheet but three, and no primary is disabled for missing input, with one exception: Delete the workspace stays disabled until its name is typed, because typing it is the confirmation. The three sheets that still draw their own foot, because their quiet button is a second action rather than Cancel: a field’s sheet in Workspace (Retire it), Import’s Leave sheet (a link beside Cancel), and a goal row’s Watch sheet (Stop watching). The words, case by case, are in `spec/conformance/form-footer.csv`.
 
 ## Worked examples
 
@@ -37,10 +40,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Its last step, in week 46, with three people watching. | `Goes on record for week 46. The 3 people watching see it on Home.` |
 | New goal pressed with Target and Owner empty. | `2 things to fix: Target, Owner` |
 | Is “Continue” a primary’s label? Is “Save changes”? | `no / yes` |
+| The table check-in with 5 rows ready and 2 still needing a reason. | `5 ready. 2 need a reason before they can post.` |
+| A metric’s form with two parts of its definition still empty. | `Draft: 2 parts still to fill in.` |
 
 ## Where it lives
 
-- [src/domain/formFooter.ts](../../../src/domain/formFooter.ts): `closeWords`, `primarySays`, `checkInNext`, `checkInPostSays`, `fixSummary`, `postCheckIns`, `tableSays`
+- [src/domain/formFooter.ts](../../../src/domain/formFooter.ts): `closeWords`, `primarySays`, `checkInNext`, `checkInPostSays`, `fixSummary`, `fixCount`, `postCheckIns`, `tableSays`, `publishSays`, `metricSays`, `importSays`, `draftFromDay`
 
 ## Requirements
 
@@ -57,3 +62,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the form footer and its one exit › the last step says what posting does
 - the form footer and its one exit › errors: a summary only for two or more, or one out of view
 - the form footer and its one exit › the table check-in posts what is ready, and says what isn’t
+- the form footer and its one exit › the rest of the status lines: Publish or Propose, the reason line, a metric’s Defined or Draft, Import’s count
+- the form footer and its one exit › the error summary’s head is the same words the summary uses
+- the form footer and its one exit › a resumed draft says its day: today, yesterday, a weekday this week, else the date

@@ -263,15 +263,18 @@ module.exports = {
       await c.close();
     }
 
-    // Picking up a draft (24, now OB1's line) at 360: one line above the heading, and "Start a new one" is 44px.
+    // Picking up a draft (24, now OB1’s line; UX2c, patterns spec 3.4.3) at 360: said in the step line, not a banner,
+    // and “Start a new goal instead” is a 44px target above the heading.
     {
       const [c, p] = await open(360, 780, 'mateo', '/goals/new', true);
       await name(p, 'Half-written');
       await p.goto(p.url().replace(/\/goals\/new\/what/, '/goals?scope=all')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
-      const [line, h1] = [await box(p.locator('.restored')), await box(p.locator('h1'))];
-      if (!(line.b <= h1.y)) f('(24) the pick-up line is not above the heading');
-      const sn = await box(p.getByRole('button', { name: 'Start a new one' }));
-      if (sn.h < 44) f(`(24) “Start a new one” is ${sn.h}px tall`);
+      const steps = (await p.locator('.focus-top .steps').innerText()).replace(/\s+/g, ' ');
+      if (!/Draft from /.test(steps)) f(`(24) the step line doesn’t say the draft was picked up (“${steps}”)`);
+      const [line, h1] = [await box(p.locator('.restored-link')), await box(p.locator('h1'))];
+      if (!(line.b <= h1.y)) f('(24) “Start a new goal instead” is not above the heading');
+      const sn = await box(p.getByRole('button', { name: 'Start a new goal instead' }));
+      if (sn.h < 44) f(`(24) “Start a new goal instead” is ${sn.h}px tall`);
       await c.close();
     }
 
