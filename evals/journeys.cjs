@@ -2341,7 +2341,7 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await h.click(p.getByRole('button', { name: 'Change level' }));
   await p.getByRole('dialog').getByLabel('Level').selectOption('north-star'); // (Chen's integration-tests goal is already an SVP goal, so SVP would change only one)
   await h.checkpoint('bulk level');
-  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Change the level' }));
   await see(p, 'Saved: 2 goals changed').catch(async (e) => fail(`${e.message}: ${(await p.locator('.toast, [role=alert], [role=status], .dialog, [role=dialog]').allInnerTexts().catch(() => [])).join(' | ').slice(0, 300)}`));
   const s = await h.snapshot();
   const posted = s.checkIns.filter((c) => c.week === NOW && ((c.goalId === 'dep-jenkins' && c.value === Number(alertsV)) || (c.goalId === 'cfr-tests' && c.value === Number(cacheV))));
