@@ -1,9 +1,23 @@
 /* One form footer (FORM-FOOTER; docs/design/patterns/spec.md 3.1, 3.5). Loaded last. The status line sits above the
    buttons; Back at the left, the primary at the right. Sticky on focused tasks (the short-screen exception stays in
-   forms-checkin.css). At 360px, when both don't fit, the primary takes the full width and Back sits above it. */
+   forms-checkin.css). At 360px, when both don't fit, the primary takes the full width and Back sits above it as a
+   text link. A sheet's footer is the sheet's own sticky foot (sheets.css), with Cancel at the left. */
 .form-foot .foot-status { margin: 0; line-height: 1.25rem; }
 .form-foot .foot-row { flex-wrap: wrap; }
-.sheet-foot-wrap.form-foot { display: flex; flex-direction: column; gap: var(--s3); }
+.form-foot .foot-status .linkish { display: inline; min-height: 0; padding: 0; color: inherit; text-decoration: underline; text-underline-offset: 2px; font: inherit; }
+
+/* A sheet's footer: the status line on its own row, then Cancel at the left and the primary at the right. */
+.sheet-foot.form-foot { flex-wrap: wrap; }
+.sheet-foot.form-foot > .foot-status { flex: 1 1 100%; }
+.sheet-foot.form-foot > .foot-cancel { margin-right: auto; }
+
 @container app (max-width: 420px) {
-  .form-foot .foot-row > .btn.ghost:first-child { flex: 1 1 100%; justify-content: flex-start; }
+  .form-foot .foot-row.has-back { flex-direction: column; align-items: stretch; gap: var(--s2); }
+  .form-foot .foot-row.has-back > .btn.primary { flex: 1 1 auto; width: 100%; }
+  .form-foot .foot-row.has-back > .btn.ghost.foot-back {
+    align-self: flex-start; min-height: 44px; min-width: 0; padding: 0 4px; margin-left: -4px;
+    background: none; border: 0; box-shadow: none; color: var(--muted); font-weight: 600;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .form-foot .foot-row.has-back > .btn.ghost.foot-back:hover { color: var(--fg); background: none; }
 }

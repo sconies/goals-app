@@ -7,6 +7,7 @@ import type { SavedView } from '../domain/types';
 import { MAX_WIDTH, minWidth, moveColumn, TABLES, visibleColumns, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { FormFooter } from '../ui/FormFooter';
 
 /** This browser's layout of each table: columns in order and widths. (Saved layouts go with the person.) */
 export type Local = { cols: string[] | null; widths: Record<string, number> };
@@ -163,13 +164,13 @@ export function ColumnsSheet({ tab, order, always, all, onCols, onClose }: { tab
             </fieldset>
           );
         })}</div>
-        <div className="sheet-foot">
+        <FormFooter sheet>
           <span className="row" style={{ gap: 'var(--s3)' }}>
             <button type="button" className="linkish small" onClick={() => onCols(null)}>The usual columns</button>
             <button type="button" className="linkish small" onClick={() => onCols([...rest, ...all.filter((c) => !rest.includes(c))])}>Every column</button>
           </span>
           <button type="button" className="btn primary" onClick={onClose}>Done</button>
-        </div>
+        </FormFooter>
       </div>
     </Sheet>
   );
@@ -211,10 +212,10 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
             ))}</ul>
           </div>
         )}
-        <div className="sheet-foot">
+        <FormFooter sheet>
           <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn primary" disabled={!name.trim() || busy}>{same ? 'Save over it' : 'Save layout'}</button>
-        </div>
+        </FormFooter>
       </form>
     </Sheet>
   );

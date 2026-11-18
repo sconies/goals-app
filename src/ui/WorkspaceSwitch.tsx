@@ -17,6 +17,7 @@ import { landingLine, workspaceName } from '../domain/workspaceAttention';
 import { Sheet } from './bits';
 import { FaroMark } from './Brand';
 import { Icon } from './Icon';
+import { FormFooter } from './FormFooter';
 
 /* The panel loads on first open (small workspaces SM4, section 8). */
 const WorkspacePanel = lazy(() => import('./WorkspacePanel').then((m) => ({ default: m.WorkspacePanel })));
@@ -105,10 +106,9 @@ export function WorkspaceSwitchProvider({ children }: { children: ReactNode }) {
         <Sheet open onClose={() => setAsking(null)} title={`Switch to ${target.name}?`}>
           <div className="stack switch-ask" style={{ gap: 'var(--s4)' }}>
             <p className="small">You’re part-way through {asking.task} in {app.ws.name}. What you’ve typed stays there as a draft, in this browser: switch back to {app.ws.name} and open it again to carry on.</p>
-            <div className="sheet-foot">
-              <button type="button" className="btn ghost" onClick={() => setAsking(null)}>Stay here</button>
+            <FormFooter sheet onCancel={() => setAsking(null)} cancelLabel="Stay here">
               <button type="button" className="btn primary" onClick={() => { const a = asking; setAsking(null); move(a.id, a.to); }}>Switch workspace</button>
-            </div>
+            </FormFooter>
           </div>
         </Sheet>
       )}

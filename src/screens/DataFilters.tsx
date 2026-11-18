@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { NO_VALUE, OP_LABEL, OPS, SEP, type ColumnKind, type Op, type PropFilter } from '../domain/tableFilter';
 import { Sheet } from '../ui/bits';
+import { FormFooter } from '../ui/FormFooter';
 
 /** Add or change one filter: a column, a condition that suits it, and a value. */
 export function FilterEditor({ head, kinds, values, start, onSave, onClose }: { head: string[]; kinds: Record<string, ColumnKind>; values: (col: string) => string[]; start?: PropFilter; onSave: (f: PropFilter) => void; onClose: () => void }) {
@@ -33,10 +34,10 @@ export function FilterEditor({ head, kinds, values, start, onSave, onClose }: { 
             </fieldset>
           )
           : <label className="field"><span className="field-label">Value</span><input className="input" autoFocus inputMode={kind === 'number' ? 'decimal' : undefined} value={value} onChange={(e) => setValue(e.target.value)} placeholder={kind === 'number' ? 'A number' : 'Some text'} /></label>)}
-        <div className="sheet-foot">
+        <FormFooter sheet>
           <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn primary" disabled={!ready}>{start ? 'Change filter' : 'Add filter'}</button>
-        </div>
+        </FormFooter>
       </form>
     </Sheet>
   );

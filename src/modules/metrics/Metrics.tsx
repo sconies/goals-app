@@ -12,7 +12,8 @@ import { MeasureMark } from './measureMark';
 import { StageMark } from './stageMark';
 import { CalcFields, StillNeeded, WindowField } from './DefineFields';
 import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
-import { calcWords, missingLine, onDay, QUALITY_LIMITS, windowWords, type DefinedPart, type MetricStage, type Stage } from './rulesQuality';
+import { calcWords, definedMissing, missingLine, onDay, QUALITY_LIMITS, windowWords, type DefinedPart, type MetricStage, type Stage } from './rulesQuality';
+import { metricSays } from '../../domain/formFooter';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -943,7 +944,7 @@ export function MetricForm() {
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {checkFor('lapse')}
         </div>
-        <FormFooter status={count || undefined}><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save metric' : 'Add metric'}</button></FormFooter>
+        <FormFooter status={count || metricSays(definedMissing(next, !!ownerName(app.snapshot.people, next)).length)}><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save metric' : 'Add metric'}</button></FormFooter>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
     </div>

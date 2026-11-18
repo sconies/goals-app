@@ -73,7 +73,7 @@ import { movesSince } from '../app/moved';
 import { changedHeading, changedSet, changedSince, movement, sinceFor, seenToday, type StatusNow } from '../domain/changed';
 import { CHECK_IN_MOMENT } from './conformance';
 import { rowParts, type RowFacts, type RowPlace } from '../domain/goalRow';
-import { checkInNext, checkInPostSays, closeWords, fixSummary, primarySays } from '../domain/formFooter';
+import { checkInNext, checkInPostSays, closeWords, fixSummary, metricSays, primarySays, tableSays } from '../domain/formFooter';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
 import { quarterResults } from '../domain/year';
@@ -650,7 +650,7 @@ The row is core, with no switch: every list uses it. The places that belong to a
     id: 'form-footer',
     title: 'One form footer',
     summary: 'What every focused task’s footer and its one exit say: a status line, Back from the second step, and one primary that says what happens.',
-    code: [{ file: 'src/domain/formFooter.ts', names: ['closeWords', 'primarySays', 'checkInNext', 'checkInPostSays', 'fixSummary', 'postCheckIns', 'tableSays'] }],
+    code: [{ file: 'src/domain/formFooter.ts', names: ['closeWords', 'primarySays', 'checkInNext', 'checkInPostSays', 'fixSummary', 'fixCount', 'postCheckIns', 'tableSays', 'publishSays', 'metricSays', 'importSays', 'draftFromDay'] }],
     tests: ['src/domain/formFooter.test.ts'],
     reqs: ['FORM-FOOTER', 'NAV-FORMS'],
     body: `
@@ -671,13 +671,18 @@ Every focused task (a check-in, the table check-in, New goal, Change a goal, set
 
 The footer is core, with no switch: every form uses it.
 
-**Built in Faro, and not yet (18 Nov).** Built: the footer on the check-in, the table check-in, New goal, Change a goal, set-up, a review's set-up, the wrap-up, the metric, baseline and verify forms; "Close" until something is typed (\`closeWords\`); the check-in's step labels (\`checkInNext\`) and its last step's line (\`checkInPostSays\`); "Post N check-ins" (\`postCheckIns\`). Not yet in Faro, so a rebuild should build them from the words above: the error summary (\`fixSummary\`) and the table's ready line (\`tableSays\`) on screen; sheets on the shared footer; Import's status line; New goal's Publish or Propose line and its resumed draft in the step line; Change a goal's reason line; "Draft kept in this browser."; and three primaries still disabled for missing input (the import's paste and changes, and Change a goal's "Fix the highlighted fields"). Faro's backlog item UX2c holds them.`,
+8. **Drafts.** "Draft kept in this browser." is said once, in the status line, on the first step after a draft is first saved, and not again. A resumed draft says so in the step line ("Step 2 of 4 · Who and where · Draft from Tuesday": \`draftFromDay\`), not in a banner above the title. Moving between steps is not typing: it keeps a draft that exists but makes none, so the exit still says "Close".
+9. **The other status lines:** New goal's last step says who it publishes to (\`publishSays\`, "Publishes to everyone in Platform Engineering.") or what Proposed means; Change a goal says "Check-ins have started, so this needs a reason. Watchers see it flagged." only when it does; a metric's form "Defined: every part is filled in." or "Draft: 2 parts still to fill in." (\`metricSays\`); Import "12 goals change. You can undo this from Past imports." (\`importSays\`); the table check-in its ready count first (\`tableSays\`).
+
+Built in Faro (UX2c, 18 Nov): all of the above, on every form and the sheets. The words, case by case, are in \`spec/conformance/form-footer.csv\`.`,
     examples: [
       { given: 'A check-in that keeps drafts, before anything is typed, then after.', then: 'Close / Close and keep the draft', run: () => [closeWords(true, false), closeWords(true, true)].join(' / ') },
       { given: 'A check-in behind plan, on its number’s step, with an account still to give.', then: 'Next: why it’s behind', run: () => checkInNext('account', { why: true, reason: 'behind', milestone: false }) },
       { given: 'Its last step, in week 46, with three people watching.', then: 'Goes on record for week 46. The 3 people watching see it on Home.', run: () => checkInPostSays(46, 3) },
       { given: 'New goal pressed with Target and Owner empty.', then: '2 things to fix: Target, Owner', run: () => fixSummary(['Target', 'Owner']) ?? '' },
       { given: 'Is “Continue” a primary’s label? Is “Save changes”?', then: 'no / yes', run: () => [primarySays('Continue'), primarySays('Save changes')].map((x) => (x ? 'yes' : 'no')).join(' / ') },
+      { given: 'The table check-in with 5 rows ready and 2 still needing a reason.', then: '5 ready. 2 need a reason before they can post.', run: () => tableSays(5, 2) },
+      { given: 'A metric’s form with two parts of its definition still empty.', then: 'Draft: 2 parts still to fill in.', run: () => metricSays(2) },
     ],
   },
   {

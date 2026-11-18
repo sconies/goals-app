@@ -222,6 +222,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start over” | button | `goals.length > 0` and `hasDraft` |
 | “Confirm …” | button | `goals.length > 0` and `unconfirmed` and `read` |
 | “Confirm all readings” | button | `goals.length > 0` and `toConfirm.length > 0` and `toConfirm.length > 1` |
+| “Go to the first” | button | `goals.length > 0` and `summary` and `firstBad` |
 | “… (worked out when it shows: `busy ? 'Posting…' : postCheckIns(ready.length)`)” | primary | `goals.length > 0` |
 
 ## Research
@@ -355,7 +356,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it at … or under” | button | `hold != null` |
 | “Keep it at … or over” | button | `hold != null` |
 | “Keep …” | button | `e?.id === 'too-precise' && e.keep != null` |
-| “Start a new one” | button | `restored` and `!asking` |
+| “Start a new goal instead” | button | `restored` and `!asking` and `step === 0` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
 | “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
@@ -1169,7 +1170,6 @@ Each is drawn inside a screen, over every screen, or when nothing else can be (`
 | Button | Kind | Shown when |
 |---|---|---|
 | “Mark up the last screen / Mark up this screen Go back to it, draw / Draw on a picture of it and say what shou…” | button | always |
-| “Cancel” | button | always |
 | “Sending… / Send” | primary | always |
 | “Find” | button | always |
 | “Switch person / Not you? (…, admin here)” | button | always |

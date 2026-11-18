@@ -10,6 +10,7 @@ import { exportOn } from '../../core/records';
 import { aiBrief, csvFiles, everythingCounts, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
 import type { Goal } from '../../domain/types';
 import { Sheet } from '../../ui/bits';
+import { FormFooter } from '../../ui/FormFooter';
 
 
 const count = (n: number, one: string, many: string) => `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
@@ -97,10 +98,10 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
           </div>
         )}
       </div>
-      <div className="sheet-foot export-foot">
+      <FormFooter sheet className="export-foot">
         <button type="button" className="btn primary" disabled={!!busy} onClick={() => void run('xlsx', () => save('goals', { kind: 'xlsx', sheets: workbook(input) }))}>{busy === 'xlsx' ? 'Exporting…' : 'Export .xlsx'}</button>
         <p className="hint export-note"><span className="export-file">{xlsx}</span>: {count(held, 'goal', 'goals')}, as of week {app.week}. Exports hold names and owners’ reasons. Share them as you would the app.</p>
-      </div>
+      </FormFooter>
     </Sheet>
   );
 }

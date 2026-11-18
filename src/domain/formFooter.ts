@@ -33,8 +33,30 @@ export const checkInPostSays = (week: number, watchers: number): string =>
 /** The status line with errors: a summary only when it helps (two or more, or one out of view); else nothing. */
 export function fixSummary(fields: string[], oneInView = true): string | null {
   if (!fields.length || (fields.length === 1 && oneInView)) return null;
-  return `${fields.length === 1 ? '1 thing' : `${fields.length} things`} to fix: ${fields.join(', ')}`;
+  return `${fixCount(fields.length)} ${fields.join(', ')}`;
 }
+/** The summary's head, before the fields' names (each a link on screen): "2 things to fix:". */
+export const fixCount = (n: number): string => `${n === 1 ? '1 thing' : `${n} things`} to fix:`;
+
+/** Change a goal's status line, only when the change needs a reason (patterns spec 3.2). */
+export const REPLAN_SAYS = 'Check-ins have started, so this needs a reason. Watchers see it flagged.';
+/** Where a form's draft lives, said once, on the first step after it is first saved (3.4.2). */
+export const DRAFT_KEPT = 'Draft kept in this browser.';
+/** A resumed draft, in the step line (3.4.3): "Draft from Tuesday" (today, a weekday this week, else "12 Nov"). */
+export function draftFromDay(savedAt: number | null, now: number): string {
+  if (!savedAt) return 'Draft';
+  const a = new Date(savedAt), b = new Date(now);
+  const days = Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime() - new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime()) / 86400000);
+  const day = days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 7 ? a.toLocaleDateString('en-GB', { weekday: 'long' }) : a.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return `Draft from ${day}`;
+}
+/** New goal's status line on its last step: who it publishes to, or what Proposed means (goal-entry spec). */
+export const publishSays = (team: string): string => `Publishes to everyone in ${team}.`;
+export const PROPOSE_SAYS = 'Listed as Proposed: in no count, no agenda and nobody’s check-ins.';
+/** A metric form's line beside its primary: defined, or how many parts are still to fill in. */
+export const metricSays = (missing: number): string => (missing ? `Draft: ${missing === 1 ? '1 part' : `${missing} parts`} still to fill in.` : 'Defined: every part is filled in.');
+/** Import's status line on its last step. */
+export const importSays = (n: number): string => `${n === 1 ? '1 goal changes' : `${n} goals change`}. You can undo this from Past imports.`;
 
 /** The table check-in: "Post 5 check-ins", and its status line "5 ready. 2 need a reason before they can post." */
 export const postCheckIns = (ready: number): string => (ready ? `Post ${ready} ${ready === 1 ? 'check-in' : 'check-ins'}` : 'Post check-ins');

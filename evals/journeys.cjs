@@ -8912,10 +8912,54 @@ async function platformChecks() {
         if (before !== 'Close' || after !== 'Close and keep the draft') footProblems.push(`a check-in’s exit says “${before}” then “${after}”, not Close then Close and keep the draft`);
       }
     }
+    // UX2c (patterns spec 3.3.2): no primary is disabled for missing input. Pressed empty, each says what's missing beside
+    // the field and focus moves there: New goal's first step, Change a goal with its name cleared, Import's paste.
+    const focusedInvalid = () => f.evaluate(() => { const a = document.activeElement; return !!a && (a.getAttribute('aria-invalid') === 'true' || !!a.closest('[aria-invalid="true"]')); });
+    await f.goto(url('/goals/new'));
+    await f.locator('.focus-foot button[type=submit]').waitFor({ timeout: 10000 });
+    await f.locator('.focus-foot button[type=submit]').click();
+    await f.waitForTimeout(250);
+    if (!(await focusedInvalid())) footProblems.push('New goal pressed with nothing typed leaves focus off the field in error');
+    await f.goto(url('/goals/ci-docker/edit'));
+    await f.locator('input[data-field=title]').waitFor({ timeout: 10000 });
+    await f.locator('input[data-field=title]').fill('');
+    const save = f.locator('.focus-foot button[type=submit]');
+    await save.click();
+    await f.waitForTimeout(250);
+    const saveSays = (await save.innerText()).trim(), saveOff = await save.getAttribute('aria-disabled');
+    if (saveSays !== 'Save changes' || saveOff === 'true') footProblems.push(`Change a goal with its name cleared: the primary says “${saveSays}”${saveOff === 'true' ? ', and is disabled' : ''}, not Save changes`);
+    if (!(await focusedInvalid())) footProblems.push('Change a goal with its name cleared, pressed: focus is not on the field in error');
+    await f.goto(url('/data/import?paste=1'));
+    const check = f.getByRole('button', { name: 'Check these rows' });
+    if (await check.count()) {
+      if (await check.isDisabled()) footProblems.push('Import’s paste: Check these rows is disabled while the box is empty');
+      else { await check.click(); await f.waitForTimeout(200); if (!(await focusedInvalid())) footProblems.push('Import’s paste pressed empty: focus is not on the box, marked in error'); }
+    }
     await c20.close();
+    // At 360px, when Back and the primary don't fit side by side (3.5): the primary takes the full width and Back sits
+    // above it as a text link. The check-in's second step has both.
+    const c20p = await browser.newContext({ viewport: { width: 360, height: 740 } });
+    const fp = await c20p.newPage();
+    await fp.goto(url('/'));
+    await fp.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    await fp.goto(url('/check-in/ci-docker'));
+    await fp.getByLabel('This week’s value').fill('1');
+    await fp.locator('.focus-foot button[type=submit]').click();
+    const backBtn = fp.locator('.focus-foot .foot-back');
+    await backBtn.waitFor({ timeout: 5000 }).catch(() => {});
+    if (await backBtn.count()) {
+      const g = await fp.evaluate(() => {
+        const b = document.querySelector('.focus-foot .foot-back'), pr = document.querySelector('.focus-foot .btn.primary'), row = pr?.parentElement;
+        if (!b || !pr || !row) return null;
+        const bb = b.getBoundingClientRect(), pb = pr.getBoundingClientRect(), rb = row.getBoundingClientRect(), cs = getComputedStyle(b);
+        return { above: bb.bottom <= pb.top + 1, full: pb.width >= rb.width - 2, text: cs.borderTopWidth === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent') };
+      });
+      if (!g || !g.above || !g.full || !g.text) footProblems.push(`at 360px the check-in’s Back is not a text link above a full-width primary (${JSON.stringify(g)})`);
+    } else footProblems.push('at 360px the check-in’s second step has no Back');
+    await c20p.close();
   }
   lap('P20');
-  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
+  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; pressed empty (a check-in, New goal, Change a goal, Import’s paste) it is never disabled and focus moves to the field in error; at 360px Back is a text link above a full-width primary; a check-in’s exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
   await finishChecks(add);
   if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));

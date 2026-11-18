@@ -72,6 +72,7 @@ import { BackToProposedSheet, goalRemoveLabel, RemoveGoalSheet } from '../ui/Rem
 import { LifeMark } from '../ui/LifeMark';
 import { NO_REASON } from '../domain/checkin';
 import { ASK_STATUS, GAP, LABEL as WORD_OF, lower, STATUS } from '../domain/vocabulary';
+import { FormFooter } from '../ui/FormFooter';
 
 export function GoalScreen() {
   const app = useApp();
@@ -594,10 +595,10 @@ function ReplyBox({ goal, item, focus, onDone }: { goal: Goal; item: AskedItem; 
         <textarea ref={box} className={'input' + (tried && text.trim().length < 2 ? ' invalid' : '')} rows={3} value={text} onChange={(e) => setText(e.target.value)} />
         <span className="field-msg" role="alert">{tried && text.trim().length < 2 && <><Icon name="alert" size={16} />Write a few words.</>}</span>
       </label>
-      <div className="sheet-foot respond-foot">
+      <FormFooter sheet className="respond-foot">
         <button type="button" className="linkish small" onClick={onDone}>Not now</button>
         <button type="submit" className="btn primary" disabled={busy}>{busy ? 'Posting…' : 'Post your reply'}</button>
-      </div>
+      </FormFooter>
     </form>
   );
 }

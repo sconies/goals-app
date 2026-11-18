@@ -2,6 +2,7 @@
    plain CSV files under spec/conformance/, made by the real rules. A rebuild proves its rules by reading the same
    workspace (spec/conformance/workspace.json) and matching every row. src/spec/conformance.test.ts recomputes them
    from workspace.json and fails on any difference. Pure: no files are read or written here. */
+import { checkInNext, checkInPostSays, closeWords, DRAFT_KEPT, draftFromDay, fixSummary, importSays, metricSays, postCheckIns, primarySays, PROPOSE_SAYS, publishSays, REPLAN_SAYS, tableSays } from '../domain/formFooter';
 import { guardBreaches } from '../domain/guards';
 import { ZONE_CASE, ZONE_HEADER, zoneRowsOf, type ZoneCase } from './zones';
 import { attentionFor, attentionGroup, needsAttention } from '../domain/attention';
@@ -277,6 +278,49 @@ export function goalRowRowsOf(w: ConformanceWorkspace): string[][] {
       return [g.id, place, ROW_VIEWER, p.status, p.value, p.gap?.text ?? '', p.asOf ?? '', p.result?.text ?? '', p.reason ?? '', p.reasonIsFlag ? '1' : '', p.context ?? '', p.contextIsFlag ? '1' : '', p.action ?? ''];
     });
   });
+}
+
+/* ---------- the form footer ---------- */
+
+/** form-footer.csv: the words a form's footer and its one exit say (FORM-FOOTER; patterns spec 3), one row per case. */
+export const FORM_FOOTER_HEADER = ['case', 'given', 'says'];
+export function formFooterRows(): string[][] {
+  const day = (y: number, m: number, d: number) => new Date(y, m - 1, d, 9).getTime();
+  const now = new Date(2026, 10, 18, 12).getTime();
+  return [
+    ['close', 'keeps drafts, nothing typed', closeWords(true, false)],
+    ['close', 'keeps drafts, something typed', closeWords(true, true)],
+    ['close', 'keeps nothing', closeWords(false, true)],
+    ['next', 'check-in, carried words', checkInNext('carry', { why: false, milestone: false })],
+    ['next', 'check-in, behind plan', checkInNext('account', { why: true, reason: 'behind', milestone: false })],
+    ['next', 'check-in, ahead of plan', checkInNext('account', { why: true, reason: 'ahead', milestone: false })],
+    ['next', 'check-in, a stage late', checkInNext('account', { why: true, reason: 'behind', milestone: true })],
+    ['next', 'check-in, on plan', checkInNext('account', { why: false, milestone: false })],
+    ['status', 'check-in last step, week 46, 3 watching', checkInPostSays(46, 3)],
+    ['status', 'check-in last step, week 46, 1 watching', checkInPostSays(46, 1)],
+    ['status', 'check-in last step, week 46, nobody watching', checkInPostSays(46, 0)],
+    ['primary', 'table check-in, 5 ready', postCheckIns(5)],
+    ['primary', 'table check-in, none ready', postCheckIns(0)],
+    ['status', 'table check-in, 5 ready, 2 need a reason', tableSays(5, 2)],
+    ['status', 'table check-in, 1 ready, 1 needs a reason', tableSays(1, 1)],
+    ['status', 'New goal last step, publishing in Platform Engineering', publishSays('Platform Engineering')],
+    ['status', 'New goal last step, proposing', PROPOSE_SAYS],
+    ['status', 'Change a goal, check-ins started, plan changed', REPLAN_SAYS],
+    ['status', 'a metric form, every part filled in', metricSays(0)],
+    ['status', 'a metric form, 2 parts missing', metricSays(2)],
+    ['status', 'Import, 12 goals change', importSays(12)],
+    ['status', 'the first step after a draft is first kept', DRAFT_KEPT],
+    ['fix', 'two fields in error: Target, Owner', fixSummary(['Target', 'Owner']) ?? ''],
+    ['fix', 'one field in error, in view', fixSummary(['Target']) ?? ''],
+    ['fix', 'one field in error, out of view', fixSummary(['Target'], false) ?? ''],
+    ['draft', 'resumed, kept today', draftFromDay(day(2026, 11, 18), now)],
+    ['draft', 'resumed, kept yesterday', draftFromDay(day(2026, 11, 17), now)],
+    ['draft', 'resumed, kept three days ago', draftFromDay(day(2026, 11, 15), now)],
+    ['draft', 'resumed, kept 16 days ago', draftFromDay(day(2026, 11, 2), now)],
+    ['primary-ok', 'Continue', primarySays('Continue') ? 'yes' : 'no'],
+    ['primary-ok', 'Save', primarySays('Save') ? 'yes' : 'no'],
+    ['primary-ok', 'Save changes', primarySays('Save changes') ? 'yes' : 'no'],
+  ];
 }
 
 /** Whether a module is on in the conformance workspace: not in its modulesOff. */
@@ -695,7 +739,7 @@ export function conformanceFiles(w: ConformanceWorkspace, cases: ScreenCases = s
   if (w.edge) return edgeFiles(w);
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'goal-row.csv': toCsv(GOAL_ROW_HEADER, goalRowRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'goal-row.csv': toCsv(GOAL_ROW_HEADER, goalRowRowsOf(w)), 'form-footer.csv': toCsv(FORM_FOOTER_HEADER, formFooterRows()), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }
