@@ -8937,13 +8937,13 @@ async function platformChecks() {
     }
     await c20.close();
     // At 360px, when Back and the primary don't fit side by side (3.5): the primary takes the full width and Back sits
-    // above it as a text link. The check-in's second step has both.
+    // above it as a text link. New goal's second step has both.
     const c20p = await browser.newContext({ viewport: { width: 360, height: 740 } });
     const fp = await c20p.newPage();
     await fp.goto(url('/'));
     await fp.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
-    await fp.goto(url('/check-in/ci-docker'));
-    await fp.getByLabel('This week’s value').fill('1');
+    await fp.goto(url('/goals/new'));
+    await fp.locator('input[data-field=title]').fill('Fewer flaky builds on main');
     await fp.locator('.focus-foot button[type=submit]').click();
     const backBtn = fp.locator('.focus-foot .foot-back');
     await backBtn.waitFor({ timeout: 5000 }).catch(() => {});
@@ -8954,8 +8954,8 @@ async function platformChecks() {
         const bb = b.getBoundingClientRect(), pb = pr.getBoundingClientRect(), rb = row.getBoundingClientRect(), cs = getComputedStyle(b);
         return { above: bb.bottom <= pb.top + 1, full: pb.width >= rb.width - 2, text: cs.borderTopWidth === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent') };
       });
-      if (!g || !g.above || !g.full || !g.text) footProblems.push(`at 360px the check-in’s Back is not a text link above a full-width primary (${JSON.stringify(g)})`);
-    } else footProblems.push('at 360px the check-in’s second step has no Back');
+      if (!g || !g.above || !g.full || !g.text) footProblems.push(`at 360px New goal’s Back is not a text link above a full-width primary (${JSON.stringify(g)})`);
+    } else footProblems.push('at 360px New goal’s second step has no Back');
     await c20p.close();
   }
   lap('P20');

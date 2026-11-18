@@ -3,9 +3,14 @@ import { useCallback, useState } from 'react';
 
 const PREFIX = 'goals-app-draft:';
 
+/* The browser's storage, in three places only (scripts/browser-storage.json); each forgives storage that is blocked. */
+const get = (k: string): string | null => { try { return localStorage.getItem(PREFIX + k); } catch { return null; } };
+const put = (k: string, v: string): void => { try { localStorage.setItem(PREFIX + k, v); } catch { /* storage blocked */ } };
+const drop = (k: string): void => { try { localStorage.removeItem(PREFIX + k); } catch { /* storage blocked */ } };
+
 function read<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(PREFIX + key);
+    const raw = get(key);
     return raw ? (JSON.parse(raw) as T) : null;
   } catch {
     return null;
@@ -15,11 +20,12 @@ function read<T>(key: string): T | null {
 /** When a draft was last kept, beside it, to say a resumed draft's day ("Draft from Tuesday": FORM-FOOTER 3.4.3). */
 const AT = '@at';
 export function clearDraft(key: string) {
-  try { localStorage.removeItem(PREFIX + key); localStorage.removeItem(PREFIX + key + AT); } catch { /* storage blocked */ }
+  drop(key); drop(key + AT);
 }
 /** When the draft at `key` was last kept (ms), or null when it says nothing (kept before this was recorded). */
 export function draftSavedAt(key: string): number | null {
-  try { const n = Number(localStorage.getItem(PREFIX + key + AT)); return n > 0 ? n : null; } catch { return null; }
+  const n = Number(get(key + AT));
+  return n > 0 ? n : null;
 }
 
 /** A draft's contents without restoring it, to offer it back by name. */
@@ -29,7 +35,7 @@ export function peekDraft<T>(key: string): T | null {
 
 /** Save a draft whole, from somewhere other than the screen that owns it (the one-table check-in shares the check-in's). */
 export function writeDraft<T>(key: string, value: T) {
-  try { localStorage.setItem(PREFIX + key, JSON.stringify(value)); } catch { /* storage blocked */ }
+  put(key, JSON.stringify(value));
 }
 
 export function hasDraft(key: string): boolean {
@@ -48,10 +54,8 @@ export function useDraft<T extends object>(key: string, initial: () => T): [T, (
   const set = useCallback((patch: Partial<T>, quiet = false) => {
     setValue((v) => {
       const next = { ...v, ...patch };
-      try {
-        if (!quiet || localStorage.getItem(PREFIX + key) != null) localStorage.setItem(PREFIX + key, JSON.stringify(next));
-        if (!quiet) localStorage.setItem(PREFIX + key + AT, String(Date.now()));
-      } catch { /* storage blocked */ }
+      if (!quiet || get(key) != null) put(key, JSON.stringify(next));
+      if (!quiet) put(key + AT, String(Date.now()));
       return next;
     });
     if (!quiet) setTouched(true);
