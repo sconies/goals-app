@@ -3,9 +3,9 @@ address,kind,page,top_bar_title_in_view,top_bar_title_gone
 /check-in,list,Check-in,the workspace,Check-in
 /check-in/lead-mq,task,Check in: Merge queue live for every monorepo,,
 /quick-check-in,task,"Check-in, all in one table",,
-/goals,list,Goals,the workspace,Goals
-/goals?scope=mine,list,Goals,the workspace,Goals
-/watching,list,Goals,the workspace,Goals
+/goals,list,Goals,Goals,Goals
+/goals?scope=mine,list,Goals,Goals,Goals
+/watching,list,Goals,Goals,Goals
 /goals/new,task,New goal,,
 /goals/lead-mq,detail,Merge queue live for every monorepo,the workspace,Merge queue live for every monorepo
 /goals/lead-mq/edit,task,Change Merge queue live for every monorepo,,

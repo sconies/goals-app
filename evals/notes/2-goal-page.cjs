@@ -136,6 +136,20 @@ module.exports = {
       await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(250);
       chk(await p.locator('.goal-bar.compact').count() === 0, `${at}: the bar stays compact at the top`);
       if (w < 500) chk(await p.evaluate(() => (() => { const t = document.querySelector('.mtop'); if (!t || !t.getClientRects().length) return null; return getComputedStyle(t).visibility === 'visible' && t.getBoundingClientRect().bottom > 0; })()) === true, `${at}: the phone’s top bar doesn’t come back at the top of the page`);
+      // Through the turn in 4 px steps, down and back up, the bar turns compact once each way, never back and forth (review M1).
+      if (w < 500) {
+        const flips = await p.evaluate(async () => {
+          const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const on = () => document.documentElement.classList.contains('goal-compact');
+          let n = 0, was = on();
+          const step = async (y) => { window.scrollTo(0, y); await frame(); if (on() !== was) { n++; was = on(); } };
+          for (let y = 200; y <= 900; y += 4) await step(y);
+          const down = n; n = 0;
+          for (let y = 900; y >= 200; y -= 4) await step(y);
+          return { down, up: n };
+        });
+        chk(flips.down === 1 && flips.up === 1, `${at}: the compact bar changed ${flips.down} times scrolling down and ${flips.up} times back up (once each)`);
+      }
       await c.close();
     }
 

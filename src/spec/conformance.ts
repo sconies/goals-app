@@ -23,7 +23,7 @@ import { allGoalsNow } from '../ports/goals';
 import { parseQuery } from '../domain/query';
 import { STATUS_ORDER } from '../domain/vocabulary';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
-import { pageKind, topBarSays } from '../domain/pageHeader';
+import { pageKind, phoneTitleShown, topBarSays } from '../domain/pageHeader';
 import { planChanges, type ChangeSet } from '../domain/changeset';
 import { blankGoal, type GoalDraft } from '../domain/goal';
 import { goalChecks } from '../domain/goalEntry';
@@ -294,7 +294,7 @@ export function pageHeaderRowsOf(w: ConformanceWorkspace, c: ScreenCases['naviga
     const [path = '/', q = ''] = address.split('?');
     const kind = pageKind(path, q);
     const page = pageName(path, q, names).split(' · ')[0] ?? '';
-    return [address, kind, page, topBarSays(kind, page, 'the workspace', true) ?? '', topBarSays(kind, page, 'the workspace', false) ?? ''];
+    return [address, kind, page, topBarSays(kind, page, 'the workspace', phoneTitleShown(path)) ?? '', topBarSays(kind, page, 'the workspace', false) ?? ''];
   });
 }
 

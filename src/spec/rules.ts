@@ -74,7 +74,7 @@ import { changedHeading, changedSet, changedSince, movement, sinceFor, seenToday
 import { CHECK_IN_MOMENT } from './conformance';
 import { rowParts, type RowFacts, type RowPlace } from '../domain/goalRow';
 import { checkInNext, checkInPostSays, closeWords, fixSummary, metricSays, primarySays, tableSays } from '../domain/formFooter';
-import { headerButtons, pageKind, taskLine, topBarSays } from '../domain/pageHeader';
+import { headerButtons, pageKind, phoneTitleShown, taskLine, topBarSays } from '../domain/pageHeader';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
 import { quarterResults } from '../domain/year';
@@ -690,7 +690,7 @@ Built in Faro (UX2c, 18 Nov): all of the above, on every focused form and every 
     id: 'page-header',
     title: 'One page header',
     summary: 'What sits at the top of every page: the title at the left edge, one line under it, at most one filled button; a focused task’s name and its one exit; and the shell’s utilities kept out.',
-    code: [{ file: 'src/domain/pageHeader.ts', names: ['pageKind', 'taskLine', 'headerButtons', 'topBarSays', 'SHELL_UTILITIES'] }],
+    code: [{ file: 'src/domain/pageHeader.ts', names: ['pageKind', 'taskLine', 'headerButtons', 'topBarSays', 'phoneTitleShown', 'SHELL_UTILITIES'] }],
     tests: ['src/domain/pageHeader.test.ts'],
     reqs: ['PAGE-HEADER', 'NAV-FORMS', 'NAV-BACK'],
     body: `
@@ -711,7 +711,7 @@ Rhea Kapoor, CI/CD · Team goal · G-14 · Updated 14 Nov
 5. **List tools are not header actions:** Export, Views and Manage watching stay in the list bar, with the list they act on.
 6. **A count is said once:** in the list's count line or a section's heading, in the header's line only when the page is that count.
 7. **Sticky on scroll, on detail pages only:** one line of status, title, number, the primary and More (a goal's summary bar). On a phone, once that line is compact it takes the top bar's place: the top bar shows only at the very top of the page.
-8. **The phone's top bar names the page only once the title has scrolled away** (\`topBarSays\`): until then it shows the workspace, Find and you, so the page's name isn't said twice on one screen. A page whose title is for screen readers only on a phone (Goals) is named at once. A focused task has no top bar.
+8. **The phone's top bar names the page only once the title has scrolled away** (\`topBarSays\`): until then it shows the workspace, Find and you, so the page's name isn't said twice on one screen. A page whose title is for screen readers only on a phone (Goals, Watching: \`phoneTitleShown\`) is named at once. A focused task has no top bar.
 9. **A focused task's header** has the task's name and where you are at the left (\`taskLine\`: "Week 46 check-in · 2 of 7"; one of one is the name alone) and its one exit at the right, worded by \`closeWords\`. When both don't fit (a phone, with "Discard draft" beside the exit), the exit keeps the right of the first line and the name goes under it. No back link: Back is the footer's.
 
 The header is core, with no switch: every page uses it, so there is nothing to switch off.
@@ -722,6 +722,7 @@ The header is core, with no switch: every page uses it, so there is nothing to s
       { given: 'The second of seven check-ins in week 46; then a single one.', then: 'Week 46 check-in · 2 of 7 / Week 46 check-in', run: () => [taskLine('Week 46 check-in', 2, 7), taskLine('Week 46 check-in', 1, 1)].join(' / ') },
       { given: 'A goal’s page offered Check in again (filled), Watch, Share and New goal (filled).', then: 'Check in again, Watch | More: Share, New goal', run: () => { const b = headerButtons('detail', [{ label: 'Check in again', filled: true }, { label: 'Watch' }, { label: 'Share' }, { label: 'New goal', filled: true }]); return `${b.shown.map((x) => x.label).join(', ')} | More: ${b.more.map((x) => x.label).join(', ')}`; } },
       { given: 'People on a phone in the Platform workspace, its title in view, then scrolled away.', then: 'Platform / People', run: () => [topBarSays('list', 'People', 'Platform', true), topBarSays('list', 'People', 'Platform', false)].join(' / ') },
+      { given: 'Goals on a phone in the Platform workspace, at the top of the list (its title is for screen readers only there).', then: 'Goals', run: () => topBarSays('list', 'Goals', 'Platform', phoneTitleShown('/goals')) ?? '' },
     ],
   },
   {

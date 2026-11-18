@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { headerButtons, pageKind, taskLine, topBarSays } from './pageHeader';
+import { headerButtons, pageKind, phoneTitleShown, taskLine, topBarSays } from './pageHeader';
 
 describe('one page header (PAGE-HEADER)', () => {
   it('knows a list, a detail page and a focused task by its address', () => {
@@ -27,5 +27,11 @@ describe('one page header (PAGE-HEADER)', () => {
     expect(topBarSays('list', 'Goals', 'Platform', true)).toBe('Platform');
     expect(topBarSays('list', 'Goals', 'Platform', false)).toBe('Goals');
     expect(topBarSays('task', 'Goals', 'Platform', false)).toBeNull();
+    // Goals and Watching keep their title for screen readers on a phone, so the bar names them at once.
+    expect(phoneTitleShown('/goals?scope=mine')).toBe(false);
+    expect(phoneTitleShown('/watching')).toBe(false);
+    expect(pageKind('/metrics/baselines')).toBe('list');
+    expect(phoneTitleShown('/goals/lead-mq')).toBe(true);
+    expect(phoneTitleShown('/people')).toBe(true);
   });
 });

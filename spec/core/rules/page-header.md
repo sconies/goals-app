@@ -24,7 +24,7 @@ Rhea Kapoor, CI/CD · Team goal · G-14 · Updated 14 Nov
 5. **List tools are not header actions:** Export, Views and Manage watching stay in the list bar, with the list they act on.
 6. **A count is said once:** in the list's count line or a section's heading, in the header's line only when the page is that count.
 7. **Sticky on scroll, on detail pages only:** one line of status, title, number, the primary and More (a goal's summary bar). On a phone, once that line is compact it takes the top bar's place: the top bar shows only at the very top of the page.
-8. **The phone's top bar names the page only once the title has scrolled away** (`topBarSays`): until then it shows the workspace, Find and you, so the page's name isn't said twice on one screen. A page whose title is for screen readers only on a phone (Goals) is named at once. A focused task has no top bar.
+8. **The phone's top bar names the page only once the title has scrolled away** (`topBarSays`): until then it shows the workspace, Find and you, so the page's name isn't said twice on one screen. A page whose title is for screen readers only on a phone (Goals, Watching: `phoneTitleShown`) is named at once. A focused task has no top bar.
 9. **A focused task's header** has the task's name and where you are at the left (`taskLine`: "Week 46 check-in · 2 of 7"; one of one is the name alone) and its one exit at the right, worded by `closeWords`. When both don't fit (a phone, with "Discard draft" beside the exit), the exit keeps the right of the first line and the name goes under it. No back link: Back is the footer's.
 
 The header is core, with no switch: every page uses it, so there is nothing to switch off.
@@ -41,10 +41,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The second of seven check-ins in week 46; then a single one. | `Week 46 check-in · 2 of 7 / Week 46 check-in` |
 | A goal’s page offered Check in again (filled), Watch, Share and New goal (filled). | `Check in again, Watch \| More: Share, New goal` |
 | People on a phone in the Platform workspace, its title in view, then scrolled away. | `Platform / People` |
+| Goals on a phone in the Platform workspace, at the top of the list (its title is for screen readers only there). | `Goals` |
 
 ## Where it lives
 
-- [src/domain/pageHeader.ts](../../../src/domain/pageHeader.ts): `pageKind`, `taskLine`, `headerButtons`, `topBarSays`, `SHELL_UTILITIES`
+- [src/domain/pageHeader.ts](../../../src/domain/pageHeader.ts): `pageKind`, `taskLine`, `headerButtons`, `topBarSays`, `phoneTitleShown`, `SHELL_UTILITIES`
 
 ## Requirements
 

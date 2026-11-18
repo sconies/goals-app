@@ -13,7 +13,7 @@ const DETAIL = /^\/(goals|people|teams|reviews|metrics|help)\/[^/]+(\/(print|sum
 export function pageKind(path: string, search = '', forms: readonly string[] = []): PageKind {
   const [p = ''] = path.split('?');
   if (isForm(path, search, forms)) return 'task';
-  return DETAIL.test(p) && !/^\/goals\/(new|views)$/.test(p) ? 'detail' : 'list';
+  return DETAIL.test(p) && !/^\/goals\/(new|views)$|^\/metrics\/baselines$/.test(p) ? 'detail' : 'list';
 }
 
 /**
@@ -53,6 +53,15 @@ export const SHELL_UTILITIES = ['Find', 'Demo', 'You'] as const;
  * twice on one screen; the page's name once the title has scrolled away (or a page has none on a phone). A focused task
  * has no top bar.
  */
+/**
+ * Rule 8's exception: the pages whose title is for screen readers only on a phone (Goals and Watching, whose list starts
+ * at once). Their title is never in view there, so the top bar names them from the start.
+ */
+export function phoneTitleShown(path: string): boolean {
+  const [p = ''] = path.split('?');
+  return !/^\/(goals|watching)\/?$/.test(p);
+}
+
 export function topBarSays(kind: PageKind, page: string, workspace: string, titleInView: boolean): string | null {
   if (kind === 'task') return null;
   return titleInView ? workspace : page;

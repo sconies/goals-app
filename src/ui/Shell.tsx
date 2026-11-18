@@ -20,7 +20,7 @@ import { ProfileSheet } from './ProfileSheet';
 import { RailLabel } from './Label';
 import { PageHelp } from './HelpLinks';
 import { useUnreadNews } from '../help/seen';
-import { pageKind, topBarSays } from '../domain/pageHeader';
+import { pageKind, phoneTitleShown, topBarSays } from '../domain/pageHeader';
 import { MOODS } from '../markup/model';
 import { WorkspaceSwitcher, WorkspaceSwitchProvider } from './WorkspaceSwitch';
 import { Find, FIND_KEY, isFindKey } from './Find';
@@ -253,7 +253,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   // The phone's top bar names the page only once its title has scrolled away (PAGE-HEADER rule 8): until then it shows
   // the workspace, so the name isn't said twice on one screen. Find, Demo and you stay here on every page (rule 2).
   const titleInView = useTitleInView(pathname + search);
-  const barSays = topBarSays(pageKind(pathname, search), title.split(' · ')[0] ?? '', app.ws.name, titleInView);
+  const barSays = topBarSays(pageKind(pathname, search), title.split(' · ')[0] ?? '', app.ws.name, titleInView && phoneTitleShown(pathname));
   const topControls = (
     <>
       <button type="button" className="btn find-btn" onClick={() => setFinding(true)}><Icon name="search" size={18} /><span>Find</span></button>

@@ -425,14 +425,16 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
       for (const e of document.querySelectorAll<HTMLElement>(withTop ? '.mtop, .goal-page > .reviewbar' : '.goal-page > .reviewbar')) {
         if (!e.getClientRects().length) continue;
         const pos = getComputedStyle(e).position;
-        if (pos === 'sticky' || pos === 'fixed') y = Math.max(y, Math.round(e.getBoundingClientRect().bottom));
+        // The top bar sticks at the very top, so its bottom is its height; measured that way, sliding it out of view
+        // (a transform) doesn't change it, and the bar never turns back and forth as it hides (review M1).
+        if (pos === 'sticky' || pos === 'fixed') y = Math.max(y, e.classList.contains('mtop') ? e.offsetHeight : Math.round(e.getBoundingClientRect().bottom));
       }
       return y;
     };
     let full = el.offsetHeight;
     const check = () => {
       const r = el.getBoundingClientRect();
-      // The top bar's height still decides when the bar turns compact, so hiding it never turns the bar back.
+      // The top bar's height still decides when the bar turns compact, even while it is slid out of view.
       const on = r.bottom < above(true) + 4;
       const t = on ? above(false) : above(true);
       setS((p) => {

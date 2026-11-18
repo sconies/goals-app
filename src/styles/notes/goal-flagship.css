@@ -295,6 +295,7 @@
 }
 
 /* ---------- print: the bar prints as the page's head ---------- */
+@media print { .goal-page .goal-bar.compact { position: static !important; } .goal-page .bar-actions { display: none !important; } }
 
 /* The goal links in an answer's hint are 44px targets on a touch screen, as they were in the sheet. */
 @media (pointer: coarse) { .goal-page .respond-form .hint a { display: inline-flex; align-items: center; min-height: 44px; } }
