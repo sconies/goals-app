@@ -3085,3 +3085,19 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
 - **Low:** P20's Import-paste case is skipped silently when "Check these rows" isn't found.
 - **Low:** FixSummary's link buttons sit inside the footer's `role="status"`.
 - The build session was inactive when I sent this, so the medium went to planning to relay.
+- **Re-check at cccc149 (build session_012kbr8yzHKD2iwNtGjGaepb).**
+  - **Closed:**
+    - 43 sheets are on FormFooter, and the three left are named in the rule;
+    - BulkEdit, Add an admin, rhythm, Merge, token and unit-scale are no longer disabled for missing input, and their evals press the button;
+    - Back at ≤420 px: the words now match the build;
+    - P20 now fails when "Check these rows" is missing.
+  - **Still a low:** FixSummary inside `role="status"`. The build chose to leave it.
+  - **motion.ts:** rows now rise 4 px instead of fading in from opacity 0 (P3 caught half-transparent rows). This changes the animation, not the check.
+  - **Medium, narrowed:** the rule now says "no primary is ever disabled for missing input", but these still are:
+    - Preview.tsx:125, the bulk-change preview, the same fault Check.tsx had;
+    - DataLayout.tsx:217 and DataFilters.tsx:39;
+    - ProposedGoal.tsx:190;
+    - Research.tsx:110;
+    - Workspace.tsx:794 (delete, type to confirm).
+
+    The build should fix Preview, and fix the others or have the Built line name them. Sent to the build.
