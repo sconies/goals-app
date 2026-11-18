@@ -19,3 +19,5 @@
 .focus-top.task-head:not(.wiz-top) > .task-exit { order: -1; margin-left: auto; flex: 0 0 auto; gap: var(--s2); }
 .focus-top.task-head:not(.wiz-top) > .task-name { margin-right: auto; min-width: 0; }
 .focus-top.task-head > .task-exit .form-close { margin-left: 0; }
+/* New goal's header keeps its own grid (wizard.css): the exit sits 16px past the step bar, as before. */
+.focus-top.wiz-top > .task-exit { margin-left: var(--s2); }
