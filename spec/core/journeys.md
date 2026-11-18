@@ -103,7 +103,8 @@ Checks run across every screen: design rules, widths, motion, errors.
 | P11 | One goal row in every list: status and its word, then the value, then the name; values line up from 700px; the name spans the row on a phone; no link holds a button | `GOAL-ROW` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P15 | A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so | `DEMO-STORAGE` | `evals/journeys.cjs` |
 | P17 | Checked within F11: Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
-| P20 | One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed | `FORM-FOOTER` | `evals/journeys.cjs` |
+| P20 | One form footer: on every focused task one filled button, in the footer, saying what happens; pressed empty (a check-in, New goal, Change a goal, Import’s paste) it is never disabled and focus moves to the field in error; at 360px Back is a text link above a full-width primary; a check-in’s exit says Close until something is typed | `FORM-FOOTER` | `evals/journeys.cjs` |
+| P21 | One page header: the title has its own line on a phone and nothing of the shell’s inside the page; one filled button; actions on the title’s line on a computer; the phone’s top bar names the page once the title has gone; a task’s exit keeps the first line | `PAGE-HEADER` | `evals/journeys.cjs` |
 
 ## Fit and finish
 

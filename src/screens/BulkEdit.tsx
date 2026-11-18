@@ -4,7 +4,7 @@
 // The change engine, for this screen's previews (src/app/engineReady.ts).
 import '../app/engineReady';
 import { LEVEL_WORDS } from '../domain/levels';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import { watchingOn } from '../app/reads';
 import { useModules } from '../core/app';
@@ -14,6 +14,9 @@ import type { Goal, Level } from '../domain/types';
 import { PickOne } from '../ui/Pick';
 import { Sheet } from '../ui/bits';
 import { MenuButton } from '../ui/MenuButton';
+import { FormFooter } from '../ui/FormFooter';
+import { FieldError } from '../ui/GoalFields';
+import { focusFirstError } from '../ui/FixSummary';
 
 export function BulkBar({ ids, onClear }: { ids: string[]; onClear: () => void }) {
   const app = useApp();
@@ -50,9 +53,12 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
   const [value, setValue] = useState('');
   const [cs, setCs] = useState<ChangeSet | null>(null);
   const [busy, setBusy] = useState(false);
+  const [missing, setMissing] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const levels: Level[] = levelIds(app.cycle);
   const save = async () => {
-    if (!value) return;
+    // Said under the field and focused (patterns spec 3.3.1): never a disabled button.
+    if (!value) { setMissing(true); focusFirstError(formRef.current); return; }
     // The owner goes by their ID, so two people with the same name can't be confused.
     const res = app.previewChanges({ goals: goals.map((g, i) => ({ __row: String(i + 2), id: g.id, ...(kind === 'owner' ? { 'owner id': value } : { level: LEVEL_WORDS.word[value] ?? value }) })) }, 'bulk');
     setCs(res);
@@ -68,12 +74,17 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
   const errors = cs?.issues.filter((x) => x.severity === 'error') ?? [];
   return (
     <Sheet open onClose={onClose} title={`${kind === 'owner' ? 'Change the owner of' : 'Change the level of'} ${goals.length} ${goals.length === 1 ? 'goal' : 'goals'}`}>
-      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
+      <form ref={formRef} className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
         {kind === 'owner' ? (
-          <PickOne kind="person" label="New owner" value={value || null} onChange={(id) => { setValue(id ?? ''); setCs(null); }} />
+          <div className="field">
+            <PickOne kind="person" label="New owner" value={value || null} onChange={(id) => { setValue(id ?? ''); setCs(null); setMissing(false); }} invalid={missing} describedBy={missing ? 'bulk-err' : undefined} />
+            {missing && <FieldError id="bulk-err">Choose the new owner first.</FieldError>}
+          </div>
         ) : (
           <label className="field"><span className="field-label">Level</span>
-            <select className="input" value={value} onChange={(e) => { setValue(e.target.value); setCs(null); }}>
+            {missing && <FieldError id="bulk-err">Choose the level first.</FieldError>}
+            <select className={'input' + (missing ? ' invalid' : '')} value={value} onChange={(e) => { setValue(e.target.value); setCs(null); setMissing(false); }}
+              aria-invalid={missing || undefined} aria-describedby={missing ? 'bulk-err' : undefined}>
               <option value="">Choose…</option>
               {levels.map((l) => <option key={l} value={l}>{levelName(app.cycle, l)}</option>)}
             </select>
@@ -84,7 +95,7 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
           <ul className="issue-list" role="alert">{errors.map((x, i) => <li key={i}><span className="label">{x.goal}</span><span>{x.message}</span></li>)}</ul>
         )}
         {cs && !cs.items.length && !errors.length && <span className="hint" role="status">Nothing changes: they already have that {kind}.</span>}
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={!value || busy}>{busy ? 'Saving…' : 'Save'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : kind === 'owner' ? 'Change the owner' : 'Change the level'}</button></FormFooter>
       </form>
     </Sheet>
   );

@@ -9,6 +9,7 @@ import { cycleDates, dayWithYear, laterCycle, nextCycleShape } from '../domain/c
 import { startPage } from '../domain/startYear';
 import { adminsLine } from '../domain/workspaceAttention';
 import { BackLink } from '../ui/BackLink';
+import { PageHeader } from '../ui/PageHeader';
 
 export function StartNext() {
   const app = useApp();
@@ -30,10 +31,7 @@ export function StartNext() {
   return (
     <div className="page narrow start-next" data-part="Start the next year">
       <BackLink to="/workspace/cycles" label="Cycles" />
-      <div className="page-head">
-        <h1 className="title-xl">Start {page.next}</h1>
-        <span className="muted">{page.line}</span>
-      </div>
+      <PageHeader title={`Start ${page.next}`} line={<span className="muted">{page.line}</span>} />
       {!page.readBack ? (
         <section className="block calm"><p>{page.whyNot}</p></section>
       ) : (

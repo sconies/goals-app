@@ -20,6 +20,8 @@ import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
 /* The group block is shared with set-up. It is imported here, not lazily: a lazy Answered suspends on its first render,
    so the focus that follows an answer found nothing and fell to the page (#336 review). */
+import { focusEl } from '../../ui/FixSummary';
+import { importSays } from '../../domain/formFooter';
 import { Answered as AnsweredLine, IssueGroup as SharedGroup, ReasonWords } from '../../ui/IssueGroup';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
@@ -29,6 +31,7 @@ import { Reading, TooManyChanges, useReadingDue } from './Large';
 import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
 import { CheckClose } from './CheckClose';
 import './import.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 
 const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
@@ -112,7 +115,7 @@ export function Check() {
     return (
       <div className="page narrow import-check">
         <CheckClose />
-        <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
+        <PageHeader title="Check this import" line="Nothing has been saved." />
         <p className="small">{st.name} · {readLine(read, 0, lineOpts)}</p>
         <div className="level-block level-check" role="group" aria-labelledby="other-ws">
           <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
@@ -133,7 +136,7 @@ export function Check() {
         <div className="page narrow import-check">
           {picker}
           <CheckClose />
-          <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
+          <PageHeader title="Check this import" line="Nothing has been saved." />
           <p className="hint tone-off" role="alert">Faro couldn’t check {st.name}: {run.error}. Split it and import each part.</p>
           <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={choose}>Choose another file</button></div>
         </div>
@@ -161,7 +164,8 @@ export function Check() {
   const save = async () => {
     if (onlyReason && !st.reason.trim()) { setTried(true); why.current?.focus(); return; }
     const final = toSave();
-    if (!final?.commit) { setTried(true); return; }
+    // A question still open: focus goes to the first, never a dead button (patterns spec 3.3.2).
+    if (!final?.commit) { setTried(true); focusEl(document.querySelector<HTMLElement>('.import-check .import-group.level-check .import-answers')); return; }
     setBusy(true);
     setSaving(cs);
     try {
@@ -187,10 +191,7 @@ export function Check() {
     <div className="page narrow import-check">
       {picker}
       <CheckClose />
-      <div className="page-head">
-        <h1 className="title-xl">Check this import</h1>
-        <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
-      </div>
+      <PageHeader title="Check this import" line={<span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>} />
 
       <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples, lineOpts), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
       {st.carried > 0 && <p className="small">Your {n(st.carried, 'answer')} still {st.carried === 1 ? 'applies' : 'apply'}.</p>}
@@ -246,7 +247,7 @@ export function Check() {
       {rechecking && <p className="hint preview-hint" role="status">Checking your answers…</p>}
       {total > CHANGES_SAVE_MAX && tables
         ? <TooManyChanges changes={total} name={st.name} read={read} tables={tables} workspace={app.ws.name} today={app.today} toast={app.toast} onChoose={choose} />
-        : <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!rechecking && (!!cs.commit || (onlyReason && !!st.reason.trim()))} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />}
+        : <Foot mustRows={mustRows.length} questions={checks.length} total={total} goals={new Set(cs.items.map((i) => i.goalId)).size} nothing={nothing} ready={!rechecking && (!!cs.commit || (onlyReason && !!st.reason.trim()))} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />}
 
       <LeaveSheet open={leaving} onClose={() => setLeaving(false)} rows={mustRows.map((i) => ({ sheet: i.sheet, row: i.row, name: i.name, problem: i.message }))} onDownload={() => void download(toFix, 'left-out', 'Rows left out saved')}
         dependants={leaving ? leaveOut(base, [...st.leftOut, ...mustRows.map((i) => ({ sheet: i.sheet, row: i.row }))], isNewIn(app.snapshot)).also.filter((x) => !left.some((y) => rowKey(y) === rowKey(x))) : []}
@@ -337,7 +338,7 @@ function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: An
 }
 
 /** The foot (2.3, item 7): what still stands in the way, and the one primary action. */
-function Foot({ mustRows, questions, total, nothing, ready, onlyReason, tried, busy, onSave, onChoose }: { mustRows: number; questions: number; total: number; nothing: boolean; ready: boolean; onlyReason: boolean; tried: boolean; busy: boolean; onSave: () => void; onChoose: () => void }) {
+function Foot({ mustRows, questions, total, goals, nothing, ready, onlyReason, tried, busy, onSave, onChoose }: { mustRows: number; questions: number; total: number; goals: number; nothing: boolean; ready: boolean; onlyReason: boolean; tried: boolean; busy: boolean; onSave: () => void; onChoose: () => void }) {
   const saveLabel = busy ? 'Saving…' : `Import ${n(total, 'change')}`;
   if (nothing) return <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={onChoose}>Choose another file</button></div>;
   if (mustRows) {
@@ -350,11 +351,12 @@ function Foot({ mustRows, questions, total, nothing, ready, onlyReason, tried, b
   }
   return (
     <>
-      {questions > 0 && <p className="hint preview-hint" role="status">Answer {n(questions, 'question')} to save.</p>}
+      {questions > 0 && <p className={'hint preview-hint' + (tried ? ' tone-off' : '')} role="status">Answer {n(questions, 'question')} to save.</p>}
+      {ready && <p className="hint preview-hint" role="status">{importSays(goals)}</p>}
       {onlyReason && <p className={'hint preview-hint' + (tried ? ' tone-off' : '')} role="status">Say why the plans are changing to save.</p>}
       <div className="foot-row import-foot">
         <button type="button" className="btn big-btn preview-again" onClick={onChoose}>Choose another file</button>
-        <button type="button" className="btn primary big-btn" disabled={(!ready && !onlyReason) || busy} aria-disabled={onlyReason || undefined} onClick={onSave}>{saveLabel}</button>
+        <button type="button" className="btn primary big-btn" disabled={busy} onClick={onSave}>{saveLabel}</button>
       </div>
     </>
   );

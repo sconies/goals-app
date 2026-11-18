@@ -27,6 +27,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-page-header',
+    date: '2026-11-18',
+    title: 'Every page starts the same way',
+    points: [
+      'A page’s title sits at the left, with one line under it and at most one main button beside it.',
+      'Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page, a goal’s included.',
+      'On a phone the title gets a line of its own, and the top bar names the page only once its title has scrolled away.',
+      'On a phone, a list’s one action sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place as you scroll.',
+      'A check-in, New goal and every other focused task show their name at the left and their one way out at the right.',
+    ],
+    articles: ['getting-around'],
+  },
+  {
     id: 'one-form-footer',
     date: '2026-11-18',
     title: 'Every form ends the same way',
@@ -34,7 +47,8 @@ export const WHATS_NEW: NewsEntry[] = [
       'The main button at the foot of a form now says what it does: “Next: why it’s behind” names the next question, “Post check-in” posts, “Post 5 check-ins” posts the table.',
       'Back is on the left, from the second step. The line above the buttons says what posting does, or what is left to fix.',
       'The way out stays at the top right. On a form that keeps drafts it says “Close” until you type something, then “Close and keep the draft”.',
-      'The table check-in no longer has a Cancel at its foot: Close at the top does the same.',
+      'A button is never greyed out because something is missing: press it and the field to fix is marked, says why, and takes you there. With more than one, the line above the buttons names each, as a link.',
+      'A draft you come back to says so beside the step (“Draft from Tuesday”), and the first time one is kept the line says “Draft kept in this browser.” New goal, a metric and Import also say what pressing will do.',
     ],
     articles: ['getting-around'],
   },

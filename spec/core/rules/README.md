@@ -14,6 +14,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Flags, the trend and needs attention](flags.md) | Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled. |
 | [One goal row](goal-row.md) | What a goal says wherever goals are listed: the same slots in the same order, each list choosing only what fills the reason, the second line and the button. |
 | [One form footer](form-footer.md) | What every focused task’s footer and its one exit say: a status line, Back from the second step, and one primary that says what happens. |
+| [One page header](page-header.md) | What sits at the top of every page: the title at the left edge, one line under it, at most one filled button; a focused task’s name and its one exit; and the shell’s utilities kept out. |
 | [The scorecard](scorecard.md) | The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target. |
 | [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP. |
 | [The field table](field-table.md) | For every column a person fills in: whether a new row must have it, its format, an example and what an empty cell does, said once for the template, the workbook’s Start here sheet, Help and the import. |

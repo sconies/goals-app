@@ -10,6 +10,7 @@ import { whenText } from '../../ui/ChangeItem';
 import { CountLine, ListBar, ListSearch, NoneFound } from '../../ui/ListBar';
 import { UndoImport, UndoneLine } from '../../ui/UndoImport';
 import './import.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 const IMPORTS = { thing: 'import', things: 'imports' };
 const rows = (k: number) => `${k} ${k === 1 ? 'row' : 'rows'}`;
@@ -24,10 +25,7 @@ export function PastImports() {
   const set = (v: string) => { const p = new URLSearchParams(params); if (v) p.set('q', v); else p.delete('q'); setParams(p, { replace: true }); };
   return (
     <div className="page narrow past-imports">
-      <div className="page-head">
-        <h1 className="title-xl">Past imports</h1>
-        <span className="small muted">Every import, bulk edit and change through MCP, newest first. Whoever made one, or an admin, can undo it.</span>
-      </div>
+      <PageHeader title="Past imports" line={<span className="small muted">Every import, bulk edit and change through MCP, newest first. Whoever made one, or an admin, can undo it.</span>} />
       {all.length === 0 ? (
         <p>Nothing has been imported yet. <Link className="btn" to="/data/import">Import</Link></p>
       ) : (

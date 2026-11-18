@@ -328,7 +328,8 @@ module.exports = {
         fail(['Renamed the workspace to “Acme Platform”', 'Added the team “Insights”', 'Renamed the team “Insights” to “Insights Platform”'].every((x) => s.changes.some((ch) => ch.summary === x && ch.actorId === 'amara')) && s.changes.some((ch) => /^Removed the team “Security Engineering”, moving/.test(ch.summary)), `[WORKSPACE-ADMIN] ${w}: the changes are not all logged`);
         const visible = await p.locator('.team-row').allInnerTexts();
         fail(visible.some((x) => /Insights Platform/.test(x)) && !visible.some((x) => /^Security/.test(x)), `[WORKSPACE-ADMIN] ${w}: the team list shows ${visible.map((x) => x.split('\n')[0]).join(', ')}`);
-        const m = await p.evaluate(() => ({ side: document.documentElement.scrollWidth - innerWidth, small: [...document.querySelectorAll('.people-head .btn, .ws-title-row .btn')].filter((b) => b.getBoundingClientRect().height < 40).length }));
+        // Only buttons on screen: on a phone Add a team is at the list bar’s end, and the header’s copy is hidden (UX4).
+        const m = await p.evaluate(() => ({ side: document.documentElement.scrollWidth - innerWidth, small: [...document.querySelectorAll('.people-head .btn, .ws-title-row .btn, .people-page .list-bar-action .btn')].filter((b) => b.getClientRects().length && b.getBoundingClientRect().height < 40).length }));
         fail(m.side <= 1 && (!touch || !m.small), `[WORKSPACE-ADMIN] ${w}: scrolls sideways ${m.side}px; ${m.small} team buttons under 40px`);
         await c.close();
       }

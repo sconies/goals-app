@@ -6,10 +6,10 @@ import '../styles/notes/proposed.css';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
+import { clearDraft, draftSavedAt, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, GOAL_KINDS, withPoints, type GoalDraft } from '../domain/goal';
-import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, proposedMustFix, unsaidDraft, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
+import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, FIELD_LABEL, planSpanOf, proposedMustFix, unsaidDraft, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
 import { focusQuestion } from '../ui/questionInView';
 import { fmt } from '../domain/format';
@@ -32,15 +32,16 @@ import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErro
 import { WeekPick } from '../ui/WeekPick';
 import { datesOf, defaultTo, weekSays } from '../domain/weeks';
 import { rangeSays, spanSays } from '../domain/weekChoices';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Place, useFilled, useModules, type MeasurePick } from '../core/app';
 import { reviewsOn } from '../app/reads';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
-import { FormFooter } from '../ui/FormFooter';
-import { nextLabel } from '../domain/formFooter';
+import { FormFooter, useKeptOnce } from '../ui/FormFooter';
+import { draftFromDay, nextLabel, PROPOSE_SAYS, publishSays } from '../domain/formFooter';
+import { FixSummary } from '../ui/FixSummary';
 import { recentsOf, usePrefs } from '../app/search';
 
 const KINDS = GOAL_KINDS;
@@ -87,6 +88,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const defaultParent = app.goal(params.get('parent') ?? '')?.id ?? '';
   const viewerTeam = app.viewer.teamId ?? '';
   const [d, set, clear, restored, touched] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
+  const [draftWords] = useState(() => draftFromDay(draftSavedAt(goalDraftKey(app.ws.id, null)), Date.now()));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   // The baseline's period (BL) starts folded into one link on the plan's line, so the step still fits two phone screens.
@@ -195,7 +197,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
 
   // A later step opened with an earlier one unfilled goes to the first unfilled one, its errors not yet shown.
   const firstBad = [0, 1, 2].find((i) => i < step && stepErrors(i).length);
-  useEffect(() => { if (firstBad == null && d.step !== step) set({ step }); }, [firstBad, step, d.step, set]);
+  useEffect(() => { if (firstBad == null && d.step !== step) set({ step }, true); }, [firstBad, step, d.step, set]);
   // The goal's page loads while Check is read, so Publish opens it at once.
   useEffect(() => { if (step === 3) void loadGoalPage(); }, [step]);
   useEffect(() => { top.current?.querySelector<HTMLElement>('.focus-body input, .focus-body select, .focus-body textarea, .focus-body button.kindcard, .focus-body .pick button')?.focus(); }, [step]);
@@ -304,17 +306,18 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   }) : null;
   const choices = underWay({ owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, rhythm: 'weekly', week, from: d.kind === 'metric' ? span.from : undefined });
 
+  // What is left to fix on this step, each a link to its field (patterns spec 3.3.3); one is said under its field alone.
+  const toFix = shown && !gate.go && step < 3 ? [...new Set(stepErrors(step).map((m) => m.field))].map((f) => ({ field: f as string, label: FIELD_LABEL[f] ?? f })) : [];
+  const kept = useKeptOnce(touched && !restored, restored, step);
+
   return (
     <div className="focus goal-form" ref={top}>
-      <div className="focus-top wiz-top">
-        <span className="small strong">New goal</span>
-        <Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} />
-        <FormClose keeps dirty={touched} onClose={() => nav('/goals')} />
-      </div>
+      <TaskHeader className="wiz-top" name="New goal" steps={<Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} draft={restored ? draftWords : null} />} close={{ keeps: true, dirty: touched, onClose: () => nav('/goals') }} />
       {firstBad != null && <Navigate replace to={atStep(firstBad)} />}
       <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
-        {restored && !asking && (
-          <div className="restored small" role="status">Picked up the goal you hadn’t published. <button type="button" className="linkish" onClick={() => setAsking(true)}>Start a new one</button></div>
+        {/* The resumed draft is said in the step line (patterns spec 3.4.3); starting afresh stays one quiet link away. */}
+        {restored && !asking && step === 0 && (
+          <p className="small restored-link"><button type="button" className="linkish tap" onClick={() => setAsking(true)}>Start a new goal instead</button></p>
         )}
         {asking && (
           <div className="restored small" role="alertdialog" aria-label="Discard the draft">
@@ -538,8 +541,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
           </>
         )}
 
-        {shown && !gate.go && step < 3 && <FixLine>{gate.says}</FixLine>}
-        <FormFooter onBack={step > 0 ? back : undefined}>
+        {shown && !gate.go && step < 3 && toFix.length < 2 && <FixLine>{gate.says}</FixLine>}
+        <FormFooter onBack={step > 0 ? back : undefined} statusTone={toFix.length > 1 ? 'off' : undefined}
+          status={toFix.length > 1 ? <FixSummary items={toFix} root={top} /> : step === 3 && !published && !saving ? (proposing ? PROPOSE_SAYS : publishSays(app.ws.name)) : kept}>
           {/* Proposed, how it's measured can be said later: straight from Who and where to Check (2.15, item 4). */}
           {step === 1 && proposing && <button type="button" className="linkish skip-measure" onClick={() => go(3)}>Skip: say how it’s measured later</button>}
           <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? (proposing ? 'Proposed' : 'Published') : saving ? 'Saving…' : step < 3 ? nextLabel(step === 2 ? 'check it' : NEW_GOAL_STEPS[step + 1]!.name.toLowerCase()) : proposing ? 'Propose goal' : 'Publish goal'}</button>

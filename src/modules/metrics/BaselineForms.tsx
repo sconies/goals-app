@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../../app/state';
-import { FormClose } from '../../ui/FormClose';
+import { TaskHeader } from '../../ui/PageHeader';
 import { WarnMark } from '../../ui/bits';
 import { FormFooter } from '../../ui/FormFooter';
 import { PickOne } from '../../ui/Pick';
@@ -15,6 +15,10 @@ import { metricAt, metricPath } from './rulesLibrary';
 import { demoBehindWeeks, sourcesFrom } from './sources';
 import type { NumberSource } from './source';
 import './metrics.css';
+import { focusEl } from '../../ui/FixSummary';
+
+/** Confirm pressed with no figure typed. */
+const NONE_TYPED = 'Type at least one figure to confirm it as a baseline.';
 
 type App = ReturnType<typeof useApp>;
 type Slice = { teamId: string | null; part: string };
@@ -55,7 +59,7 @@ export function AddBaseline() {
   if (!canEditMetric(app.viewer, m)) {
     return (
       <div className="focus metric-form">
-        <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+        <TaskHeader name="Add a baseline" close={{ keeps: false, onClose: back }} />
         <div className="focus-body"><h1 className="qtitle big">Add a baseline</h1><p>Only {app.person(m.ownerId)?.name ?? 'its owner'} or an admin can set this metric’s baselines.</p></div>
       </div>
     );
@@ -74,7 +78,7 @@ export function AddBaseline() {
   };
   return (
     <div className="focus metric-form">
-      <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+      <TaskHeader name="Add a baseline" close={{ keeps: false, onClose: back }} />
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="qtitle big">{company && !had ? 'Add a baseline for a team' : 'Add a baseline'}</h1>
@@ -172,7 +176,7 @@ export function TakeBaselines() {
   const back = () => void nav('/metrics');
   return (
     <div className="focus metric-form metric-take">
-      <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+      <TaskHeader name="Take this quarter’s baselines" close={{ keeps: false, onClose: back }} />
       <div className="focus-body stack" style={{ gap: 'var(--s4)' }}>
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="qtitle big">Take this quarter’s baselines</h1>
@@ -208,7 +212,11 @@ export function TakeBaselines() {
         {rows && (
           <FormFooter>
             <button type="button" className="btn ghost big-btn" onClick={back}>Not now</button>
-            <button type="button" className="btn primary big-btn" disabled={busy || !taken.length} onClick={() => void confirm()}>{busy ? 'Saving…' : `Confirm ${taken.length} ${taken.length === 1 ? 'baseline' : 'baselines'}`}</button>
+            {/* Never "Confirm 0 baselines", and never disabled for what's missing: pressed with none typed, it says so and focus goes to the first figure. */}
+            <button type="button" className="btn primary big-btn" disabled={busy} onClick={(ev) => {
+              if (!taken.length) { setTried(true); setError(NONE_TYPED); focusEl(ev.currentTarget.closest('.focus-foot')?.parentElement?.querySelector<HTMLElement>('input:not([type=checkbox]):not([type=radio])')); return; }
+              void confirm();
+            }}>{busy ? 'Saving…' : taken.length ? `Confirm ${taken.length} ${taken.length === 1 ? 'baseline' : 'baselines'}` : 'Confirm baselines'}</button>
           </FormFooter>
         )}
         {tried && missingReason.length > 0 && <p className="small metric-retake" role="alert">Say why for each corrected figure first.</p>}

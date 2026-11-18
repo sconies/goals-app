@@ -4,6 +4,8 @@
 import { guardBreaches } from '../domain/guards';
 import '../app/engineReady';
 import { useMemo, useRef, useState, type SelectHTMLAttributes } from 'react';
+import { flushSync } from 'react-dom';
+import { focusEl, focusFirstError } from '../ui/FixSummary';
 import { checkInDraftKey, checkInStepKey, clearDraft, peekDraft, writeDraft } from '../app/drafts';
 import type { FromTable } from './CheckInFlow';
 import { Link, useNavigate } from 'react-router';
@@ -21,8 +23,8 @@ import { filledAt, readWhen } from '../domain/readingWords';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
-import { postCheckIns } from '../domain/formFooter';
-import { FormClose } from '../ui/FormClose';
+import { postCheckIns, tableSays } from '../domain/formFooter';
+import { PageHeader, TaskHeader } from '../ui/PageHeader';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
 function Select({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
@@ -129,11 +131,13 @@ export function QuickCheckIn() {
   const confirmAll = () => { for (const x of toConfirm) touch(x.g.id); };
   // A second press while saving does nothing (a ref, because state updates too late to stop a quick double tap).
   const inFlight = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
   // Post counts the rows that are ready, and posts those; a row that isn't ready stays in the table, as a draft (U12).
   const save = async () => {
     if (inFlight.current) return;
-    setTried(true);
-    if (!ready.length) return;
+    flushSync(() => setTried(true));
+    // Nothing ready: focus goes to the first row in error, else the first number to type (patterns spec 3.3.2).
+    if (!ready.length) { if (!focusFirstError(formRef.current)) focusEl(formRef.current?.querySelector<HTMLElement>('input[data-q]')); return; }
     // Each row posts as the form does (rule 13), with what it answered, so History keeps the answer (build review of #160).
     // A number from its source, confirmed or changed, is posted with its reading (NR 2.3; rule 3).
     const posts: CheckInPost[] = ready.map(({ g, d, posted, reading, rowAnswers }) => ({ goalId: g.id, week: app.week, draft: { ...d!, answers: rowAnswers }, mode: posted ? 'again' : 'new', ...(reading ? { reading } : {}) }));
@@ -157,23 +161,21 @@ export function QuickCheckIn() {
   const summary = tried && !filled.length
     ? (toConfirm.length ? 'Confirm the numbers from their sources, or type your own.' : 'Type at least one number.')
     : filled.length > ready.length || (ready.length > 0 && toConfirm.length > 0)
-      ? (ready.length ? `Not posted until they’re ready: ${notReady}.` : notReady.charAt(0).toUpperCase() + notReady.slice(1) + '.')
-      : '';
+      // The ready count first (patterns spec 3.2): "5 ready. 2 need a reason before they can post."; else what each needs.
+      ? (ready.length && filled.length - ready.length === needReasons && !toConfirm.length ? tableSays(ready.length, needReasons)
+        : ready.length ? `${ready.length} ready. Not posted until the rest are: ${notReady}.` : notReady.charAt(0).toUpperCase() + notReady.slice(1) + '.')
+      : ready.length && !tried ? tableSays(ready.length, 0) : '';
+  // Opening the first row that isn't ready is the status line's link (3.3.4).
+  const firstBad = tried && filled.length > ready.length;
 
   return (
     <div className="page narrow quick">
       {/* A form: one way out, top right, in words (navigation spec 2.5). The numbers typed are kept as a draft. */}
-      <div className="focus-top quick-top">
-        <span className="small strong">Week {app.week} check-in</span>
-        <FormClose keeps dirty={Object.values(rows).some((r) => r.value.trim())} onClose={() => nav('/check-in')} />
-      </div>
-      <div className="page-head">
-        <h1 className="title-xl">Type all your numbers in one table</h1>
-        <span className="hint">Week {app.week}, {weekDates(app.cycle, app.week)}. Leave a row empty to skip it. A row that’s off plan asks why.</span>
-      </div>
+      <TaskHeader className="quick-top" name={`Week ${app.week} check-in`} close={{ keeps: true, dirty: Object.values(rows).some((r) => r.value.trim() || r.why.trim() || r.path.trim() || r.cause), onClose: () => nav('/check-in') }} />
+      <PageHeader title="Type all your numbers in one table" line={`Week ${app.week}, ${weekDates(app.cycle, app.week)}. Leave a row empty to skip it. A row that’s off plan asks why.`} />
       {!goals.length && <Empty title="No number goals to update"><Link className="btn" to="/check-in">Use the normal check-in</Link></Empty>}
       {goals.length > 0 && (
-        <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+        <form ref={formRef} className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
           {hasDraft && <p className="restored small">Picked up the numbers you hadn’t posted yet. <button type="button" className="linkish" onClick={startOver}>Start over</button></p>}
           <div className="glist qgrid">
             {judged.map(({ g, r, posted, e: judgedE, problem, open, read, differs, whyOk, unconfirmed }) => {
@@ -288,7 +290,7 @@ export function QuickCheckIn() {
           {milestones.length > 0 && <p className="hint">Stage goals ({milestones.map((g: Goal) => g.title).join(', ')}) use the <Link to="/check-in">normal check-in</Link>.</p>}
           {/* Post stays in sight however long the table gets; what's still wrong is said just above it. */}
           <div className="qfoot">
-            {summary && <p className="qsummary" role={tried ? 'alert' : 'status'}>{summary}</p>}
+            {summary && <p className="qsummary" role={tried ? 'alert' : 'status'}>{summary}{firstBad && <> <button type="button" className="linkish" onClick={() => focusFirstError(formRef.current)}>Go to the first</button></>}</p>}
             {/* The one way out is the header's Close (FORM-FOOTER): no Cancel here. */}
             <div className="foot-row">
               <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Posting…' : postCheckIns(ready.length)}</button>

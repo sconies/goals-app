@@ -108,7 +108,8 @@ module.exports = {
             cells: [...document.querySelectorAll('.goal-bar .scorecard .sc-cell')].map((c) => ({ label: t(c.querySelector('.sc-label')), value: t(c.querySelector('.sc-value')), sub: t(c.querySelector('.sc-sub')) })),
             firstText: words.join(' ').replace(/\s+/g, ' '),
             mtop: [...document.querySelectorAll('.mtop')].some((e) => e.getClientRects().length),
-            me: !!document.querySelector('.goal-bar .bar-me .profilebtn') && [...document.querySelectorAll('.goal-bar .bar-me')].some((e) => e.getClientRects().length),
+            // Find, Demo and you live in the shell's top bar, never in the goal's header (PAGE-HEADER rule 2, UX4).
+            me: !!document.querySelector('.mtop .profilebtn') && !document.querySelector('.goal-bar .profilebtn, .goal-bar .find-btn'),
             under: t(document.querySelector('.goal-chart figcaption')),
             oldFacts: ['.chart-facts', '.cf-end', '.cf-row', '.bar-3', '.bar-why', '.bar-feeds', '.bar-against', '.bar-dir'].filter((q) => document.querySelector('.goal-page ' + q)),
             band: !!document.querySelector('.goal-chart .c-band'),
@@ -156,7 +157,7 @@ module.exports = {
         const said = await sayings(p, 'Lead time is well above plan and the gap grew again this week');
         chk(said.top === 1 && said.all <= 2, `${at1}: the reason is said ${said.top} times in the first two screens, ${said.all} in all`);
         // On a phone the bar is the header: no app header above it, the person button at its right.
-        if (dev === 'phone') chk(!bar.mtop && bar.me, `${at1}: phone header still shown (${bar.mtop}) or no person button in the bar (${bar.me})`);
+        if (dev === 'phone') chk(bar.mtop && bar.me, `${at1}: no phone top bar (${bar.mtop}), or the person button isn’t in it or is in the goal’s header (${bar.me})`);
         // Removed: the four facts, Signals, What the owner says, the threats block, the breadcrumb and tab counts.
         const gone = await p.evaluate(() => ['.story .facts', '.goal-rail', '.threats', '.crumbs', '.goal-sticky', '.tabcount', '.fact-source', '.chart-facts'].filter((q) => document.querySelector('.goal-page ' + q)));
         chk(!gone.length, `${at1}: removed parts still on the page: ${gone.join(', ')}`);

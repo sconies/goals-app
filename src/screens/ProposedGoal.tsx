@@ -3,6 +3,7 @@
    scorecard and the chart. Its owner or an admin makes it active ("Make it active", a block in place; a sheet on a
    phone); whoever proposed it may change or withdraw it; anyone may comment, ask and watch. Loaded with the goal's
    page, only when a proposed goal is opened. The words are the domain's (domain/proposed, domain/readBack). */
+import { FieldError } from '../ui/GoalFields';
 import '../styles/notes/proposed.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -158,6 +159,7 @@ function MakeActive({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const [from, setFrom] = useState(Math.max(0, app.week));
   const [busy, setBusy] = useState(false);
   const [past, setPast] = useState<'' | 'yes'>('');
+  const [unanswered, setUnanswered] = useState(false);
   const proposer = goal.proposedBy && goal.proposedBy !== app.viewer.id ? app.person(goal.proposedBy)?.name ?? null : null;
   const watchers = (app.snapshot.watches ?? []).filter((w) => w.kind === 'goal' && w.ref === goal.id).length;
   const says = activeReadBack(goal, { cycle: app.cycle, week: app.week, today: app.today, rhythm: 'weekly', fromWeek: from, proposer, watchers });
@@ -165,7 +167,8 @@ function MakeActive({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const before = goal.kind === 'metric' && from < app.week;
   const ago = app.week - from;
   const go = async () => {
-    if (before && past !== 'yes') return;
+    // Never a disabled primary (patterns spec 3.3.1): pressed with the question open, it says so and moves focus there.
+    if (before && past !== 'yes') { setUnanswered(true); document.querySelector<HTMLInputElement>('.make-active input[name="from-past"]')?.focus(); return; }
     setBusy(true);
     try { await app.run('activate', { goalId: goal.id, ...(goal.kind === 'metric' ? { fromWeek: from, confirm: past === 'yes' } : {}) }); onClose(); } catch { setBusy(false); }
   };
@@ -181,13 +184,14 @@ function MakeActive({ goal, onClose }: { goal: Goal; onClose: () => void }) {
       {before && (
         <div className="check-block" role="group" aria-label="Has this been running since then?">
           <p className="small">Week {from} was {plural(ago, 'week')} ago. Has this been running since then?</p>
+          {unanswered && past !== 'yes' && <FieldError id="from-past-err">Answer this first.</FieldError>}
           <label className="check"><input type="radio" name="from-past" checked={past === 'yes'} onChange={() => setPast('yes')} /> Yes, it was {fmt(goal.kind === 'metric' ? goal.plan.start : 0, goal)} in week {from}</label>
           <label className="check"><input type="radio" name="from-past" checked={false} onChange={() => { setFrom(app.week); setPast(''); }} /> No, start from this week</label>
         </div>
       )}
       <p className="small make-active-says" role="status">{says}</p>
       <div className="row">
-        <button type="button" className="btn primary" disabled={busy || (before && past !== 'yes')} onClick={() => void go()}>Make it active</button>
+        <button type="button" className="btn primary" disabled={busy} onClick={() => void go()}>Make it active</button>
         <button type="button" className="btn" onClick={onClose}>Cancel</button>
       </div>
     </div>

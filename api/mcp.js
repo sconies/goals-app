@@ -26108,6 +26108,15 @@ var CORE_ARTICLES = [
 				list: ["Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on."]
 			},
 			{
+				heading: "The top of a page",
+				list: [
+					"Every page starts with its title at the left edge. Above it, a goal or a metric shows its status; under it, one line says what’s in scope, or who owns it and where it sits. At most one filled button sits at the right of the title; on a phone the buttons go under the line, so the title has its own line.",
+					"Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page. On a phone the top bar shows the workspace until the page’s title scrolls out of sight, then the page’s name.",
+					"On a phone, a list’s one action (Add a metric, Add a person, Send feedback) sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place once you scroll down.",
+					"A form shows what you’re doing at the top left, such as “Week 46 check-in · 2 of 7”, and its one way out at the top right."
+				]
+			},
+			{
 				heading: "Going back",
 				module: "reviews",
 				list: ["Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead."]
@@ -26133,7 +26142,13 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.", "At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix."]
+				list: [
+					"A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.",
+					"At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix. On a phone the main button takes the width and Back sits above it as a link.",
+					"The main button is never greyed out because something is missing. Press it and each field to fix says why beside it, and you are taken to the first. With more than one, the line above the buttons names them, each a link to its field.",
+					"A draft you come back to says so beside the step, “Draft from Tuesday”. The first time a form keeps a draft, the line above the buttons says “Draft kept in this browser.” once.",
+					"A panel that opens over the page (Watch, Add a next step, Respond) has the same foot, with Cancel on the left, because it has no Close at the top."
+				]
 			},
 			{
 				heading: "Leaving a form",
@@ -26166,7 +26181,8 @@ var CORE_ARTICLES = [
 			"NAV-WHERE",
 			"NAV-BACK",
 			"NAV-FORMS",
-			"FORM-FOOTER"
+			"FORM-FOOTER",
+			"PAGE-HEADER"
 		],
 		keywords: [
 			"back",
@@ -26713,6 +26729,19 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "one-page-header",
+		date: "2026-11-18",
+		title: "Every page starts the same way",
+		points: [
+			"A page’s title sits at the left, with one line under it and at most one main button beside it.",
+			"Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page, a goal’s included.",
+			"On a phone the title gets a line of its own, and the top bar names the page only once its title has scrolled away.",
+			"On a phone, a list’s one action sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place as you scroll.",
+			"A check-in, New goal and every other focused task show their name at the left and their one way out at the right."
+		],
+		articles: ["getting-around"]
+	},
+	{
 		id: "one-form-footer",
 		date: "2026-11-18",
 		title: "Every form ends the same way",
@@ -26720,7 +26749,8 @@ var WHATS_NEW = [
 			"The main button at the foot of a form now says what it does: “Next: why it’s behind” names the next question, “Post check-in” posts, “Post 5 check-ins” posts the table.",
 			"Back is on the left, from the second step. The line above the buttons says what posting does, or what is left to fix.",
 			"The way out stays at the top right. On a form that keeps drafts it says “Close” until you type something, then “Close and keep the draft”.",
-			"The table check-in no longer has a Cancel at its foot: Close at the top does the same."
+			"A button is never greyed out because something is missing: press it and the field to fix is marked, says why, and takes you there. With more than one, the line above the buttons names each, as a link.",
+			"A draft you come back to says so beside the step (“Draft from Tuesday”), and the first time one is kept the line says “Draft kept in this browser.” New goal, a metric and Import also say what pressing will do."
 		],
 		articles: ["getting-around"]
 	},
@@ -28519,6 +28549,7 @@ var RULE_PAGES = [
 var MORE_RULE_PAGES = [
 	["goal-row", "One goal row"],
 	["form-footer", "One form footer"],
+	["page-header", "One page header"],
 	["field-table", "The field table"],
 	["import-levels", "Kinds, levels and near misses"],
 	["import-preview", "What an import read, and leaving rows out"],

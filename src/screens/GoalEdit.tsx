@@ -23,11 +23,14 @@ import { WeekPick } from '../ui/WeekPick';
 import { defaultTo } from '../domain/weeks';
 import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import { Place, type MeasurePick } from '../core/app';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
 import { FormFooter } from '../ui/FormFooter';
+import { FixSummary, focusField } from '../ui/FixSummary';
+import { REPLAN_SAYS } from '../domain/formFooter';
+import { FIELD_LABEL } from '../domain/goalEntry';
 import { MAX_GUARDS } from '../domain/guards';
 import { guardRefusal } from '../domain/guardWords';
 
@@ -152,7 +155,10 @@ function EditSheet({ goal }: { goal: Goal }) {
     if (built && !confirmed) { focusQuestion(form.current, open[0]!.slot); return; }
     // What measures it holds the save (a Must fix or an open Check under "Measured by"): focus goes to it, not Save.
     if (built && measure?.blocks) { requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('#measured-by [aria-invalid="true"], #measured-by [data-check]')?.focus()); return; }
-    if (!built || saving || (replanning && !reasonOk)) return;
+    // Something missing: the errors show and focus goes to the first field in error (patterns spec 3.3.2).
+    if (!built) { const first = fix[0]; if (first) requestAnimationFrame(() => focusField(form.current, first.field)); return; }
+    if (replanning && !reasonOk) { requestAnimationFrame(() => focusField(form.current, 'reason')); return; }
+    if (saving) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
@@ -171,21 +177,22 @@ function EditSheet({ goal }: { goal: Goal }) {
     }
   };
 
-  const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : 'Save changes';
+  // The primary says what it does, always; it is never disabled for missing input (patterns spec 3.3.2).
+  const label = saving ? 'Saving…' : 'Save changes';
+  // What is left to fix, in the form's order, each a link to its field (3.3.3).
+  const toFix = tried ? [...new Map(fix.map((f) => [f.field, { field: f.field as string, label: FIELD_LABEL[f.field] ?? f.field }])).values(), ...(replanning && !reasonOk ? [{ field: 'reason', label: 'Why change it?' }] : [])] : [];
   // Asked right under what changed (the numbers), not at the bottom of the section.
   const reasonField = replanning && (
     <label className="field reason-field">
       <span className="field-label">Why change it?</span>
-      <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
-      {tried && !reasonOk ? <FieldError>{REASON_EMPTY}</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
+      <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} data-field="reason" aria-invalid={(tried && !reasonOk) || undefined} aria-describedby={tried && !reasonOk ? 'reason-err' : undefined} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
+      {tried && !reasonOk ? <FieldError id="reason-err">{REASON_EMPTY}</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
     </label>
   );
 
   return (
     <div className="focus goal-form goal-edit">
-      <div className="focus-top">
-        <FormClose keeps dirty={touched} onClose={back} />
-      </div>
+      <TaskHeader name="Change a goal" close={{ keeps: true, dirty: touched, onClose: back }} />
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <h1 className="qtitle big">Change {goal.title}</h1>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
@@ -309,8 +316,9 @@ function EditSheet({ goal }: { goal: Goal }) {
         </details>
 
         {tried && valid && !confirmed && <FixLine>{openLine(open)}</FixLine>}
-        <FormFooter>
-          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk) || !confirmed))}>{label}</button>
+        <FormFooter statusTone={toFix.length > 1 ? 'off' : undefined}
+          status={toFix.length > 1 ? <FixSummary items={toFix} root={form} /> : replanning ? REPLAN_SAYS : undefined}>
+          <button className="btn primary big-btn" type="submit" aria-disabled={saving || undefined}>{label}</button>
         </FormFooter>
         {/* GE10: only an active goal with no check-ins can go back to proposed (the goal's "…" menu). */}
         {started && !isProposed(goal) && <p className="hint small">{HAS_CHECK_INS}</p>}

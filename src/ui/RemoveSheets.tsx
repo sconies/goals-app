@@ -11,6 +11,7 @@ import { leftName, MIN_STOP_REASON } from '../domain/vocabulary';
 import type { Goal, Person } from '../domain/types';
 import { Sheet } from './bits';
 import { PickOne } from './Pick';
+import { FormFooter } from './FormFooter';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const firstOf = (name: string) => name.split(' ')[0] ?? name;
@@ -62,7 +63,7 @@ export function RemoveGoalSheet({ goal, onClose }: { goal: Goal; onClose: () => 
             {asks > 0 && <li>{asks === 1 ? 'Its open ask is' : `Its ${asks} open asks are`} withdrawn, with a note saying why.</li>}
           </ul>
         )}
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn danger big-btn" type="submit">{busy ? (history ? 'Stopping…' : 'Deleting…') : history ? 'Stop the goal' : 'Delete the goal'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn danger big-btn" type="submit">{busy ? (history ? 'Stopping…' : 'Deleting…') : history ? 'Stop the goal' : 'Delete the goal'}</button></FormFooter>
       </form>
     </Sheet>
   );
@@ -82,7 +83,7 @@ export function BackToProposedSheet({ goal, onClose }: { goal: Goal; onClose: ()
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void go(); }}>
         <p className="strong">{goal.title}</p>
         <p className="small">It will have no status and nothing will be due until it is made active.</p>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Keep it active</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : 'Make it proposed'}</button></div>
+        <FormFooter sheet onCancel={onClose} cancelLabel="Keep it active"><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : 'Make it proposed'}</button></FormFooter>
       </form>
     </Sheet>
   );
@@ -152,10 +153,9 @@ export function LeaveSheet({ person, onClose }: { person: Person; onClose: () =>
         ) : (
           <p className="small">{person.name} has no goals, check-ins, notes or asks here, so they’re deleted rather than marked as left. You can undo it straight away, and an admin can restore them for 30 days.</p>
         )}
-        <div className="foot-row">
-          <button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button>
+        <FormFooter sheet onCancel={onClose}>
           {!blocked && <button className="btn danger big-btn" type="submit">{busy ? 'Saving…' : history ? 'Mark as left' : `Delete ${first}`}</button>}
-        </div>
+        </FormFooter>
       </form>
     </Sheet>
   );
@@ -205,10 +205,9 @@ export function LeaveWorkspaceSheet({ onClose }: { onClose: () => void }) {
             {passes.length > 0 && <ul className="remove-effects small">{passes.map((line) => <li key={line}>{line}</li>)}</ul>}
           </>
         )}
-        <div className="foot-row">
-          <button className="btn ghost big-btn" type="button" onClick={onClose}>{blocked ? 'Close' : 'Stay'}</button>
+        <FormFooter sheet onCancel={onClose} cancelLabel={blocked ? 'Close' : 'Stay'}>
           {!blocked && <button className="btn danger big-btn" type="submit">{busy ? 'Leaving…' : 'Leave the workspace'}</button>}
-        </div>
+        </FormFooter>
       </form>
     </Sheet>
   );

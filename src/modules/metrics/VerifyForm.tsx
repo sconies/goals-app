@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../../app/state';
-import { FormClose } from '../../ui/FormClose';
+import { TaskHeader } from '../../ui/PageHeader';
 import { FormFooter } from '../../ui/FormFooter';
 import { WarnMark } from '../../ui/bits';
 import { StageMark } from './stageMark';
@@ -62,7 +62,7 @@ export function VerifyForm() {
   };
   return (
     <div className="focus metric-form">
-      <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+      <TaskHeader name="Verify a metric" close={{ keeps: false, onClose: back }} />
       <div className="focus-body stack" style={{ gap: 'var(--s4)' }}>
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="qtitle big">Verify {m.name}</h1>

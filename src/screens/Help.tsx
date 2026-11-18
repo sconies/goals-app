@@ -32,6 +32,7 @@ import { reviewsOn } from '../app/reads';
 import { useApp } from '../app/state';
 import { raisedBy } from '../markup/backend';
 import { raisedIn, raisedText, type Raised } from '../markup/model';
+import { PageHeader } from '../ui/PageHeader';
 
 function ArticleRow({ a }: { a: Article }) {
   const { on } = useModules();
@@ -60,10 +61,7 @@ export function HelpHome() {
   const groupTitle = useGroupTitle();
   return (
     <div className="page narrow help-page">
-      <div className="page-head">
-        <h1 className="title-xl">Help</h1>
-        <span className="hint">What each page in Faro does, and how to use it.</span>
-      </div>
+      <PageHeader title="Help" line="What each page in Faro does, and how to use it." />
       <div className="help-search">
         <ListSearch value={q} label="Find in Help" placeholder="Find in Help" autoFocus settleMs={0} onSearch={(v, change) => setParams(v ? { q: v } : {}, { replace: historyStep(change) === 'replace' })} />
       </div>
@@ -116,11 +114,7 @@ export function HelpArticle() {
   return (
     <div className="page narrow help-page help-article">
       <BackLink to="/help" label="Help" />
-      <div className="page-head">
-        <span className="eyebrow">{group && groupTitle(group)}</span>
-        <h1 className="title-xl">{articleShown(a, on).title}</h1>
-        <p className="help-lead">{articleShown(a, on).summary}</p>
-      </div>
+      <PageHeader above={group ? <span className="eyebrow">{groupTitle(group)}</span> : null} title={articleShown(a, on).title} line={<p className="help-lead">{articleShown(a, on).summary}</p>} />
       <Place name="help.article" article={a.id} />
       {a.id === 'status' && <StatusLegend kind="key" statuses={['on', 'risk', 'off', 'stale', 'done']} className="help-key" wordClass="strong" label="Status shapes" />}
       {sectionsShown(a, on).map((s) => (
@@ -152,10 +146,7 @@ export function WhatsNew() {
   return (
     <div className="page narrow help-page">
       <BackLink to="/help" label="Help" />
-      <div className="page-head">
-        <h1 className="title-xl">What’s new</h1>
-        <span className="hint">Each release, newest first. <Link to="/help">Help</Link> explains every page.</span>
-      </div>
+      <PageHeader title="What’s new" line={<span className="hint">Each release, newest first. <Link to="/help">Help</Link> explains every page.</span>} />
       <ol className="news-list">
         {WHATS_NEW.map((e) => {
           const read = e.articles.map((id) => anyArticle(id)).filter(shown);

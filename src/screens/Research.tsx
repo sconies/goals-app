@@ -1,12 +1,14 @@
 /* The research hub: everything a researcher (a person or an AI agent) needs to try the app and report back:
    what it's for, what's deliberately not built yet, the tasks, how to leave notes, and where the report goes. */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { FieldError } from '../ui/GoalFields';
 import { useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { addNote, notesMarkdown, readNotes, REPORT_TEMPLATE, startSession, TASKS, writeSession } from '../app/research';
 import { saveAndSay } from '../app/files';
 import { personaOf } from '../ui/Demo';
 import { useResearch } from '../ui/ResearchBar';
+import { PageHeader } from '../ui/PageHeader';
 
 export function Research() {
   const app = useApp();
@@ -15,6 +17,8 @@ export function Research() {
   const [name, setName] = useState('');
   const [kind, setKind] = useState<'person' | 'ai'>('person');
   const [report, setReport] = useState(REPORT_TEMPLATE);
+  const [thin, setThin] = useState(false);
+  const reportRef = useRef<HTMLTextAreaElement>(null);
   const [sent, setSent] = useState(false);
   const notes = s ? readNotes(s.id) : [];
   const done = (id: string) => notes.find((n) => n.kind === 'task' && n.taskId === id);
@@ -33,10 +37,7 @@ export function Research() {
   };
   return (
     <div className="page narrow research">
-      <div className="page-head">
-        <h1 className="title-xl">Research this app</h1>
-        <span className="hint">For people and AI agents trying it out. Use it as you would, say what you think as you go, and try to break it.</span>
-      </div>
+      <PageHeader title="Research this app" line="For people and AI agents trying it out. Use it as you would, say what you think as you go, and try to break it." />
 
       <section className="block">
         <h2 className="block-title">What it is</h2>
@@ -102,12 +103,15 @@ export function Research() {
             <span className="hint">{notes.length} {notes.length === 1 ? 'note' : 'notes'} so far. They’re kept with the report. Paste a report written elsewhere, or load a file.</span>
             {sent ? <p className="calm">Report received. Thank you.</p> : (
               <>
-                <textarea className="input mono-ish" rows={16} value={report} onChange={(e) => setReport(e.target.value)} aria-label="Your report" />
+                {/* Pressed too soon: said here and focused (patterns spec 3.3.1), never a disabled button. */}
+                {thin && <FieldError id="report-err">Write the report first: a few sentences at least, not just the template.</FieldError>}
+                <textarea ref={reportRef} className={'input mono-ish' + (thin ? ' invalid' : '')} rows={16} value={report} onChange={(e) => { setReport(e.target.value); setThin(false); }} aria-label="Your report"
+                  aria-invalid={thin || undefined} aria-describedby={thin ? 'report-err' : undefined} />
                 <span className="row">
                   <label className="btn sm">Load a file<input type="file" accept=".md,.txt,text/markdown,text/plain" className="sr" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setReport(await f.text()); }} /></label>
                   <button type="button" className="btn sm" onClick={() => void saveAndSay(app.toast, { workspace: app.ws.name, what: 'research-notes', scope: s.id, date: app.today }, { kind: 'md', text: notesMarkdown(s) }, 'Notes saved')}>Download my notes</button>
                 </span>
-                <div><button type="button" className="btn primary big-btn" disabled={report.trim().length < 40 || report.trim() === REPORT_TEMPLATE.trim()} onClick={() => void submit()}>Send the report</button></div>
+                <div><button type="button" className="btn primary big-btn" onClick={() => { if (report.trim().length < 40 || report.trim() === REPORT_TEMPLATE.trim()) { setThin(true); reportRef.current?.focus(); return; } void submit(); }}>Send the report</button></div>
               </>
             )}
             <button type="button" className="linkish small" onClick={() => writeSession(null)}>End this session</button>

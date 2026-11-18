@@ -34,6 +34,8 @@ import { useWidth } from '../ui/useWidth';
 import { PickOne } from '../ui/Pick';
 import { CountLine, FilterLine, ListBar, ListSearch, NoneFound } from '../ui/ListBar';
 import type { FilterPart } from '../domain/find';
+import { PageHeader } from '../ui/PageHeader';
+import { FormFooter } from '../ui/FormFooter';
 
 const PEOPLE = { thing: 'person', things: 'people' };
 const TEAMS = { thing: 'team', things: 'teams' };
@@ -52,13 +54,7 @@ function PlaceHead({ tab, action }: { tab: 'people' | 'teams'; action?: ReactNod
   const app = useApp();
   return (
     <>
-      <div className="page-head row between people-head">
-        <div className="stack" style={{ gap: 4 }}>
-          <h1 className="title-xl">People</h1>
-          <span className="hint">Everyone in {wsName(app.ws)}, and the teams they are in.</span>
-        </div>
-        {action}
-      </div>
+      <PageHeader className="people-head" title="People" line={`Everyone in ${wsName(app.ws)}, and the teams they are in.`} actions={action} inListBar />
       <nav className="people-tabs" aria-label="People and teams">
         <Link to="/people" aria-current={tab === 'people' ? 'page' : undefined}>People · {app.snapshot.people.length}</Link>
         <Link to="/teams" aria-current={tab === 'teams' ? 'page' : undefined}>Teams · {app.snapshot.teams.length}</Link>
@@ -127,11 +123,12 @@ export function PeopleList() {
       </label>
     </>
   );
+  const addPerson = admin ? <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a person</button> : null;
   return (
     <div className="page people-page" ref={ref}>
-      <PlaceHead tab="people" action={admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a person</button>} />
+      <PlaceHead tab="people" action={addPerson} />
       {/* The list bar (FS2): the search, the filters (one Filter button on a phone), then the count and filter lines. */}
-      <ListBar search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, historyStep(change) === 'replace')} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
+      <ListBar action={addPerson} search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, historyStep(change) === 'replace')} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
         {narrow
           ? <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filter{parts.length ? ` · ${parts.length}` : ''}</button>
           : filters}
@@ -254,16 +251,10 @@ export function PersonPage() {
   return (
     <div className="page narrow person-page">
       <BackLink to="/people" label="People" />
-      <div className="page-head row between person-head">
-        <div className="row person-who">
-          <Avatar p={p} size="lg" />
-          <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-            <h1 className="title-xl">{left && !p.name.endsWith(leftName('')) ? leftName(p.name) : p.name}</h1>
-            {left ? <span className="hint">Left {wsName(app.ws)} on {dateOf(p.leftAt!)}. Their history stays.</span> : p.role ? <span className="hint">{p.role}</span> : null}
-          </span>
-        </div>
-        {see && !left && <Link className="btn primary" to={`/goals?owner=${encodeURIComponent(p.id)}`}>{see}</Link>}
-      </div>
+      {/* The picture sits above the name, so the name keeps the content's left edge (PAGE-HEADER rule 1). */}
+      <PageHeader className="person-head" above={<Avatar p={p} size="lg" />} title={left && !p.name.endsWith(leftName('')) ? leftName(p.name) : p.name}
+        line={left ? `Left ${wsName(app.ws)} on ${dateOf(p.leftAt!)}. Their history stays.` : p.role || null}
+        actions={see && !left ? <Link className="btn primary" to={`/goals?owner=${encodeURIComponent(p.id)}`}>{see}</Link> : null} />
       {!left && (
         <dl className="facts person-facts">
           <dt>Team</dt>
@@ -313,10 +304,11 @@ export function TeamsList() {
   const found = shown.rows;
   useEffect(() => { if (answer && shown.page !== page && page !== 1) setParams((p) => { const n = new URLSearchParams(p); if (shown.page > 1) n.set('page', String(shown.page)); else n.delete('page'); return n; }, { replace: true }); });
   const ctx = { snapshot: app.snapshot, statusOf: (g: Parameters<typeof app.statusOf>[0]) => app.statusOf(g).status };
+  const addTeam = app.viewer.admin ? <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button> : null;
   return (
     <div className="page people-page">
-      <PlaceHead tab="teams" action={app.viewer.admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button>} />
-      <ListBar search={<ListSearch value={q} onSearch={(t, change) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); n.delete('page'); return n; }, { replace: historyStep(change) === 'replace' })} label="Find a team" placeholder="Find a team or its lead" />} />
+      <PlaceHead tab="teams" action={addTeam} />
+      <ListBar action={addTeam} search={<ListSearch value={q} onSearch={(t, change) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); n.delete('page'); return n; }, { replace: historyStep(change) === 'replace' })} label="Find a team" placeholder="Find a team or its lead" />} />
       {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : answer && !answer.stale && <CountLine things={TEAMS} n={shown.total} narrowed={!!q.trim()} order="A to Z" shown={shown.total > DIRECTORY_PAGE ? { from: shown.from, to: shown.to } : null} />}
       {!!app.snapshot.teams.length && answer && !answer.stale && !shown.total && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
       {found.length > 0 && (
@@ -380,13 +372,8 @@ export function TeamPage() {
   return (
     <div className="page narrow person-page team-page">
       <BackLink to="/teams" label="Teams" />
-      <div className="page-head row between person-head">
-        <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-          <h1 className="title-xl">{t.name}</h1>
-          <span className="hint">{s.lead ? <>Led by <Link to={`/people/${encodeURIComponent(s.lead.id)}`}>{s.lead.name}</Link></> : 'No lead'} · {plural(s.people.length, 'person', 'people')} · {plural(s.goals.length, 'goal', 'goals')} this year</span>
-        </span>
-        {s.goals.length > 0 && <Link className="btn primary" to={`/goals?team=${encodeURIComponent(t.id)}`}>{s.goals.length === 1 ? 'See its goal' : `See its ${s.goals.length} goals`}</Link>}
-      </div>
+      <PageHeader className="person-head" title={t.name} line={<span className="hint">{s.lead ? <>Led by <Link to={`/people/${encodeURIComponent(s.lead.id)}`}>{s.lead.name}</Link></> : 'No lead'} · {plural(s.people.length, 'person', 'people')} · {plural(s.goals.length, 'goal', 'goals')} this year</span>}
+        actions={s.goals.length > 0 ? <Link className="btn primary" to={`/goals?team=${encodeURIComponent(t.id)}`}>{s.goals.length === 1 ? 'See its goal' : `See its ${s.goals.length} goals`}</Link> : null} />
       {(t.objective || admin) && (
         <section className="stack team-purpose" style={{ gap: 4 }} aria-labelledby="team-purpose">
           <h2 className="label" id="team-purpose">What it is here to do</h2>
@@ -458,7 +445,7 @@ export function TeamSheet({ team, onClose, onSaved }: { team: Team | null; onClo
         <label className="field"><span className="field-label">What it is here to do <span className="hint">optional</span></span>
           <textarea className="input" rows={2} maxLength={280} value={objective} onChange={(e) => setObjective(e.target.value)} />
         </label>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : team ? 'Save' : 'Add the team'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : team ? 'Save' : 'Add the team'}</button></FormFooter>
       </form>
     </Sheet>
   );
@@ -500,7 +487,7 @@ function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void })
             </div>
           </>
         )}
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button>{(!has || others.length > 0) && <button className="btn danger big-btn" type="submit">{busy ? 'Removing…' : has ? 'Move them and remove' : 'Remove the team'}</button>}</div>
+        <FormFooter sheet onCancel={onClose}>{(!has || others.length > 0) && <button className="btn danger big-btn" type="submit">{busy ? 'Removing…' : has ? 'Move them and remove' : 'Remove the team'}</button>}</FormFooter>
       </form>
     </Sheet>
   );
@@ -595,7 +582,7 @@ export function PersonSheet({ person, onClose, onSaved }: { person: Person | nul
           <input className="input" value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} />
         </label>
         <PickOne kind="team" label="Team" none="No team" value={p.teamId} onChange={(id) => setP({ ...p, teamId: id })} />
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></FormFooter>
       </form>
     </Sheet>
   );

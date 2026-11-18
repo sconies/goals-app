@@ -25,6 +25,9 @@ import { canRestore, canUndoStart, cycleStanding, startOf } from '../domain/remo
 import { AccessTokens, TokenListSheet } from '../ui/AiAssistants';
 import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
+import { FormFooter } from '../ui/FormFooter';
+import { FieldError } from '../ui/GoalFields';
+import { focusFirstError } from '../ui/FixSummary';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
 import type { Cycle } from '../domain/types';
@@ -42,6 +45,7 @@ import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
 import { rhythmAbout, rhythmChoiceOf, rhythmFact, rhythmLine, rhythmReadBack, rhythmReadBackLines, rhythmToast, type RhythmChoice } from '../domain/rhythm';
 import { WEEKDAY } from '../domain/progress';
+import { PageHeader } from '../ui/PageHeader';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
 const NARROW = 720;
@@ -106,12 +110,10 @@ export function WorkspaceHome({ section }: { section?: string }) {
   return (
     <WsCtx.Provider value={ctx}>
       <div className={'page workspace ws-' + id + (narrow ? ' ws-narrow' : '')} ref={ref}>
-        <div className="page-head wsp-head">
-          {sub && <Link className="backlink" to="/workspace"><Icon name="chevron-left" /><span className="ellipsis">Workspace</span></Link>}
-          <h1 className="title-xl">{sub ? here?.label ?? 'Workspace' : 'Workspace'}</h1>
-          {/* One line: whose workspace, and your part in it (WR2). Nothing else. */}
-          {!sub && <span className="hint ws-role-line" data-role={app.viewer.admin ? 'admin' : 'member'}>{ws.name} · you’re {app.viewer.admin ? 'an admin' : 'a member'} here</span>}
-        </div>
+        {/* One line: whose workspace, and your part in it (WR2). Nothing else. */}
+        <PageHeader className="wsp-head" above={sub ? <Link className="backlink" to="/workspace"><Icon name="chevron-left" /><span className="ellipsis">Workspace</span></Link> : null}
+          title={sub ? here?.label ?? 'Workspace' : 'Workspace'}
+          line={!sub ? <span className="hint ws-role-line" data-role={app.viewer.admin ? 'admin' : 'member'}>{ws.name} · you’re {app.viewer.admin ? 'an admin' : 'a member'} here</span> : null} />
         {narrow ? <div className="ws-body">{body}</div> : (
           <div className="ws-layout">
             <nav className="ws-menu" aria-label="Workspace sections"><SectionLinks current={id} /></nav>
@@ -411,15 +413,22 @@ export function AiAccessSection() {
 function AddAdminSheet({ onClose, setAdmin }: { onClose: () => void; setAdmin: ReturnType<typeof useSetAdmin> }) {
   const app = useApp();
   const [pick, setPick] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const chosen = pick ? app.person(pick) : undefined;
+  // Pressed with nobody chosen: said under the field and focused (patterns spec 3.3.1), never a disabled button.
+  const make = () => { if (!chosen) { setMissing(true); focusFirstError(rootRef.current); return; } onClose(); void setAdmin(chosen, true); };
   return (
     <Sheet open onClose={onClose} title="Add an admin">
-      <div className="stack" style={{ gap: 'var(--s4)' }}>
-        <PickOne kind="person" label="Who" value={pick} onChange={setPick} refuse={(row) => (app.person(row.id)?.admin ? 'Already an admin' : null)} />
-        <div className="foot-row">
-          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn primary big-btn" disabled={!chosen} onClick={() => { if (chosen) { onClose(); void setAdmin(chosen, true); } }}>{chosen ? `Make ${chosen.name.split(/\s+/)[0]} an admin` : 'Make them an admin'}</button>
+      <div ref={rootRef} className="stack" style={{ gap: 'var(--s4)' }}>
+        <div className="field">
+          <PickOne kind="person" label="Who" value={pick} onChange={(id) => { setPick(id); setMissing(false); }} refuse={(row) => (app.person(row.id)?.admin ? 'Already an admin' : null)}
+            invalid={missing} describedBy={missing ? 'admin-err' : undefined} />
+          {missing && <FieldError id="admin-err">Choose who to make an admin first.</FieldError>}
         </div>
+        <FormFooter sheet onCancel={onClose}>
+          <button type="button" className="btn primary big-btn" onClick={make}>{chosen ? `Make ${chosen.name.split(/\s+/)[0]} an admin` : 'Make them an admin'}</button>
+        </FormFooter>
       </div>
     </Sheet>
   );
@@ -668,8 +677,10 @@ function Features() {
 function RhythmSheet({ latest, onClose }: { latest: { current: ReturnType<typeof useApp> }; onClose: () => void }) {
   const app = useApp();
   const saved = rhythmChoiceOf(app.cycle);
-  const [to, setTo] = useState<RhythmChoice>(saved);
+  const [to, setToRaw] = useState<RhythmChoice>(saved);
   const [busy, setBusy] = useState(false);
+  const [same, setSame] = useState(false);
+  const setTo = (next: RhythmChoice) => { setToRaw(next); setSame(false); };
   const counts = rhythmReadBack(app.snapshot.goals, app.snapshot.checkIns, app.cycle, to, app.today);
   const lines = rhythmReadBackLines(app.cycle, to, counts, app.today);
   const before = { weeks: saved.weeks, dueDay: saved.dueDay, from: app.cycle.rhythmFrom ?? null };
@@ -710,10 +721,10 @@ function RhythmSheet({ latest, onClose }: { latest: { current: ReturnType<typeof
             </ul>
           </section>
         )}
-        <div className="foot-row">
-          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn primary big-btn" disabled={busy || !lines.length} onClick={() => void save()}>Save</button>
-        </div>
+        {/* Nothing changed yet: the status line says so when Save is pressed (patterns spec 3.3.1), never a disabled button. */}
+        <FormFooter sheet onCancel={onClose} status={same ? 'Nothing to save: this is the rhythm already. Choose another, or Cancel.' : undefined}>
+          <button type="button" className="btn primary big-btn" disabled={busy} onClick={() => { if (!lines.length) { setSame(true); return; } void save(); }}>Save the rhythm</button>
+        </FormFooter>
       </div>
     </Sheet>
   );
@@ -730,10 +741,9 @@ function ReadBackSheet({ title, people, lines, primary, aside, onClose, onSwitch
           {lines.map((l) => <li key={l.strong + l.rest}>{l.strong && <strong>{l.strong}</strong>}{l.rest}</li>)}
         </ul>
         {aside}
-        <div className="foot-row">
-          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+        <FormFooter sheet onCancel={onClose}>
           <button type="button" className="btn primary big-btn" onClick={onSwitch}>{primary}</button>
-        </div>
+        </FormFooter>
       </div>
     </Sheet>
   );
@@ -751,10 +761,9 @@ function ReviewsOffSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch:
         <ul className="readback-lines">
           {switchOffLines(r).map((l) => <li key={l.strong + l.rest}>{l.strong && <strong>{l.strong}</strong>}{l.rest}</li>)}
         </ul>
-        <div className="foot-row">
-          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+        <FormFooter sheet onCancel={onClose}>
           <button type="button" className="btn primary big-btn" onClick={onSwitch}>Switch off Reviews</button>
-        </div>
+        </FormFooter>
       </div>
     </Sheet>
   );

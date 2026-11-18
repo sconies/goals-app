@@ -18,6 +18,8 @@ import { ChangeItem } from '../ui/ChangeItem';
 import { historyStep, nearMiss, type ListChange } from '../domain/find';
 import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
 import { Pick, PickOne } from '../ui/Pick';
+import { PageHeader } from '../ui/PageHeader';
+import { FormFooter } from '../ui/FormFooter';
 
 function dayLabel(iso: string, today: Date) {
   const d = new Date(iso);
@@ -87,10 +89,7 @@ export function Activity() {
   const filterCount = chips.filter((c) => c.key !== 'q' && c.key !== 'kind' && c.key !== 'when').length;
   return (
     <div className="page narrow activity-page">
-      <div className="page-head">
-        <h1 className="title-xl">Activity</h1>
-        <span className="small muted">Every saved change, who made it and when. Drafts aren’t logged.</span>
-      </div>
+      <PageHeader title="Activity" line={<span className="small muted">Every saved change, who made it and when. Drafts aren’t logged.</span>} />
       {watching != null && (
         <p className="row" style={{ gap: 'var(--s2)' }}>
           <span className="small strong">Showing: {scopeText}</span>
@@ -167,11 +166,11 @@ function ActivityFilters({ onClose, onSave }: { onClose: () => void; onSave: (()
         </fieldset>
       </div>
       {/* On a phone, Save .csv lives here rather than taking a row of the filter bar. */}
-      <div className="sheet-foot activity-foot">
+      <FormFooter sheet className="activity-foot">
         <button type="button" className="linkish small" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, kind: cur.kind, watching: cur.watching, since: cur.since }))}>Clear filters</button>
         <button type="button" className="btn activity-foot-save" onClick={() => onSave?.()} disabled={!onSave}>Save .csv</button>
         <button type="button" className="btn primary" onClick={onClose}>Show the changes</button>
-      </div>
+      </FormFooter>
     </Sheet>
   );
 }

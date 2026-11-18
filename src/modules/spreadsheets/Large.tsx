@@ -11,6 +11,7 @@ import { partName, splitTables } from '../../domain/splitFile';
 import { WarnMark } from '../../ui/bits';
 import { rowsIn } from './importPlan';
 import { baseName } from './rowsFile';
+import { PageHeader } from '../../ui/PageHeader';
 
 /** How long a check runs before the Reading panel shows (spec 2.2). */
 export const READING_AFTER_MS = 400;
@@ -36,10 +37,7 @@ export function Reading({ name, read, progress, onStop }: { name: string; read: 
   const pct = rows ? Math.min(100, Math.floor((done / rows) * 100)) : 0;
   return (
     <div className="page narrow import-check import-reading">
-      <div className="page-head">
-        <h1 className="title-xl">Reading {name}</h1>
-        <span className="hint">You can keep using Faro in another tab. Nothing is saved until you say so.</span>
-      </div>
+      <PageHeader title={`Reading ${name}`} line="You can keep using Faro in another tab. Nothing is saved until you say so." />
       <div className="card stack import-progress" role="status" aria-live="polite">
         <p>Read the file · {plural(read.read.length, 'sheet')}, {plural(rows, 'row')} — Done</p>
         <p>Checking each row · {count(done)} of {count(rows)} — {pct}%</p>

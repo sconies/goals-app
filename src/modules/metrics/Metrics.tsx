@@ -12,7 +12,8 @@ import { MeasureMark } from './measureMark';
 import { StageMark } from './stageMark';
 import { CalcFields, StillNeeded, WindowField } from './DefineFields';
 import { Baselines, Calculation, QualityNotices, QualityTop, Source, stageFor, Verification } from './MetricQuality';
-import { calcWords, missingLine, onDay, QUALITY_LIMITS, windowWords, type DefinedPart, type MetricStage, type Stage } from './rulesQuality';
+import { calcWords, definedMissing, missingLine, onDay, QUALITY_LIMITS, windowWords, type DefinedPart, type MetricStage, type Stage } from './rulesQuality';
+import { metricSays } from '../../domain/formFooter';
 import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -26,7 +27,7 @@ import { LABEL } from '../../domain/vocabulary';
 import { newId } from '../../data/store';
 import { BackLink } from '../../ui/BackLink';
 import { EmptyResult, Sheet, StatusShape, StatusWord, WarnMark } from '../../ui/bits';
-import { FormClose } from '../../ui/FormClose';
+import { TaskHeader } from '../../ui/PageHeader';
 import { CountLine, FilterLine, ListBar, ListSearch, NoneFound, SortMenu } from '../../ui/ListBar';
 import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
@@ -38,6 +39,8 @@ import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } fro
 import { countLine, metricChecks, STILL_FIELD, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { FormFooter } from '../../ui/FormFooter';
+import { FieldError } from '../../ui/GoalFields';
+import { focusEl, focusFirstError } from '../../ui/FixSummary';
 import { changeKinds, linkedGoals } from './rulesChange';
 import { lapseChecks } from './rulesSave';
 import { readWhen } from '../../domain/readingWords';
@@ -46,6 +49,7 @@ import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rules
 import { sliceOf, type NumberSource } from './source';
 import { sourcesFrom } from './sources';
 import './metrics.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 const METRICS = { thing: 'metric', things: 'metrics' };
 /** Below this width the filters fold into one Filter button (a phone). */
@@ -148,24 +152,18 @@ export function MetricsLibrary() {
   const filtered = parts.length > 0;
   const order = (LIBRARY_SORTS.find(([k]) => k === sort)?.[1] ?? 'Best stage first').replace(/^(?!A to Z)./, (c) => c.toLowerCase());
   const views: [StageView, string, number][] = [['all', 'All', counts.all], ['verified', 'Verified', counts.verified], ['defined', 'Defined', counts.defined], ['draft', 'Draft', counts.draft], ['verify', 'To verify', counts.toVerify], ['sortout', 'To sort out', counts.sortout]];
+  const addMetric = metricsOf(app.snapshot).some((x) => !x.removedAt) ? <Link className="btn primary" to="/metrics/new">Add a metric</Link> : null;
   return (
     <div className="page metrics-page" ref={ref}>
-      <div className="page-head metrics-head">
-        <div className="row between metrics-title">
-          <h1 className="title-xl">Metrics</h1>
-          {/* The empty library has its own Add a metric: one primary action a screen. */}
-          {metricsOf(app.snapshot).some((x) => !x.removedAt) && <Link className="btn primary" to="/metrics/new">Add a metric</Link>}
-        </div>
-        <span className="hint">Each number goals are measured by, defined once, so two teams’ “build time” mean the same thing.</span>
-      </div>
+      {/* The empty library has its own Add a metric: one primary action a screen. */}
+      <PageHeader className="metrics-head" title="Metrics" line="Each number goals are measured by, defined once, so two teams’ “build time” mean the same thing."
+        actions={addMetric} inListBar />
       {live > 0 && (
-        <ListBar search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, change !== 'started')} label="Find a metric" placeholder="Find by name, unit, owner or meaning" autoFocus />}>
+        <ListBar action={addMetric} search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, change !== 'started')} label="Find a metric" placeholder="Find by name, unit, owner or meaning" autoFocus />}>
           {!narrow && unitMenu}
           {!narrow && teamMenu}
           <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filters{parts.length ? ` · ${parts.length}` : ''}</button>
           {!narrow && sortMenu}
-          {/* On a phone the stage control folds into a menu beside Filters, so the first metric stays near the top. */}
-          {narrow && !retired && <MenuButton className="metric-stage-menu" label="Stage" display={`${views.find(([k]) => k === view)![1]} ${views.find(([k]) => k === view)![2]}`} items={views.map(([k, l, n]) => ({ label: `${l} ${n}`, current: view === k, onClick: () => pickView(k) }))} />}
         </ListBar>
       )}
       {live > 0 && !retired && !narrow && (
@@ -173,7 +171,14 @@ export function MetricsLibrary() {
           {views.map(([k, l, n]) => <button key={k} type="button" aria-pressed={view === k} onClick={() => pickView(k)}>{l} <span className="metric-stage-n">{n}</span></button>)}
         </div>
       )}
-      {live > 0 && <CountLine things={METRICS} n={found.total} narrowed={!!q.trim() || filtered} order={order} shown={found.total > LIBRARY_PAGE ? { from: found.from, to: found.to } : null} />}
+      {live > 0 && (() => {
+        const count = <CountLine things={METRICS} n={found.total} narrowed={!!q.trim() || filtered} order={order} shown={found.total > LIBRARY_PAGE ? { from: found.from, to: found.to } : null} />;
+        // On a phone the stage control folds into a menu at the count line's right, so the list bar keeps room for the
+        // search and the page's one action, and the first metric stays near the top (F15).
+        return narrow && !retired
+          ? <div className="metric-count-row">{count}<MenuButton className="metric-stage-menu" label="Stage" display={`${views.find(([k]) => k === view)![1]} ${views.find(([k]) => k === view)![2]}`} items={views.map(([k, l, n]) => ({ label: `${l} ${n}`, current: view === k, onClick: () => pickView(k) }))} /></div>
+          : count;
+      })()}
       <FilterLine parts={parts} onRemove={(key) => set({ [key]: null })} onClear={clearFilters} />
       {live === 0 && <EmptyLibrary />}
       {live > 0 && !found.total && (view !== 'all' && !parts.length && !q.trim()
@@ -281,13 +286,7 @@ export function MetricPage() {
     return (
       <div className="page metric-page">
         <BackLink to="/metrics" label="Metrics" />
-        <div className="page-head row between">
-          <div className="stack" style={{ gap: 4 }}>
-            <h1 className="title-xl">Metric not found</h1>
-            <span className="hint">There’s no metric at this address in {wsName(app.ws)}.</span>
-          </div>
-          <Link className="btn primary" to="/metrics">See all metrics</Link>
-        </div>
+        <PageHeader title="Metric not found" line={`There’s no metric at this address in ${wsName(app.ws)}.`} actions={<Link className="btn primary" to="/metrics">See all metrics</Link>} />
       </div>
     );
   }
@@ -320,15 +319,10 @@ export function MetricPage() {
           {edit && <div><button type="button" className="btn primary" onClick={() => void bringBack()}>Bring it back</button></div>}
         </div>
       )}
-      <div className="page-head row between metric-head">
-        <div className="stack" style={{ gap: 4, minWidth: 0 }}>
-          <h1 className="title-xl">{m.name}</h1>
-          <QualityTop metric={m} st={st} />
-          <span className="hint">{decimalsWords(m.decimals).replace(/^./, (x) => x.toUpperCase())} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} st={st} />}</span>
-        </div>
-        {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
-        {rows.length > 0 && <Link className={retired ? 'btn' : 'btn primary'} to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
-      </div>
+      {/* Its stage before the title, as a detail page's status line (PAGE-HEADER 2.1). */}
+      <PageHeader className="metric-head" above={<QualityTop metric={m} st={st} />} title={m.name} line={<span className="hint">{decimalsWords(m.decimals).replace(/^./, (x) => x.toUpperCase())} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} st={st} />}</span>}
+        /* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */
+        actions={rows.length > 0 ? <Link className={retired ? 'btn' : 'btn primary'} to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link> : null} />
       {!retired && <QualityNotices metric={m} st={st} />}
       <section className="stack metric-meaning" style={{ gap: 4 }} aria-labelledby="metric-meaning">
         <h2 className="label" id="metric-meaning">What it means and how it’s calculated</h2>
@@ -549,7 +543,7 @@ function RemoveMetricSheet({ metric: m, onClose, onRemoved }: { metric: Metric; 
       <div className="stack" style={{ gap: 'var(--s4)' }}>
         <p className="small">{rows.length ? `${plural(rows.length, 'goal stops', 'goals stop')} being measured by it: ${titles.join(', ')}${rest ? ` and ${rest} more` : ''}. They keep their numbers and plans.` : 'No goal has been measured by it.'}</p>
         <p className="small">You can put it back for 30 days from Recently removed.</p>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn danger big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Deleting…' : 'Delete the metric'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn danger big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Deleting…' : 'Delete the metric'}</button></FormFooter>
       </div>
     </Sheet>
   );
@@ -596,7 +590,7 @@ function RetireSheet({ metric: m, onClose }: { metric: Metric; onClose: () => vo
           <PickOne kind="metric" label="Replaced by (optional)" none="Not said" value={by || null} onChange={(id) => setBy(id ?? '')} invalid={apart} />
           {apart ? <FixLine>{other!.id === m.id ? 'Choose another metric.' : `${m.name} is in ${m.unit} and ${other!.name} is in ${other!.unit}. It can only be replaced by a metric in the same unit.`}</FixLine> : <span className="hint">Its goals’ owners are offered this one.</span>}
         </div>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Retiring…' : 'Retire the metric'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Retiring…' : 'Retire the metric'}</button></FormFooter>
       </div>
     </Sheet>
   );
@@ -609,26 +603,33 @@ function MergeSheet({ metric: m, onClose, onMerged }: { metric: Metric; onClose:
   const [why, setWhy] = useState('');
   const [anyway, setAnyway] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [missing, setMissing] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const other = into && into !== m.id ? liveMetrics(app.snapshot).find((v) => v.id === into) : undefined;
   const apart = other && other.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase();
   const n = liveGoalTitles(app, m.id).length;
   const k = other ? liveGoalTitles(app, other.id).length : 0;
   const wrong = other && !apart && other.direction !== m.direction;
   const go = async () => {
-    if (!other || apart || (wrong && !anyway)) return;
+    // Never a disabled primary (patterns spec 3.3.1): pressed too soon, it shows what's left and moves focus there.
+    if (!other) { setMissing(true); focusFirstError(rootRef.current); return; }
+    if (apart) { focusFirstError(rootRef.current); return; }
+    if (wrong && !anyway) { focusEl(rootRef.current?.querySelector<HTMLElement>('.merge-check')); return; }
     setBusy(true);
     try { await app.run('mergeMetrics', { fromId: m.id, intoId: other.id, why }, { said: `Merged ${m.name} into ${other.name}. ${plural(n, 'goal', 'goals')} moved.` }); onClose(); onMerged(other); } catch { setBusy(false); }
   };
   return (
     <Sheet open onClose={onClose} title={`Merge “${m.name}” into another metric`}>
-      <div className="stack" style={{ gap: 'var(--s4)' }}>
+      <div ref={rootRef} className="stack" style={{ gap: 'var(--s4)' }}>
         <div className="field">
-          <PickOne kind="metric" label="Into" value={into || null} onChange={(id) => { setInto(id ?? ''); setAnyway(false); }} invalid={!!apart} />
+          <PickOne kind="metric" label="Into" value={into || null} onChange={(id) => { setInto(id ?? ''); setAnyway(false); setMissing(false); }} invalid={!!apart || missing}
+            describedBy={missing ? 'merge-err' : undefined} />
+          {missing && <FieldError id="merge-err">Choose the metric to merge it into first.</FieldError>}
           {apart && <FixLine>{m.name} is in {m.unit} and {other!.name} is in {other!.unit}. Only metrics in the same unit can be merged.</FixLine>}
         </div>
         {other && !apart && <p className="small">“{m.name}” ({plural(n, 'goal', 'goals')}) becomes “{other.name}” ({plural(k, 'goal', 'goals')}). Both are in {m.unit}. The {plural(n, 'goal', 'goals')} will be measured by {other.name} from today, and their History will say so. “{m.name}” is retired, pointing to {other.name}.</p>}
         {wrong && !anyway && (
-          <div className="level-check stack" style={{ gap: 'var(--s2)' }}>
+          <div className="level-check merge-check stack" style={{ gap: 'var(--s2)' }}>
             <span className="row" style={{ gap: 6 }}><WarnMark /><strong>Check</strong></span>
             <span className="small">{m.name}: {DIRECTION_LABEL[m.direction].toLowerCase()}. {other!.name}: {DIRECTION_LABEL[other!.direction].toLowerCase()}. {plural(n, 'goal', 'goals')} will aim the wrong way.</span>
             <div className="row"><button type="button" className="btn sm" onClick={() => setAnyway(true)}>Merge anyway</button><button type="button" className="btn sm ghost" onClick={onClose}>Cancel</button></div>
@@ -638,7 +639,7 @@ function MergeSheet({ metric: m, onClose, onMerged }: { metric: Metric; onClose:
           <span className="label">Why <span className="hint">optional</span></span>
           <input type="text" maxLength={300} value={why} placeholder={other ? `The same number as ${other.name}.` : ''} onChange={(e) => setWhy(e.target.value)} />
         </label>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="button" disabled={busy || !other || !!apart || (!!wrong && !anyway)} onClick={() => void go()}>{busy ? 'Merging…' : 'Merge them'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Merging…' : 'Merge them'}</button></FormFooter>
       </div>
     </Sheet>
   );
@@ -722,7 +723,7 @@ export function MetricForm() {
   if (live && !canEditMetric(app.viewer, live)) {
     return (
       <div className="focus metric-form">
-        <div className="focus-top"><span /><FormClose keeps={false} onClose={() => void nav(metricPath(live))} /></div>
+        <TaskHeader name="Change a metric" close={{ keeps: false, onClose: () => void nav(metricPath(live)) }} />
         <div className="focus-body"><h1 className="qtitle big">Change {live.name}</h1><p>Only {app.person(live.ownerId)?.name ?? 'its owner'} or an admin can change this metric.</p></div>
       </div>
     );
@@ -825,11 +826,8 @@ export function MetricForm() {
   const slow = d.refresh === 'monthly' || d.refresh === 'quarterly';
   return (
     <div className="focus metric-form">
-      <div className="focus-top">
-        {/* A form: one closing control, top right, and no back link (navigation spec 2.5; build review of #282). */}
-        <span />
-        <FormClose keeps dirty={touched} onClose={back} />
-      </div>
+      {/* A form: one closing control, top right, and no back link (navigation spec 2.5; build review of #282). */}
+      <TaskHeader name={live ? 'Change a metric' : 'Add a metric'} close={{ keeps: true, dirty: touched, onClose: back }} />
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div ref={top}><h1 className="qtitle big">{live ? `Change ${live.name}` : 'Add a metric'}</h1></div>
         {restored && <div className="restored small" role="status">Picked up what you hadn’t saved. <button type="button" className="linkish" onClick={() => { clearDraft(); window.location.reload(); }}>Start again</button></div>}
@@ -943,7 +941,7 @@ export function MetricForm() {
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {checkFor('lapse')}
         </div>
-        <FormFooter status={count || undefined}><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save metric' : 'Add metric'}</button></FormFooter>
+        <FormFooter status={count || metricSays(definedMissing(next, !!ownerName(app.snapshot.people, next)).length)}><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save metric' : 'Add metric'}</button></FormFooter>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
     </div>
@@ -1006,7 +1004,7 @@ function ChangeReadBack(p: {
         <span>{names}</span>
         <span>{p.marking ? `Each goal’s chart and History will say “${meaning && p.comparable === false ? 'Definition' : 'Direction'} changed”, with your reason. Their numbers and plans don’t change.` : meaning && p.comparable === true ? 'Nothing changes on these goals but the words they show.' : ''}</span>
       </div>
-      <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={p.onKeep}>Keep it as it was</button><button type="button" className="btn primary big-btn" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button></div>
+      <FormFooter sheet onCancel={p.onKeep} cancelLabel="Keep it as it was"><button type="button" className="btn primary big-btn" onClick={p.onSave}>{primary}</button></FormFooter>
     </div>
     </Sheet>
   );

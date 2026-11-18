@@ -154,7 +154,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Home” | link | always |
 | “Open the goal” | primary | always |
 | “Discard draft” | button | `drafting` and `!justPosted` |
-| “Cancel” | button | always |
 | “Save and skip” | primary | always |
 | “Check in on …” | primary | `p.due.length > 0` |
 | “Back to home” | primary | always |
@@ -189,7 +188,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/quick-check-in` (`QuickCheckIn`): If you own several number goals, type this week’s numbers for all of them on one screen. Help: “Typing all your numbers in one table” (`check-in-table`).
 
-- **Named parts:** “Type all your numbers in one table”
+- **Named parts:** none written as plain text
 - **Main action:** Post every row of the table that is ready, at once, and land on the check-in’s confirmation.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `bulk_change`, `post_check_in`
@@ -222,6 +221,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start over” | button | `goals.length > 0` and `hasDraft` |
 | “Confirm …” | button | `goals.length > 0` and `unconfirmed` and `read` |
 | “Confirm all readings” | button | `goals.length > 0` and `toConfirm.length > 0` and `toConfirm.length > 1` |
+| “Go to the first” | button | `goals.length > 0` and `summary` and `firstBad` |
 | “… (worked out when it shows: `busy ? 'Posting…' : postCheckIns(ready.length)`)” | primary | `goals.length > 0` |
 
 ## Research
@@ -230,7 +230,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/research` (`Research`): The demo is a full copy of the app with one example organisation, Platform Engineering (about 100 people), kept in your browser, that you can change and reset freely. Help: “The demo” (`demo`).
 
-- **Named parts:** “Research this app”, “What it is”, “Not built yet, on purpose: access control”, “How to do it”, “Start”, “Tasks”, “Your report”, “Not built yet, on purpose (region)”
+- **Named parts:** “What it is”, “Not built yet, on purpose: access control”, “How to do it”, “Start”, “Tasks”, “Your report”, “Not built yet, on purpose (region)”
 - **Main action:** Start the research session.
 - **Primary buttons in its markup:** “Start the session”
 - **AI tools:** none, on purpose: Research sessions in the demo, for the people building the app.
@@ -355,7 +355,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it at … or under” | button | `hold != null` |
 | “Keep it at … or over” | button | `hold != null` |
 | “Keep …” | button | `e?.id === 'too-precise' && e.keep != null` |
-| “Start a new one” | button | `restored` and `!asking` |
+| “Start a new goal instead” | button | `restored` and `!asking` and `step === 0` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
 | “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
@@ -425,7 +425,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Withdraw” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `x.button === 'Withdraw'` |
 | “the row’s one button: Respond (a decision asked of the viewer), Answer (a question), Mark done (a next step); Check in and Withdraw are drawn on their own rows above” | button | `!(!x.button \|\| open)` and `!(x.button === 'Check in')` and `!(x.button === 'Withdraw')` |
 | “Change” | button | `canChange` |
-| “Cancel” | button | always |
 | “Asking… / Ask” | primary | always |
 | “Not now” | button | always |
 | “Posting… / Post your reply” | primary | always |
@@ -435,6 +434,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Weeks … – …” | button | always |
 | “Add a comment” | button | always |
 | “Posting… / Post comment” | button | always |
+| “Cancel” | button | always |
 | “Week … The reason is above, under Why. Same reason …” | button | always |
 | “Show all … check-ins” | button | `own.length > limit` and `!all` |
 
@@ -537,7 +537,7 @@ None: nothing to type or choose here.
 
 - `/activity` (`Activity`): Activity lists every saved change: who made it, when, and each field’s before and after. Help: “The activity log” (`activity`).
 
-- **Named parts:** “Activity”
+- **Named parts:** none written as plain text
 - **Main action:** Read what changed, filtered to what you need.
 - **Primary buttons in its markup:** “Show the changes”
 - **AI tools:** `get_activity`, `undo_import`
@@ -580,7 +580,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/data` (`DataTables`): Every person, goal, check-in, plan and ask as a table you can search, sort, filter, arrange and export, and the home of spreadsheets in and out. Help: “Data” (`data`).
 
-- **Named parts:** “Data”
+- **Named parts:** none written as plain text
 - **Main action:** Correct records in a table, every change checked and shown before it’s saved.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `bulk_change`, `list_requests`, `list_views`, `save_table_view`, `delete_view`, `pin_view`
@@ -665,15 +665,15 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Yes, delete it” | button | `asking === c.id` |
 | “Cancel” | button | `asking === c.id` |
 | “Add an admin” | primary | always |
-| “Cancel” | button | always |
 | “Make … an admin / Make them an admin” | primary | always |
 | “Saving… / Save the name” | button | always |
+| “Cancel” | button | always |
 | “Rename” | button | an admin |
 | “Yes, turn it on” | button | an admin and `asking` |
 | “Cancel” | button | an admin and `asking` |
 | “See the token / See the … tokens” | button | always |
 | “Change” | button | always |
-| “Save” | primary | always |
+| “Save the rhythm” | primary | always |
 | “… (worked out when it shows: `primary`)” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
@@ -767,7 +767,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/teams` (`TeamsList`): The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams. Help: “Teams” (`teams`).
 - `/teams/:teamId` (`TeamPage`): The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams. Help: “Teams” (`teams`).
 
-- **Named parts:** “People”, “For admins”, “What it is here to do”, “Goals”, “People and teams (region)”, “Pages (region)”
+- **Named parts:** “For admins”, “What it is here to do”, “Goals”, “People and teams (region)”, “Pages (region)”
 - **Main action:** Find a person or a team and go to their goals; for admins, Add a person on People and Add a team on Teams.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `create_token`, `find_goals`
@@ -825,7 +825,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Add it” | button | `(t.objective \|\| admin)` and `!t.objective` |
 | “Change its name, lead or purpose” | button | an admin |
 | “Remove this team…” | button | an admin |
-| “Cancel” | button | always |
 | “Saving… / Save / Add the team” | primary | always |
 | “Removing… / Move them and remove / Remove the team” | button | `(!has \|\| others.length > 0)` |
 | “Show … more” | button | `missing.length > limit` |
@@ -871,7 +870,7 @@ None: nothing to type or choose here.
 
 - `/settings` (`Settings`): About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace. Help: “Settings” (`settings`).
 
-- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”, “On this page (region)”
+- **Named parts:** “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”, “On this page (region)”
 - **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_tokens`, `revoke_token`, `get_help`
@@ -905,7 +904,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/help/:id` (`HelpArticle`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 - `/whats-new` (`WhatsNew`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 
-- **Named parts:** “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
+- **Named parts:** “Search results”, “Related”, “Search results (region)”
 - **Main action:** Find an answer: search, or open an article.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_help`, `whats_new`
@@ -973,7 +972,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/feedback` (`Feedback`)
 
-- **Named parts:** “Feedback”
+- **Named parts:** none written as plain text
 - **Main action:** Handle the open markup or feedback (in hand, fixed or won’t fix) and go on to the next.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_markups`, `get_markup`, `update_markup`, `list_feedback`, `get_feedback`, `update_feedback`, `review_inbox`, `send_feedback`
@@ -1007,7 +1006,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/reviews/:reviewId/edit` (`ReviewEdit`)
 - `/reviews/:reviewId/summary` (`ReviewSummary`)
 
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
+- **Named parts:** “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
 - **Parts by name** (`data-part`): “Reviews”, “You’re in”, “Other reviews”, “What was said”, “Review”, “Last time”, “Still to review”, “Nothing flagged”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
@@ -1047,7 +1046,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Done?” | button | `last` and `a.state !== 'done' && canMarkDone(a.ask, app.viewer)` |
 | “Mark … reviewed” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `inIt` and `first` |
 | “Walk them one at a time instead” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `listHealthy` and `inIt` |
-| “Not yet” | button | always |
 | “Saving… / Finish the review / Mark … reviewed” | primary | always |
 | “Every week / Every … weeks” | button | always |
 | “Save review / Create review” | primary | always |
@@ -1169,7 +1167,6 @@ Each is drawn inside a screen, over every screen, or when nothing else can be (`
 | Button | Kind | Shown when |
 |---|---|---|
 | “Mark up the last screen / Mark up this screen Go back to it, draw / Draw on a picture of it and say what shou…” | button | always |
-| “Cancel” | button | always |
 | “Sending… / Send” | primary | always |
 | “Find” | button | always |
 | “Switch person / Not you? (…, admin here)” | button | always |
@@ -1272,7 +1269,7 @@ None.
 | Field | Kind | Shown when |
 |---|---|---|
 | “New owner” | PickOne | `kind === 'owner'` |
-| “Level Choose…” | select | `!(kind === 'owner')` |
+| “Level Choose the level first. Choose…” | select | `!(kind === 'owner')` |
 
 **States**
 
@@ -1286,8 +1283,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Change level” | button | always |
 | “Watch” | button | `watching` |
 | “Clear” | button | always |
-| “Cancel” | button | always |
-| “Saving… / Save” | primary | always |
+| “Saving… / Change the owner / Change the level” | primary | always |
 
 ### Goals: the board
 
@@ -1790,7 +1786,6 @@ None: nothing to type or choose here.
 | “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
 | “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `propose` |
-| “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
 
 ### Data: filters
@@ -1832,7 +1827,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Name” | text | always |
+| “Name Give the layout a name first.” | text | always |
 
 **States**
 

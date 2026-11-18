@@ -306,7 +306,7 @@ The example is one division of about 100 people in 14 teams, with 12 north stars
 
 `getting-around`. Every page names itself and lights its place in the menu; one back link above the title agrees with your browser’s Back; and a form has one way out.
 
-Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`, `FORM-FOOTER`.
+Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`, `FORM-FOOTER`, `PAGE-HEADER`.
 
 #### Where you are
 
@@ -327,6 +327,13 @@ Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`, `FORM-F
 #### Where you are
 
 - Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on.
+
+#### The top of a page
+
+- Every page starts with its title at the left edge. Above it, a goal or a metric shows its status; under it, one line says what’s in scope, or who owns it and where it sits. At most one filled button sits at the right of the title; on a phone the buttons go under the line, so the title has its own line.
+- Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page. On a phone the top bar shows the workspace until the page’s title scrolls out of sight, then the page’s name.
+- On a phone, a list’s one action (Add a metric, Add a person, Send feedback) sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place once you scroll down.
+- A form shows what you’re doing at the top left, such as “Week 46 check-in · 2 of 7”, and its one way out at the top right.
 
 #### Going back
 
@@ -351,7 +358,10 @@ Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`, `FORM-F
 #### Leaving a form
 
 - A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.
-- At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix.
+- At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix. On a phone the main button takes the width and Back sits above it as a link.
+- The main button is never greyed out because something is missing. Press it and each field to fix says why beside it, and you are taken to the first. With more than one, the line above the buttons names them, each a link to its field.
+- A draft you come back to says so beside the step, “Draft from Tuesday”. The first time a form keeps a draft, the line above the buttons says “Draft kept in this browser.” once.
+- A panel that opens over the page (Watch, Add a next step, Respond) has the same foot, with Cancel on the left, because it has no Close at the top.
 
 #### Leaving a form
 

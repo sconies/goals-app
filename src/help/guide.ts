@@ -1319,6 +1319,12 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Where you are', list: [
         'Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on.',
       ] },
+      { heading: 'The top of a page', list: [
+        'Every page starts with its title at the left edge. Above it, a goal or a metric shows its status; under it, one line says what’s in scope, or who owns it and where it sits. At most one filled button sits at the right of the title; on a phone the buttons go under the line, so the title has its own line.',
+        'Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page. On a phone the top bar shows the workspace until the page’s title scrolls out of sight, then the page’s name.',
+        'On a phone, a list’s one action (Add a metric, Add a person, Send feedback) sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place once you scroll down.',
+        'A form shows what you’re doing at the top left, such as “Week 46 check-in · 2 of 7”, and its one way out at the top right.',
+      ] },
       { heading: 'Going back', module: 'reviews', list: [
         'Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead.',
       ] },
@@ -1336,7 +1342,10 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Leaving a form', list: [
         'A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.',
-        'At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix.',
+        'At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix. On a phone the main button takes the width and Back sits above it as a link.',
+        'The main button is never greyed out because something is missing. Press it and each field to fix says why beside it, and you are taken to the first. With more than one, the line above the buttons names them, each a link to its field.',
+        'A draft you come back to says so beside the step, “Draft from Tuesday”. The first time a form keeps a draft, the line above the buttons says “Draft kept in this browser.” once.',
+        'A panel that opens over the page (Watch, Add a next step, Respond) has the same foot, with Cancel on the left, because it has no Close at the top.',
       ] },
       { heading: 'Leaving a form', module: 'reviews', list: [
         '“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
@@ -1356,7 +1365,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: [],
     screens: ['NotFound'],
-    reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS', 'FORM-FOOTER'],
+    reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS', 'FORM-FOOTER', 'PAGE-HEADER'],
     keywords: ['back', 'back link', 'title', 'tab', 'where am i', 'lit', 'close', 'draft', 'not found', 'navigation'],
     related: ['settings', 'finding'],
   },

@@ -8,7 +8,7 @@ import { useDraft } from '../app/drafts';
 import { searchOver, usePrefs } from '../app/search';
 import { draftStep, firstUnfilled, isSetupStep, SETUP_STEPS, startOf, type SetupStart, type SetupStep } from '../domain/dayOne';
 import { howWeWork, SETUP_STEP_NAMES } from '../domain/arrival';
-import { FormFooter } from '../ui/FormFooter';
+import { FormFooter, useKeptOnce } from '../ui/FormFooter';
 import { nextLabel } from '../domain/formFooter';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { tooLarge } from '../domain/importLimits';
@@ -33,7 +33,7 @@ import { blankGoal as blankDraft, type GoalDraft } from '../domain/goal';
 import { goalChecks, goalMustFix, unanswered, type GoalAnswers, type GoalCheck } from '../domain/goalEntry';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import { focusQuestion } from '../ui/questionInView';
 import type { Mark } from '../help/flows';
 import { telemetry } from '../telemetry';
@@ -245,7 +245,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     template: 'own', outcome: blankGoal(), goals: [blankGoal()],
   }));
   // Each change says when, so Welcome can say where a set-up was left (set-up spec 2.1).
-  const set = (patch: Partial<SetupDraft>) => setDraft({ ...patch, savedAt: setup.today.toISOString() });
+  const set = (patch: Partial<SetupDraft>, quiet = false) => setDraft(quiet ? patch : { ...patch, savedAt: setup.today.toISOString() }, quiet);
   // Ids are global in the database, so the suffix is long enough that two workspaces never share one.
   const [suffix] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join(''));
   const [tried, setTried] = useState(false);
@@ -365,7 +365,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // The step this draft is at, for Welcome's "Stopped at step 2 of 4"; a fresh draft on step 1 writes nothing.
   useEffect(() => {
     if (!at || goesTo !== at) return;
-    if (d.v === 2 ? d.step !== idx : restored || idx > 0) set({ step: idx, v: 2 });
+    if (d.v === 2 ? d.step !== idx : restored || idx > 0) set({ step: idx, v: 2 }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, goesTo]);
   // A problem is said under the field it's about, and that field takes the focus.
@@ -378,6 +378,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   }, [tried, at]);
   useMark(at ? STEP_MARKS[idx] ?? null : null);
   // Just made: /ready is on its way, so nothing is drawn here (never an empty step, and never a move back to step 1).
+  // "Draft kept in this browser.", once (FORM-FOOTER 3.4.2); a hook, so before the early return below.
+  const kept = useKeptOnce(touched && !restored, restored, goesTo);
   if (Date.now() - madeAt < 5000) return null;
   if (at !== goesTo) {
     const q = new URLSearchParams(search);
@@ -480,7 +482,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: rowsOf.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const wsName = d.name.trim() || 'workspace';
-  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? `Create ${wsName}` : nextLabel(SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase());
+  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? 'Create workspace' : nextLabel(SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase());
   // Set up from inside a workspace, you are one line until you change it (2.3).
   const known = !!viewer && !meOpen && !meErr.name && !meErr.email && !meErr.team;
   const fileGoals = d.fileTables?.goals?.length ?? 0;
@@ -492,11 +494,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   return (
     <div className={'focus focus-onboard' + (step === 'people' || step === 'goals' ? ' focus-roomy' : '')}>
-      <div className="focus-top">
-        <span className="small strong">Set up a workspace</span>
-        <Steps at={idx + 1} of={SETUP_STEPS.length} label={SETUP_STEP_NAMES[step]} />
-        <FormClose keeps dirty={touched} onClose={close} />
-      </div>
+      <TaskHeader name="Set up a workspace" steps={<Steps at={idx + 1} of={SETUP_STEPS.length} label={SETUP_STEP_NAMES[step]} />} close={{ keeps: true, dirty: touched, onClose: close }} />
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
         {restored && (
           <p className="hint" role="status">
@@ -704,7 +702,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           </section>
         )}
 
-        <FormFooter onBack={idx > 0 && !fromCheck ? back : undefined} status={step === 'check' && !busy ? 'You can change all of this later in Workspace.' : undefined}>
+        <FormFooter onBack={idx > 0 && !fromCheck ? back : undefined} status={step === 'check' && !busy ? 'You can change all of this later in Workspace.' : kept}>
           <button className="btn primary big-btn" type="submit" disabled={busy}>{label}</button>
         </FormFooter>
       </form>
@@ -727,7 +725,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Off unless you tick it. On, Faro records the pages people open, the buttons they press, errors and slow pages, never anything anyone types, for the people building it. An admin can change it later in Workspace, under Privacy.</span>
             </span>
           </label>
-          <div className="sheet-foot"><button type="button" className="btn primary" onClick={() => setHowOpen(false)}>Done</button></div>
+          <FormFooter sheet><button type="button" className="btn primary" onClick={() => setHowOpen(false)}>Done</button></FormFooter>
         </div>
       </Sheet>
     </div>
