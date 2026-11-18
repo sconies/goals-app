@@ -14,37 +14,55 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 ## Open
 
-Added 18 Nov: one line for each item not yet built, with its state. The full text stays where it was; finished rows moved to "Done" with their words. States: **approved and building**, **not picked**, **deferred**, **idea**, **spec only**; **check** means the row may be partly or wholly built and a person should confirm before anyone builds from it.
+Added 18 Nov, reworded the same day for people who use the app: each line says what you would notice, and "Behind the scenes" marks work for the build team. One line for each item not yet built, with its state. The full text stays where it was; finished rows moved to "Done" with their words. States: **approved and building**, **not picked**, **deferred**, **idea**, **spec only**; **check** means the row may be partly or wholly built and a person should confirm before anyone builds from it.
 
 | ID | What | Effort | State |
 |---|---|---|---|
-| UX2b | One form footer: `FormFooter`, verb-object labels, errors beside their fields, "Close" until something is typed | M | approved and building |
-| UX4 | One page header: `PageHeader` and `TaskHeader`, utilities out of headers, the phone's bar names the page | S–M | approved and building |
-| UX2a (leftovers) | `get_overview` carries each goal's `reason` and `context`; the agenda's context line; unused `trow`, `gline` and `agenda-row` CSS; a whole-row link's accessible name | S | not picked |
-| UX (later) | Board's status picker on a phone, and Data's row name kept in view on desktop | S | not picked |
-| 0c2 | Fence, step 2: drop the old redirect names in `public` and the app's fallback to them | S | not picked (waits on Lane's steps from 0c) |
-| TN | Narrow `evals/touches.cjs` so fewer changes mean "the whole suite" | M | not picked |
-| SK | Draw the shell (sidebar or tab bar) with the loading skeleton | S | not picked |
-| Deep dive's setup ideas | Setup's four-goal cap; titles and team leads in setup; a per-goal team choice | S | idea |
-| 3a | Mark up a goal and send it to someone, as an ask | M | not picked |
-| 0t | A saved, migrated test database for the schema tests; U14's wait | S | not picked |
-| WM | Set up a workspace through MCP | M, after a security decision | not picked (needs Lane's security decision first); check, the 12 Nov handover says "WM built with the set-up token rules" |
-| R | Review leftovers: F05 (the Map refits on scope change; #76 says it does) and F15 (why each agenda row is there) | S | check |
-| RD | The app redesign, three tracks, first cut items 1–11 | About 18 releases | check (most first-cut items merged; the held ones and the rest are unconfirmed) |
-| RD2 | Redesign rounds 2 and 3, first cuts (CY1, CY2 and CY4 were due before 3 Jan 2027) | About 16 releases | check (CY1, CY2 and CY4 are in the code; the rest is unconfirmed) |
-| AS | The kit at company scale: parts 1 and 2 built (#72, #139); part 3 (A5 to A7) | M | check |
-| AX | Architecture readiness: AX1, AX3, AX4, AX5, AX7, AX8, AX9, AX10 built; AX2 and AX6 part 1 built; AX6 part 2 (a version on every shared record) not started | About 3 releases | check, AX6 part 2 not picked |
-| LP | The loop's honest edges: U20 (reviewing a "Getting worse" on-track goal counts) and U22 (Activity counts what was reviewed) | M | check |
-| LV, GD, NAV, 0a, 0u | Leader's first screen, goal page, navigation, find-and-pick, small batch leftovers | S–M each | replaced by RD (kept for detail); check |
-| 11 | Rebuild kit: the full drill (run 15 Nov, `docs/drill/2026-11-full-drill.md`; its bugs fixed in #579, #581, #582) | S–M | check |
-| MC | A goal's own monthly rhythm | S–M | deferred (Lane, 14 Nov) |
-| FT4 | A cycle-wide every-two-weeks or monthly rhythm | M | deferred (Lane, 14 Nov) |
-| PF1–PF2 | A leader's week (R4 part 4) | M | deferred (Lane, 14 Nov) |
-| Review lows | Every low the build reviewer logs | n/a | deferred (Lane, 14 Nov) |
-| Import and spreadsheet leftovers | MI's Goals-sheet metric columns, the template's Metrics sheet, the no-owner-email check, editable Data fields, a field-value check in Undo | M | deferred (planning, 15 Nov) |
-| Rebuild follow-ups | A shared row-check function, a browser–server API shape, a schema file per module, scoped files, a guard test per module | M | deferred (planning, 15 Nov) |
-| Ideas | Team streaks with a grace week; positive-only spotlights; a quarter story from the wrap-up | S–M each | idea |
-| R1–R4 | Release 4a sign-in and access, company single sign-on, time zones, release 4b scale | n/a | spec only (written in 8r) |
+| UX2b | Every form ends the same way: buttons say what they do ("Save goal", not "Submit"), errors sit next to the field they are about, and the button says "Close" until you have typed something | M | approved and building |
+| UX4 | Every page starts with the same header: the title and one main action, with utilities moved out of it; on a phone the top bar says which page you are on | S–M | approved and building |
+| UX2a-1 | AI overview shows each goal's reason and context | S | not picked |
+| UX2a-2 | Agenda lines show each goal's context | S | not picked |
+| UX2a-3 | Whole-row links get proper names for screen readers; unused styling cleared out | S | not picked |
+| UX-a | On a phone, change a goal's status from the Board | S | not picked |
+| UX-b | On a desktop, keep a row's name in view while scrolling the Data page sideways | S | not picked |
+| 0c2 | Behind the scenes: finish moving Faro's data into its own database area by removing the old temporary names | S | not picked (waits on Lane's steps from 0c) |
+| TN | Behind the scenes: make the automatic checks run only what a change touches, so builds are faster | M | not picked |
+| SK | On a slow phone, the menu bar shows straight away while a page loads, instead of appearing about a second later | S | not picked |
+| SU-1 | Set-up: lift the four-goal limit | S | idea |
+| SU-2 | Set-up: add job titles and team leads | S | idea |
+| SU-3 | Set-up: choose a team for each goal | S | idea |
+| 3a | Draw on a goal's page, pin notes and send it to a colleague as a question, decision, help request or update request; they answer in the Respond panel and it stays on the goal and in Activity | M | not picked |
+| 0t | Behind the scenes: a saved test database so the database tests run reliably | S | not picked |
+| N8 | Behind the scenes: the automatic check N8 [STALE-RELOAD] fails when run alone on a local machine ("the Map's file gone once: expected one reload then the Map, saw 1 page loads") but passes in CI's full runs on main (#591, #592). Look at the check, not the app; seen 18 Nov by the patterns track | S | built (#593, 18 Nov: its test now refuses the Map's file until the reload) |
+| EV-WAIT | Behind the scenes: about 40 reads in `evals/finish` and `evals/notes` use `locator.evaluate` or `innerText` with `.catch` on elements that may be absent, and each waits out Playwright's 30 s default before failing over. Switch them to `evaluateAll` or `count()`, as N7 now does (#593, 18 Nov: N7 went from 271 s to 93 s). Cuts PR CI time | S–M | idea (planning, 18 Nov) |
+| WM | Let an AI assistant create and set up a whole workspace (cycle, teams, people, features), not only fill one in. Needs a security decision first about who may hold that power | M, after a security decision | not picked (needs Lane's security decision first); check, the 12 Nov handover says "WM built with the set-up token rules" |
+| R-F05 | The Map re-fits when you change scope (confirm it is built; #76 says it is) | S | check |
+| R-F15 | Each agenda row says why it is there | S | check |
+| RD | The app redesign: the rest of its 26 items, to be listed one by one once each is checked against the code (see `docs/design/README.md`) | check | check |
+| RD2 | Redesign rounds 2 and 3: the rest of its items, to be listed one by one once each is checked against the code (see `docs/design/round-2/README.md` and `round-3/README.md`) | check | check |
+| AS-3 | Behind the scenes: tidy the rebuild guide's leaks and thin parts, and add a "don't copy this" list (parts 1 and 2 are built) | M | check |
+| AX6-2 | Two people editing the same person, team, ask, decision, view or metric at once cannot overwrite each other (a version on each shared record). The rest of the architecture work is built | M | not picked |
+| U20 | Reviewing a goal marked "Getting worse" that is on track now counts | S | check |
+| U22 | Activity counts what was reviewed | S | check |
+| 11 | Behind the scenes: the final check that someone can rebuild all of Faro from the guide alone | S–M | built (#512, #550, #551) |
+| MC | A goal with no metric can have its own monthly rhythm, so it is not flagged "No recent update" after two weeks | S–M | deferred (Lane, 14 Nov) |
+| FT4 | Choose a rhythm for the whole cycle of every two weeks or every month | M | deferred (Lane, 14 Nov) |
+| PF1 | A leader's week: what a leader needs to act on, in one view | M | deferred (Lane, 14 Nov) |
+| PF2 | A leader's week, second part (R4 part 4) | M | deferred (Lane, 14 Nov) |
+| Review lows | Behind the scenes: the small issues the code reviewer logs | n/a | deferred (Lane, 14 Nov) |
+| IS-1 | Goals sheet carries metric columns | S | deferred (planning, 15 Nov) |
+| IS-2 | The template gets a Metrics sheet | S | deferred (planning, 15 Nov) |
+| IS-3 | Import warns about goals with no owner email | S | deferred (planning, 15 Nov) |
+| IS-4 | Editable Data fields | S | deferred (planning, 15 Nov) |
+| IS-5 | Undo checks a field's value before putting it back | S | deferred (planning, 15 Nov) |
+| Rebuild follow-ups | Behind the scenes: tidier shared checks for the team rebuilding Faro | M | deferred (planning, 15 Nov) |
+| ID-1 | Team streaks with a grace week | S–M | idea |
+| ID-2 | Positive-only spotlights | S–M | idea |
+| ID-3 | A quarter story from the wrap-up | S–M | idea |
+| R1 | Sign-in and access: a requirement for the internal platform, not built in Faro | n/a | spec only |
+| R2 | Company single sign-on: a requirement, not built in Faro | n/a | spec only |
+| R3 | Time zones: a requirement, not built in Faro | n/a | spec only |
+| R4 | Scale: a requirement, not built in Faro | n/a | spec only |
 
 ## Bugs found by the drill (15 Nov)
 
