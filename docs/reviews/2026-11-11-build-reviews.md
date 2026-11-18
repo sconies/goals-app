@@ -3101,3 +3101,5 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
     - Workspace.tsx:794 (delete, type to confirm).
 
     The build should fix Preview, and fix the others or have the Built line name them. Sent to the build.
+- **Re-check at b3f4cce: cleared, no high or medium.** The bulk-change preview, Save layout, Add filter, Make it active and Send the report are enabled. Each now shows a field error or status line and moves focus there. Delete the workspace is named as the one type-to-confirm exception.
+  - **Lows:** DataFilters' new error doesn't mark the value field `aria-invalid`. Markup.tsx:316 is still `aria-disabled` with no picture. Metrics' delete and UndoImport are danger buttons that stay disabled until confirmed (type-to-confirm style), and the Built line names only Workspace's. The build's local evals:changed hadn't finished when it pushed (Lane asked), so CI decides.
