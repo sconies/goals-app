@@ -10,6 +10,7 @@ import type { Goal, Review } from '../domain/types';
 import { Sheet } from './bits';
 import { PersonPick } from './PersonPick';
 import { PickOne } from './Pick';
+import { FormFooter } from './FormFooter';
 
 /** What was typed, kept while the page is open when the sheet is closed without Cancel (build review of #376). */
 const drafts = new Map<string, { title: string; owner: string | null; feeds: string | null }>();
@@ -53,10 +54,9 @@ export function ProposeInReview({ goal, review, onClose, returnFocus }: { goal: 
           {tried && !owner && <span className="hint tone-off" role="alert">Choose who will own it.</span>}
         </span>
         <PickOne kind="goal" label="It will feed" none="Nothing: top of its own tree" value={feeds} onChange={setFeeds} first={[{ id: goal.id, note: 'the goal on screen' }]} />
-        <div className="foot-row">
-          <button type="button" className="btn ghost big-btn" onClick={cancel}>Cancel</button>
+        <FormFooter sheet onCancel={cancel}>
           <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : 'Propose it'}</button>
-        </div>
+        </FormFooter>
       </form>
     </Sheet>
   );

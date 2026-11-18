@@ -729,7 +729,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Off unless you tick it. On, Faro records the pages people open, the buttons they press, errors and slow pages, never anything anyone types, for the people building it. An admin can change it later in Workspace, under Privacy.</span>
             </span>
           </label>
-          <div className="sheet-foot"><button type="button" className="btn primary" onClick={() => setHowOpen(false)}>Done</button></div>
+          <FormFooter sheet><button type="button" className="btn primary" onClick={() => setHowOpen(false)}>Done</button></FormFooter>
         </div>
       </Sheet>
     </div>

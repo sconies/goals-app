@@ -176,7 +176,7 @@ function NoDataSheet({ goal, onClose, onDone }: { goal: Goal; onClose: () => voi
         <label className="field"><span className="field-label">Why? <span className="hint">optional</span></span>
           <textarea className="input" rows={2} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="e.g. The dashboard is down until Tuesday" />
         </label>
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>Save and skip</button></div>
+        <FormFooter sheet onCancel={onClose}><button type="submit" className="btn primary big-btn" disabled={busy}>Save and skip</button></FormFooter>
       </form>
     </Sheet>
   );

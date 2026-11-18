@@ -2386,7 +2386,9 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
   await dlg.getByRole('button', { name: /^Who it acts as: .*Change$/ }).click();
   await dlg.getByRole('combobox').fill('Mateo');
   await dlg.getByRole('option', { name: /Mateo Fernández/ }).click();
-  h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
+  // Never a disabled primary (FORM-FOOTER 3.3.1): pressed with nothing said, it says what’s missing and stays.
+  await dlg.getByRole('button', { name: 'Make the token' }).click();
+  h.set('errors', await dlg.getByText('Say what it’s for, in a few words.').isVisible() && await dlg.getByRole('button', { name: 'Make the token' }).isVisible(), 'a token can be made without saying what it is for');
   await h.fill(dlg.getByLabel('What it’s for'), 'Claude on Mateo’s laptop');
   await h.checkpoint('make token');
   await h.click(dlg.getByRole('button', { name: 'Make the token' }));
@@ -5166,7 +5168,9 @@ journey('U101', ['RHYTHM-OPTIONAL', 'HOME-OWNER', 'CHANGE-LOG'], 'Amara sets the
   await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
   const sheet = p.getByRole('dialog', { name: 'Check-in rhythm' });
   await sheet.waitFor();
-  if (!(await sheet.getByRole('button', { name: 'Save' }).isDisabled())) fail('Save is offered before anything changed');
+  // Never a disabled primary (FORM-FOOTER 3.3.1): pressed before anything changed, the status line says so and the sheet stays.
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  if (!/Nothing to save/.test(await sheet.locator('.foot-status').innerText().catch(() => ''))) fail('Save pressed before anything changed does not say there’s nothing to save');
   await h.click(sheet.getByRole('radio', { name: /No set rhythm/ }));
   const says = await sheet.innerText();
   for (const t of [/\d+ goals have nothing due\./, /stop reading “No recent update”/, /Nothing is flagged for going quiet\./, /Every check-in already posted stays as it is\./]) if (!t.test(says)) fail(`the read-back does not say ${t}: ${says.slice(0, 400)}`);
@@ -8931,10 +8935,9 @@ async function platformChecks() {
     if (!(await focusedInvalid())) footProblems.push('Change a goal with its name cleared, pressed: focus is not on the field in error');
     await f.goto(url('/data/import?paste=1'));
     const check = f.getByRole('button', { name: 'Check these rows' });
-    if (await check.count()) {
-      if (await check.isDisabled()) footProblems.push('Import’s paste: Check these rows is disabled while the box is empty');
-      else { await check.click(); await f.waitForTimeout(200); if (!(await focusedInvalid())) footProblems.push('Import’s paste pressed empty: focus is not on the box, marked in error'); }
-    }
+    if (!(await check.waitFor({ timeout: 5000 }).then(() => true, () => false))) footProblems.push('Import’s paste: no Check these rows button to press');
+    else if (await check.isDisabled()) footProblems.push('Import’s paste: Check these rows is disabled while the box is empty');
+    else { await check.click(); await f.waitForTimeout(200); if (!(await focusedInvalid())) footProblems.push('Import’s paste pressed empty: focus is not on the box, marked in error'); }
     await c20.close();
     // At 360px, when Back and the primary don't fit side by side (3.5): the primary takes the full width and Back sits
     // above it as a text link. New goal's second step has both.

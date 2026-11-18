@@ -6,6 +6,7 @@ import { weekDates } from '../domain/plan';
 import type { Ask, Goal } from '../domain/types';
 import { Sheet } from './bits';
 import { PersonPick } from './PersonPick';
+import { FormFooter } from './FormFooter';
 
 export function NextStepSheet({ goal, existing, onClose }: { goal: Goal; existing?: Ask | null; onClose: () => void }) {
   const app = useApp();
@@ -51,7 +52,7 @@ export function NextStepSheet({ goal, existing, onClose }: { goal: Goal; existin
           </label>
         </div>
         <span className="hint">Whoever does it sees it on Home and on this goal. Once its week has passed it is overdue, and the goal needs attention again.</span>
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : existing ? 'Save the change' : 'Add the next step'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : existing ? 'Save the change' : 'Add the next step'}</button></FormFooter>
       </form>
     </Sheet>
   );

@@ -257,7 +257,7 @@ A step's primary names the next step ("Next: why it's behind"), because the stud
 ### 3.5 Placement
 
 - **Sticky at the bottom of the window** on focused tasks, as today, with the same short-screen exception: below 600 px of height it sits in the page flow (`forms-checkin.css`). Planning found that the study's zoomed views came from this exception.
-- **The width of the form's column** (620 px), not the window. On a phone it is full width, with the primary on the right and Back on the left. When both don't fit at 360 px, the primary takes the full width and Back goes above it as a text link.
+- **The width of the form's column** (620 px), not the window. On a phone (420 px or narrower) it is full width: the primary takes the full width and Back goes above it as a text link. Wider, the primary is on the right and Back on the left.
 - **Sheets** (Watch, Add a next step, Respond) use the same footer in the sheet: the primary at the right, plus "Cancel" at the left, because a sheet has no header exit. This is the one place a footer has Cancel.
 
 ### 3.6 Screens that change, and the work

@@ -2,8 +2,8 @@
    primary will do on the last step, or what is left to fix), Back at the left from the second step on, and the one
    primary at the right, labelled with a verb and an object: never "Continue", "Submit", "OK" or "Save" alone. A form's
    exit is the header's Close, never the footer's; a sheet, which has no header, puts Cancel at the left instead (3.5).
-   At 360px, when Back and the primary don't fit side by side, the primary takes the full width and Back sits above it
-   as a text link (form-footer.css). */
+   At 420px or narrower (a phone), the primary takes the full width and Back sits above it as a text link
+   (form-footer.css). */
 import { useRef, type ReactNode } from 'react';
 import { DRAFT_KEPT } from '../domain/formFooter';
 

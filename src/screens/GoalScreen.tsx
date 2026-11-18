@@ -558,7 +558,7 @@ export function AskQuestionSheet({ goal, onClose }: { goal: Goal; onClose: () =>
           {tried && bad && <span className="hint tone-off" role="alert">Type the question.</span>}
         </label>
         <span className="hint">It stays open on {ownerFirst}’s Home and in Next steps and asks until it’s answered. Everyone in {app.ws.name} can read it.</span>
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Asking…' : 'Ask'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Asking…' : 'Ask'}</button></FormFooter>
       </form>
     </Sheet>
   );
