@@ -1335,7 +1335,8 @@ const CORE_ARTICLES: Article[] = [
         'Opened from a link or a new tab, it goes up instead: to the goal this one feeds, or Goals; to People, Teams or Help.',
       ] },
       { heading: 'Leaving a form', list: [
-        'A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.',
+        'A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.',
+        'At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix.',
       ] },
       { heading: 'Leaving a form', module: 'reviews', list: [
         '“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
@@ -1355,7 +1356,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: [],
     screens: ['NotFound'],
-    reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS'],
+    reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS', 'FORM-FOOTER'],
     keywords: ['back', 'back link', 'title', 'tab', 'where am i', 'lit', 'close', 'draft', 'not found', 'navigation'],
     related: ['settings', 'finding'],
   },

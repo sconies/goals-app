@@ -36,6 +36,7 @@ import './styles/remove.css';
 import './styles/notes/phone-toolbar.css';
 import './styles/notes/goals-phone.css';
 import './styles/goal-row.css';
+import './styles/form-footer.css';
 
 applyAppearance();
 // Faro's splash, once per launch, over the app as it loads (src/ui/Splash.tsx). It never delays the app.

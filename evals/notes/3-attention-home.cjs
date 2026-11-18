@@ -124,7 +124,7 @@ module.exports = {
     // 88–90% against 90%, which isn't heading short since deep review T5, so it doesn't.
     {
       const [c, p] = await open(1280, 900, 'chen', '/');
-      const mine = await section(p, 'Your goals').locator('.alist .arow-title').allInnerTexts();
+      const mine = await section(p, 'Your goals').locator('.alist .grow-title').allInnerTexts();
       check(mine.includes('Jenkins jobs still running') && !mine.includes('Changes shipped with automated integration tests'), `[ATTENTION-HANDLED] Chen's goals that need attention are ${mine.join(', ')}`);
       await c.close();
     }
@@ -181,7 +181,7 @@ module.exports = {
       const last = await p.evaluate(async () => { const s = await window.__goalsStore.load('platform-org'); return s.checkIns.filter((x) => x.goalId === 'lead-merge').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1).value; });
       await p.goto(url('/check-in/lead-merge'));
       await p.getByLabel('This week’s value').fill(String(last));
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       await p.getByRole('button', { name: /Still true: post check-in/ }).click();
       await p.getByText('Check-in saved').first().waitFor().catch(() => {});
       await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));

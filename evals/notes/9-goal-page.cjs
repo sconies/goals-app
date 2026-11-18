@@ -246,7 +246,7 @@ module.exports = {
         // 10 may be far from last week's number, which the check-in asks about (CK2): it is meant.
         const meant = p.locator('.level-check .level-actions button').first();
         if (await meant.isVisible().catch(() => false)) await meant.click();
-        const cont = p.getByRole('button', { name: 'Continue' });
+        const cont = p.getByRole('button', { name: /^Next(: |$)/ });
         if (await cont.isVisible().catch(() => false)) await cont.click();
         const still = p.getByRole('button', { name: /^Still true/ });
         if (await still.isVisible().catch(() => false)) await still.click();

@@ -31,8 +31,11 @@ export function hasDraft(key: string): boolean {
 }
 
 /** State that is saved as you type and restored when you come back. */
-export function useDraft<T extends object>(key: string, initial: () => T): [T, (patch: Partial<T>) => void, () => void, boolean] {
+/** A draft kept in this browser: its value, a setter that keeps every change, clear, whether it was there on arrival, and
+    whether one is kept now (restored, or something typed since), which a form's Close says ("Close" until then: FORM-FOOTER). */
+export function useDraft<T extends object>(key: string, initial: () => T): [T, (patch: Partial<T>) => void, () => void, boolean, boolean] {
   const [restored] = useState(() => read<T>(key) != null);
+  const [touched, setTouched] = useState(restored);
   const [value, setValue] = useState<T>(() => ({ ...initial(), ...(read<T>(key) ?? {}) }));
   const set = useCallback((patch: Partial<T>) => {
     setValue((v) => {
@@ -40,9 +43,10 @@ export function useDraft<T extends object>(key: string, initial: () => T): [T, (
       try { localStorage.setItem(PREFIX + key, JSON.stringify(next)); } catch { /* storage blocked */ }
       return next;
     });
+    setTouched(true);
   }, [key]);
   const clear = useCallback(() => clearDraft(key), [key]);
-  return [value, set, clear, restored];
+  return [value, set, clear, restored, touched];
 }
 
 export const checkInDraftKey = (ws: string, goalId: string, week: number) => `${ws}:checkin:${goalId}:${week}`;

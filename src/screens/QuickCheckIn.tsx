@@ -21,6 +21,7 @@ import { filledAt, readWhen } from '../domain/readingWords';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
+import { postCheckIns } from '../domain/formFooter';
 import { FormClose } from '../ui/FormClose';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
@@ -164,7 +165,7 @@ export function QuickCheckIn() {
       {/* A form: one way out, top right, in words (navigation spec 2.5). The numbers typed are kept as a draft. */}
       <div className="focus-top quick-top">
         <span className="small strong">Week {app.week} check-in</span>
-        <FormClose keeps onClose={() => nav('/check-in')} />
+        <FormClose keeps dirty={Object.values(rows).some((r) => r.value.trim())} onClose={() => nav('/check-in')} />
       </div>
       <div className="page-head">
         <h1 className="title-xl">Type all your numbers in one table</h1>
@@ -288,9 +289,9 @@ export function QuickCheckIn() {
           {/* Post stays in sight however long the table gets; what's still wrong is said just above it. */}
           <div className="qfoot">
             {summary && <p className="qsummary" role={tried ? 'alert' : 'status'}>{summary}</p>}
+            {/* The one way out is the header's Close (FORM-FOOTER): no Cancel here. */}
             <div className="foot-row">
-              <Link className="btn ghost big-btn" to="/">Cancel</Link>
-              <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : ready.length ? `Post ${ready.length} ${ready.length === 1 ? 'check-in' : 'check-ins'}` : 'Post check-ins'}</button>
+              <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Posting…' : postCheckIns(ready.length)}</button>
             </div>
           </div>
         </form>

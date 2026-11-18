@@ -27,6 +27,7 @@ import { BackLink } from '../ui/BackLink';
 import { Pick } from '../ui/Pick';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
 import { ASK_STATUS, DECIDED, lower } from '../domain/vocabulary';
+import { FormFooter } from '../ui/FormFooter';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
@@ -422,10 +423,10 @@ export function ReviewEdit() {
           <Pick kind="person" several label="People" hint={`${r.people.length === 1 ? '1 person' : `${r.people.length} people`} so far.`} value={r.people} onChange={(people) => set({ people })}
             keep={(id) => !!existing && id === existing.createdBy && app.viewer.id !== existing.createdBy && !app.viewer.admin} />
         </section>
-        <div className="focus-foot">
-          {tried && !ok && <span className="hint tone-off" role="alert">{problem}</span>}
-          <div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{existing ? 'Save changes' : 'Set up the review'}</button></div>
-        </div>
+        <FormFooter statusTone={tried && !ok ? 'off' : undefined}
+          status={tried && !ok ? <span role="alert">{problem}</span> : `${goalsN(covered.length)}, ${r.people.length === 1 ? '1 person' : `${r.people.length} people`}.`}>
+          <button className="btn primary big-btn" type="submit" disabled={busy}>{existing ? 'Save review' : 'Create review'}</button>
+        </FormFooter>
       </form>
     </div>
   );

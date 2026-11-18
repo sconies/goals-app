@@ -91,7 +91,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)” | link | always |
 | “Show all …” | button | `asks.length > shown.length` |
-| “Check in” | link | `a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind ===…` |
 | “See them” | link | `sort` |
 | “See the wrap-up” | link | `wrapping` |
 | “See Cycles / Start …” | link | always |
@@ -143,7 +142,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
 | error | “Say why it’s better than the numbers: tap Change.” | `step === 'measure' and valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0) and tried && e.codes.includes('greener-why')` |
 | error | “Pick a cause, then write a sentence. / Write a sentence about what happened.” | `step === 'account' and needsWhy and tried and !whyOk` |
-| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried and !wayOk` |
+| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried && !wayOk && !(wayLong && draft.ptgState === 'help' && !helpFrom)` |
 | error | “Pick who it goes to.” | `step === 'account' and needsWay and draft.ptgState === 'help' and tried and !helpFrom` |
 | error | “Change what’s different, or tick Still true this week.” | `alert` |
 | error | “Write a sentence so people watching know why.” | `e.greener and tried and !okWhy` |
@@ -173,9 +172,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip && !numberStep` |
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
-| “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
 | “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
-| “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
 | “Add a next step” | button | `!open` |
@@ -225,8 +222,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start over” | button | `goals.length > 0` and `hasDraft` |
 | “Confirm …” | button | `goals.length > 0` and `unconfirmed` and `read` |
 | “Confirm all readings” | button | `goals.length > 0` and `toConfirm.length > 0` and `toConfirm.length > 1` |
-| “Cancel” | link | `goals.length > 0` |
-| “Saving… / Post … / Post check-ins” | primary | `goals.length > 0` |
+| “… (worked out when it shows: `busy ? 'Posting…' : postCheckIns(ready.length)`)” | primary | `goals.length > 0` |
 
 ## Research
 
@@ -368,9 +364,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
 | “Between” | button | `step === 2` and `d.kind === 'range'` |
 | “Change” | button | `step === 3` and `read` and `r.step != null` |
-| “Back” | button | `step > 0` |
 | “Skip: say how it’s measured later” | button | `step === 1` and `proposing` |
-| “Proposed / Published / Saving… / Continue / Propose goal / Publish goal” | primary | always |
+| “… (worked out when it shows: `published ? (proposing ? 'Proposed' : 'Published') : saving ? 'Saving…' : step < 3 ? nextLabel(step === 2 ? '…`)” | primary | always |
 
 ## GoalScreen
 
@@ -757,7 +752,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Undo” | button | `step === 'goals'` and `start === 'own'` and `removed` |
 | “Add a goal” | button | `step === 'goals'` and `start === 'own'` |
 | “Download the template” | button | `step === 'goals'` and `start === 'file'` |
-| “Back” | button | `idx > 0` and `!fromCheck` |
 | “… (worked out when it shows: `label`)” | primary | always |
 | “Done” | primary | always |
 | “Move a number” | button | `!headline` |
@@ -1056,7 +1050,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Not yet” | button | always |
 | “Saving… / Finish the review / Mark … reviewed” | primary | always |
 | “Every week / Every … weeks” | button | always |
-| “Save changes / Set up the review” | primary | always |
+| “Save review / Create review” | primary | always |
 
 ## Watching
 
@@ -1133,7 +1127,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Back to the wrap-up” | link | always |
 | “Carry it on” | button | always |
 | “Stop it here” | button | always |
-| “Saving… / Save changes / Save and continue” | primary | always |
+| “… (worked out when it shows: `busy ? 'Saving…' : before ? 'Save changes' : mineLeft.length ? nextLabel(mineLeft[0]!.title) : 'Finish the wr…`)” | primary | always |
 
 ## Parts by name
 
@@ -1600,7 +1594,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
 | error | “Say why it’s better than the numbers: tap Change.” | `step === 'measure' and valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0) and tried && e.codes.includes('greener-why')` |
 | error | “Pick a cause, then write a sentence. / Write a sentence about what happened.” | `step === 'account' and needsWhy and tried and !whyOk` |
-| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried and !wayOk` |
+| error | “Say a few words about it. / Pick the week it’s back on plan, or choose another option if you don’t know yet.” | `step === 'account' and needsWay and tried && !wayOk && !(wayLong && draft.ptgState === 'help' && !helpFrom)` |
 | error | “Pick who it goes to.” | `step === 'account' and needsWay and draft.ptgState === 'help' and tried and !helpFrom` |
 
 **Buttons, and who sees them**
@@ -1617,9 +1611,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip && !numberStep` |
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
-| “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
 | “Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue” | primary | `step !== 'carry'` |
-| “Back” | button | `!(step !== 'carry')` |
 | “Something changed” | button | `!(step !== 'carry')` |
 | “Posting… / Still true: post check-in” | primary | `!(step !== 'carry')` |
 

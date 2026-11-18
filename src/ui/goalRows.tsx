@@ -37,10 +37,12 @@ export function rowFacts(app: App, g: Goal, extra: Partial<RowFacts> = {}): RowF
  * one button where the list is something to do. The place picks what fills the reason; it never moves a slot.
  * Links open things and buttons act: a row with no action is one link; a row with an action links only its name.
  */
-export function GoalRow({ g, place = 'goals-list', showOwner = true, queue, act, to: href, linkState, className }: {
+export function GoalRow({ g, place = 'goals-list', showOwner = true, sayOwner, queue, act, to: href, linkState, className }: {
   g: Goal;
   place?: RowPlace;
   showOwner?: boolean;
+  /** Say whose goal it is first in the reason, on goals that aren't the viewer's. */
+  sayOwner?: boolean;
   /** The check-in queue: a draft kept, or this week's check-in already posted. */
   queue?: RowFacts['queue'];
   /** A button the place offers whatever the rule says (Home with no set rhythm: every goal not checked in this week). */
@@ -51,7 +53,7 @@ export function GoalRow({ g, place = 'goals-list', showOwner = true, queue, act,
   className?: string;
 }) {
   const app = useApp();
-  const parts = rowParts(g, app.attentionOf(g), place, rowFacts(app, g, { showOwner, queue }));
+  const parts = rowParts(g, app.attentionOf(g), place, rowFacts(app, g, { showOwner, sayOwner, queue }));
   const p = act ? { ...parts, action: act } : parts;
   // On a review's agenda, where a confirmed number came from, after it in the quiet ink (NR 2.4); a typed number says nothing.
   const from = place === 'agenda' && g.kind !== 'milestone' ? readingFrom(app.checkInsOf(g).filter((c) => c.week <= app.week).at(-1), g.decimals) : null;
@@ -71,7 +73,8 @@ export function GoalRow({ g, place = 'goals-list', showOwner = true, queue, act,
       </span>
       {p.action ? <Link className="grow-name" to={to}>{name}</Link> : <span className="grow-name">{name}</span>}
       {/* One reason; the whole sentence is in the title when a wide row clamps it. */}
-      {p.reason && <span className="grow-why" title={p.reason}>{p.reasonIsFlag && <WarnMark />}{p.reason}</span>}
+      {/* The title is the reason in its own words, as the goal's page says it; the owner's name is said before it. */}
+      {p.reason && <span className="grow-why" title={p.reasonOwner ? p.reason.slice(p.reasonOwner.length + 2) : p.reason}>{p.reasonIsFlag && <WarnMark />}{p.reason}</span>}
       {p.context && <span className="grow-context">{p.contextIsFlag && <WarnMark />}{p.context}</span>}
       {!isEveryday(app.cycle, g.level) && <span className="sr">{levelName(app.cycle, g.level)} level</span>}
     </>

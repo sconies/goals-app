@@ -38,6 +38,8 @@ export interface RowFacts {
   tell?: string | null;
   /** Lists of other people's goals name the owner in the reason; a list of your own doesn't. */
   showOwner?: boolean;
+  /** Say whose goal it is first in the reason, on a goal that isn't the viewer's (a lead's lists on Home). */
+  sayOwner?: boolean;
   /** The check-in queue: a draft is kept, or this week's check-in is already posted (and the day it was). */
   queue?: { draft?: boolean; done?: boolean; postedDay?: string };
 }
@@ -60,6 +62,8 @@ export interface RowParts {
   reason: string | null;
   /** The reason is a flag that isn't the status itself: it takes the warning mark. */
   reasonIsFlag: boolean;
+  /** The owner said first in the reason ("Yasmin El-Amin. …"), when the place asks for it; the reason's own words follow. */
+  reasonOwner?: string;
   /** An optional second line that changes what the reader decides: an open ask, or a draft kept. */
   context: string | null;
   /** The context is an ask still waiting: it takes the warning mark. */
@@ -117,7 +121,8 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
   switch (place) {
     case 'home-mine':
       if (top) { useFlag(top); useAsk(); } else reason = due ? due.detail : `${fresh()}.`;
-      if (due) action = 'Check in';
+      // Only the owner checks in, so only the owner's row offers it (review of #593).
+      if (due && goal.ownerId === f.viewerId) action = 'Check in';
       break;
     case 'watching-needs':
       if (top) { useFlag(top); useAsk(); }
@@ -157,6 +162,9 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
       break;
   }
 
+  // Whose it is, first, where the place asks and the goal isn't the viewer's: "Yasmin El-Amin. {reason}".
+  let reasonOwner: string | undefined;
+  if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !(reason as string).startsWith(owner)) { reason = `${owner}. ${reason}`; reasonOwner = owner; }
   return {
     status: st.status, statusWord: LABEL[st.status],
     value: nowText(goal, a),
@@ -164,6 +172,6 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
     asOf,
     result: res ? { kind: res.kind, text: RESULT_TEXT[res.kind] } : null,
     title: goal.title, tell: f.tell ?? null,
-    reason, reasonIsFlag: isFlag, context, contextIsFlag, action,
+    reason, reasonIsFlag: isFlag, ...(reasonOwner ? { reasonOwner } : {}), context, contextIsFlag, action,
   };
 }

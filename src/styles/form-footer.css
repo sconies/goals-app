@@ -1,0 +1,9 @@
+/* One form footer (FORM-FOOTER; docs/design/patterns/spec.md 3.1, 3.5). Loaded last. The status line sits above the
+   buttons; Back at the left, the primary at the right. Sticky on focused tasks (the short-screen exception stays in
+   forms-checkin.css). At 360px, when both don't fit, the primary takes the full width and Back sits above it. */
+.form-foot .foot-status { margin: 0; line-height: 1.25rem; }
+.form-foot .foot-row { flex-wrap: wrap; }
+.sheet-foot-wrap.form-foot { display: flex; flex-direction: column; gap: var(--s3); }
+@container app (max-width: 420px) {
+  .form-foot .foot-row > .btn.ghost:first-child { flex: 1 1 100%; justify-content: flex-start; }
+}

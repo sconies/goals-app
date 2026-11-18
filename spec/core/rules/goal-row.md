@@ -65,6 +65,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### [src/domain/goalRow.test.ts](../../../src/domain/goalRow.test.ts)
 
+- the goal row: one set of slots in every list › Home offers Check in only on the viewer’s own goals, and says whose a goal is on a lead’s list (review of #593)
 - the goal row: one set of slots in every list › on track with a forecast miss: status On track, and the reason is "Getting worse: On track today, but…" with the warning mark
 - the goal row: one set of slots in every list › stale with a last known value: the last number and "as of week 40", and no warning mark, because the flag is the status
 - the goal row: one set of slots in every list › off track with an open ask: the owner’s why is the reason, and the ask is the context line, "Waiting on you" for the person asked

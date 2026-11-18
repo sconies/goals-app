@@ -19614,7 +19614,7 @@ function rowParts(goal, att, place, f) {
 				useFlag(top);
 				useAsk();
 			} else reason = due ? due.detail : `${fresh()}.`;
-			if (due) action = "Check in";
+			if (due && goal.ownerId === f.viewerId) action = "Check in";
 			break;
 		case "watching-needs":
 			if (top) {
@@ -19657,6 +19657,11 @@ function rowParts(goal, att, place, f) {
 		case "agenda": if (att.handled) reason = att.handled.text + ".";
 		else if (top) useFlag(top);
 	}
+	let reasonOwner;
+	if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !reason.startsWith(owner)) {
+		reason = `${owner}. ${reason}`;
+		reasonOwner = owner;
+	}
 	return {
 		status: st.status,
 		statusWord: LABEL[st.status],
@@ -19674,6 +19679,7 @@ function rowParts(goal, att, place, f) {
 		tell: f.tell ?? null,
 		reason,
 		reasonIsFlag: isFlag,
+		...reasonOwner ? { reasonOwner } : {},
 		context,
 		contextIsFlag,
 		action
@@ -26127,7 +26133,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later."]
+				list: ["A form has one way out, at the top right, in words. On a form that keeps drafts (check-in, New goal, changing a goal, setting up a workspace) it says “Close” until you type something, then “Close and keep the draft”, which keeps what you typed for later.", "At the foot of a form, Back (from the second step) is on the left and the one main button is on the right. The button says what it does: “Next: why it’s behind” names the next question, and “Post check-in” posts. The line above it says what posting does, or what is left to fix."]
 			},
 			{
 				heading: "Leaving a form",
@@ -26159,7 +26165,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"NAV-WHERE",
 			"NAV-BACK",
-			"NAV-FORMS"
+			"NAV-FORMS",
+			"FORM-FOOTER"
 		],
 		keywords: [
 			"back",
@@ -26705,6 +26712,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "one-form-footer",
+		date: "2026-11-18",
+		title: "Every form ends the same way",
+		points: [
+			"The main button at the foot of a form now says what it does: “Next: why it’s behind” names the next question, “Post check-in” posts, “Post 5 check-ins” posts the table.",
+			"Back is on the left, from the second step. The line above the buttons says what posting does, or what is left to fix.",
+			"The way out stays at the top right. On a form that keeps drafts it says “Close” until you type something, then “Close and keep the draft”.",
+			"The table check-in no longer has a Cancel at its foot: Close at the top does the same."
+		],
+		articles: ["getting-around"]
+	},
 	{
 		id: "one-goal-row",
 		date: "2026-11-17",
@@ -28499,6 +28518,7 @@ var RULE_PAGES = [
 (src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
 var MORE_RULE_PAGES = [
 	["goal-row", "One goal row"],
+	["form-footer", "One form footer"],
 	["field-table", "The field table"],
 	["import-levels", "Kinds, levels and near misses"],
 	["import-preview", "What an import read, and leaving rows out"],

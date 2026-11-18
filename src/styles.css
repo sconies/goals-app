@@ -1112,12 +1112,9 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .export-actions .btn { justify-content: center; }
 @media (max-width: 640px) { .export-list .opt.static { grid-template-columns: minmax(0, 1fr); } .export-actions { flex-direction: row; } }
 
-/* Choices that need a description are stacked rows, never a 2 + 1 grid. One footer for steps: Back left, the next step right. */
+/* Choices that need a description are stacked rows, never a 2 + 1 grid. */
 .kindcards { display: flex; flex-direction: column; gap: var(--s2); }
 .kindcard { width: 100%; min-height: 72px; text-align: left; align-items: flex-start; }
-.focus-foot.nav-foot { flex-direction: row; align-items: center; flex-wrap: nowrap; }
-.focus-foot.nav-foot .btn.primary { align-self: auto; min-width: 200px; }
-@media (max-width: 640px) { .focus-foot.nav-foot .btn.primary { min-width: 0; flex: 1 1 auto; } }
 /* Workspace, one column: the people (and Add a person) before the settings. */
 .page.workspace .split > .split-side { order: 3; }
 

@@ -428,7 +428,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   if (restored !== leadV) fail('the draft value was not restored');
   // Its first check-in, off its plan: it offers to start the plan from this number (OB2, rule 4). Rhea keeps the plan and says why.
   await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
@@ -478,7 +478,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   const sm = await h.snapshot();
   await h.fill(p.getByLabel('This week’s value'), valueAt(sm.goals.find((g) => g.id === 'ns-lead'), NOW, 0.5));
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Its week-45 check-in is already in (4 Nov), so this one corrects it: the note offered back is this week's (review F10).
   await see(p, 'Is what you said in this week’s earlier check-in still true?', 'last week’s reason and path are offered back');
   await h.progressShown('carry');
@@ -540,15 +540,15 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   else if (await p.getByText('Goals you watch').count()) fail('Watching is off, but Home shows “Goals you watch”');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
-  const cards = p.locator('.arow');
-  if ((await cards.count()) < 1) fail('expected an attention card for Rhea’s own goals');
-  const reasons = await cards.locator('.arow-why').allInnerTexts();
-  h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon').count() > 0, 'attention rows lack a reason or a status icon');
+  const cards = p.locator('.home-mine .alist .grow');
+  if ((await cards.count()) < 1) fail('expected an attention row for Rhea’s own goals');
+  const reasons = await cards.locator('.grow-why').allInnerTexts();
+  h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.home-mine .alist .grow .grow-status svg').count() > 0, 'attention rows lack a reason or a status icon');
   // The first goal that needs attention starts on the first screen: its shape and title, with what needs your response
   // above it (Lane, 5 Nov). Its reason is two lines on Home, and in full on the goal's page.
   const top = await cards.first().evaluate((el) => {
     const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
-    const t = el.querySelector('.arow-title')?.getBoundingClientRect();
+    const t = el.querySelector('.grow-title')?.getBoundingClientRect();
     return { y: el.getBoundingClientRect().top, title: t ? t.bottom : null, fold: bar ? bar.getBoundingClientRect().top : innerHeight };
   });
   h.set('entry', top.y >= 0 && top.title != null && top.title <= top.fold - 8, `the first attention card's title ends at ${Math.round(top.title ?? -1)}px, fold ${Math.round(top.fold)}px`);
@@ -691,24 +691,24 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await navTo(h, p, 'New goal');
   await see(p, 'What do you want to achieve?');
   await h.progressShown('wizard');
-  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.getByRole('button', { name: /^Next(: |$)/ }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'name' }).isVisible(), 'an empty name is not explained');
   await h.fill(p.getByLabel(/Name it the way/), 'MTTR for P1 incidents');
   await h.checkpoint('step 1');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Who and where (OB1): the owner is Mateo already; feeding a north star makes it SVP by itself (rule 1).
   await see(p, 'Whose is it, and where does it fit?');
   await pickIn(p, /^Feeds into\b/, 'restore', /Mean time to restore service/);
   h.set('progress', (await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'SVP' }).getAttribute('aria-pressed')) === 'true', 'feeding a north star does not make the goal SVP');
   await h.checkpoint('step 2');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
   await h.fill(p.getByLabel(/^Baseline$/), '90');
   await h.fill(p.getByLabel(/^Target$/), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
   await h.checkpoint('step 3');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await see(p, 'Does this read right?');
   await see(p, 'Mean time to restore service', 'the summary says what it feeds');
   await see(p, 'It’s an SVP goal', 'the read-back says its level');
@@ -744,10 +744,10 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   // An email tells people apart, so a missing one is explained before going on.
   h.set('attention', /grace/i.test(await p.getByLabel('Your email').inputValue()), 'the opened fields do not start with your own email');
   await p.getByLabel('Your email').fill('');
-  await p.getByRole('button', { name: 'Continue to people' }).click();
+  await p.getByRole('button', { name: 'Next: people' }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Add your email' }).isVisible(), 'a missing email is not explained');
   await h.fill(p.getByLabel('Your email'), 'grace.achterberg@example.com');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await p.waitForURL(/\/workspace\/new\/people/);
   await see(p, 'Who’s on it?');
   // A second person with your name is allowed (the email is who someone is, backlog N), and said on their row; a row
@@ -768,12 +768,12 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await download.saveAs(file);
   await p.locator('input[type=file]').first().setInputFiles(file);
   await see(p, 'added 2 people after the 2 you’d typed; 2 in the file were already there. It also has a goals sheet');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await p.waitForURL(/\/workspace\/new\/goals/);
   await h.click(p.getByRole('radio', { name: 'Import a spreadsheet' }));
   await see(p, 'Using the ', 'the goals step does not say it is using the goals sheet uploaded on People');
   await h.checkpoint('starting point');
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, 'Deploy lead time', 'the check step shows the outcome from the file');
   await h.checkpoint('check');
   await h.click(p.getByRole('button', { name: 'Create Platform Engineering' }));
@@ -811,25 +811,25 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await h.click(p.getByRole('link', { name: 'Set up a workspace' }));
   await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
-  await p.getByRole('button', { name: 'Continue to people' }).click();
+  await p.getByRole('button', { name: 'Next: people' }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the workspace a name' }).isVisible(), 'an empty name is not explained');
   await h.fill(p.getByLabel('Workspace name', { exact: true }), 'Growth');
   await h.fill(p.getByLabel('Your name'), 'Rosa Lind');
   await h.fill(p.getByLabel('Your team'), 'Growth');
   await h.fill(p.getByLabel('Your email'), 'rosa.lind@example.com');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await p.waitForURL(/\/workspace\/new\/people(\?|$)/);
   await see(p, 'Who’s on it?');
   // The browser’s Back is the step before, with what was typed still there; Continue returns.
   await p.goBack();
   await p.waitForURL(/\/workspace\/new\/workspace(\?|$)/);
   h.set('progress', (await p.getByLabel('Workspace name', { exact: true }).inputValue()) === 'Growth', 'the browser’s Back from People lost the workspace name');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await p.waitForURL(/\/workspace\/new\/people(\?|$)/);
   await p.getByLabel('Person 1: name').fill('Omar Haddad');
   await p.getByLabel('Person 1: email').fill('omar.haddad@example.com');
   await p.getByLabel('Person 1: team').fill('Growth');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await p.waitForURL(/\/workspace\/new\/goals(\?|$)/);
   await see(p, 'What are you working towards?');
   // Three ways to start, none an example: the outcome and the goals feeding it are typed (ST2).
@@ -840,7 +840,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await see(p, 'What feeds it?');
   await typeSetupGoals(p, ['Weekly active users', '1200', '2000', 'users'], [['New users activated in week one', '35', '50', '%'], ['Time to first value', '20', '8', 'min'], ['Weekly retention', '55', '65', '%']]);
   await h.checkpoint('goals');
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   await p.waitForURL(/\/workspace\/new\/check(\?|$)/);
   await see(p, 'Create Growth?');
   h.set('progress', /Step 4 of 4/.test(await p.locator('.steps').innerText()), 'Check is not “Step 4 of 4”');
@@ -864,7 +864,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   const refused = [/\/workspace\/new\/workspace/.test(p.url()), await p.getByText('Create ab?').count()];
   h.set('entry', refused[0] && !refused[1], `a refused name reached by address: at ${p.url()}, “Create ab?” shown ${refused[1]} times`);
   await p.getByLabel('Workspace name', { exact: true }).fill('Growth');
-  await p.getByRole('button', { name: /^(Continue to people|Back to Check)$/ }).first().click();
+  await p.getByRole('button', { name: /^(Next: people|Back to Check)$/ }).first().click();
   if (!/\/check/.test(p.url())) await p.goto(live('/workspace/new/check'));
   await p.waitForURL(/\/workspace\/new\/check/);
   await h.click(p.getByRole('button', { name: 'Create Growth' }));
@@ -961,15 +961,15 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   await h.fill(p.getByLabel('Your name'), 'Ana Silva');
   await h.fill(p.getByLabel('Your team'), 'Field Ops');
   await h.fill(p.getByLabel('Your email'), 'ana.silva@example.com');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await p.getByLabel('Person 1: name').fill('Ben Carter');
   await p.getByLabel('Person 1: email').fill('ben.carter@example.com');
   await p.getByLabel('Person 2: name').fill('Cara Diaz');
   await p.getByLabel('Person 2: email').fill('cara.diaz@example.com');
   await p.getByLabel('Person 2: team').fill('Dispatch');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await h.click(p.getByRole('radio', { name: /^Later/ }));
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
   await p.waitForURL(/\/ready/);
   const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
@@ -1030,7 +1030,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await h.progressShown('set up');
   // One minimum name length for workspaces and goals, said under the field.
   await h.fill(p.getByLabel('Workspace name', { exact: true }), 'Vo');
-  await p.getByRole('button', { name: 'Continue to people' }).click();
+  await p.getByRole('button', { name: 'Next: people' }).click();
   const short = await p.getByRole('alert').filter({ hasText: 'at least three characters' }).isVisible();
   // When the first review is, is in the How you’ll work sheet (a panel, not a step).
   await h.click(p.getByRole('button', { name: 'Change how you’ll work' }));
@@ -1040,13 +1040,13 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   // Every empty field says what it needs, not only the first. (Set up from inside the app, you are one line: Change opens the fields, cleared here.)
   await h.click(p.locator('.setup-me').getByRole('button', { name: 'Change' }));
   for (const f of ['Your name', 'Your team', 'Your email']) await p.getByLabel(f).fill('');
-  await p.getByRole('button', { name: 'Continue to people' }).click();
+  await p.getByRole('button', { name: 'Next: people' }).click();
   const each = (await p.getByRole('alert').allInnerTexts()).join(' | ');
   h.set('errors', short && /Add your name/.test(each) && /Add your email/.test(each) && /Add your team/.test(each), `step 1 says: ${each}; a two-letter name ${short ? 'is' : 'is not'} explained`);
   await h.fill(p.getByLabel('Your name'), 'Ines Voss');
   await h.fill(p.getByLabel('Your team'), 'Support');
   await h.fill(p.getByLabel('Your email'), 'ines.voss@example.com');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await see(p, 'Who’s on it?');
   // Three more people: an empty Team takes yours; a typo of a team already typed is caught before it makes a second one.
   await p.getByLabel('Person 1: name').fill('Theo Brandt');
@@ -1057,9 +1057,9 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, 'looks like Support', 'a team typo is not caught');
   await h.click(p.getByRole('button', { name: 'Use Support' }));
   if ((await p.getByLabel('Person 2: team').inputValue()) !== 'Support') fail('Use Support did not fix the typo');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await see(p, 'What outcome are you after?');
-  await p.getByRole('button', { name: 'Continue to check' }).click();
+  await p.getByRole('button', { name: 'Next: check' }).click();
   const outcomeSays = (await p.getByRole('alert').allInnerTexts()).join(' | ');
   if (!/Give the outcome a name/.test(outcomeSays) || !/Enter where it starts today/.test(outcomeSays) || !/Enter the target/.test(outcomeSays)) fail('the outcome step doesn’t say what each field needs: ' + outcomeSays);
   await h.fill(p.getByLabel('Outcome', { exact: true }), 'Weekly active users');
@@ -1086,7 +1086,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await p.getByRole('status').getByRole('button', { name: 'Undo' }).click();
   const back = (await p.getByLabel('Goal', { exact: true }).nth(2).inputValue()) === 'Build time';
   h.set('attention', capped && back, `fifth goal ${capped ? 'refused with a reason' : 'not refused'}; Undo ${back ? 'brought Build time back' : 'did not bring the goal back'}`);
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   // Check shows where each goal starts, the way it should move, and the weekly review it will make.
   await see(p, '10 min today → 6 min, lower is better', 'Check doesn’t show the start value');
   await see(p, 'Everyone, every goal, on Thursdays', 'Check doesn’t describe the weekly review');
@@ -1111,7 +1111,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
     const why = p.getByLabel('What happened');
     if (await why.isVisible().catch(() => false)) { await p.locator('.cause-pick button, [aria-label^="Why is it"] button').first().click().catch(() => {}); await why.fill('Starting point for the first week.'); }
     const post = p.getByRole('button', { name: 'Post check-in' });
-    await (await post.isVisible() ? post : p.getByRole('button', { name: 'Continue' })).click();
+    await (await post.isVisible() ? post : p.getByRole('button', { name: /^Next(: |$)/ })).click();
     await p.waitForTimeout(250);
   }
   await see(p, 'Check-in saved');
@@ -1157,7 +1157,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
   await h.fill(p.getByLabel('Workspace name', { exact: true }), 'Field Operations');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await see(p, 'Who’s on it?');
   // U5: someone typed first stays when the spreadsheet is uploaded; the file's people come after, and Undo takes them out.
   await h.fill(p.getByLabel('Person 1: name'), 'Theo Brandt');
@@ -1173,9 +1173,9 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   h.set('errors', kept && undone, `upload ${kept ? 'kept' : 'replaced'} the person typed; Undo ${undone ? 'put the rows back' : 'did not put the rows back'}`);
   await p.locator('input[type=file]').first().setInputFiles(file);
   await see(p, 'added 4 people after the 1 you’d typed');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await h.click(p.getByRole('radio', { name: 'Import a spreadsheet' }));
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   // U4, through the import's preview (IM8): stages due before the joining week are asked about, counted from it unless
   // changed, and "Keep the weeks as typed" is one Change away.
   const asked = p.locator('.import-answered').filter({ hasText: 'stages due before this week, so it would start late: Count them from this week' });
@@ -1246,7 +1246,7 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   await h.fill(p.getByLabel('Your name'), 'Ana Silva');
   await h.fill(p.getByLabel('Your team'), 'Depots');
   await h.fill(p.getByLabel('Your email'), 'ana.silva@example.com');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await h.fill(p.getByLabel('Person 1: name'), 'Ben Carter');
   await h.fill(p.getByLabel('Person 1: email'), 'ben.carter@example.com');
   await h.inView(p.getByRole('button', { name: 'Upload a spreadsheet' }), 'entry', 'Upload a spreadsheet');
@@ -1258,9 +1258,9 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
     'Sort times,Depot,ben.carter@example.com,Ben Carter,metric,min,40,30,'].join('\n');
   await p.locator('input[type=file]').first().setInputFiles({ name: 'depots.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
   await see(p, 'Read depots.csv', 'the upload is not said');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await h.click(p.getByRole('radio', { name: 'Import a spreadsheet' }));
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, 'From depots.csv', 'Check does not show the spreadsheet’s preview');
   await see(p, '3 goals and 2 people would be added, once the 2 goals below are settled', 'the preview’s count leaves the goals to fix out');
   await h.checkpoint('preview');
@@ -1375,7 +1375,7 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   const s7 = await h.snapshot();
   // Well ahead, but still a possible coverage (under 100%).
   await h.fill(p.getByLabel('This week’s value'), valueAt(s7.goals.find((g) => g.id === 'lead-review'), NOW, 1.25));
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Last week's reason is offered back; this week's is different, so edit it.
   // (Tariq's goal was on plan last week, so there is no earlier reason to offer back.)
   const changed = p.getByRole('button', { name: 'Something changed', exact: true });
@@ -1494,7 +1494,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await h.inView(p.getByRole('link', { name: 'Set up a review' }), 'entry', 'Set up a review');
   await h.checkpoint('reviews');
   await h.click(p.getByRole('link', { name: 'Set up a review' }));
-  await p.getByRole('button', { name: 'Set up the review' }).click();
+  await p.getByRole('button', { name: 'Create review' }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the review a name' }).isVisible(), 'an unnamed review is not explained');
   await h.fill(p.getByLabel('Name', { exact: true }), 'SRE fortnightly');
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
@@ -1510,7 +1510,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await p.keyboard.press('Escape');
   await see(p, /[2-9] goals so far/, 'the form counts the goals picked');
   await h.checkpoint('set up');
-  await h.click(p.getByRole('button', { name: 'Set up the review' }));
+  await h.click(p.getByRole('button', { name: 'Create review' }));
   await see(p, 'SRE fortnightly');
   await see(p, 'Every 4 weeks, Fridays');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
@@ -1585,17 +1585,17 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   await h.checkpoint('wrap-up');
   await h.click(p.locator('.hero .btn.primary'));
   await see(p, 'How did it land?');
-  await p.getByRole('button', { name: 'Save and continue' }).click();
+  await p.getByRole('button', { name: /Next: |Finish the wrap-up/ }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Write a sentence' }).isVisible(), 'a retro without a lesson is not explained');
   h.set('attention', await p.locator('.focus-body .chip').first().isVisible() && await p.locator('[aria-labelledby=res-l] button[aria-pressed=true]').count() === 1, 'the retro does not show where the goal ended or suggest a result');
   await h.checkpoint('retro');
   await h.click(p.getByRole('button', { name: 'Partly' }));
   await h.fill(p.getByLabel('What did you learn?'), 'Dependencies on other teams need a date agreed in week 1, not week 5.');
-  await h.click(p.getByRole('button', { name: 'Save and continue' }));
+  await h.click(p.getByRole('button', { name: /Next: |Finish the wrap-up/ }));
   await see(p, 'How did it land?');
   await h.fill(p.getByLabel('What did you learn?'), 'Action reviews only help once every incident has an owner for each action.');
   await h.click(p.getByRole('button', { name: 'Stop it here' }));
-  await h.click(p.getByRole('button', { name: 'Save and continue' }));
+  await h.click(p.getByRole('button', { name: /Next: |Finish the wrap-up/ }));
   await see(p, 'Your goals are wrapped up');
   await see(p, 'Dependencies on other teams', 'the summary shows what was learned');
   let s = await h.snapshot('ws_wrap');
@@ -1736,7 +1736,7 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   await check.waitFor();
   const q = await check.innerText();
   h.set('attention', /Check/.test(q) && /right\?/.test(q), `the question read “${q.replace(/\s+/g, ' ')}”`);
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await see(p, 'Answer the question above first.', 'Continue with a question open says why it does nothing');
   const s1 = await h.snapshot();
   h.set('errors', s1.checkIns.length === s0.checkIns.length, 'something posted with the question unanswered');
@@ -1812,7 +1812,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.context().close();
 });
 
-journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, each with its owner’s name first, and opens Goals filtered to Owner not you, whose count line says k', 4, async (h, device) => {
+journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, and opens Goals filtered to Owner not you, whose count line says k', 4, async (h, device) => {
   // Home rule 4 (HM3): the team set is exactly the Goals page's My team scope, so the block's total is the tab's count.
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'rhea'));
@@ -1825,14 +1825,14 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   // Its counts are shapes and words that add up to the total, and open the team scope by status.
   const counts = await block.locator('.home-counts a').evaluateAll((as) => as.map((a) => ({ text: a.innerText.trim(), href: a.getAttribute('href') || '', shape: !!a.querySelector('svg.status-shape') })));
   h.set('progress', counts.length > 0 && counts.every((c) => c.shape && /\/goals\?scope=team&status=\w+/.test(c.href)) && counts.reduce((n, c) => n + parseInt(c.text, 10), 0) === total, `Your team’s counts: ${counts.map((c) => c.text + ' ' + c.href).join(' | ')}`);
-  // The goals that need attention and aren't hers: each row names its owner first, never Rhea, and has no button.
+  // The goals that need attention and aren't hers: each is a goal row with no button.
   const needs = block.locator('a.home-team-needs');
   const said = await needs.innerText();
   const k = Number((said.match(/^(\d+) needs? attention that (isn’t|aren’t) yours$/) || [])[1]);
   if (!k) fail(`Your team’s link says “${said}”`);
-  const rows = block.locator('.arow');
-  const who = await block.locator('.arow .arow-who').allInnerTexts();
-  h.set('finish', await rows.count() === Math.min(4, k) && who.length === Math.min(4, k) && !who.some((w) => /Rhea/.test(w)) && await block.locator('.arow .btn').count() === 0, `Your team lists ${await rows.count()} rows (owners ${who.join(', ')}) for ${k}`);
+  const rows = block.locator('.alist .grow');
+  const act = await block.locator('.alist .grow-act, .alist .grow .btn').count();
+  h.set('finish', await rows.count() === Math.min(4, k) && act === 0, `Your team lists ${await rows.count()} rows (${act} buttons) for ${k}`);
   await h.checkpoint('home');
   // See them in Goals: the My team scope, with the same total.
   await h.click(block.getByRole('link', { name: 'See them in Goals' }));
@@ -2056,7 +2056,7 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   const wrapRows = await p.locator('.retro-row').count();
   await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
   await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
-  await h.click(p.getByRole('button', { name: /Save/ }));
+  await h.click(p.getByRole('button', { name: /^(Next: |Finish the wrap-up|Save)/ }));
   await p.waitForURL(/\/retro\/?(\?.*)?$/); // the list, not the wrap-up page (its address matches /retro too)
   const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
   const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
@@ -2164,10 +2164,10 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   const p = h.use(await newPage(device, 'mateo'));
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // To starts as the year's end and says so under the week picker (goal entry 2.4 and 2.13; GE9).
   const due = p.getByRole('button', { name: /^To Week \d+ · / });
   // To is the fourth field on a phone, so it is looked for, not expected above the fold.
@@ -2184,7 +2184,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test(await row.inputValue()), 'the plan table has no default numbers');
   await h.fill(row, '30');
   await h.checkpoint('plan table');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await see(p, 'with the weeks’ numbers set by hand', 'the read-back says the plan was set by hand');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
@@ -2282,7 +2282,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await input.setInputFiles(csv('goals.csv', 'Goal,Owner,Type,Unit,Start,Target,Feeds into\nRunbooks with an owner,Mateo Fernández,metric,%,20,90,Change failure rate\n'));
   await see(p, '1 new goal');
   await h.checkpoint('preview');
-  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await h.click(p.getByRole('button', { name: 'Import 1 change' }));
   await see(p, 'Saved 1 row from goals.csv.');
   // Its past weeks, by the old address (it leads to Data's Import): a week in the future is refused, and nothing saves
   // until it's fixed.
@@ -2291,14 +2291,14 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\nRunbooks with an owner,${NOW + 2},20\n`));
   await see(p, 'hasn’t happened yet', 'a future week was not refused');
   // With a row to fix, the preview's one action is choosing the corrected file: there is no Save to press.
-  h.set('errors', !(await p.getByRole('button', { name: /^Save/ }).count()), 'Save was offered with a row that needs fixing');
+  h.set('errors', !(await p.getByRole('button', { name: /^(Save|Import)/ }).count()), 'Save was offered with a row that needs fixing');
   await h.click(p.getByRole('button', { name: 'Choose the corrected file' }));
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\n`));
   await see(p, '2 check-ins (2 for past weeks)');
   await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
   await p.locator('.import-change').first().waitFor();
   h.set('attention', await p.locator('.import-change').filter({ hasText: 'Runbooks with an owner' }).count() === 2, 'the changes do not name the goal');
-  await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 2 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
@@ -2472,14 +2472,14 @@ journey('U25', ['FIRST-CHECKIN', 'GOAL-CREATE'], 'Publish a goal, then post its 
   const p = h.use(await newPage(device, 'mateo'));
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '20');
   await h.fill(p.getByLabel(/^Target$/), '90');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await see(p, 'is published', 'publishing does not offer the first check-in');
   await h.inView(p.getByRole('link', { name: 'Post the first check-in' }), 'entry', 'Post the first check-in');
@@ -2610,10 +2610,10 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   // A percentage target over 100% asks whether it's a share.
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Coverage of runbooks');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '0');
   await h.fill(p.getByLabel(/^Target$/), '150');
@@ -2844,7 +2844,7 @@ journey('U36', ['PATH-TO-GREEN', 'ATTENTION', 'REVIEW-RUN', 'ONE-ASK'], 'An owne
   await p.goto(url('/check-in/ns-lead'));
   const s0 = await h.snapshot();
   await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'ns-lead'), NOW, 0.5));
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await see(p, 'Still asking:', 'the open request is not shown before posting');
   await h.click(p.getByLabel('Keep this request open on their Home'));
   await h.click(p.getByRole('button', { name: /^Still true/ }));
@@ -2880,7 +2880,7 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG', 'ONE-ASK'], 'Several
   await p.goto(url('/check-in/lead-merge'));
   // His week is posted already, so this is another check-in: the number hasn't moved.
   await h.click(p.getByRole('button', { name: /^Measured again/ }));
-  await h.click(p.getByRole('button', { name: /^(Continue|Post check-in)$/ }));
+  await h.click(p.getByRole('button', { name: /^(Next|Post check-in)/ }));
   if (await p.getByRole('button', { name: 'Something changed', exact: true }).isVisible().catch(() => false)) await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   await h.click(p.getByRole('button', { name: 'Waiting on a decision already asked for another goal?' }));
   const sheet = p.getByRole('dialog', { name: 'Waiting on the same decision' });
@@ -3002,7 +3002,7 @@ journey('U39', ['ONE-ACCOUNT', 'PATH-TO-GREEN', 'WALKTHROUGHS'], 'Something chan
   // Before a number is typed the button doesn't promise to post.
   const before = await p.locator('form.focus-body button[type=submit]').innerText();
   await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'dep-jenkins'), NOW, 0.4));
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   // One screen: the cause, the account, the way back and the week, with last week's words to edit.
   const account = p.getByRole('region', { name: 'What changed, and what happens next' });
@@ -3010,7 +3010,7 @@ journey('U39', ['ONE-ACCOUNT', 'PATH-TO-GREEN', 'WALKTHROUGHS'], 'Something chan
   const steps = await p.locator('.dots').getAttribute('aria-label');
   const oneScreen = await account.getByRole('group', { name: 'Main cause' }).isVisible() && await account.getByRole('radiogroup', { name: 'Where you are' }).isVisible();
   const prefilled = (await account.getByLabel('What happened').inputValue()).length > 10;
-  h.set('one-action', oneScreen && prefilled && steps === 'Step 3 of 3' && before === 'Continue', `one screen ${oneScreen}, last week’s words ${prefilled}, progress “${steps}”, first button “${before}”`);
+  h.set('one-action', oneScreen && prefilled && steps === 'Step 3 of 3' && before === 'Next', `one screen ${oneScreen}, last week’s words ${prefilled}, progress “${steps}”, first button “${before}”`);
   await h.checkpoint('one account');
   // An empty account is explained where it's missing, not posted.
   await account.getByLabel('What happened').fill('');
@@ -3058,7 +3058,7 @@ journey('U40', ['OTHER-CAUSE', 'DEMO-FEEDBACK', 'RESEARCH'], 'Research notes fol
   await p.goto(url('/check-in/dep-jenkins'));
   const s0 = await h.snapshot();
   await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'dep-jenkins'), NOW, 0.4));
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   await h.click(p.getByRole('group', { name: 'Main cause' }).getByRole('button', { name: 'Something else' }));
   await h.fill(p.getByLabel('What happened'), 'A reorganisation moved the Jenkins job owners to another team mid-week.');
@@ -3755,7 +3755,7 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving'], ['/metrics/new', 'Close and keep the draft']]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close'], ['/goals/new', 'Close'], ['/goals/ci-docker/edit', 'Close'], ['/quick-check-in', 'Close'], ['/data/import', 'Close without saving'], ['/metrics/new', 'Close']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();
@@ -4289,7 +4289,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   const walkSays = (await p.locator('.ci-week').innerText()).trim();
   const opens = (await p.locator('.focus h1').first().innerText()).trim();
   const walkOk = (n === 1 || walkSays.endsWith(`1 of ${n}`)) && opens.includes(first);
-  await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
+  await h.click(p.getByRole('button', { name: 'Close', exact: true }));
   await p.waitForURL((u) => u.pathname.endsWith('/check-in'), { timeout: 5000 }).catch(() => {});
   await todo.waitFor();
   // Any row opens its own goal; closing keeps the draft, back on the list, which says so on that row.
@@ -4404,11 +4404,11 @@ journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a wo
   await h.click(sw.getByRole('button', { name: /Set up a new workspace/ }));
   await p.locator('.steps').first().waitFor();
   await h.fill(p.getByLabel('Workspace name', { exact: true }), 'Field Operations');
-  await h.click(p.getByRole('button', { name: 'Continue to people' }));
+  await h.click(p.getByRole('button', { name: 'Next: people' }));
   await see(p, 'Who’s on it?');
   await p.getByLabel('Person 1: name').fill('Ben Ortiz');
   await p.getByLabel('Person 1: email').fill('ben.ortiz@example.com');
-  await h.click(p.getByRole('button', { name: 'Continue to goals' }));
+  await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await see(p, 'What outcome are you after?');
   await see(p, 'What feeds it?');
   // Set-up has no example goals (ST2): the outcome and three goals feeding it are typed.
@@ -4422,7 +4422,7 @@ journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a wo
   await pickIn(owners.nth(3), /^Owner\b/, '', /No owner yet/);
   const left = (await owners.allInnerTexts()).filter((t) => /No owner yet/.test(t)).length;
   await h.checkpoint('owners');
-  await h.click(p.getByRole('button', { name: 'Continue to check' }));
+  await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, `${left === 1 ? '1 goal has' : `${left} goals have`} no owner yet. You can choose them now, or from Home afterwards.`, 'Check does not say how many goals have no owner');
   h.set('progress', /Grace/.test(firstOwner) && left === 2 && /Step 4 of 4/.test(await p.locator('.steps').innerText()), `a goal’s owner started as “${firstOwner}”, ${left} left with no owner, progress “${await p.locator('.steps').innerText()}”`);
   await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
@@ -4476,7 +4476,7 @@ journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-
     }
     // U9: behind plan; "Something changed" brings last week's words in to edit. Posting them untouched asks first.
     await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 0.4));
-    await h.click(p.getByRole('button', { name: 'Continue' }));
+    await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
     await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
     await h.checkpoint('carried words');
     await h.click(p.getByRole('button', { name: 'Post check-in' }));
@@ -4940,7 +4940,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.locator('.import-change').first().waitFor();
   h.set('attention', await p.locator('.import-change').filter({ hasText: stop.title }).count() === 1 && await p.locator('.import-change').filter({ hasText: move.title }).count() === 1, 'the changes do not name both goals');
   h.set('errors', (await h.snapshot()).goals.find((g) => g.id === stop.id) && !(await h.snapshot()).changes.some((c) => c.action === 'stopped'), 'something was saved before Save');
-  await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 2 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s1 = await h.snapshot();
   const stopped = (s1.goals.find((g) => g.id === stop.id) || {});
@@ -5251,7 +5251,7 @@ journey('U102', ['RHYTHM-OPTIONAL', 'UPDATE-ANYTIME'], 'Rhea checks in with noth
     const why = p.getByLabel('What happened');
     if (await why.isVisible().catch(() => false) && !(await why.inputValue())) { await p.locator('.cause-pick button, [aria-label^="Why is it"] button').first().click().catch(() => {}); await why.fill('Checking in with the latest number.'); }
     const post = p.getByRole('button', { name: 'Post check-in' });
-    await (await post.isVisible().catch(() => false) ? post : p.getByRole('button', { name: 'Continue' })).click().catch(() => {});
+    await (await post.isVisible().catch(() => false) ? post : p.getByRole('button', { name: /^Next(: |$)/ })).click().catch(() => {});
     await p.waitForTimeout(300);
   }
   await p.waitForURL((u) => u.pathname === '/check-in', { timeout: 8000 }).catch(() => undefined);
@@ -5321,7 +5321,7 @@ journey('U154', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the 
   await h.click(p.getByRole('button', { name: /Next: / }));
   await h.fill(p.getByLabel('This week’s value'), '0.40');
   await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
@@ -5849,7 +5849,7 @@ journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'],
   if (heads.join('|') !== want.join('|')) fail(`the sections read ${heads.join(', ')}`);
   // One way out, in words; no second exit.
   const exits = await p.locator('.focus-top').getByRole('button').count() + await p.locator('.focus-top a').count();
-  h.set('attention', exits === 1 && await p.getByRole('button', { name: 'Close and keep the draft' }).isVisible() && !(await p.getByRole('link', { name: /^Back to/ }).count()), `the edit page has ${exits} ways out`);
+  h.set('attention', exits === 1 && await p.getByRole('button', { name: 'Close', exact: true }).isVisible() && !(await p.getByRole('link', { name: /^Back to/ }).count()), `the edit page has ${exits} ways out`);
   await see(p, 'Check-ins have started, so a change here needs a reason. Watchers see it flagged.');
   // A new target asks why; Save changes is in view at the foot and the reason box, focused, is not under it.
   await h.fill(p.getByLabel(/^Target/), '20');
@@ -5902,10 +5902,10 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await see(p, 'What do you want to achieve?');
   await h.progressShown('wizard');
   // Continue with no name stays on step 1 and says why.
-  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.getByRole('button', { name: /^Next(: |$)/ }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'name' }).isVisible() && /\/goals\/new\/what(\?|$)/.test(p.url()), 'an empty name is not explained, or the step moved on');
   await h.fill(p.getByLabel(/Name it the way/), 'Release notes drafted automatically');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
   await see(p, 'Whose is it, and where does it fit?');
   h.set('entry', /Tunde/.test(await p.getByRole('button', { name: /^Owner · checks in weekly: .*Change$/ }).getAttribute('aria-label'))
@@ -5923,13 +5923,13 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await pickIn(p, /^Also helps\b/, 'merge-to-deploy', /Merge-to-deploy time/);
   await p.locator('.pick.open').getByRole('button', { name: 'Done' }).click();
   await h.checkpoint('who and where');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '10');
   await h.fill(p.getByLabel(/^Target$/), '80');
   await h.checkpoint('measure');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Does this read right?');
   const read = await p.locator('.review-rows').innerText();
@@ -5946,11 +5946,11 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   // A Change from Check that makes a later step wrong: Continue goes to that step and says so (build review of #129).
-  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.getByRole('button', { name: /^Next(: |$)/ }).click();
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await p.getByRole('button', { name: 'Change what' }).click();
   await p.getByRole('button', { name: /Hit dated stages/ }).click();
-  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.getByRole('button', { name: /^Next(: |$)/ }).click();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 5000 }).catch(() => {});
   h.set('errors', /\/goals\/new\/measure(\?|$)/.test(p.url()) && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after changing the type stayed on ${p.url()} without saying what the stages step needs`);
   // No select anywhere on the steps lists people, teams or goals.
@@ -5969,13 +5969,13 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await see(p, 'What do you want to achieve?');
   await h.progressShown('wizard');
   await h.fill(p.getByLabel(/Name it the way/), 'Review wait for Amara’s teams');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
   // Anyone may choose anyone as owner (Lane, 11 Nov): said, so nobody is surprised who can change it afterwards.
   await pickIn(p, /^Owner · checks in weekly/, 'amara', /Amara/);
   h.set('attention', await p.getByRole('status').filter({ hasText: 'Amara will own it. After it is published, only Amara or an admin can change it.' }).isVisible(), 'choosing Amara as owner doesn’t say who can change it after');
   await h.checkpoint('who');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await see(p, 'Everything here is needed unless it says optional.', 'the measure step doesn’t say what is needed');
   const unit = p.getByLabel(/^Unit/);
@@ -5983,7 +5983,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   // Nothing is said while typing: the target's Must fix waits for the field to be left, or for Continue.
   await h.fill(p.getByLabel(/^Target$/), '30 mins');
   h.set('errors', !(await p.getByRole('alert').filter({ hasText: 'has words in it' }).count()), 'a Must fix shows while typing');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   const line = await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)');
   h.set('errors', line.trim() === '2 things to fix above: Baseline and Target.', `the line above the button says “${line.trim()}”, not “2 things to fix above: Baseline and Target.”`);
   const startFix = await p.getByRole('alert').filter({ hasText: 'Enter where it starts today.' }).isVisible();
@@ -5995,7 +5995,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await see(p, 'Kept as whole numbers, as you typed them.', 'the decimals line doesn’t say what is kept');
   h.set('a11y', !(await p.getByLabel('Decimals', { exact: true }).count()), 'Decimals is still a field to fill in');
   await h.checkpoint('measure');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   // Publish shows one outcome (bug, 12 Nov): with the app's files slow to arrive, as from a far server, nothing between
   // Publish and the goal's page says a question is open or something needs fixing, and the button never says “Saving…”
@@ -6028,9 +6028,9 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.fill(p.getByLabel(/Name it the way/), 'Runbook coverage this year');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel(/^Unit/), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '50');
@@ -6041,13 +6041,13 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await p.waitForFunction(() => new Promise((res) => { const y = scrollY; setTimeout(() => res(scrollY === y), 150); }), null, { timeout: 3000 }).catch(() => {});
   await h.inView(q, 'attention', 'the over-100 question');
   h.set('attention', await p.evaluate(() => document.activeElement?.getAttribute('data-field')) === 'target', 'the over-100 question takes focus from Target while typing');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   const waits = (await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)')).trim();
   const onQ = await p.evaluate(() => document.activeElement?.getAttribute('data-check'));
   h.set('errors', waits === 'Answer the question above, under Target.' && onQ === 'over-100' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `Continue with the question open says “${waits}” with focus on ${onQ}`);
   await h.checkpoint('asked');
   await h.click(q.getByRole('button', { name: 'Yes, 150% is right' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await h.click(p.locator('.focus-foot').getByRole('button', { name: 'Back', exact: true }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
@@ -6055,7 +6055,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.fill(p.getByLabel(/^Target$/), '160');
   h.set('attention', await p.locator('.level-check').filter({ hasText: 'Is 160% right?' }).isVisible(), 'changing 150 to 160 doesn’t ask again');
   await h.click(p.getByRole('button', { name: 'Yes, 160% is right' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/[^/]+\?published=1/);
@@ -6069,9 +6069,9 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.fill(p.getByLabel(/Name it the way/), 'Signed builds in three stages');
   await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design');
   await pickWeek(p, 'Stage 1: due', '50');
@@ -6080,7 +6080,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await pickWeek(p, 'Stage 2: due', '52');
   await h.click(p.getByRole('button', { name: 'Add a stage' }));
   await h.fill(p.getByLabel('Stage 3', { exact: true }), 'Pilot');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   const twice = await p.locator('.stage').nth(1).getByRole('alert').filter({ hasText: 'Two stages are called “Design”.' }).isVisible();
   const noWeek = await p.locator('.stage').nth(2).getByRole('alert').filter({ hasText: 'Choose the week “Pilot” is due.' }).isVisible();
   h.set('errors', twice && noWeek, `the stage rows don’t each say their own fault (twice ${twice}, no week ${noWeek})`);
@@ -6155,14 +6155,14 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
     await see(p, 'What do you want to achieve?');
     await h.fill(p.getByLabel(/Name it the way/), title);
     if (kind) await h.click(p.getByRole('button', { name: kind }));
-    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
     // Rhea leads a team with SVP goals, so she is asked the level (OB1, rule 1).
     await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
     await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   };
   const publish = async () => {
-    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
     await p.waitForURL(/\/goals\/new\/check(\?|$)/);
     const read = (await p.locator('.review-rows').innerText()).replace(/\s+/g, ' ');
     await h.click(p.getByRole('button', { name: 'Publish goal' }));
@@ -6229,18 +6229,18 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.progressShown('wizard');
   await h.fill(p.getByLabel(/Name it the way/), 'Signed artifacts in staging');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
   await pickIn(p, /^Feeds into\b/, 'G-41', /Mean time to restore service/);
   await pickIn(p, /^Team\b/, 'CI/CD', /CI\/CD/);
   // Tunde is in Build & Release: asked, and the answer is read back under You said.
   await h.click(p.getByRole('button', { name: 'Keep it in CI/CD' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel(/^Unit/), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '40');
   await h.fill(p.getByLabel(/^Target$/), '90');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Nothing is saved until you publish.', 'Check doesn’t say nothing is saved yet');
   await h.inView(p.getByRole('button', { name: 'Publish goal' }), 'entry', 'Publish goal');
@@ -6265,7 +6265,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   // Change on Left as usual goes to the measure step; Continue comes straight back.
   await h.click(rows.getByRole('button', { name: 'Change left as usual' }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/, { timeout: 3000 }).catch(() => {});
   h.set('finish', /\/goals\/new\/check(\?|$)/.test(p.url()), `Continue after Change on Left as usual went to ${p.url()}, not back to Check`);
   // Change on What and another type: Continue opens the step that now needs something (it went dead: build review of
@@ -6273,14 +6273,14 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   await h.click(rows.getByRole('button', { name: 'Change what' }));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 3000 }).catch(() => {});
   const opened = /\/goals\/new\/measure(\?|$)/.test(p.url());
   h.set('errors', opened && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after another type stayed on ${p.url()} and didn’t open the stages`);
   if (opened) {
     await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Pilot');
     await pickWeek(p, 'Stage 1: due', '50');
-    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
     await p.waitForURL(/\/goals\/new\/check(\?|$)/, { timeout: 3000 }).catch(() => {});
     h.set('finish', /\/goals\/new\/check(\?|$)/.test(p.url()) && (await rowText('what')) === 'Dated stages: 1 stage, the last due week 50 (7–13 Dec 2026).', `after the stages, Continue went to ${p.url()} and What reads “${await rowText('what')}”`);
   }
@@ -6301,14 +6301,14 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.progressShown('wizard');
   await h.fill(p.getByLabel(/Name it the way/), 'Signed artifacts in staging');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel(/^Unit/), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '40');
   await h.fill(p.getByLabel(/^Target$/), '90');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   const question = p.getByRole('group', { name: 'Is it under way?' });
   await see(p, 'Is it under way?', 'the last step doesn’t ask whether the goal is under way');
@@ -6532,7 +6532,7 @@ journey('U158', ['READING-SEVEN-DAYS', 'READING-PREFILL'], 'Too old to fill in: 
   h.set('finish', !/From CI analytics|said \d|Confirm/.test(said) && (await p.getByRole('button', { name: /^Confirm/ }).count()) === 0, `the old reading is on the page: “${said}”`);
   h.set('progress', await block.getByRole('button', { name: 'No new number this week' }).isVisible(), 'No new number this week is not offered');
   await h.checkpoint('too old');
-  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await see(p, 'Type this week’s number.', 'Continue with an empty field does not ask for the number');
   h.set('errors', true);
   h.set('logged', true);
@@ -6770,16 +6770,16 @@ journey('U163', ['GOAL-NO-TARGET', 'GOAL-PROPOSED'], 'A baseline and nothing els
   await p.goto(on('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.fill(p.getByLabel(/Name it the way/), 'Cost per pipeline run');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel(/^Unit/), 'USD');
   await h.fill(p.getByLabel(/^Baseline$/), '0.42');
   const offer = p.getByRole('button', { name: 'No target agreed yet? Propose it with just the baseline' });
   h.set('entry', await offer.isVisible().catch(() => false), 'the measure step with a Baseline and no Target doesn’t offer to propose it without one');
   await h.click(offer);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'A number at 0.42 USD now. No target is set yet', 'Check doesn’t read back that no target is set');
   h.set('errors', (await p.getByRole('radio', { name: /Not yet: propose it/ }).isChecked().catch(() => false)), '“Is it under way?” isn’t on “Not yet: propose it” after choosing to propose it');
@@ -6857,14 +6857,14 @@ journey('U149', ['GOAL-PROPOSED', 'GOAL-EDIT-PAGE'], 'A proposed goal’s type: 
   await p.goto(on('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.fill(p.getByLabel(/Name it the way/), 'Change failure rate on the new runners');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel(/^Unit/), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '20');
   await h.fill(p.getByLabel(/^Target$/), '10');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await h.click(p.getByRole('group', { name: 'Is it under way?' }).getByRole('radio', { name: /Not yet: propose it/ }));
   await h.click(p.getByRole('button', { name: 'Propose goal' }));
@@ -6940,9 +6940,9 @@ journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen su
   await p.goto(url('/goals/new'));
   await see(p, 'What do you want to achieve?');
   await h.fill(p.getByLabel(/Name it the way/), 'Queue wait kept short');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   const field = p.locator('.measured-by');
   await h.click(field.getByRole('button', { name: /^Measured by/ }));
@@ -6951,7 +6951,7 @@ journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen su
   await see(field, 'min, whole numbers, lower is better: from the metric.', 'choosing a metric does not say what it fills in');
   await h.fill(p.getByLabel(/^Baseline$/), '9');
   await h.fill(p.getByLabel(/^Target$/), '4');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   const rows = p.getByRole('list', { name: 'Read back' });
   const measured = async () => ((await rows.locator('li[data-row="measured"] .rr-value').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
@@ -6972,7 +6972,7 @@ journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen su
   await pickIn(p, /^Team\b/, 'Build', /Build & Release/);
   const keep = p.getByRole('button', { name: 'Keep it in Build & Release' });
   if (await keep.count()) await h.click(keep);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(rows, 'Pipeline queue wait (p90), for Build & Release.', 'after a new team, the metric is still for the old one');
   h.set('progress', (await measured()) === 'Pipeline queue wait (p90), for Build & Release.', `after a new team, Measured by reads “${await measured()}”`);
@@ -6993,9 +6993,9 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.progressShown('wizard');
   await h.fill(p.getByLabel(/Name it the way/), 'Signed build queue wait');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   // The two rows: Baseline with From, Target with To, each week said with its dates and what it is.
   const from = p.getByRole('button', { name: /^From Week/ });
@@ -7047,7 +7047,7 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await h.click(q.getByRole('button', { name: 'No, start from this week' }));
   h.set('finish', /^Week 45 · 2–8 Nov 2026/.test(await from.innerText()), '“No, start from this week” didn’t put From back');
   await h.checkpoint('measure');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   const sentence = 'from 42 min in week 45 (2–8 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)';
   await see(p, sentence, 'Check doesn’t read the weeks back with their dates');
@@ -7063,9 +7063,9 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
   await h.fill(p.getByLabel(/Name it the way/), 'Signing rolled out in stages');
   await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Pilot');
   await pickWeek(p, 'Stage 1: due', '50');
@@ -7086,7 +7086,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await h.click(p.getByRole('button', { name: 'Lower is better' }));
   await h.click(asked.getByRole('button', { name: 'Mine is different: keep it' }));
   await see(p.locator('.check-said'), 'You said: mine is different.', 'an answered Check does not close to one line');
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   await p.getByRole('heading', { level: 1, name: 'CI cost per pipeline run' }).waitFor();
   // What it still needs, each with the button that opens the form at that field.
   const sort = p.locator('.metric-need-list');
@@ -7100,7 +7100,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   // Changing the unit of a metric goals use is asked first; keeping it changes nothing.
   await p.goto(url('/metrics/queue-wait/edit'));
   await h.fill(p.getByLabel('Unit', { exact: true }), 's');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const confirm = p.getByRole('dialog');
   await see(confirm, /1 goal is measured by Pipeline queue wait \(p90\) in min\. Is “s” a new label for the same numbers, or a different scale\?/, 'changing a unit goals use is not asked first');
   await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
@@ -7207,13 +7207,13 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await p.getByLabel(/^Caveats/).waitFor();
   h.set('entry', true);
   await h.fill(p.getByLabel(/^Caveats/), 'Counts only services on the paved road.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
   h.set('progress', true);
   // The meaning: read back, the question, the goal named, and Why a Must fix once the number itself changes.
   await p.goto(url('/metrics/metric_lead-time/edit'));
   await h.fill(p.getByLabel(/^What it means/), 'From merge to production, the median over 30 days.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const rb = p.locator('.metric-readback');
   await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
   // The read-back is a sheet: it takes the focus, and its own button is the one primary action (#351 review).
@@ -7282,7 +7282,7 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   h.set('entry', true);
   await h.click(group.getByRole('button', { name: 'Gap' }));
   await h.fill(p.getByLabel(/^What’s missing/), 'The new runners send no results yet; Aiko is adding them.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
   h.set('progress', true);
   const sortout = p.locator('.metric-sortout');
@@ -7308,7 +7308,7 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   // Said to be measured again: the goal is held to its plan once more.
   await p.goto(url('/metrics/metric_flaky-rate/edit'));
   await h.click(p.getByRole('group', { name: 'Is it measured today' }).getByRole('button', { name: 'Measured' }));
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
   const after = await h.snapshot();
   const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
@@ -7328,7 +7328,7 @@ journey('U172', ['METRIC-STRUCTURE'], 'A register’s structure kept in the libr
   await h.click(p.getByRole('group', { name: 'How it relates' }).getByRole('button', { name: 'Control' }));
   await h.click(p.getByRole('group', { name: 'Confidence in the number' }).getByRole('button', { name: 'Medium' }));
   await h.fill(p.getByLabel('How it could be gamed'), 'Retrying failed tests until they pass hides the flakes.');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
   h.set('progress', true);
   await see(p.locator('.metric-structure'), 'A control on', 'the metric does not say where it sits');
@@ -7535,7 +7535,7 @@ journey('U178', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with
   h.set('attention', (await p.getByRole('radio', { name: 'Add “Operate” to Stage' }).count()) === 1, 'the value is asked about more than once');
   await h.checkpoint('asked');
   await h.click(p.getByRole('radio', { name: 'Add “Operate” to Stage' }));
-  await h.click(p.getByRole('button', { name: /^Save 2 changes/ }));
+  await h.click(p.getByRole('button', { name: /^Import 2 changes/ }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const vals = s.modules?.tags?.fieldValues ?? [];
@@ -7652,15 +7652,15 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await h.fill(p.getByLabel('Unit', { exact: true }), '%');
   await h.click(p.getByRole('button', { name: 'Higher is better' }));
   await h.fill(p.getByLabel(/What it means and how/), 'Production deploys with no rollback, out of all production deploys, over 28 days.');
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   await p.getByRole('heading', { level: 1, name: 'Deploy success rate' }).waitFor();
   // The typo: one to fix, two to check.
   await p.goto(url('/metrics/new'));
   await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy sucess rate');
   await h.fill(p.getByLabel('Unit', { exact: true }), '%');
   await h.fill(p.getByLabel(/What it means and how/), 'Deploys that worked.');
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
-  await see(p.locator('.metric-count'), '1 to fix, 2 to check.', 'the foot does not count what is to fix and to check');
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
+  await see(p.locator('.form-foot .foot-status'), '1 to fix, 2 to check.', 'the foot does not count what is to fix and to check');
   const fix = p.locator('#metric-direction .level-fix');
   await see(fix, 'Must fix', 'the Must fix is not under Which way is better');
   await see(fix, 'Say which way is better: higher or lower.');
@@ -7679,11 +7679,11 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   // Answered and given a direction, it saves.
   await h.click(p.getByRole('button', { name: 'Higher is better' }));
   await p.getByRole('button', { name: 'Higher is better', pressed: true }).waitFor();
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   await see(p.locator('.fix-line'), 'Answer the question above first.', 'an unanswered Check does not stop the save');
   await h.click(p.locator('[data-check="name"]').getByRole('button', { name: 'Mine is different: keep it' }));
   await h.click(p.locator('[data-check="meaning"]').getByRole('button', { name: 'It’s right as written' }));
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   await p.getByRole('heading', { level: 1, name: 'Deploy sucess rate' }).waitFor();
   const still = p.locator('.metric-head .metric-still');
   // MQ2 (#571 review): a Draft's page says what it still needs to reach Defined, in the stage's words.
@@ -7707,7 +7707,7 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await h.fill(p.getByLabel('Source', { exact: true }), 'Release dashboard');
   await h.fill(p.getByLabel('Who owns that source'), 'Release engineering');
   await p.getByLabel('How often it refreshes').selectOption('daily');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await see(p.locator('.metric-head .metric-still'), /^Still needs: (?!.*(who owns the source|how often it refreshes)).*\.$/, 'the page still asks for the source’s owner or the refresh once they are said');
   const s = await h.snapshot();
   const added = (s.changes ?? []).filter((c) => c.entity === 'metric' && /Deploy sucess rate/.test(c.summary)).map((c) => c.action);
@@ -7723,20 +7723,20 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await see(p, 'What do you want to achieve?');
   await h.fill(p.getByLabel(/Name it the way/), 'Kafka cut-over plan');
   await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   // Rhea leads a team with SVP goals, so she is asked the level (OB1, rule 1).
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
   await pickWeek(p, 'Stage 1: due', '1');
   await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
   // The question is goal entry's shared Check block (GE2): Continue waits for it, and says where.
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   h.set('errors', (await p.locator('.fix-line').innerText().catch(() => '')).trim() === 'Answer the question above, under Stages.', 'an unanswered past stage is not explained');
   await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
   await see(p, 'Done in week 1.');
   await h.checkpoint('stages');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await see(p, '1 stage is already done.', 'Check does not say the stage is done');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
@@ -7749,13 +7749,13 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await p.goto(url('/goals/new'));
   await see(p, 'What do you want to achieve?');
   await h.fill(p.getByLabel(/Name it the way/), 'Lead time for the payments API');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.fill(p.getByLabel('Unit'), 'days');
   await h.fill(p.getByLabel(/^Baseline$/), '5');
   await h.fill(p.getByLabel(/^Target$/), '2');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /^Next(: |$)/ }));
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
   await see(p, 'The scorecard starts with the first check-in.', 'a new goal shows an empty scorecard');
@@ -7843,7 +7843,7 @@ journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: a
   await see(p, 'Check this import');
   await see(p, '3 rows, 1 kind of problem', 'Must fix does not count its rows and kinds');
   await see(p, '2 questions cover 15 rows', 'the questions are not counted once each');
-  h.set('attention', !(await p.getByRole('button', { name: /^Save/ }).count()) && await p.getByRole('button', { name: 'Choose the corrected file' }).isVisible(), 'Save is offered while rows must be fixed');
+  h.set('attention', !(await p.getByRole('button', { name: /^(Save|Import)/ }).count()) && await p.getByRole('button', { name: 'Choose the corrected file' }).isVisible(), 'Save is offered while rows must be fixed');
   await h.checkpoint('preview');
   // One answer covers fourteen rows, and closes to what was asked and the answer.
   await h.click(p.getByRole('radio', { name: 'Use CI/CD' }));
@@ -7859,14 +7859,14 @@ journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: a
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('goals-u88.csv', head + many + orphans('Rhea Kapoor') + staged));
   await see(p, 'Your 1 answer still applies.', 'the corrected file forgot the answer');
   await h.click(p.getByRole('radio', { name: 'They’re not done' }));
-  const save = p.getByRole('button', { name: 'Save 18 changes' });
+  const save = p.getByRole('button', { name: 'Import 18 changes' });
   await save.waitFor({ timeout: 5000 }).catch(() => {});
   h.set('errors', await save.isEnabled().catch(() => false), 'Save is not ready once every question is answered');
   await h.checkpoint('answered');
   await h.click(p.getByRole('link', { name: 'Show the 18 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
   await see(p, 'the owner’s team; the row gave none', 'the changes list does not say where a default came from');
-  await h.click(p.getByRole('button', { name: 'Save 18 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 18 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const runners = s.goals.filter((g) => /^Runner pool \d+ wait$/.test(g.title));
@@ -7926,8 +7926,8 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
   await h.click(sheet.getByRole('button', { name: 'Leave them out' }));
   await see(p, '1 row was left out at your choice', 'the preview does not say a row was left out');
   await p.waitForTimeout(100);
-  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Save 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
-  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Import 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
+  await h.click(p.getByRole('button', { name: 'Import 1 change' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   await see(p, '1 row was left out.', 'Imported does not say a row was left out');
   h.set('errors', await p.getByRole('button', { name: 'Download them' }).isVisible(), 'the rows left out are not offered as a download');
@@ -7966,12 +7966,12 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   await see(p, 'Stopped. Nothing was saved.', 'Stop does not say nothing was saved');
   h.set('logged', !(await h.snapshot()).goals.some((g) => g.title.startsWith('Sized queue')), 'a stopped import saved something');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-small.csv', rows(1200, 'Paged')));
-  await see(p, 'Save 1,200 changes', 'a file of 1,200 rows does not offer to save', 15000);
+  await see(p, 'Import 1,200 changes', 'a file of 1,200 rows does not offer to save', 15000);
   await h.click(p.getByRole('link', { name: 'Show the 1,200 changes' }));
   const drawn = await p.locator('main li, main tr').count();
   h.set('attention', drawn <= 60, `the changes list draws ${drawn} rows at once`);
   await p.goBack();
-  await h.click(p.getByRole('button', { name: 'Save 1,200 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 1,200 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/, { timeout: 20000 });
   const s = await h.snapshot();
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
@@ -8005,7 +8005,7 @@ journey('U179', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file 
   await h.click(p.getByRole('button', { name: 'Leave these 2 rows out and save the rest' }));
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Leave them out' }));
   h.set('one-action', (await p.locator('main .btn.primary').count()) === 1, 'the preview has more than one primary action');
-  await h.click(p.getByRole('button', { name: 'Save 3 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 3 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   await see(p, '2 new metrics, 1 metric changed', 'the saved import does not count the metrics');
   const s = await h.snapshot();
@@ -8039,13 +8039,13 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   await h.click(p.getByRole('button', { name: 'Higher is better' }));
   await h.fill(p.getByLabel(/What it means and how/), deploys?.meaning ?? '');
   await h.fill(p.getByLabel('Source', { exact: true }), deploys?.source ?? '');
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   const similar = p.locator('[data-check="similar"]');
   // Sketch 12: the similar metric as a card, with its name and stage.
   await see(similar, /A similar metric in the library[\s\S]*Production deploys per day/, 'the similar metric’s Check is not on the form');
   h.set('errors', (await similar.getByRole('button', { name: 'Use this one' }).count()) === 1, 'the similar Check has no Use this one');
   await h.click(similar.getByRole('button', { name: 'It’s different, carry on' }));
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   await p.getByRole('heading', { level: 1, name: 'Daily releases to production' }).waitFor();
   await h.checkpoint('added');
   // Pavel owns the Verified metric: a new source asks once whether to lapse Verified, then saves through the read-back.
@@ -8053,13 +8053,13 @@ journey('U180', ['METRIC-STAGE', 'METRIC-VERIFY'], 'The metric form asks every C
   await p.evaluate((k) => localStorage.setItem(k, 'pavel'), viewerKey);
   await p.goto(url('/metrics/metric_deploys/edit'));
   await h.fill(p.getByLabel('Source', { exact: true }), 'Deploy events warehouse');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const lapse = p.locator('[data-check="lapse"]');
   await see(lapse, '“Production deploys per day” is Verified.', 'the lapse Check is not on the form');
   h.set('attention', (await lapse.getByRole('button', { name: 'Change it, and lapse Verified' }).count()) === 1, 'the lapse Check has no answer to give');
   await h.click(lapse.getByRole('button', { name: 'Change it, and lapse Verified' }));
   await see(p.locator('.check-said'), 'You said: change it, and lapse Verified.', 'the answered lapse Check does not close to one line');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const sheet = p.getByRole('dialog');
   if (await sheet.count()) {
     const same = sheet.getByLabel(/Same number, better words/);
@@ -8114,9 +8114,9 @@ journey('U181', ['METRIC-STAGE', 'METRICS-LIBRARY'], 'Stages in the library and 
   await p.evaluate((k) => localStorage.setItem(k, 'pavel'), 'goals-app-viewer:platform-org');
   await p.goto(url('/metrics/metric_deploys/edit'));
   await h.fill(p.getByLabel('Source', { exact: true }), 'Deploy pipeline events');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   await h.click(p.locator('[data-check="lapse"]').getByRole('button', { name: 'Change it, and lapse Verified' }));
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const sheet = p.getByRole('dialog');
   if (await sheet.count()) {
     const same = sheet.getByLabel(/Same number, better words/);
@@ -8141,7 +8141,7 @@ journey('U182', ['METRIC-STAGE', 'METRIC-BASELINES'], 'Defining and baselines: a
   h.set('attention', (await p.getByRole('button', { name: /^Ratio/ }).getAttribute('aria-pressed')) === 'true' && (await p.getByLabel('Numerator: Counts').inputValue()).length > 5, 'the form does not show the ratio and its numerator');
   await h.fill(p.getByLabel('Link to the report or query'), 'https://ci-analytics.example.com/tests/flaky-rate');
   await see(still, 'All 10 parts are said', 'the box does not say every part is said once the link is in');
-  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await h.click(p.getByRole('button', { name: 'Save metric' }));
   const sheet = p.getByRole('dialog');
   if (await sheet.count()) await h.click(sheet.getByRole('button', { name: /^(Change the source|Save these changes|Save changes)$/ }).first());
   await p.waitForURL((u) => /\/metrics\/flaky-rate$/.test(u.pathname));
@@ -8279,7 +8279,7 @@ journey('U184', ['METRIC-STAGE', 'METRIC-DEFINED'], 'Trusting the number in a re
   await h.fill(p.getByLabel('Source', { exact: true }), 'DORA dashboard (Four Keys)');
   await h.fill(p.getByLabel('Unit', { exact: true }), 'deploys');
   // The form asks its Checks once Add is pressed (as U180 does); nothing is added while one is open.
-  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await h.click(p.getByRole('button', { name: 'Add metric' }));
   const card = p.locator('[data-check="similar"]');
   await see(card, 'A similar metric in the library', 'the similar metric is not asked about');
   await see(card.locator('[data-part="Similar metric"]'), /Production deploys per day\s*Verified/, 'the card does not name the similar metric with its stage');
@@ -8387,7 +8387,7 @@ journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pas
   await see(p, 'A column on Goals is called “Targett”. Read it as Target?', 'a header one letter out is not asked about');
   await h.checkpoint('near header');
   await h.click(p.getByRole('radio', { name: 'Read it as Target' }));
-  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await h.click(p.getByRole('button', { name: 'Import 1 change' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const g = s.goals.find((x) => x.title === 'Pasted cache hit rate');
@@ -8432,7 +8432,7 @@ journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tun
   for (let i = 0; i < 2; i++) await h.click(p.getByRole('radio', { name: 'Leave these rows out' }).first());
   await see(p, '2 rows are left out', 'the rows left out are not said');
   h.set('attention', (await p.locator('.import-answered').count()) === 2, 'the two answers do not close to their lines');
-  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await h.click(p.getByRole('button', { name: 'Import 1 change' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const g37 = s.goals.find((g) => g.key === 'G-37'), g14 = s.goals.find((g) => g.key === 'G-14');
@@ -8451,7 +8451,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   await p.goto(url('/data/import'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
   await p.waitForURL(/\/data\/import\/check$/);
-  await h.click(p.getByRole('button', { name: 'Save 15 changes' }));
+  await h.click(p.getByRole('button', { name: 'Import 15 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
   await see(p, `Saved 15 rows from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
   h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
@@ -8880,6 +8880,42 @@ async function platformChecks() {
   }
   lap('P11');
   if (want('P11')) add('P11', ['GOAL-ROW', 'SHAPE-MATCHES-WORD'], 'One goal row in every list: status and its word, then the value, then the name; values line up from 700px; the name spans the row on a phone; no link holds a button', !growProblems.length, growProblems.slice(0, 6).join(' | '));
+  // P20: one form footer (FORM-FOOTER; docs/design/patterns/spec.md 3.1, 3.4, 3.6). On every focused task reachable in the demo
+  // (a check-in, the table check-in, New goal, Change a goal, a review's set-up) there is exactly one filled button, it is
+  // in the footer, and its label says what happens: never Continue, Submit, OK or Save alone. A check-in's exit reads
+  // "Close" before anything is typed and "Close and keep the draft" after.
+  const footProblems = [];
+  if (want('P20')) {
+    const c20 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const f = await c20.newPage();
+    await f.goto(url('/'));
+    await f.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    for (const [route, name] of [['/check-in/ci-docker', 'a check-in'], ['/quick-check-in', 'the table check-in'], ['/goals/new', 'New goal'], ['/goals/ci-docker/edit', 'Change a goal'], ['/reviews/new', 'a review’s set-up']]) {
+      await f.goto(url(route));
+      await f.locator('.focus-foot').first().waitFor({ timeout: 10000 }).catch(() => {});
+      await f.waitForTimeout(300);
+      const seen = await f.evaluate(() => [...document.querySelectorAll('.btn.primary')].filter((e) => e.getClientRects().length).map((e) => ({ label: (e.textContent || '').trim(), inFoot: !!e.closest('.focus-foot, .qfoot') })));
+      if (seen.length !== 1) footProblems.push(`${name}: ${seen.length} filled buttons (${seen.map((x) => x.label).join(', ')})`);
+      else if (!seen[0].inFoot) footProblems.push(`${name}: the filled button “${seen[0].label}” is not in the footer`);
+      else if (/^(Continue|Submit|OK|Save)\.?$/i.test(seen[0].label)) footProblems.push(`${name}: the primary says only “${seen[0].label}”`);
+      if (route === '/check-in/ci-docker') {
+        const exit = f.locator('.focus-top').first().locator('button').filter({ hasText: /^Close/ }).first();
+        const before = (await exit.innerText()).trim();
+        // Pressed with nothing typed: focus moves to the field in error, marked aria-invalid (3.3.2).
+        await f.locator('.focus-foot button[type=submit]').click();
+        await f.waitForTimeout(200);
+        const focused = await f.evaluate(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+        if (!focused) footProblems.push('a check-in pressed with nothing typed leaves focus off the field in error (no aria-invalid field focused)');
+        await f.getByLabel('This week’s value').fill('1');
+        await f.waitForTimeout(300);
+        const after = (await exit.innerText()).trim();
+        if (before !== 'Close' || after !== 'Close and keep the draft') footProblems.push(`a check-in’s exit says “${before}” then “${after}”, not Close then Close and keep the draft`);
+      }
+    }
+    await c20.close();
+  }
+  lap('P20');
+  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
   await finishChecks(add);
   if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));

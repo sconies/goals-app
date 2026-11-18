@@ -25,6 +25,7 @@ export const RULE_PAGES: [string, string, string][] = [
     (src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
 export const MORE_RULE_PAGES: [string, string][] = [
   ['goal-row', 'One goal row'],
+  ['form-footer', 'One form footer'],
   ['field-table', 'The field table'],
   ['import-levels', 'Kinds, levels and near misses'],
   ['import-preview', 'What an import read, and leaving rows out'],

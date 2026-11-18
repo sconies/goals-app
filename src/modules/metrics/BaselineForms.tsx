@@ -7,6 +7,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../../app/state';
 import { FormClose } from '../../ui/FormClose';
 import { WarnMark } from '../../ui/bits';
+import { FormFooter } from '../../ui/FormFooter';
 import { PickOne } from '../../ui/Pick';
 import { baselineFor, lastQuarter, onDay, QUALITY_LIMITS, refreshWords, sameSlice, windowWords, calcWords, type BaselineInput } from './rulesQuality';
 import { canEditMetric, linksOf, metricsOf, type Metric } from './rules';
@@ -102,7 +103,7 @@ export function AddBaseline() {
           <p className="small hint">A baseline is a reading, not the definition: adding one never changes the stage.</p>
         </section>
         {error && <Fix text={error} />}
-        <div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Add baseline'}</button></div>
+        <FormFooter><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Add baseline'}</button></FormFooter>
       </form>
     </div>
   );
@@ -205,10 +206,10 @@ export function TakeBaselines() {
         {rows && <p className="small hint">The baselines they replace move to History. No metric changes stage. Goals already running keep their start values.</p>}
         {error && <Fix text={error} />}
         {rows && (
-          <div className="foot-row">
+          <FormFooter>
             <button type="button" className="btn ghost big-btn" onClick={back}>Not now</button>
             <button type="button" className="btn primary big-btn" disabled={busy || !taken.length} onClick={() => void confirm()}>{busy ? 'Saving…' : `Confirm ${taken.length} ${taken.length === 1 ? 'baseline' : 'baselines'}`}</button>
-          </div>
+          </FormFooter>
         )}
         {tried && missingReason.length > 0 && <p className="small metric-retake" role="alert">Say why for each corrected figure first.</p>}
       </div>

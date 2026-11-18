@@ -2,6 +2,7 @@ import { guardBreaches } from '../domain/guards';
 import { breachWords } from '../domain/guardWords';
 import { useEffect, useRef, useState } from 'react';
 import { correctReasonAsk, correctReasonOk, MAX_CORRECT_REASON } from '../domain/correctReason';
+import { flushSync } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
@@ -35,7 +36,10 @@ import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 import { Place, useModules, type NumberStep } from '../core/app';
 import { readingLine } from '../domain/readingWords';
-import { dueWordsHere, reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn, watchingOn } from '../app/reads';
+import { goalsIn, watchScope } from '../domain/review';
+import { FormFooter } from '../ui/FormFooter';
+import { checkInNext, checkInPostSays } from '../domain/formFooter';
 
 /**
  * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
@@ -139,7 +143,7 @@ function Flow({ goalId }: { goalId?: string }) {
         <span className="small strong ci-week">{fixing ? 'Correct a check-in · ' : ''}Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <FormClose keeps onClose={() => nav(closeTo)} />
+          <FormClose keeps dirty={drafting && !justPosted} onClose={() => nav(closeTo)} />
         </span>
       </div>
       {justPosted ? (
@@ -462,23 +466,35 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const whyOk = !needsWhy || !e.codes.some((c) => REASON_CODES.includes(c));
   const targetOk = !e.codes.includes('target');
   const planned = (draft.ptgState ?? 'plan') === 'plan';
+  const wayLong = draft.ptgWhat.trim().length >= MIN_PATH;
   const wayOk = !needsWay || (!e.codes.includes('path') && (draft.ptgState !== 'help' || !!helpFrom));
   // Last time's words, copied in by "Something changed", are changed or said to be still true: never posted by Post alone.
   const storyOk = !e.codes.includes('story-unchanged');
+  // A press that can't go on says why under each field and moves focus to the first one to fix (WCAG 3.3.1, 3.3.2):
+  // once the render that marks them is drawn, so the field read out is the one just marked.
+  const formRef = useRef<HTMLFormElement>(null);
+  // Drawn at once (flushSync), so focus and the scroll it brings land within the press, never after it.
+  const refuse = () => {
+    flushSync(() => setTried(true));
+    const bad = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], .level-alert');
+    if (!bad) return;
+    const target = bad.matches('input, textarea, button, select, [tabindex]') ? bad : bad.querySelector<HTMLElement>('input, textarea, button');
+    (target ?? bad).focus();
+  };
   const primary = () => {
     if (step === 'measure') {
       if (correcting && !reasonOk) { setTried(true); reasonRef.current?.focus(); return; }
       if (numberStep?.run) { numberStep.run(); return; }
-      if (numberStep?.waits) { setTried(true); return; }
-      if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
+      if (numberStep?.waits) { refuse(); return; }
+      if (!valueOk || e.codes.includes('greener-why')) { refuse(); return; }
       if (open.length) { setTried(true); checkRef.current?.focus(); return; }
-      if (offer) { setTried(true); return; }
+      if (offer) { refuse(); return; }
       if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
     } else if (step === 'account') {
       // A correction's reason is asked on the first step: one reopened here without it goes back there to say it.
       if (correcting && !reasonOk) { setTried(true); setStep('measure'); setTimeout(() => reasonRef.current?.focus(), 0); return; }
-      if (!whyOk || !targetOk || !wayOk || !storyOk) { setTried(true); return; }
+      if (!whyOk || !targetOk || !wayOk || !storyOk) { refuse(); return; }
       void post();
     }
   };
@@ -519,8 +535,15 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
     go('account');
   };
 
-  // Continue until the step that posts; before a number is typed, the number's step isn't known to be the last.
-  const label = saving ? 'Posting…' : step === 'measure' && numberStep?.label ? numberStep.label : last && (step !== 'measure' || valueOk) ? 'Post check-in' : 'Continue';
+  // The primary names what happens (FORM-FOOTER): the next step by its question, or posting on the last. Before a number
+  // is typed the next step isn't known, so it says only "Next".
+  const nextStep = plan[plan.indexOf(step) + 1];
+  const nextLabel = checkInNext(nextStep === 'carry' || nextStep === 'account' ? nextStep : null, { why: needsWhy, reason: e.reason === 'ahead' ? 'ahead' : 'behind', milestone: goal.kind === 'milestone' });
+  const label = saving ? 'Posting…' : step === 'measure' && numberStep?.label ? numberStep.label : last && (step !== 'measure' || valueOk) ? 'Post check-in' : nextLabel;
+  // On the last step the status line says what posting does: on record for the week, and who sees it.
+  const watchingHere = watchingOn(useModules().on);
+  const watcherCount = watchingHere ? app.snapshot.people.filter((p) => p.id !== goal.ownerId && goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).length : 0;
+  const postSays = checkInPostSays(week, watcherCount);
   // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
   const carryOffered = useRef(false);
   if (canCarry) carryOffered.current = true;
@@ -532,7 +555,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const stepsOf = goal.kind === 'milestone' || valueOk ? full.length : 2 + (mayCarry || carryOffered.current ? 1 : 0);
 
   return (
-    <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
+    <form ref={formRef} className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
       {linking && (
         <Sheet open onClose={() => setLinking(false)} title="Waiting on the same decision">
           <div className="stack" style={{ gap: 'var(--s3)' }}>
@@ -668,15 +691,16 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           {needsWhy && (
             <div className="stack account-part">
           <h3 className="qtitle sm">{e.reason === 'ahead' ? 'Why is it ahead?' : goal.kind === 'milestone' ? 'Why is it late?' : 'Why is it behind?'}</h3>
-          <div className="row" role="group" aria-label="Main cause">
+          <div className="row" role="group" aria-label="Main cause" aria-invalid={tried && !whyOk && !draft.cause} aria-describedby={tried && !whyOk && !draft.cause ? 'why-msg' : undefined}>
             {(e.reason === 'ahead' ? CAUSES_AHEAD : CAUSES_BEHIND).map(([k, l]) => <button key={k} type="button" className="pill" aria-pressed={draft.cause === k} onClick={() => set({ cause: k })}>{l}</button>)}
           </div>
           <label className="field">
             <span className="sr">What happened</span>
             <textarea className={'input' + (tried && draft.why.trim().length < MIN_REASON ? ' invalid' : '')} rows={3} value={draft.why} onChange={(ev) => set({ why: ev.target.value })} aria-label="What happened"
+              aria-invalid={tried && !whyOk && !!draft.cause} aria-describedby={tried && !whyOk && !!draft.cause ? 'why-msg' : undefined}
               placeholder={draft.cause === 'other' ? 'Say what’s going on, in your own words.' : e.reason === 'ahead' ? 'What happened, and will it last?' : 'What is causing the gap?'} />
           </label>
-          {tried && !whyOk && <span className="hint tone-off" role="alert">{!draft.cause ? 'Pick a cause, then write a sentence.' : 'Write a sentence about what happened.'}</span>}
+          {tried && !whyOk && <span id="why-msg" className="hint tone-off" role="alert">{!draft.cause ? 'Pick a cause, then write a sentence.' : 'Write a sentence about what happened.'}</span>}
           {e.asksTarget && goal.kind === 'metric' && app.viewer.id === goal.ownerId && (
             <p className="hint">Well ahead of plan. If the target should move, <Link className="linkish" to={`/goals/${goal.id}/edit`}>change it</Link> after posting; watchers see the change and your reason.</p>
           )}
@@ -694,19 +718,21 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           </div>
           <label className="field">
             <span className="field-label">{RECOVERY[draft.ptgState ?? 'plan'].ask}</span>
-            <textarea className={'input' + (tried && draft.ptgWhat.trim().length < MIN_PATH ? ' invalid' : '')} rows={2} value={draft.ptgWhat} onChange={(ev) => set({ ptgWhat: ev.target.value })} aria-label={RECOVERY[draft.ptgState ?? 'plan'].ask} />
+            <textarea className={'input' + (tried && draft.ptgWhat.trim().length < MIN_PATH ? ' invalid' : '')} rows={2} value={draft.ptgWhat} onChange={(ev) => set({ ptgWhat: ev.target.value })} aria-label={RECOVERY[draft.ptgState ?? 'plan'].ask}
+              aria-invalid={tried && !wayLong} aria-describedby={tried && !wayLong ? 'way-msg' : undefined} />
           </label>
           {planned && (
             <div className="field"><span className="field-label" id="ptg-by">Back on plan by</span>
-              <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: w })} />
+              <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: w })}
+                invalid={tried && wayLong && draft.ptgBy == null} describedBy="way-msg" />
             </div>
           )}
-          {tried && !wayOk && <span className="hint tone-off" role="alert">{draft.ptgWhat.trim().length < MIN_PATH ? 'Say a few words about it.' : 'Pick the week it’s back on plan, or choose another option if you don’t know yet.'}</span>}
+          {tried && !wayOk && !(wayLong && draft.ptgState === 'help' && !helpFrom) && <span id="way-msg" className="hint tone-off" role="alert">{!wayLong ? 'Say a few words about it.' : 'Pick the week it’s back on plan, or choose another option if you don’t know yet.'}</span>}
           {draft.ptgState === 'help' ? (
             // One request: what's needed (above) and who from. Saved as the goal's "decision or help needed".
             <div className="field">
-              <PickOne kind="person" label="Who can decide or help?" value={helpFrom || null} onChange={(id) => setHelpFrom(id ?? '')} hide={[app.viewer.id]} invalid={tried && !helpFrom} />
-              {tried && !helpFrom && <span className="hint tone-off" role="alert">Pick who it goes to.</span>}
+              <PickOne kind="person" label="Who can decide or help?" value={helpFrom || null} onChange={(id) => setHelpFrom(id ?? '')} hide={[app.viewer.id]} invalid={tried && !helpFrom} describedBy={tried && !helpFrom ? 'help-msg' : undefined} />
+              {tried && !helpFrom && <span id="help-msg" className="hint tone-off" role="alert">Pick who it goes to.</span>}
             </div>
           ) : null}
           {needsWay && linkOffer}
@@ -726,23 +752,18 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
       )}
 
       {step !== 'carry' ? (
-        <div className="focus-foot" key="foot">
-          <div className="foot-row">
-            {(trail.length > 0 || step !== 'measure') && <button type="button" className="btn ghost" onClick={back}>Back</button>}
-            <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
-          </div>
-          {tried && step === 'measure' && !gate.go && <p className="hint tone-off foot-says" role="status">{gate.says}</p>}
-        </div>
+        <FormFooter key="foot" onBack={trail.length > 0 || step !== 'measure' ? back : undefined}
+          status={tried && step === 'measure' && !gate.go ? gate.says : last && label === 'Post check-in' && !correcting ? postSays : null}
+          statusTone={tried && step === 'measure' && !gate.go ? 'off' : undefined}>
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
+        </FormFooter>
       ) : (
         // Both answers live in the footer, so neither can load out of sight under it: the primary on the right. Its own
         // key, so React never turns "Something changed" into the next step's submit button mid-click.
-        <div className="focus-foot" key="carry-foot">
-          <div className="foot-row carry-foot">
-            <button type="button" className="btn ghost" onClick={back}>Back</button>
-            <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
-            <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true: post check-in'}</button>
-          </div>
-        </div>
+        <FormFooter key="carry-foot" className="carry-foot" onBack={back}>
+          <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
+          <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true: post check-in'}</button>
+        </FormFooter>
       )}
     </form>
   );
@@ -759,8 +780,8 @@ function StillTrue({ parts, when, on, onChange, alert }: { parts: ('reason' | 'p
     <div className={'still-true' + (alert ? ' invalid' : '')} role="group" aria-labelledby="still-true-q">
       <span id="still-true-q" className="small strong">{what} word for word what you said {when}.</span>
       <span className="hint">Change what’s different above, or say it’s still true.</span>
-      <label className="check"><input type="checkbox" checked={on} onChange={(ev) => onChange(ev.target.checked)} /> Still true this week</label>
-      {alert && <span className="hint tone-off" role="alert">Change what’s different, or tick Still true this week.</span>}
+      <label className="check"><input type="checkbox" checked={on} onChange={(ev) => onChange(ev.target.checked)} aria-invalid={alert} aria-describedby={alert ? 'still-true-msg' : undefined} /> Still true this week</label>
+      {alert && <span id="still-true-msg" className="hint tone-off" role="alert">Change what’s different, or tick Still true this week.</span>}
     </div>
   );
 }
@@ -809,10 +830,10 @@ function StatusSheet({ open, onClose, e, draft, set, milestoneDone }: { open: bo
 
 /** The weeks to pick from, one pill each: the next four, the quarter's end and the year's (or cycle's) end. Used for
     "back on plan by" and for a late stage, so both look and read the same. */
-function WeekPicks({ week, weeks, value, onPick, from = week + 1, labelledBy = 'ptg-by' }: { week: number; weeks: number; value: number | null; onPick: (w: number) => void; from?: number; labelledBy?: string }) {
+function WeekPicks({ week, weeks, value, onPick, from = week + 1, labelledBy = 'ptg-by', invalid = false, describedBy }: { week: number; weeks: number; value: number | null; onPick: (w: number) => void; from?: number; labelledBy?: string; invalid?: boolean; describedBy?: string }) {
   const { cycle } = useApp();
   return (
-    <div className="row weekpicks" role="group" aria-labelledby={labelledBy}>
+    <div className={'row weekpicks' + (invalid ? ' invalid' : '')} role="group" aria-labelledby={labelledBy} aria-invalid={invalid || undefined} aria-describedby={invalid ? describedBy : undefined}>
       {Array.from({ length: Math.max(0, weeks - from + 1) }, (_, i) => from + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1] || (isYear(cycle) && w === quarterOf(cycle, week).to)).map((w) => {
         const name = w === weeks ? (isYear(cycle) ? 'Year end' : 'Cycle end') : isYear(cycle) && w === quarterOf(cycle, week).to && w > week + 4 ? `End of ${quarterOf(cycle, week).label}` : 'Week ' + w;
         // The name read out is the words on the button, so what you see is what a screen reader says.

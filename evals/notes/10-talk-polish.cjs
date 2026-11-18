@@ -134,11 +134,11 @@ module.exports = {
       await r.getByLabel('Workspace name').first().fill('Test space');
       await r.getByRole('button', { name: 'Change', exact: true }).first().click();
       await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform'); await r.getByLabel('Your email').fill('ana.silva@example.com');
-      await r.getByRole('button', { name: 'Continue to people' }).click(); await settle(r, 250);
+      await r.getByRole('button', { name: 'Next: people' }).click(); await settle(r, 250);
       await r.getByLabel('Person 1: name').fill('Cat Lee'); await r.getByLabel('Person 1: email').fill('cat.lee@example.com');
-      await r.getByRole('button', { name: 'Continue to goals' }).click(); await settle(r, 250);
+      await r.getByRole('button', { name: 'Next: goals' }).click(); await settle(r, 250);
       await r.getByRole('radio', { name: /^Later/ }).click();
-      await r.getByRole('button', { name: 'Continue to check' }).click(); await settle(r, 400);
+      await r.getByRole('button', { name: 'Next: check' }).click(); await settle(r, 400);
       const h1 = await tall('Change people');
       chk(h1 >= 44, `D3: set-up's “Change people” is ${h1}px tall at 390`);
       const hw = await tall('Change how you’ll work');

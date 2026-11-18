@@ -60,16 +60,16 @@ module.exports = {
     // [Home] 1, 7: Maya and Tom at 360.
     {
       const [c, p] = await open(360, 740, 'rhea', '/', true);
-      const m = await box(p, '.arow-main'), a = await box(p, '.arow');
+      const m = await box(p, '.page.home .alist .grow-name'), a = await box(p, '.page.home .alist .grow');
       check(m && a && m.w >= a.w - 32 - 26 - 1, `[Home] 1: attention row text is ${m && Math.round(m.w)}px of ${a && Math.round(a.w)}`);
       // Lane (5 Nov): on a phone, Home keeps each attention reason to two lines, so the cards are shorter and the first
       // one's title starts on screen. That holds only while the whole reason is a tap away: every reason cut short here
       // is said in full on its goal's page (a missed or missing path to green, under What's being done).
-      const clamp = await css(p, '.page.home .arow-why', '-webkit-line-clamp');
+      const clamp = await css(p, '.page.home .alist .grow-why', '-webkit-line-clamp');
       check(clamp === 'none' || clamp === '2', `[Home] 1: attention reason is clamped to ${clamp} lines on a phone, not 2`);
-      const cut = await p.$$eval('.page.home .arow', (els) => els.map((e) => {
-        const why = e.querySelector('.arow-why');
-        return { href: e.querySelector('a.arow-main')?.getAttribute('href') || '', flag: (why.querySelector('.arow-flags')?.textContent || '').split(' · ')[0], full: why.getAttribute('title') || '', cut: why.scrollHeight > why.clientHeight + 1 };
+      const cut = await p.$$eval('.page.home .alist .grow', (els) => els.map((e) => {
+        const why = e.querySelector('.grow-why');
+        return { href: (e.matches('a') ? e : e.querySelector('a.grow-name'))?.getAttribute('href') || '', flag: why?.getAttribute('title') || '', full: why?.getAttribute('title') || '', cut: !!why && why.scrollHeight > why.clientHeight + 1 };
       }).filter((x) => x.cut));
       for (const x of cut) {
         const q = await c.newPage();

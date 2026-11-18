@@ -66,7 +66,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | [U115](journeys/U115.md) | Start 2027 only prepares it: on 21 Dec 2026 the read-back counts every goal once; afterwards everyone is still in 2026 and Cycles offers Undo, which puts 2026 back; started again, 2027 opens for everyone on 4 Jan 2027. A workspace whose only year is 2027 says when it starts and has nothing due |  | `CARRY-GOALS` | 8 | `evals/journeys.cjs` |
 | [U117](journeys/U117.md) | The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open |  | `RESULTS` `YEAR` | 6 | `evals/journeys.cjs` |
 | [U122](journeys/U122.md) | The owner’s week on Home: on Monday nothing is asked and there is no primary button; the day before the deadline the check-in is the one primary; a completed week is one sentence with the next date; a passed deadline is never said to someone who met it; each count opens exactly its goals |  | `HOME-OWNER` | 6 | `evals/journeys.cjs` |
-| [U123](journeys/U123.md) | The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, each with its owner’s name first, and opens Goals filtered to Owner not you, whose count line says k |  | `HOME-MANAGER` | 4 | `evals/journeys.cjs` |
+| [U123](journeys/U123.md) | The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, and opens Goals filtered to Owner not you, whose count line says k |  | `HOME-MANAGER` | 4 | `evals/journeys.cjs` |
 | [U124](journeys/U124.md) | The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”; on Wed 11 Nov one cell says how many of them are checked in for week 46, and opens the rest |  | `HOME-MANAGER` `HOME-LEADER` `HABIT-MEASURE` | 3 | `evals/journeys.cjs` |
 | [U136](journeys/U136.md) | Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; Save with a question open focuses the question, in view, and says where it is (900 hours on Lead time, better lower, asks wrong-side); #owner opens at Who and where, its owner found by typing |  | `GOAL-EDIT-PAGE` `NAV-FORMS` `PLAN-CHANGE` `FIND-AND-PICK` | 6 | `evals/journeys.cjs` |
 | [U137](journeys/U137.md) | Read back before it’s saved: as Tunde on Wednesday 11 Nov, a goal in CI/CD feeding G-41, 40% to 90%; the Check step says What, Who and where, Measured by, Left as usual and You said as sentences, each whole on a phone; “After you publish” names Thursday 12 Nov and “the plan says 47% for week 47”, and the reviews it joins; “Change” on Left as usual goes to the measure step and “Continue” returns; “Change” on What and another type, then Continue, opens the step that now needs something, and Continue from there comes back; publishing lands on the goal with ?published=1 and History keeps the answer as Checked. (With the rhythm off, “Nothing is due.”, and with Reviews off no review line: when FT builds the switches.) |  | `GOAL-ENTRY-REQUIRED` `NEW-GOAL-STEPS` | 30 | `evals/journeys.cjs` |
@@ -103,6 +103,7 @@ Checks run across every screen: design rules, widths, motion, errors.
 | P11 | One goal row in every list: status and its word, then the value, then the name; values line up from 700px; the name spans the row on a phone; no link holds a button | `GOAL-ROW` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P15 | A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so | `DEMO-STORAGE` | `evals/journeys.cjs` |
 | P17 | Checked within F11: Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
+| P20 | One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed | `FORM-FOOTER` | `evals/journeys.cjs` |
 
 ## Fit and finish
 
@@ -182,11 +183,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.about` | the about | [U49](../modules/reviews/journeys/U49.md), [U80](../modules/reviews/journeys/U80.md) |
 | `.agenda-line` | the agenda line | [U184](../modules/metrics/journeys/U184.md) |
 | `.ai-block` | the ai block | [U62](../modules/ai-access/journeys/U62.md) |
-| `.arow` | a goal’s attention row (its status shape, title and why) | [U2](journeys/U2.md), [U123](journeys/U123.md) |
-| `.arow .arow-who` | the owner’s name in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
-| `.arow .btn` | the button in a goal’s attention row (its status shape, title and why) | [U123](journeys/U123.md) |
-| `.arow-why` | the line saying why | [U2](journeys/U2.md) |
-| `.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon` | the status shape in a goal’s attention row (its status shape, title and why), marked at risk, or the status shape in a goal’s attention row (its status shape, title and why), marked off track | [U2](journeys/U2.md) |
+| `.alist .grow` | the grow in the alist | [U123](journeys/U123.md) |
+| `.alist .grow-act, .alist .grow .btn` | the grow act in the alist, or the button in the grow in the alist | [U123](journeys/U123.md) |
 | `.arrival-person` | the arrival person | [U97](journeys/U97.md) |
 | `.attention-switch:visible` | the attention switch | [U33](journeys/U33.md), [U34](../modules/goal-map/journeys/U34.md), [U26](../modules/goal-map/journeys/U26.md) |
 | `.backlink` | the backlink | [U72](../modules/metrics/journeys/U72.md) |
@@ -250,6 +248,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.focus-foot` | the focus foot | [U93](journeys/U93.md) |
 | `.focus-foot button[type=submit]` | the check-in’s main button | [U1](journeys/U1.md), [U7](../modules/watching/journeys/U7.md), [U27](journeys/U27.md), [U85](journeys/U85.md) |
 | `.focus-top` | the top of the check-in | [U72](../modules/metrics/journeys/U72.md) |
+| `.form-foot .foot-status` | the foot status in the form foot | [U105](../modules/metrics/journeys/U105.md) |
 | `.from-metric` | the from metric | [U146](../modules/metrics/journeys/U146.md) |
 | `.goal-bar` | the goal’s summary bar | [U141](journeys/U141.md), [U6](journeys/U6.md), [U8](../modules/watching/journeys/U8.md), [U9](../modules/watching/journeys/U9.md), [U41](../modules/feedback/journeys/U41.md), [U70](journeys/U70.md), [U44](journeys/U44.md), [U164](../modules/watching/journeys/U164.md), [U77](journeys/U77.md), [U78](journeys/U78.md), [U80](../modules/reviews/journeys/U80.md), [U81](../modules/metrics/journeys/U81.md), [U162](journeys/U162.md), [U150](journeys/U150.md), [U170](../modules/metrics/journeys/U170.md), [U174](../modules/tags/journeys/U174.md), [U85](journeys/U85.md) |
 | `.goal-bar .bar-actions` | the buttons on the goal’s summary bar | [U141](journeys/U141.md), [U77](journeys/U77.md), [U80](../modules/reviews/journeys/U80.md) |
@@ -272,6 +271,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.goals-toolbar` | the goals toolbar | [U48](../modules/spreadsheets/journeys/U48.md) |
 | `.group-menu > summary` | the summary in the group menu | [U135](../modules/goal-map/journeys/U135.md) |
 | `.grow` | the grow | [U3](../modules/reviews/journeys/U3.md), [U6](journeys/U6.md), [U33](journeys/U33.md), [U186](journeys/U186.md) |
+| `.grow-why` | the grow why | [U2](journeys/U2.md) |
 | `.grow[data-tone="stale"]` | the grow | [U8](../modules/watching/journeys/U8.md) |
 | `.gs-row` | the gs row | [U86](journeys/U86.md) |
 | `.gtable` | the gtable | [U19](../modules/spreadsheets/journeys/U19.md), [U38](journeys/U38.md) |
@@ -288,6 +288,8 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) | [U123](journeys/U123.md) |
 | `.home-hero` | Home’s lead | [U2](journeys/U2.md), [U49](../modules/reviews/journeys/U49.md), [U122](journeys/U122.md), [U71](journeys/U71.md), [U57](journeys/U57.md) |
 | `.home-main [data-part]` | each named part in the home main | [U49](../modules/reviews/journeys/U49.md) |
+| `.home-mine .alist .grow` | the grow in the alist in the “Your goals” block on Home | [U2](journeys/U2.md) |
+| `.home-mine .alist .grow .grow-status svg` | the svg in the grow status in the grow in the alist in the “Your goals” block on Home | [U2](journeys/U2.md) |
 | `.home-mine .home-counts` | the status counts (each a shape, a number and a word, linking to those goals) in the “Your goals” block on Home | [U122](journeys/U122.md) |
 | `.home-mine .home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) in the “Your goals” block on Home | [U122](journeys/U122.md) |
 | `.home-side` | the home side | [U103](../modules/reviews/journeys/U103.md) |
@@ -319,7 +321,6 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.measured-by` | the Measured by line | [U82](../modules/metrics/journeys/U82.md), [U159](../modules/metrics/journeys/U159.md), [U160](../modules/metrics/journeys/U160.md), [U145](../modules/metrics/journeys/U145.md), [U146](../modules/metrics/journeys/U146.md) |
 | `.metric-block` | the metric block | [U146](../modules/metrics/journeys/U146.md) |
 | `.metric-children` | the metric children | [U172](../modules/metrics/journeys/U172.md) |
-| `.metric-count` | the metric count | [U105](../modules/metrics/journeys/U105.md) |
 | `.metric-facts` | the metric facts | [U172](../modules/metrics/journeys/U172.md) |
 | `.metric-facts .measure-gap` | the measure gap in the metric facts | [U170](../modules/metrics/journeys/U170.md) |
 | `.metric-goals tbody tr` | the table row in the tbody in the metric goals | [U81](../modules/metrics/journeys/U81.md) |

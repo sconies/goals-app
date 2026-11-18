@@ -16,7 +16,7 @@ module.exports = {
       const [c, p] = await open(390, 844, 'rhea', '/check-in/ns-lead');
       const input = p.locator('.bignum input');
       await input.fill('12.5');
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       const msg = await text(p, '#value-msg');
       if (!/12\.5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 13/.test(msg)) fail(`check-in: 12.5 in a whole-number goal isn’t refused with what it would show as (“${msg}”)`);
       if (await p.getByRole('button', { name: 'Something changed' }).isVisible().catch(() => false)) fail('check-in: 12.5 moved on past the number');
@@ -26,7 +26,7 @@ module.exports = {
       const far = await text(p, '.level-check');
       if (!/far outside this goal’s plan \(52 to 24 hours\)\. Is 1,500 right\?/.test(far)) fail(`check-in: 1500 hours isn’t asked about, with its thousands grouped (“${far}”)`);
       await input.fill('a12');
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       const letters = await text(p, '#value-msg');
       // The example is at the goal's decimal places: no decimal for whole hours (deep review U10).
       if (!/“a12” isn’t a number\. Type digits only, like 29\./.test(letters)) fail(`check-in: letters don’t get the one message, with a whole-number example (“${letters}”)`);
@@ -39,13 +39,13 @@ module.exports = {
       await p.locator('.big-input').first().fill('Lead time for changes');
       const warn = await text(p, '.hint.tone-risk');
       if (!/Another goal is called “Lead time for changes”: G-1, .*owned by /.test(warn)) fail(`New goal: a duplicate name isn’t warned about (“${warn}”)`);
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       // Who and where (OB1): Rhea is asked the level.
       await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
       // The same name in the same team is asked about on this step (goal entry, rule 3's same-name), never refused.
       const differs = p.getByRole('button', { name: 'Yes, it’s a different goal' });
       if (await differs.isVisible().catch(() => false)) await differs.click();
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       const start = p.getByLabel(/^Baseline/);
       await start.waitFor({ timeout: 3000 }).catch(() => {});
       if (!(await start.isVisible().catch(() => false))) fail('New goal: a duplicate name stopped the wizard at its first step');
@@ -57,7 +57,7 @@ module.exports = {
         if (!/Kept to 1 decimal place, as you typed them\./.test(kept)) fail(`New goal: 12.5 doesn’t say it is kept to 1 decimal place (“${kept}”)`);
         await p.getByRole('button', { name: 'Change the decimal places' }).click();
         await p.getByRole('button', { name: 'Whole numbers' }).click();
-        await p.getByRole('button', { name: 'Continue' }).click();
+        await p.getByRole('button', { name: /^Next(: |$)/ }).click();
         const err = await text(p, '.field-error, [role="alert"]');
         if (!/would show as 13/.test(err)) fail(`New goal: 12.5 with whole numbers chosen isn’t refused (“${err}”)`);
         if (!(await p.getByRole('button', { name: 'Keep 1 decimal place' }).isVisible().catch(() => false))) fail('New goal: a too-precise number doesn’t offer “Keep 1 decimal place”');

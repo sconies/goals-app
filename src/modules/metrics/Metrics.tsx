@@ -37,6 +37,7 @@ import { decimalsWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS,
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
+import { FormFooter } from '../../ui/FormFooter';
 import { changeKinds, linkedGoals } from './rulesChange';
 import { lapseChecks } from './rulesSave';
 import { readWhen } from '../../domain/readingWords';
@@ -681,7 +682,7 @@ export function MetricForm() {
   const before = metricId ? metricAt(metricsOf(app.snapshot), metricId) ?? null : null;
   const live = before && !before.removedAt ? before : null;
   // Kept as other drafts are (src/app/drafts.ts): Close, Back or a reload never loses what was typed.
-  const [d, set, clearDraft, restored] = useDraft<Draft>(metricDraftKey(app.ws.id, live?.id ?? null), () => live
+  const [d, set, clearDraft, restored, touched] = useDraft<Draft>(metricDraftKey(app.ws.id, live?.id ?? null), () => live
     ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats, measurement: measurementOf(live), measurementNote: live.measurementNote ?? '', level: live.level ?? '', parentId: live.parentId ?? '', confidence: live.confidence ?? '', gaming: live.gaming ?? '', calculation: live.calculation ?? null, timeWindow: live.timeWindow ?? null, sourceLink: live.sourceLink ?? '', sourceQuery: live.sourceQuery ?? '', refreshNote: live.refreshNote ?? '' }
     : { name: (params.get('name') ?? '').slice(0, METRIC_LIMITS.name), meaning: '', unit: '', decimals: 0, direction: '', source: '', sourceOwner: '', refresh: '', ownerId: app.viewer.id, caveats: '' });
   const [tried, setTried] = useState(false);
@@ -827,7 +828,7 @@ export function MetricForm() {
       <div className="focus-top">
         {/* A form: one closing control, top right, and no back link (navigation spec 2.5; build review of #282). */}
         <span />
-        <FormClose keeps onClose={back} />
+        <FormClose keeps dirty={touched} onClose={back} />
       </div>
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div ref={top}><h1 className="qtitle big">{live ? `Change ${live.name}` : 'Add a metric'}</h1></div>
@@ -941,9 +942,8 @@ export function MetricForm() {
         <StillNeeded metric={next} ownerIsHere={!!ownerName(app.snapshot.people, next)} />
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {checkFor('lapse')}
-          {count && <p className="small metric-count" role="status">{count}</p>}
         </div>
-        <div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
+        <FormFooter status={count || undefined}><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save metric' : 'Add metric'}</button></FormFooter>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
     </div>

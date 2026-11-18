@@ -11,7 +11,7 @@ module.exports = {
     const box = (loc) => loc.evaluate((el) => { const b = el.getBoundingClientRect(); return { x: b.left, y: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; });
     const sideways = (p) => p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     // Rhea's lead time (hours, lower is better) is off track with a reason and a path from last week to carry; 40 hours is far behind plan.
-    const kofiToCarry = async (p) => { await p.locator('.bignum input').fill('40'); await p.getByRole('button', { name: 'Continue' }).click(); await p.getByRole('button', { name: 'Something changed' }).waitFor(); };
+    const kofiToCarry = async (p) => { await p.locator('.bignum input').fill('40'); await p.getByRole('button', { name: /^Next(: |$)/ }).click(); await p.getByRole('button', { name: 'Something changed' }).waitFor(); };
 
     // ---------- the check-in ----------
     // Demo review, 8 Nov, item 2: a draft reopened at step 2 has Back, so a wrong number is corrected without posting,
@@ -152,7 +152,7 @@ module.exports = {
     {
       const [c, p] = await open(1280, 900, 'rhea', '/check-in/ns-lead');
       await p.locator('.bignum input').fill('abc');
-      await p.getByRole('button', { name: 'Continue' }).click();
+      await p.getByRole('button', { name: /^Next(: |$)/ }).click();
       const field = p.locator('.bignum');
       const border = await field.evaluate((el) => getComputedStyle(el).borderTopColor);
       if (border !== 'rgb(180, 35, 24)') fail(`check-in 14: a wrong number leaves the border ${border}`);
@@ -234,9 +234,7 @@ module.exports = {
         // Numbers 16: selects drop the browser's own arrow.
         const ap = await alerts.locator('select').first().evaluate((el) => getComputedStyle(el).appearance);
         if (ap !== 'none') fail(`numbers 16: a select has appearance ${ap}`);
-        // Numbers 22: Cancel's text lines up with the table's edge.
-        const edge = (await box(p.locator('.qgrid'))).x, cancel = await textLeft(p.getByRole('link', { name: 'Cancel' }));
-        if (Math.abs(cancel - edge) > 1) fail(`numbers 22: Cancel's text is at x ${Math.round(cancel)}, the table at ${Math.round(edge)}`);
+        // Numbers 22 (Cancel lining up with the table's edge) went with the footer's Cancel: the exit is the header's Close (UX2b).
       }
       if (w <= 390) {
         // Numbers 2: reasons in one column, the value under the name.

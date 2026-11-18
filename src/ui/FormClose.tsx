@@ -1,16 +1,17 @@
 /* Leaving a form (navigation spec 2.5): one control, top right, a button with words. A form that keeps a draft says
-   "Close and keep the draft" and closes at once. One that keeps nothing says "Close without saving", and when something
+   "Close" until something is typed, then "Close and keep the draft", and closes at once. One that keeps nothing says "Close without saving", and when something
    was typed it asks first: "Close without saving? What you typed here will be lost." */
 import { useState } from 'react';
 import { Sheet } from './bits';
 import { Icon } from './Icon';
 
-export const KEEP = 'Close and keep the draft';
-export const DISCARD = 'Close without saving';
+import { closeWords, DISCARD } from '../domain/formFooter';
+export { CLOSE, DISCARD, KEEP } from '../domain/formFooter';
 
 export function FormClose({ keeps, dirty = false, onClose }: { keeps: boolean; dirty?: boolean; onClose: () => void }) {
   const [asking, setAsking] = useState(false);
-  const words = keeps ? KEEP : DISCARD;
+  // A form that keeps drafts says "Close" until something is typed, then "Close and keep the draft".
+  const words = closeWords(keeps, dirty);
   return (
     <>
       <button type="button" className="btn ghost sm form-close" onClick={() => (!keeps && dirty ? setAsking(true) : onClose())}>
