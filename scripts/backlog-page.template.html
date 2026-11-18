@@ -1,0 +1,140 @@
+<title>Faro Backlog</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a quiet two-band page. Controls on top, hairline-divided rows below, each row opens to its full text. */
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --ink: #1c2530; --muted: #5d6877; --line: #dde1e7;
+  --accent: #1d6a74; --wash: #eef2f5; --focus: #1d6a74;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #14181d; --surface: #1a2027; --ink: #e6eaef; --muted: #98a3b1; --line: #2c343e; --accent: #6bc1cb; --wash: #20272f; --focus: #6bc1cb; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #14181d; --surface: #1a2027; --ink: #e6eaef; --muted: #98a3b1; --line: #2c343e; --accent: #6bc1cb; --wash: #20272f; --focus: #6bc1cb; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; margin: 0;
+  padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 980px; margin: 0 auto; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0 0 22px; max-width: 65ch; }
+.controls { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin-bottom: 18px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; }
+label, .legend { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 4px; }
+input[type=search], select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; min-height: 40px; }
+input[type=search] { width: min(100%, 360px); }
+.field { min-width: 0; }
+.states { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.states button { font: inherit; background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 0; min-height: 40px; color: var(--muted); cursor: pointer; display: inline-flex; gap: 7px; align-items: center; }
+.states button[aria-pressed=true] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+.states .n { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 400; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.count { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+ul.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+li.item { border-top: 1px solid var(--line); }
+li.item:first-child { border-top: 0; }
+.head { display: grid; grid-template-columns: 180px 1fr auto; gap: 4px 16px; align-items: start; width: 100%; text-align: left; background: none; border: 0; font: inherit; color: inherit; padding: 12px 16px; cursor: pointer; }
+.head:hover { background: var(--wash); }
+.state { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink); white-space: nowrap; padding-top: 2px; }
+.state svg { flex: none; }
+.title { min-width: 0; }
+.title b { display: block; font-weight: 600; text-wrap: balance; }
+.meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 2px; }
+.id { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.eff { font-size: 13px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+.body { padding: 4px 16px 18px; margin-left: 196px; max-width: 70ch; }
+.body p { margin: 0 0 10px; }
+.body code { font-family: var(--font-mono); font-size: 12.5px; background: var(--wash); padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }
+.links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 13px; }
+.links a { color: var(--accent); overflow-wrap: anywhere; }
+.empty { padding: 28px 16px; color: var(--muted); }
+footer { color: var(--muted); font-size: 12.5px; margin-top: 18px; }
+@media (max-width: 640px) {
+  .head { grid-template-columns: 1fr; }
+  .eff { padding-top: 0; }
+  .body { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) { .head { transition: background .12s; } }
+</style>
+<main>
+  <h1>Faro Backlog</h1>
+  <p class="lede">Every item in <code>docs/backlog.md</code>, open and done. Pick a state, an area or an effort, or search. Select a row for its full text and links.</p>
+  <section class="controls" aria-label="Filters">
+    <div>
+      <span class="legend" id="stateLegend">State</span>
+      <div class="states" id="states" role="group" aria-labelledby="stateLegend"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="ID, word or phrase" autocomplete="off"></div>
+      <div class="field"><label for="area">Area</label><select id="area"></select></div>
+      <div class="field"><label for="effort">Effort</label><select id="effort"></select></div>
+    </div>
+  </section>
+  <p class="count" id="count" aria-live="polite"></p>
+  <ul class="list" id="list"></ul>
+  <footer id="foot"></footer>
+</main>
+<script>
+const DATA = /*BACKLOG_DATA*/null;
+const ORDER = ['building', 'not picked', 'check', 'deferred', 'idea', 'spec only', 'done'];
+const AREAS = ['reviews', 'metrics', 'check-in', 'import', 'platform', 'kit', 'design', 'goals'];
+const AREA_LABEL = { reviews: 'Reviews', metrics: 'Metrics', 'check-in': 'Check-in', import: 'Import', platform: 'Platform', kit: 'Kit', design: 'Design', goals: 'Goals' };
+const EFFORTS = [['S', 'S, under a day'], ['M', 'M, a release'], ['L', 'L, more than one release'], ['', 'Not stated']];
+const effortKey = (e) => { const t = (e || '').trim(); if (/^S/.test(t) && !/^S[a-z]/.test(t)) return 'S'; if (/^M\b|^M[–,.]|^M /.test(t)) return 'M'; if (/^L\b/.test(t)) return 'L'; if (/^About|^Several|releases/i.test(t)) return 'L'; return ''; };
+const el = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const md = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*([^*]+)\*/g, '<i>$1</i>');
+const SHAPE = {
+  done: '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.2l2.2 2.2L11 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  building: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/>',
+  'not picked': '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  check: '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="1.8" fill="currentColor"/>',
+  deferred: '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.6 2.4"/>',
+  idea: '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/>',
+  'spec only': '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+};
+const shape = (k) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">${SHAPE[k]}</svg>`;
+const f = { state: 'open', q: '', area: '', effort: '*' };
+const items = DATA.items.map((it, i) => ({ ...it, key: i, eff: effortKey(it.effort), hay: (it.id + ' ' + it.text + ' ' + it.stateNote).toLowerCase() }));
+
+function buildStates() {
+  const tabs = [['open', 'Open']].concat(ORDER.map((k) => [k, DATA.states[k]])).concat([['all', 'All']]);
+  el('states').innerHTML = tabs.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${f.state === k}">${k !== 'open' && k !== 'all' ? shape(k) : ''}<span>${esc(l)}</span> <span class="n" data-n="${k}"></span></button>`).join('');
+  el('states').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; f.state = b.dataset.k; render(); });
+  el('area').innerHTML = '<option value="">All areas</option>' + AREAS.map((a) => `<option value="${a}">${AREA_LABEL[a]}</option>`).join('');
+  el('effort').innerHTML = '<option value="*">Any effort</option>' + EFFORTS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+  el('area').onchange = (e) => { f.area = e.target.value; render(); };
+  el('effort').onchange = (e) => { f.effort = e.target.value; render(); };
+  el('q').oninput = (e) => { f.q = e.target.value.trim().toLowerCase(); render(); };
+}
+const stateOk = (it, s) => s === 'all' || (s === 'open' ? it.state !== 'done' : it.state === s);
+const rest = (it) => (!f.area || it.area === f.area) && (f.effort === '*' || it.eff === f.effort) && (!f.q || f.q.split(/\s+/).every((w) => it.hay.includes(w)));
+
+function row(it) {
+  const links = it.links.length ? `<div class="links">${it.links.map((l) => `<a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('')}</div>` : '';
+  const paras = it.text.split(/\n\n+/).filter(Boolean).map((p) => `<p>${md(p)}</p>`).join('');
+  return `<li class="item"><button class="head" type="button" aria-expanded="false" aria-controls="b${it.key}" data-key="${it.key}">
+    <span class="state">${shape(it.state)}${esc(DATA.states[it.state])}</span>
+    <span class="title"><b>${esc(it.title)}</b><span class="meta">${it.id ? `<span class="id">${esc(it.id)}</span>` : ''}<span>${AREA_LABEL[it.area]}</span></span></span>
+    <span class="eff">${esc(it.effort.length > 22 ? it.eff || '' : it.effort)}</span></button>
+    <div class="body" id="b${it.key}" hidden>${paras}${links}</div></li>`;
+}
+function render() {
+  document.querySelectorAll('#states button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.k === f.state));
+    b.querySelector('[data-n]').textContent = items.filter((it) => stateOk(it, b.dataset.k) && rest(it)).length;
+  });
+  const shown = items.filter((it) => stateOk(it, f.state) && rest(it));
+  const rank = (it) => ORDER.indexOf(it.state);
+  shown.sort((a, b) => rank(a) - rank(b));
+  el('count').textContent = `${shown.length} of ${items.length} items`;
+  el('list').innerHTML = shown.length ? shown.map(row).join('') : '<li class="empty">Nothing matches. Clear a filter or the search.</li>';
+}
+el('list').addEventListener('click', (e) => {
+  const h = e.target.closest('.head'); if (!h) return;
+  const b = el('b' + h.dataset.key); const open = b.hidden;
+  b.hidden = !open; h.setAttribute('aria-expanded', String(open));
+});
+buildStates(); render();
+el('foot').textContent = `Built from docs/backlog.md on ${DATA.generated}. Refresh with: node scripts/backlog-page.mjs`;
+</script>

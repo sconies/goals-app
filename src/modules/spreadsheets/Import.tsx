@@ -3,6 +3,7 @@
    nothing and the workbook to change what's here; what a new row must have, from the field table; and the newest past
    imports. Every row is checked with the app's own rules and shown before anything is saved (the preview, Check.tsx). */
 import { useEffect, useRef, useState } from 'react';
+import { FieldError } from '../../ui/GoalFields';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
@@ -39,6 +40,8 @@ export function Import() {
   const [over, setOver] = useState(false);
   const [problem, setProblem] = useState<{ text: string; template?: boolean; headers?: boolean } | null>(null);
   const [pasted, setPasted] = useState('');
+  const [emptyPaste, setEmptyPaste] = useState(false);
+  const pasteRef = useRef<HTMLTextAreaElement>(null);
   const pasting = params.get('paste') === '1';
   // Import is the way in: a file read before (saved, or left) is forgotten here, answers and all.
   useEffect(() => importStore.reset(), []);
@@ -78,11 +81,14 @@ export function Import() {
       {pasting ? (
         <section className="stack import-paste" aria-labelledby="paste-h">
           <label className="field"><span className="field-label" id="paste-h">Paste rows from a spreadsheet</span>
-            <textarea className="input" rows={8} value={pasted} onChange={(e) => setPasted(e.target.value)} autoFocus />
+            {/* Said beside the field, under its label (patterns spec 3.3.1): never a disabled button. */}
+            {emptyPaste && <FieldError id="paste-err">Paste the rows here first, the header row included.</FieldError>}
+            <textarea ref={pasteRef} className={'input' + (emptyPaste ? ' invalid' : '')} rows={8} value={pasted} onChange={(e) => { setPasted(e.target.value); setEmptyPaste(false); }} autoFocus
+              aria-invalid={emptyPaste || undefined} aria-describedby={emptyPaste ? 'paste-err' : undefined} />
           </label>
           <span className="hint">Copy the cells in Excel or Sheets, the header row included, and paste them here. {copyMenu}</span>
           <div className="import-fix-actions">
-            <button type="button" className="btn primary big-btn" disabled={!pasted.trim()} onClick={paste}>Check these rows</button>
+            <button type="button" className="btn primary big-btn" onClick={() => { if (!pasted.trim()) { setEmptyPaste(true); pasteRef.current?.focus(); return; } paste(); }}>Check these rows</button>
             <button type="button" className="linkish tap" onClick={() => { setParams({}, { replace: true }); setProblem(null); }}>Or choose a file</button>
           </div>
         </section>

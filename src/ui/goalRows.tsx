@@ -73,7 +73,8 @@ export function GoalRow({ g, place = 'goals-list', showOwner = true, sayOwner, q
       </span>
       {p.action ? <Link className="grow-name" to={to}>{name}</Link> : <span className="grow-name">{name}</span>}
       {/* One reason; the whole sentence is in the title when a wide row clamps it. */}
-      {p.reason && <span className="grow-why" title={p.reason}>{p.reasonIsFlag && <WarnMark />}{p.reason}</span>}
+      {/* The title is the reason in its own words, as the goal's page says it; the owner's name is said before it. */}
+      {p.reason && <span className="grow-why" title={p.reasonOwner ? p.reason.slice(p.reasonOwner.length + 2) : p.reason}>{p.reasonIsFlag && <WarnMark />}{p.reason}</span>}
       {p.context && <span className="grow-context">{p.contextIsFlag && <WarnMark />}{p.context}</span>}
       {!isEveryday(app.cycle, g.level) && <span className="sr">{levelName(app.cycle, g.level)} level</span>}
     </>

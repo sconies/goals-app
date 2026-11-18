@@ -3,12 +3,14 @@
    token on Workspace, AI access (AccessTokens; SW2); anyone sees and revokes their own in Settings (MyTokens). Tokens are
    made only there or from a person's page (app redesign WR3). With AI access switched off none of this is shown, but for
    the list Features opens from its read-back (TokenListSheet), where each can still be revoked. */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { FieldError } from './GoalFields';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import type { ApiToken } from '../domain/types';
 import { Sheet, timeAgo } from './bits';
 import { PersonPick } from './PersonPick';
+import { FormFooter } from './FormFooter';
 
 /** In the demo, in place of the tokens: why there are none. */
 const DEMO_LINE = 'Tokens work in the real app. The demo’s data stays in this browser, where an AI tool can’t reach it.';
@@ -73,6 +75,8 @@ export function TokenSheet({ onClose, personId: fixed }: { onClose: () => void; 
   const [name, setName] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [short, setShort] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
   const url = `${location.origin}/api/mcp`;
   const make = async () => {
     if (name.trim().length < 2 || busy) return;
@@ -96,23 +100,26 @@ export function TokenSheet({ onClose, personId: fixed }: { onClose: () => void; 
             <span className="row nowrap" style={{ gap: 'var(--s2)' }}><input className="input mono" readOnly value={cmd} onFocus={(e) => e.target.select()} aria-label="Claude Code command" /><button type="button" className="btn" onClick={() => copy(cmd, 'Command')}>Copy</button></span>
             <span className="hint">An assistant that only takes a web address can use <code>{url}?token=</code> followed by the token.</span>
           </div>
-          <div className="foot-row"><button type="button" className="btn primary big-btn" onClick={onClose}>Done</button></div>
+          <FormFooter sheet><button type="button" className="btn primary big-btn" onClick={onClose}>Done</button></FormFooter>
         </div>
       </Sheet>
     );
   }
   return (
     <Sheet open onClose={onClose} title="Make an MCP token">
-      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void make(); }}>
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); if (name.trim().length < 2) { setShort(true); nameRef.current?.focus(); return; } void make(); }}>
         {fixed ? <p className="small">It acts as <strong>{who}</strong>.</p> : (
           <PersonPick label="Who it acts as" value={personId} onChange={setPersonId} />
         )}
         <span className="hint">The AI tool can do anything {who.split(' ')[0] || 'they'} can in the app, with the same rights: check in, change their own goals{app.person(personId)?.admin ? ' (and any goal, as they’re an admin)' : ''}, answer asks, take part in reviews and more.</span>
         <label className="field"><span className="field-label">What it’s for</span>
-          <input className="input" value={name} placeholder="e.g. Claude on my laptop" onChange={(e) => setName(e.target.value)} />
+          {/* Said under the label when pressed too soon (patterns spec 3.3.1), never a disabled button. */}
+          {short && <FieldError id="token-name-err">Say what it’s for, in a few words.</FieldError>}
+          <input ref={nameRef} className={'input' + (short ? ' invalid' : '')} value={name} placeholder="e.g. Claude on my laptop" onChange={(e) => { setName(e.target.value); setShort(false); }}
+            aria-invalid={short || undefined} aria-describedby={short ? 'token-name-err' : undefined} />
         </label>
         <p className="hint">Until company sign-in arrives, the app itself doesn’t check who people are. A token makes clear who an AI tool acts for, and it can be revoked at any time.</p>
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={name.trim().length < 2 || busy}>{busy ? 'Making…' : 'Make the token'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Making…' : 'Make the token'}</button></FormFooter>
       </form>
     </Sheet>
   );
@@ -126,7 +133,7 @@ export function TokenListSheet({ onClose }: { onClose: () => void }) {
     <Sheet open onClose={onClose} title={live.length === 1 ? '1 MCP token' : `${live.length} MCP tokens`}>
       <div className="stack" style={{ gap: 'var(--s3)' }}>
         {!live.length ? <p className="hint">No MCP tokens now.</p> : <ul className="token-list" aria-label="MCP tokens">{live.map((t) => <TokenRow key={t.id} t={t} mine={false} />)}</ul>}
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Back</button></div>
+        <FormFooter sheet onCancel={onClose} cancelLabel="Back" />
       </div>
     </Sheet>
   );

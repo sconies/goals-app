@@ -2,7 +2,8 @@
    file would make, in the file's order, 50 at a time, found by a goal, a person or a key, filtered to what's added,
    changed or stopped. Each says its sheet and row, what it does, each field before and after, and how a value Faro
    supplied was worked out ("the owner's team; the row gave none"). */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { importSays } from '../../domain/formFooter';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
 import { describe, showOf, type ChangeSet, type ChangeShow, type Item } from '../../domain/changeset';
@@ -24,6 +25,8 @@ const WHAT: Record<Item['kind'], string> = {
   'new goal': 'added', goal: 'changed', plan: 'plan changed', 'check-in': 'added', 'replaces check-in': 'replaces a check-in', person: 'changed', 'new person': 'added', team: 'changed',
   'stop goal': STOPPED.toLowerCase(), 'delete goal': 'deleted', 'person left': LEFT.toLowerCase(), 'new record': 'added', record: 'changed',
 };
+/** Pressed before the summary's questions are answered. */
+const NOT_READY = 'Not yet: the summary still has something to answer or fix. Go back to the summary to finish it.';
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 
 export function Changes() {
@@ -40,6 +43,7 @@ export function Changes() {
   const show = (params.get('show') ?? 'all') as Show;
   const q = params.get('q') ?? '';
   const [count, setCount] = useState(PAGE);
+  const backRef = useRef<HTMLAnchorElement>(null);
   const items = useMemo(() => [...(cs?.items ?? [])].sort((a, b) => sheetOrder(a.sheet) - sheetOrder(b.sheet) || a.row - b.row), [cs]);
   const keyOf = (x: Item) => {
     const g = x.goalId ? app.goal(x.goalId) ?? cs?.commit?.goals?.find((y) => y.id === x.goalId) : undefined;
@@ -98,9 +102,11 @@ export function Changes() {
       </ul>
       {found.length > shown.length && <div><button type="button" className="btn" onClick={() => setCount(count + PAGE)}>Show 50 more</button></div>}
       {problem && <p className="hint tone-off" role="alert">{problem}</p>}
+      {ready && !problem && <p className="hint preview-hint" role="status">{importSays(new Set(items.map((x) => x.goalId)).size)}</p>}
       <div className="foot-row import-foot">
-        <Link className="btn big-btn preview-again" to="/data/import/check">Back to the summary</Link>
-        <button type="button" className="btn primary big-btn" disabled={!ready || busy} onClick={() => void save()}>{busy ? 'Saving…' : `Import ${n(items.length, 'change')}`}</button>
+        <Link ref={backRef} className="btn big-btn preview-again" to="/data/import/check">Back to the summary</Link>
+        {/* Never disabled for what's missing: pressed early, it says what the summary still asks, and focus goes to the way back. */}
+        <button type="button" className="btn primary big-btn" disabled={busy} onClick={() => { if (!ready) { setProblem(NOT_READY); backRef.current?.focus(); return; } void save(); }}>{busy ? 'Saving…' : `Import ${n(items.length, 'change')}`}</button>
       </div>
     </div>
   );

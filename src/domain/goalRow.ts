@@ -62,6 +62,8 @@ export interface RowParts {
   reason: string | null;
   /** The reason is a flag that isn't the status itself: it takes the warning mark. */
   reasonIsFlag: boolean;
+  /** The owner said first in the reason ("Yasmin El-Amin. …"), when the place asks for it; the reason's own words follow. */
+  reasonOwner?: string;
   /** An optional second line that changes what the reader decides: an open ask, or a draft kept. */
   context: string | null;
   /** The context is an ask still waiting: it takes the warning mark. */
@@ -161,7 +163,8 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
   }
 
   // Whose it is, first, where the place asks and the goal isn't the viewer's: "Yasmin El-Amin. {reason}".
-  if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !(reason as string).startsWith(owner)) reason = `${owner}. ${reason}`;
+  let reasonOwner: string | undefined;
+  if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !(reason as string).startsWith(owner)) { reason = `${owner}. ${reason}`; reasonOwner = owner; }
   return {
     status: st.status, statusWord: LABEL[st.status],
     value: nowText(goal, a),
@@ -169,6 +172,6 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
     asOf,
     result: res ? { kind: res.kind, text: RESULT_TEXT[res.kind] } : null,
     title: goal.title, tell: f.tell ?? null,
-    reason, reasonIsFlag: isFlag, context, contextIsFlag, action,
+    reason, reasonIsFlag: isFlag, ...(reasonOwner ? { reasonOwner } : {}), context, contextIsFlag, action,
   };
 }

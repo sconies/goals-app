@@ -148,13 +148,13 @@ export function ProgressRing({ done, total, size = 56, label, counts }: { done: 
 }
 
 /** Where you are in a flow: a bar with "Step 2 of 4 · label". */
-export function Steps({ at, of, label }: { at: number; of: number; label?: string }) {
+export function Steps({ at, of, label, draft }: { at: number; of: number; label?: string; draft?: string | null }) {
   return (
-    <div className="steps" aria-label={`Step ${at} of ${of}${label ? ': ' + label : ''}`}>
+    <div className="steps" aria-label={`Step ${at} of ${of}${label ? ': ' + label : ''}${draft ? '. ' + draft : ''}`}>
       <div className="steps-bar" aria-hidden="true">
         {Array.from({ length: of }, (_, i) => <i key={i} className={i < at - 1 ? 'done' : i === at - 1 ? 'now' : ''} />)}
       </div>
-      <span className="tiny muted">Step {at} of {of}{label ? ' · ' + label : ''}</span>
+      <span className="tiny muted">Step {at} of {of}{label ? ' · ' + label : ''}{draft ? ' · ' + draft : ''}</span>
     </div>
   );
 }

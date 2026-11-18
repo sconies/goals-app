@@ -13,6 +13,7 @@ import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { PickOne } from '../ui/Pick';
 import { useGoalQuery } from './GoalFilters';
+import { FormFooter } from '../ui/FormFooter';
 
 /** Every filter, changing the goals behind it as you go. */
 export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean; onClose: () => void; sortOff?: string }) {
@@ -120,10 +121,10 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
       </div>
       </details>
       {/* Always in view at the bottom of the sheet, however long it is. */}
-      <div className="sheet-foot">
+      <FormFooter sheet>
         <button type="button" className="linkish small" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>
         <button type="button" className="btn primary" onClick={onClose}>Show the goals</button>
-      </div>
+      </FormFooter>
     </Sheet>
   );
 }

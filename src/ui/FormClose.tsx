@@ -6,6 +6,7 @@ import { Sheet } from './bits';
 import { Icon } from './Icon';
 
 import { closeWords, DISCARD } from '../domain/formFooter';
+import { FormFooter } from './FormFooter';
 export { CLOSE, DISCARD, KEEP } from '../domain/formFooter';
 
 export function FormClose({ keeps, dirty = false, onClose }: { keeps: boolean; dirty?: boolean; onClose: () => void }) {
@@ -20,10 +21,9 @@ export function FormClose({ keeps, dirty = false, onClose }: { keeps: boolean; d
       <Sheet open={asking} onClose={() => setAsking(false)} title={`${DISCARD}?`}>
         <div className="stack" style={{ gap: 'var(--s4)' }}>
           <p style={{ margin: 0 }}>What you typed here will be lost.</p>
-          <div className="sheet-foot">
-            <button type="button" className="btn ghost" onClick={() => setAsking(false)}>Keep editing</button>
+          <FormFooter sheet onCancel={() => setAsking(false)} cancelLabel="Keep editing">
             <button type="button" className="btn primary" onClick={() => { setAsking(false); onClose(); }}>{DISCARD}</button>
-          </div>
+          </FormFooter>
         </div>
       </Sheet>
     </>

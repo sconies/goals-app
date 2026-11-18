@@ -15,6 +15,10 @@ import { metricAt, metricPath } from './rulesLibrary';
 import { demoBehindWeeks, sourcesFrom } from './sources';
 import type { NumberSource } from './source';
 import './metrics.css';
+import { focusEl } from '../../ui/FixSummary';
+
+/** Confirm pressed with no figure typed. */
+const NONE_TYPED = 'Type at least one figure to confirm it as a baseline.';
 
 type App = ReturnType<typeof useApp>;
 type Slice = { teamId: string | null; part: string };
@@ -208,7 +212,11 @@ export function TakeBaselines() {
         {rows && (
           <FormFooter>
             <button type="button" className="btn ghost big-btn" onClick={back}>Not now</button>
-            <button type="button" className="btn primary big-btn" disabled={busy || !taken.length} onClick={() => void confirm()}>{busy ? 'Saving…' : `Confirm ${taken.length} ${taken.length === 1 ? 'baseline' : 'baselines'}`}</button>
+            {/* Never "Confirm 0 baselines", and never disabled for what's missing: pressed with none typed, it says so and focus goes to the first figure. */}
+            <button type="button" className="btn primary big-btn" disabled={busy} onClick={(ev) => {
+              if (!taken.length) { setTried(true); setError(NONE_TYPED); focusEl(ev.currentTarget.closest('.focus-foot')?.parentElement?.querySelector<HTMLElement>('input:not([type=checkbox]):not([type=radio])')); return; }
+              void confirm();
+            }}>{busy ? 'Saving…' : taken.length ? `Confirm ${taken.length} ${taken.length === 1 ? 'baseline' : 'baselines'}` : 'Confirm baselines'}</button>
           </FormFooter>
         )}
         {tried && missingReason.length > 0 && <p className="small metric-retake" role="alert">Say why for each corrected figure first.</p>}

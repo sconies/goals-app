@@ -15,7 +15,8 @@ module.exports = {
     await change.waitFor();
     await change.click();
     const sheet = p.getByRole('dialog', { name: 'Check-in rhythm' });
-    if (!(await sheet.getByRole('button', { name: 'Save' }).isDisabled())) fails.push('Save is offered before the choice differs');
+    await sheet.getByRole('button', { name: 'Save' }).click();
+    if (!/Nothing to save/.test(await sheet.locator('.foot-status').innerText().catch(() => ''))) fails.push('Save pressed before the choice differs does not say there’s nothing to save');
     await sheet.getByRole('radio', { name: /No set rhythm/ }).click();
     const said = (await sheet.innerText()).replace(/\s+/g, ' ');
     // The same goals the Goals page lists as live this year, and those it says have no recent update.

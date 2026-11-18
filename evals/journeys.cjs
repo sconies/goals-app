@@ -776,7 +776,7 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, 'Deploy lead time', 'the check step shows the outcome from the file');
   await h.checkpoint('check');
-  await h.click(p.getByRole('button', { name: 'Create Platform Engineering' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Platform Engineering is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no way on after creating');
   await p.goto(url('/'));
@@ -867,7 +867,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await p.getByRole('button', { name: /^(Next: people|Back to Check)$/ }).first().click();
   if (!/\/check/.test(p.url())) await p.goto(live('/workspace/new/check'));
   await p.waitForURL(/\/workspace\/new\/check/);
-  await h.click(p.getByRole('button', { name: 'Create Growth' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Growth is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
   await h.checkpoint('ready');
@@ -970,7 +970,7 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await h.click(p.getByRole('radio', { name: /^Later/ }));
   await h.click(p.getByRole('button', { name: 'Next: check' }));
-  await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await p.waitForURL(/\/ready/);
   const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
   await p.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
@@ -1091,7 +1091,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, '10 min today → 6 min, lower is better', 'Check doesn’t show the start value');
   await see(p, 'Everyone, every goal, on Thursdays', 'Check doesn’t describe the weekly review');
   await h.checkpoint('check');
-  await h.click(p.getByRole('button', { name: 'Create Voss Test Workspace' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Voss Test Workspace is ready');
   await see(p, 'Faro doesn’t send any email', 'Ready doesn’t say the invite is a link to send');
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
@@ -1187,7 +1187,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await h.click(p.getByRole('radio', { name: 'Count them from this week' }));
   h.set('attention', await asked.isVisible(), 'Check doesn’t show the stages it moved');
   await h.checkpoint('check');
-  await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Field Operations is ready');
   await see(p, 'The first check-ins are due before', 'Ready doesn’t say when the first check-ins are due');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
@@ -1269,7 +1269,7 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   const answers = await fix.locator('.import-answer').allInnerTexts();
   h.set('errors', answers.join(' | ') === 'Add Nia Okoro | Give it to someone here', 'the owner nobody typed is answered with: ' + (answers.join(' | ') || 'nothing'));
   // Create waits for the answer, and says why; nothing is saved.
-  await h.click(p.getByRole('button', { name: 'Create Depot Network' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   h.set('one-action', await p.getByRole('alert').filter({ hasText: 'depots.csv' }).isVisible(), 'Create with a question open does not say why it waits');
   if (await p.evaluate(() => localStorage.getItem('goals-live-workspace'))) fail('a workspace was saved before Create Depot Network');
   await h.click(fix.getByRole('radio', { name: 'Add Nia Okoro' }));
@@ -1287,7 +1287,7 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   h.set('attention', await stages.waitFor({ timeout: 5000 }).then(() => true, () => false), 'the stage question is not answered “Count them from this week”');
   await h.checkpoint('answered');
   (await designProblems(p)).forEach((x) => fail('set-up’s preview breaks a design rule: ' + x));
-  await h.click(p.getByRole('button', { name: 'Create Depot Network' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await p.waitForURL(/\/ready/);
   const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
   const s = await h.snapshot(wsId);
@@ -2341,7 +2341,7 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await h.click(p.getByRole('button', { name: 'Change level' }));
   await p.getByRole('dialog').getByLabel('Level').selectOption('north-star'); // (Chen's integration-tests goal is already an SVP goal, so SVP would change only one)
   await h.checkpoint('bulk level');
-  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Change the level' }));
   await see(p, 'Saved: 2 goals changed').catch(async (e) => fail(`${e.message}: ${(await p.locator('.toast, [role=alert], [role=status], .dialog, [role=dialog]').allInnerTexts().catch(() => [])).join(' | ').slice(0, 300)}`));
   const s = await h.snapshot();
   const posted = s.checkIns.filter((c) => c.week === NOW && ((c.goalId === 'dep-jenkins' && c.value === Number(alertsV)) || (c.goalId === 'cfr-tests' && c.value === Number(cacheV))));
@@ -2386,7 +2386,9 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
   await dlg.getByRole('button', { name: /^Who it acts as: .*Change$/ }).click();
   await dlg.getByRole('combobox').fill('Mateo');
   await dlg.getByRole('option', { name: /Mateo Fernández/ }).click();
-  h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
+  // Never a disabled primary (FORM-FOOTER 3.3.1): pressed with nothing said, it says what’s missing and stays.
+  await dlg.getByRole('button', { name: 'Make the token' }).click();
+  h.set('errors', await dlg.getByText('Say what it’s for, in a few words.').isVisible() && await dlg.getByRole('button', { name: 'Make the token' }).isVisible(), 'a token can be made without saying what it is for');
   await h.fill(dlg.getByLabel('What it’s for'), 'Claude on Mateo’s laptop');
   await h.checkpoint('make token');
   await h.click(dlg.getByRole('button', { name: 'Make the token' }));
@@ -2719,10 +2721,10 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   await h.fill(p.getByRole('textbox').first(), 'Half-written goal');
   await p.goto(url('/goals?scope=all'));
   await p.goto(url('/goals/new'));
-  await see(p, 'Picked up the goal you hadn’t published.', 'New goal reopens the old draft without saying so');
-  await h.click(p.getByRole('button', { name: 'Start a new one' }));
+  await see(p, 'Draft from today', 'New goal reopens the old draft without saying so in its step line');
+  await h.click(p.getByRole('button', { name: 'Start a new goal instead' }));
   await h.click(p.getByRole('button', { name: 'Discard it' }));
-  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start a new one kept the old draft');
+  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start a new goal instead kept the old draft');
   await p.context().close();
 }, ['entry', 'progress', 'errors']);
 
@@ -4425,7 +4427,7 @@ journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a wo
   await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, `${left === 1 ? '1 goal has' : `${left} goals have`} no owner yet. You can choose them now, or from Home afterwards.`, 'Check does not say how many goals have no owner');
   h.set('progress', /Grace/.test(firstOwner) && left === 2 && /Step 4 of 4/.test(await p.locator('.steps').innerText()), `a goal’s owner started as “${firstOwner}”, ${left} left with no owner, progress “${await p.locator('.steps').innerText()}”`);
-  await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await p.waitForURL(/\/ready/);
   await p.goto(url('/'));
   const block = p.getByRole('region', { name: 'Getting started' }).or(p.locator('section.getting-started'));
@@ -5166,7 +5168,9 @@ journey('U101', ['RHYTHM-OPTIONAL', 'HOME-OWNER', 'CHANGE-LOG'], 'Amara sets the
   await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
   const sheet = p.getByRole('dialog', { name: 'Check-in rhythm' });
   await sheet.waitFor();
-  if (!(await sheet.getByRole('button', { name: 'Save' }).isDisabled())) fail('Save is offered before anything changed');
+  // Never a disabled primary (FORM-FOOTER 3.3.1): pressed before anything changed, the status line says so and the sheet stays.
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  if (!/Nothing to save/.test(await sheet.locator('.foot-status').innerText().catch(() => ''))) fail('Save pressed before anything changed does not say there’s nothing to save');
   await h.click(sheet.getByRole('radio', { name: /No set rhythm/ }));
   const says = await sheet.innerText();
   for (const t of [/\d+ goals have nothing due\./, /stop reading “No recent update”/, /Nothing is flagged for going quiet\./, /Every check-in already posted stays as it is\./]) if (!t.test(says)) fail(`the read-back does not say ${t}: ${says.slice(0, 400)}`);
@@ -5939,7 +5943,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   const kept = await p.getByLabel(/^Target$/).inputValue();
   await p.reload();
-  await see(p, 'Picked up the goal you hadn’t published.', 'a reload does not say the draft was picked up');
+  await see(p, 'Draft from today', 'a reload does not say the draft was picked up in its step line');
   h.set('finish', kept === '80' && (await p.getByLabel(/^Baseline$/).inputValue()) === '10' && /\/goals\/new\/measure(\?|$)/.test(p.url()), 'Back or a reload lost the step or its numbers');
   // Close and keep the draft; New goal picks it up at the same step.
   await p.getByRole('button', { name: 'Close and keep the draft' }).click();
@@ -8912,10 +8916,53 @@ async function platformChecks() {
         if (before !== 'Close' || after !== 'Close and keep the draft') footProblems.push(`a check-in’s exit says “${before}” then “${after}”, not Close then Close and keep the draft`);
       }
     }
+    // UX2c (patterns spec 3.3.2): no primary is disabled for missing input. Pressed empty, each says what's missing beside
+    // the field and focus moves there: New goal's first step, Change a goal with its name cleared, Import's paste.
+    const focusedInvalid = () => f.evaluate(() => { const a = document.activeElement; return !!a && (a.getAttribute('aria-invalid') === 'true' || !!a.closest('[aria-invalid="true"]')); });
+    await f.goto(url('/goals/new'));
+    await f.locator('.focus-foot button[type=submit]').waitFor({ timeout: 10000 });
+    await f.locator('.focus-foot button[type=submit]').click();
+    await f.waitForTimeout(250);
+    if (!(await focusedInvalid())) footProblems.push('New goal pressed with nothing typed leaves focus off the field in error');
+    await f.goto(url('/goals/ci-docker/edit'));
+    await f.locator('input[data-field=title]').waitFor({ timeout: 10000 });
+    await f.locator('input[data-field=title]').fill('');
+    const save = f.locator('.focus-foot button[type=submit]');
+    await save.click();
+    await f.waitForTimeout(250);
+    const saveSays = (await save.innerText()).trim(), saveOff = await save.getAttribute('aria-disabled');
+    if (saveSays !== 'Save changes' || saveOff === 'true') footProblems.push(`Change a goal with its name cleared: the primary says “${saveSays}”${saveOff === 'true' ? ', and is disabled' : ''}, not Save changes`);
+    if (!(await focusedInvalid())) footProblems.push('Change a goal with its name cleared, pressed: focus is not on the field in error');
+    await f.goto(url('/data/import?paste=1'));
+    const check = f.getByRole('button', { name: 'Check these rows' });
+    if (!(await check.waitFor({ timeout: 5000 }).then(() => true, () => false))) footProblems.push('Import’s paste: no Check these rows button to press');
+    else if (await check.isDisabled()) footProblems.push('Import’s paste: Check these rows is disabled while the box is empty');
+    else { await check.click(); await f.waitForTimeout(200); if (!(await focusedInvalid())) footProblems.push('Import’s paste pressed empty: focus is not on the box, marked in error'); }
     await c20.close();
+    // At 360px, when Back and the primary don't fit side by side (3.5): the primary takes the full width and Back sits
+    // above it as a text link. New goal's second step has both.
+    const c20p = await browser.newContext({ viewport: { width: 360, height: 740 } });
+    const fp = await c20p.newPage();
+    await fp.goto(url('/'));
+    await fp.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    await fp.goto(url('/goals/new'));
+    await fp.locator('input[data-field=title]').fill('Fewer flaky builds on main');
+    await fp.locator('.focus-foot button[type=submit]').click();
+    const backBtn = fp.locator('.focus-foot .foot-back');
+    await backBtn.waitFor({ timeout: 5000 }).catch(() => {});
+    if (await backBtn.count()) {
+      const g = await fp.evaluate(() => {
+        const b = document.querySelector('.focus-foot .foot-back'), pr = document.querySelector('.focus-foot .btn.primary'), row = pr?.parentElement;
+        if (!b || !pr || !row) return null;
+        const bb = b.getBoundingClientRect(), pb = pr.getBoundingClientRect(), rb = row.getBoundingClientRect(), cs = getComputedStyle(b);
+        return { above: bb.bottom <= pb.top + 1, full: pb.width >= rb.width - 2, text: cs.borderTopWidth === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent') };
+      });
+      if (!g || !g.above || !g.full || !g.text) footProblems.push(`at 360px New goal’s Back is not a text link above a full-width primary (${JSON.stringify(g)})`);
+    } else footProblems.push('at 360px New goal’s second step has no Back');
+    await c20p.close();
   }
   lap('P20');
-  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
+  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; pressed empty (a check-in, New goal, Change a goal, Import’s paste) it is never disabled and focus moves to the field in error; at 360px Back is a text link above a full-width primary; a check-in’s exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
   // P21: one page header (PAGE-HEADER; docs/design/patterns/spec.md 2.2, 2.5). On list and detail pages: at 360px no control
   // shares a line with the h1 and none of the shell's utilities (Find, Demo, you) is inside the page; at most one filled
   // button in a header; at 1090 and 1363px a header's actions sit on the title's first line, never wrapped under it alone;

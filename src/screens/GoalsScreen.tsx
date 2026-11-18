@@ -39,6 +39,7 @@ const GOAL_WORDS = { thing: 'goal', things: 'goals' };
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
 import { ATTENTION, HANDLED_LINE } from '../domain/vocabulary';
+import { FormFooter } from '../ui/FormFooter';
 
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
@@ -486,7 +487,7 @@ function ViewSheet({ layouts = LAYOUTS, layout, onLayout, group, groupOff, onGro
           <div className="view-sheet-tools">{tools}</div>
         </div>
       </div>
-      <div className="sheet-foot"><button type="button" className="btn primary" onClick={onClose}>Done</button></div>
+      <FormFooter sheet><button type="button" className="btn primary" onClick={onClose}>Done</button></FormFooter>
     </Sheet>
   );
 }

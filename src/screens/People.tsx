@@ -35,6 +35,7 @@ import { PickOne } from '../ui/Pick';
 import { CountLine, FilterLine, ListBar, ListSearch, NoneFound } from '../ui/ListBar';
 import type { FilterPart } from '../domain/find';
 import { PageHeader } from '../ui/PageHeader';
+import { FormFooter } from '../ui/FormFooter';
 
 const PEOPLE = { thing: 'person', things: 'people' };
 const TEAMS = { thing: 'team', things: 'teams' };
@@ -442,7 +443,7 @@ export function TeamSheet({ team, onClose, onSaved }: { team: Team | null; onClo
         <label className="field"><span className="field-label">What it is here to do <span className="hint">optional</span></span>
           <textarea className="input" rows={2} maxLength={280} value={objective} onChange={(e) => setObjective(e.target.value)} />
         </label>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : team ? 'Save' : 'Add the team'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : team ? 'Save' : 'Add the team'}</button></FormFooter>
       </form>
     </Sheet>
   );
@@ -484,7 +485,7 @@ function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void })
             </div>
           </>
         )}
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button>{(!has || others.length > 0) && <button className="btn danger big-btn" type="submit">{busy ? 'Removing…' : has ? 'Move them and remove' : 'Remove the team'}</button>}</div>
+        <FormFooter sheet onCancel={onClose}>{(!has || others.length > 0) && <button className="btn danger big-btn" type="submit">{busy ? 'Removing…' : has ? 'Move them and remove' : 'Remove the team'}</button>}</FormFooter>
       </form>
     </Sheet>
   );
@@ -579,7 +580,7 @@ export function PersonSheet({ person, onClose, onSaved }: { person: Person | nul
           <input className="input" value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} />
         </label>
         <PickOne kind="team" label="Team" none="No team" value={p.teamId} onChange={(id) => setP({ ...p, teamId: id })} />
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
+        <FormFooter sheet onCancel={onClose}><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></FormFooter>
       </form>
     </Sheet>
   );

@@ -15,6 +15,7 @@ import type { Ask } from '../domain/types';
 import { timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { mark } from '../telemetry';
+import { FormFooter } from '../ui/FormFooter';
 
 export function RespondForm({ ask: r, onClose, focus }: { ask: Ask; onClose: () => void; focus?: boolean }) {
   const app = useApp();
@@ -88,10 +89,10 @@ export function RespondForm({ ask: r, onClose, focus }: { ask: Ask; onClose: () 
             <span className="field-msg" role="alert">{tried && short && <><Icon name="alert" size={16} />Write a few words.</>}</span>
             <span className="hint">{hint}</span>
           </label>
-          <div className="sheet-foot respond-foot">
+          <FormFooter sheet className="respond-foot">
             <button type="button" className="linkish small" onClick={onClose}>Leave it open</button>
             <button type="submit" className="btn primary" disabled={busy}>{button}</button>
-          </div>
+          </FormFooter>
         </>
       ) : <p className="hint">Only {r.recipientId ? app.person(r.recipientId)?.name : 'the person asked'}{action ? ', whoever agreed it,' : ''} or an admin can {action ? 'mark it done' : 'answer it'}. You can comment on the goal.</p>}
     </form>

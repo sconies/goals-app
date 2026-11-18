@@ -328,7 +328,7 @@ export function ReviewHome() {
             </>
           ) : <p>{`The ${goalsN(healthyLeft.length)} with nothing flagged ${healthyLeft.length === 1 ? 'is' : 'are'} marked reviewed. The ${goalsN(remaining.length)} to discuss stay${remaining.length === 1 ? 's' : ''} open, and the review carries on.`}</p>}
           <p className="hint">You can undo it from the message that follows.</p>
-          <div className="foot-row"><button className="btn ghost big-btn" onClick={closeSheet}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>{busy ? 'Saving…' : finishOpen ? 'Finish the review' : `Mark ${goalsN(healthyLeft.length)} reviewed`}</button></div>
+          <FormFooter sheet onCancel={closeSheet} cancelLabel="Not yet"><button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>{busy ? 'Saving…' : finishOpen ? 'Finish the review' : `Mark ${goalsN(healthyLeft.length)} reviewed`}</button></FormFooter>
         </div>
       </Sheet>
     </div>
@@ -416,7 +416,7 @@ export function ReviewEdit() {
             keep={(id) => !!existing && id === existing.createdBy && app.viewer.id !== existing.createdBy && !app.viewer.admin} />
         </section>
         <FormFooter statusTone={tried && !ok ? 'off' : undefined}
-          status={tried && !ok ? <span role="alert">{problem}</span> : `${goalsN(covered.length)}, ${r.people.length === 1 ? '1 person' : `${r.people.length} people`}.`}>
+          status={tried && !ok ? problem : `${goalsN(covered.length)}, ${r.people.length === 1 ? '1 person' : `${r.people.length} people`}.`}>
           <button className="btn primary big-btn" type="submit" disabled={busy}>{existing ? 'Save review' : 'Create review'}</button>
         </FormFooter>
       </form>
