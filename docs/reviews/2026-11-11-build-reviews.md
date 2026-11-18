@@ -3045,3 +3045,21 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
   - Passes: New goal; GoalEdit; the table check-in; "Close without saving" on Review set-up and baselines; Home's rows (values line up per list at 1440, no overflow at 360 or 390). Mateo's first title ends at 860 px at 390×844, and its number at 834, which is within Lane's N26 answer.
   - Sent to the build session as an addendum.
 - Sent the highs and mediums to the build session and planning, 18 Nov about 09:00 UTC.
+- **Re-review at 819b6d55 (fix session session_012kbr92THq15KYkf3KVSny7; commits 0888c5c4, 532c6109, 819b6d55).** Read the diff, and a Sonnet walker re-walked at 360 (CPU slowed 4×) and 1440.
+  - **Both highs closed.** `home-mine` offers "Check in" only on the viewer's own goals (Mateo and Julia: none; Rhea's two due goals: yes). `sayOwner` puts the owner first ("Kojo Amankwah. No check-in for 43 days…").
+  - **Closed:**
+    - the check-in's empty press focuses the field in error, and the last step marks its error `aria-invalid`;
+    - the carry step is on FormFooter;
+    - no sideways scroll at 360 (`.ci .linkish.tap.link-request` wraps; main had the fault too);
+    - no stray “”;
+    - What's new "Every form ends the same way";
+    - NAV-FORMS wording;
+    - P20 checks the focus;
+    - `touches.cjs` maps drafts, the metrics and import forms;
+    - the rebuild line names FORM-FOOTER;
+    - handoff.md is updated;
+    - Lane's N26 answer is recorded in patterns spec section 6 and dated 18 Nov.
+  - **Moved to UX2c (backlog 3a), so not open here:** status lines no screen shows yet (the rule now says what is built), the sheets, Import's footer, New goal's lines, "Draft kept", primaries disabled for missing input, a FORM-FOOTER csv, `touched` on any set(), and Back as a text link at 360.
+  - **Low:** the carry step's Back at 360 is still a full-width button above the actions. This is UX2c's.
+  - **Low:** the build reports that N8 [STALE-RELOAD] fails alone on origin/main as well. Planning should know.
+  - Told planning: no high or medium; it can merge on green CI.
