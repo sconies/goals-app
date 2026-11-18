@@ -3063,3 +3063,13 @@ The diff was read by an Opus subagent against patterns spec section 3 and Lane's
   - **Low:** the carry step's Back at 360 is still a full-width button above the actions. This is UX2c's.
   - **Low:** the build reports that N8 [STALE-RELOAD] fails alone on origin/main as well. Planning should know.
   - Told planning: no high or medium; it can merge on green CI.
+
+## The reviewer of 18 November, afternoon (session_012kbr8zrx4banyBEWNKXLZj)
+
+**#593 re-check, 819b6d55..cb78e4c** (a867b3c F1 fix, a153e6d api/mcp.js, cb78e4c eval harness). No high or medium.
+- **F1:** `rowParts` sets `reasonOwner` only when it prefixes `${owner}. `, and the row's title slices exactly that off. Only Home's `home-mine` passes `sayOwner`, so 4-goal-history's "title shorter than text" clamp check is not affected. api/mcp.js matches the source.
+- **N7 [WHATS-NEW]:** `evaluateAll` reads the dot now instead of waiting 30 s for it. The dot comes from `useSyncExternalStore` on localStorage (`src/help/seen.ts`), so it is final on the shell's first draw, and the "gone" checks wait for the page first (`.news h2`). The "shows" check waits 5 s for it to attach; a miss still fails. Nothing loosened. The shard weight 256 → 90 is a time estimate, not a budget.
+- **N8 [STALE-RELOAD]:** "gone once" now refuses the file for every request of the first document, then serves it on the reload. That is what a deploy does (the old one-request refusal let import() fetch it after the modulepreload 404). It still asserts exactly two loads, the address kept and no error page; "gone for good" still asserts one reload, then the error page. Spec line regenerated.
+- **Quick-run progress:** a tee of PASS/FAIL and `EVALS_PROGRESS` lines to the console; the log file still gets everything. Exit codes are unchanged.
+- **Low:** nothing pins F1. No eval or unit test checks that a Home lead's row title is the reason without the owner's name. Add a line to 1-home-watching's [Home] 1 when UX2c touches it.
+- Told planning: no high or medium; it can merge on green CI.
