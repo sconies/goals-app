@@ -16,12 +16,13 @@ export function Feedback({ onSend }: { onSend?: () => void }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const narrow = width > 0 && width < NARROW;
   const [sending, setSending] = useState(false);
+  const send = onSend ? <button type="button" className="btn" aria-expanded={sending} onClick={() => { setSending(true); onSend(); setSending(false); }}>Send feedback</button> : null;
   return (
     <div className={'page feedback-page' + (narrow ? ' ws-narrow' : '')} ref={ref}>
       <PageHeader className="wsp-head" title="Feedback"
-        actions={onSend ? <button type="button" className="btn" aria-expanded={sending} onClick={() => { setSending(true); onSend(); setSending(false); }}>Send feedback</button> : null}
+        actions={send} inListBar
         line={<span className="hint">{data.shared ? 'From every workspace and the demo.' : 'From this browser and this workspace: no database is set up.'} Anyone can read it and send feedback; only an admin changes a status, and every change says who made it and can be undone.</span>} />
-      <Suspense fallback={<p className="hint" role="status">Opening the inbox…</p>}><Inbox data={data} narrow={narrow} inPage /></Suspense>
+      <Suspense fallback={<p className="hint" role="status">Opening the inbox…</p>}><Inbox data={data} narrow={narrow} inPage action={send} /></Suspense>
     </div>
   );
 }

@@ -8997,6 +8997,12 @@ async function platformChecks() {
         if (m.utils) headProblems.push(`${route} at ${width}px: ${m.utils} of Find, Demo or you inside the page`);
         if (m.filled > 1) headProblems.push(`${route} at ${width}px: ${m.filled} filled buttons in the header`);
         if (width > 360 && m.under) headProblems.push(`${route} at ${width}px: the header's actions wrapped under the title`);
+        // A list with a list bar keeps its one action at the bar’s end on a phone, and in the header on a computer (Lane, 18 Nov).
+        if (route === '/metrics') {
+          const where = await f.evaluate(() => ({ head: [...document.querySelectorAll('#main .page-header .ph-actions')].filter((e) => e.getClientRects().length).length, bar: [...document.querySelectorAll('#main .list-bar-action')].filter((e) => e.getClientRects().length).map((e) => (e.textContent || '').trim()) }));
+          if (width === 360 && (where.head || !where.bar.includes('Add a metric'))) headProblems.push(`/metrics at 360px: Add a metric is not at the list bar’s end (${JSON.stringify(where)})`);
+          if (width > 360 && (!where.head || where.bar.length)) headProblems.push(`/metrics at ${width}px: Add a metric is not in the header (${JSON.stringify(where)})`);
+        }
         if (width === 360 && route === '/people') {
           if (m.bar) headProblems.push(`the phone's top bar names the page (“${m.bar}”) while its title is in view`);
           await f.mouse.wheel(0, 1200); await f.waitForTimeout(400);

@@ -7,7 +7,7 @@
 import type { ReactNode } from 'react';
 import { FormClose } from './FormClose';
 
-export function PageHeader({ title, above, line, actions, children, className, part }: {
+export function PageHeader({ title, above, line, actions, inListBar, children, className, part }: {
   /** The h1: the place's name on a list, the thing's own name on a detail page. */
   title: ReactNode;
   /** Above the title: a detail page's status and number line, an eyebrow ("Q4 · week 46"), a person's picture. */
@@ -16,6 +16,9 @@ export function PageHeader({ title, above, line, actions, children, className, p
   line?: ReactNode;
   /** At most one filled button; on a detail page one plain standing button and More after it (`headerButtons`). */
   actions?: ReactNode;
+  /** A list page whose list bar also carries the action: below 700px the header leaves it out and the bar shows it at its
+      end, so the first row stays near the top (Lane, 18 Nov; F15). */
+  inListBar?: boolean;
   /** What else belongs to the header (a second hint), under the line. */
   children?: ReactNode;
   className?: string;
@@ -23,7 +26,7 @@ export function PageHeader({ title, above, line, actions, children, className, p
   part?: string;
 }) {
   return (
-    <div className={'page-head page-header' + (className ? ' ' + className : '')} data-part={part}>
+    <div className={'page-head page-header' + (inListBar ? ' ph-list' : '') + (className ? ' ' + className : '')} data-part={part}>
       {above ? <div className="ph-above">{above}</div> : null}
       <h1 className="title-xl ph-title">{title}</h1>
       {actions ? <div className="ph-actions">{actions}</div> : null}

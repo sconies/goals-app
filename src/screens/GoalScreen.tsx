@@ -417,9 +417,12 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = slot.current;
     if (!el) return;
-    const above = () => {
+    // What stays at the top of the screen above the bar: the phone's top bar and a review's bar. `withTop` false leaves
+    // the phone's top bar out: once the bar is compact it takes the top bar's place (Lane, 18 Nov; N2, N9), and the top
+    // bar slides away (html.goal-compact .mtop) without moving the page under it.
+    const above = (withTop: boolean) => {
       let y = 0;
-      for (const e of document.querySelectorAll<HTMLElement>('.mtop, .goal-page > .reviewbar')) {
+      for (const e of document.querySelectorAll<HTMLElement>(withTop ? '.mtop, .goal-page > .reviewbar' : '.goal-page > .reviewbar')) {
         if (!e.getClientRects().length) continue;
         const pos = getComputedStyle(e).position;
         if (pos === 'sticky' || pos === 'fixed') y = Math.max(y, Math.round(e.getBoundingClientRect().bottom));
@@ -428,9 +431,10 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
     };
     let full = el.offsetHeight;
     const check = () => {
-      const t = above();
       const r = el.getBoundingClientRect();
-      const on = r.bottom < t + 4;
+      // The top bar's height still decides when the bar turns compact, so hiding it never turns the bar back.
+      const on = r.bottom < above(true) + 4;
+      const t = on ? above(false) : above(true);
       setS((p) => {
         if (!p.on) full = el.offsetHeight;
         const next = { on, top: t, left: Math.round(r.left), width: Math.round(r.width), height: full };
@@ -444,6 +448,12 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
     window.addEventListener('resize', onScroll);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
   }, [slot]);
+  useEffect(() => {
+    // On <html>, not the shell's own element, so a re-render of the shell never drops it.
+    const root = document.documentElement;
+    root.classList.toggle('goal-compact', s.on);
+    return () => root.classList.remove('goal-compact');
+  }, [s.on]);
   return s;
 }
 

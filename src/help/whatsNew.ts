@@ -27,6 +27,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-page-header',
+    date: '2026-11-18',
+    title: 'Every page starts the same way',
+    points: [
+      'A page’s title sits at the left, with one line under it and at most one main button beside it.',
+      'Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page, a goal’s included.',
+      'On a phone the title gets a line of its own, and the top bar names the page only once its title has scrolled away.',
+      'On a phone, a list’s one action sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place as you scroll.',
+      'A check-in, New goal and every other focused task show their name at the left and their one way out at the right.',
+    ],
+    articles: ['getting-around'],
+  },
+  {
     id: 'one-form-footer',
     date: '2026-11-18',
     title: 'Every form ends the same way',

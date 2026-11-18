@@ -1322,6 +1322,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'The top of a page', list: [
         'Every page starts with its title at the left edge. Above it, a goal or a metric shows its status; under it, one line says what’s in scope, or who owns it and where it sits. At most one filled button sits at the right of the title; on a phone the buttons go under the line, so the title has its own line.',
         'Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page. On a phone the top bar shows the workspace until the page’s title scrolls out of sight, then the page’s name.',
+        'On a phone, a list’s one action (Add a metric, Add a person, Send feedback) sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place once you scroll down.',
         'A form shows what you’re doing at the top left, such as “Week 46 check-in · 2 of 7”, and its one way out at the top right.',
       ] },
       { heading: 'Going back', module: 'reviews', list: [

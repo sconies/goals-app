@@ -127,12 +127,15 @@ module.exports = {
       chk(before === 0, `${at}: bar compact before scrolling`);
       chk(s && s.n === 1, `${at}: ${s?.n} bars (the compact bar must be the same element)`);
       chk(s && Math.abs(s.top - s.under) <= 1, `${at}: compact bar at ${s?.top}, under ${s?.under}`);
+      // On a phone the compact line takes the top bar’s place (Lane, 18 Nov): the top bar is out of sight while it shows.
+      if (w < 500) chk(await p.evaluate(() => (() => { const t = document.querySelector('.mtop'); if (!t || !t.getClientRects().length) return null; return getComputedStyle(t).visibility === 'visible' && t.getBoundingClientRect().bottom > 0; })()) === false, `${at}: the phone’s top bar still shows above the compact bar`);
       // One line: on a phone the status, number and gap (the page's own header had the title); wider, the title too.
       chk(s && (w < 500 || s.title) && s.chip && s.number && !/rgba\(0, 0, 0, 0\)/.test(s.bg) && s.h <= 64, `${at}: compact bar ${JSON.stringify(s)}`);
       if (!/review=/.test(route)) chk(s && s.actions.length >= 1, `${at}: compact bar actions ${s?.actions}`);
       // Back at the top it opens out again.
       await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(250);
       chk(await p.locator('.goal-bar.compact').count() === 0, `${at}: the bar stays compact at the top`);
+      if (w < 500) chk(await p.evaluate(() => (() => { const t = document.querySelector('.mtop'); if (!t || !t.getClientRects().length) return null; return getComputedStyle(t).visibility === 'visible' && t.getBoundingClientRect().bottom > 0; })()) === true, `${at}: the phone’s top bar doesn’t come back at the top of the page`);
       await c.close();
     }
 

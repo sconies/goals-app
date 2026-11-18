@@ -54,7 +54,7 @@ function PlaceHead({ tab, action }: { tab: 'people' | 'teams'; action?: ReactNod
   const app = useApp();
   return (
     <>
-      <PageHeader className="people-head" title="People" line={`Everyone in ${wsName(app.ws)}, and the teams they are in.`} actions={action} />
+      <PageHeader className="people-head" title="People" line={`Everyone in ${wsName(app.ws)}, and the teams they are in.`} actions={action} inListBar />
       <nav className="people-tabs" aria-label="People and teams">
         <Link to="/people" aria-current={tab === 'people' ? 'page' : undefined}>People · {app.snapshot.people.length}</Link>
         <Link to="/teams" aria-current={tab === 'teams' ? 'page' : undefined}>Teams · {app.snapshot.teams.length}</Link>
@@ -123,11 +123,12 @@ export function PeopleList() {
       </label>
     </>
   );
+  const addPerson = admin ? <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a person</button> : null;
   return (
     <div className="page people-page" ref={ref}>
-      <PlaceHead tab="people" action={admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a person</button>} />
+      <PlaceHead tab="people" action={addPerson} />
       {/* The list bar (FS2): the search, the filters (one Filter button on a phone), then the count and filter lines. */}
-      <ListBar search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, historyStep(change) === 'replace')} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
+      <ListBar action={addPerson} search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, historyStep(change) === 'replace')} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
         {narrow
           ? <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filter{parts.length ? ` · ${parts.length}` : ''}</button>
           : filters}
@@ -303,10 +304,11 @@ export function TeamsList() {
   const found = shown.rows;
   useEffect(() => { if (answer && shown.page !== page && page !== 1) setParams((p) => { const n = new URLSearchParams(p); if (shown.page > 1) n.set('page', String(shown.page)); else n.delete('page'); return n; }, { replace: true }); });
   const ctx = { snapshot: app.snapshot, statusOf: (g: Parameters<typeof app.statusOf>[0]) => app.statusOf(g).status };
+  const addTeam = app.viewer.admin ? <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button> : null;
   return (
     <div className="page people-page">
-      <PlaceHead tab="teams" action={app.viewer.admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button>} />
-      <ListBar search={<ListSearch value={q} onSearch={(t, change) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); n.delete('page'); return n; }, { replace: historyStep(change) === 'replace' })} label="Find a team" placeholder="Find a team or its lead" />} />
+      <PlaceHead tab="teams" action={addTeam} />
+      <ListBar action={addTeam} search={<ListSearch value={q} onSearch={(t, change) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); n.delete('page'); return n; }, { replace: historyStep(change) === 'replace' })} label="Find a team" placeholder="Find a team or its lead" />} />
       {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : answer && !answer.stale && <CountLine things={TEAMS} n={shown.total} narrowed={!!q.trim()} order="A to Z" shown={shown.total > DIRECTORY_PAGE ? { from: shown.from, to: shown.to } : null} />}
       {!!app.snapshot.teams.length && answer && !answer.stale && !shown.total && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
       {found.length > 0 && (

@@ -152,19 +152,18 @@ export function MetricsLibrary() {
   const filtered = parts.length > 0;
   const order = (LIBRARY_SORTS.find(([k]) => k === sort)?.[1] ?? 'Best stage first').replace(/^(?!A to Z)./, (c) => c.toLowerCase());
   const views: [StageView, string, number][] = [['all', 'All', counts.all], ['verified', 'Verified', counts.verified], ['defined', 'Defined', counts.defined], ['draft', 'Draft', counts.draft], ['verify', 'To verify', counts.toVerify], ['sortout', 'To sort out', counts.sortout]];
+  const addMetric = metricsOf(app.snapshot).some((x) => !x.removedAt) ? <Link className="btn primary" to="/metrics/new">Add a metric</Link> : null;
   return (
     <div className="page metrics-page" ref={ref}>
       {/* The empty library has its own Add a metric: one primary action a screen. */}
       <PageHeader className="metrics-head" title="Metrics" line="Each number goals are measured by, defined once, so two teams’ “build time” mean the same thing."
-        actions={metricsOf(app.snapshot).some((x) => !x.removedAt) ? <Link className="btn primary" to="/metrics/new">Add a metric</Link> : null} />
+        actions={addMetric} inListBar />
       {live > 0 && (
-        <ListBar search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, change !== 'started')} label="Find a metric" placeholder="Find by name, unit, owner or meaning" autoFocus />}>
+        <ListBar action={addMetric} search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, change !== 'started')} label="Find a metric" placeholder="Find by name, unit, owner or meaning" autoFocus />}>
           {!narrow && unitMenu}
           {!narrow && teamMenu}
           <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filters{parts.length ? ` · ${parts.length}` : ''}</button>
           {!narrow && sortMenu}
-          {/* On a phone the stage control folds into a menu beside Filters, so the first metric stays near the top. */}
-          {narrow && !retired && <MenuButton className="metric-stage-menu" label="Stage" display={`${views.find(([k]) => k === view)![1]} ${views.find(([k]) => k === view)![2]}`} items={views.map(([k, l, n]) => ({ label: `${l} ${n}`, current: view === k, onClick: () => pickView(k) }))} />}
         </ListBar>
       )}
       {live > 0 && !retired && !narrow && (
@@ -172,7 +171,14 @@ export function MetricsLibrary() {
           {views.map(([k, l, n]) => <button key={k} type="button" aria-pressed={view === k} onClick={() => pickView(k)}>{l} <span className="metric-stage-n">{n}</span></button>)}
         </div>
       )}
-      {live > 0 && <CountLine things={METRICS} n={found.total} narrowed={!!q.trim() || filtered} order={order} shown={found.total > LIBRARY_PAGE ? { from: found.from, to: found.to } : null} />}
+      {live > 0 && (() => {
+        const count = <CountLine things={METRICS} n={found.total} narrowed={!!q.trim() || filtered} order={order} shown={found.total > LIBRARY_PAGE ? { from: found.from, to: found.to } : null} />;
+        // On a phone the stage control folds into a menu at the count line's right, so the list bar keeps room for the
+        // search and the page's one action, and the first metric stays near the top (F15).
+        return narrow && !retired
+          ? <div className="metric-count-row">{count}<MenuButton className="metric-stage-menu" label="Stage" display={`${views.find(([k]) => k === view)![1]} ${views.find(([k]) => k === view)![2]}`} items={views.map(([k, l, n]) => ({ label: `${l} ${n}`, current: view === k, onClick: () => pickView(k) }))} /></div>
+          : count;
+      })()}
       <FilterLine parts={parts} onRemove={(key) => set({ [key]: null })} onClear={clearFilters} />
       {live === 0 && <EmptyLibrary />}
       {live > 0 && !found.total && (view !== 'all' && !parts.length && !q.trim()
