@@ -3012,3 +3012,29 @@ Read `goalRow.ts`, `goalRows.tsx`, `goal-row.css`, the screens' diffs, `rules.ts
 - **Closed, high and medium** (3d120e0c): `.ciq-row:has(> .grow)` drops the old grid, and the queue's narrow list (about 540 px at 1440) stacks its rows by its own width. Home and the queue keep the action column on every row from 700 px. P11 now groups rows by list. The walker checked again at 360 and 1440: the queue's names are 524 px at 1440 and the values are equal within each list. The touches rule and the backlog notes close the first two lows.
 - **Low (new):** Home's "N need attention" block under Your goals still draws its own older row (status, then the flag word, then the reason inline), not GOAL-ROW. Spec 1.1 didn't count it among the row shapes. Sent to planning as a UX2 follow-up.
 - Told planning: no high or medium; it can merge on green CI.
+
+## The reviewer of 18 November (session_012kbr939YG6p4SQWQw7sYbd)
+
+### #592 Backlog: an Open list, finished rows moved to Done (docs only, ed354925)
+
+Checked for one thing: no open item dropped or reworded. All 26 rows moved to Done keep their words; only *Why:*, *Effort:* and *Depends on:* labels were added. Each "Shipped" claim checks out against What's new or the files named (spot-checked GR, TG, MS, RS, NR, GB, BL, MQ, L, KL, R5). Every row left in "Build, in order" is in the Open list, and so are the deep dive's setup ideas. No findings. Told planning it can merge.
+
+### #593 UX2b: one form footer (FORM-FOOTER), and Home's need-attention lists on GOAL-ROW (reviewed before merge, pr593 at ab596146)
+
+The diff was read by an Opus subagent against patterns spec section 3 and Lane's answers in section 6; I checked the highs in the code myself. The screen walk (360 and 1440) was still running when this was written.
+
+- **High:** Home's need-attention list offers "Check in" on other people's goals. `AttentionList` passes `act` undefined for goals you don't own, so the row keeps `rowParts`' action, and `home-mine` sets "Check in" on any due flag. The old `AttentionCard` showed it to the owner only.
+- **High:** the team's list lost the owner's name. `showOwner` is passed, but `home-mine` never calls `ownerFresh()`.
+- **Medium:** FORM-FOOTER's generated rule describes status lines no screen has. `fixSummary`, `tableSays` and the "2 things to fix" line are used only in `rules.ts` and the tests.
+- **Medium:** these 3.6 rows are unbuilt and the PR doesn't say so: the sheets' footer with Cancel, Import's footer and status line, New goal's Publish/Propose status line and its draft banner (3.4.3), Change a goal's reason line, and "Draft kept in this browser." (3.4.2).
+- **Medium:** 3.3.2 is broken. Primaries are still disabled for missing input in `spreadsheets/Changes.tsx`, `Import.tsx` and `GoalEdit.tsx` ("Fix the highlighted fields" with `aria-disabled`).
+- **Medium:** FORM-FOOTER has no conformance rows and no rebuild-stage mention. NAV-FORMS in `evals/requirements.json` still says "Close and keep the draft". P20 lacks the "pressing empty moves focus to an aria-invalid field" check and covers 5 forms, not 3.6's list.
+- **Medium:** What's new is skipped (`[no news]` everywhere) for a visible change to how every form works: "Close" until typed, the table check-in without Cancel, and the new labels.
+- **Low:** set-up's primary says `Create ${wsName}`, not "Create workspace". The check-in's step 1 says bare "Next" before a number is typed.
+- **Low:** `touched` turns true on any `set()`, so set-up opened at a later step says "Close and keep the draft" with nothing typed. The table check-in counts typed values only, not reasons.
+- **Low:** at 420 px and below, the phone footer stretches Back (or Cancel) to full width every time. 3.5 asks for a full-width primary with Back above it as a text link, and only when the two don't fit.
+- **Low:** `evals/touches.cjs` doesn't map `src/app/drafts.ts` or the metrics and import forms to P20.
+- **Low:** a `role="alert"` sits inside the footer's `role="status"` (`Review.tsx`, about line 427).
+- **Low:** README, `docs/architecture.md` and `docs/handoff.md` aren't updated. `handoff.md:22` still says the footer follows in UX2b.
+- **N26 (dfd5e1c3), not a finding:** N26 now measures the first goal row's status and number, not its title. On a phone the title can end 30 to 40 px past the fold. Lane chose this through the build session's question, answered 18 Nov 07:55 UTC ("Check the row's start"), as I confirmed in that session's events. **Low:** the decision isn't recorded in `patterns/spec.md` section 6 or the backlog, and the commit dates it 17 Nov. Also, before 9faf47b5 the old `.arow-title` selector matched nothing, so N26 was skipped silently. It still skips silently if `.grow-num` is missing.
+- Sent the highs and mediums to the build session and planning, 18 Nov about 09:00 UTC.
