@@ -321,6 +321,8 @@ Each item adds its spec section (`GOAL-ROW`, `PAGE-HEADER`, `FORM-FOOTER`), conf
 6. The phone's top bar names the page once the title has scrolled away.
 7. Build after UX1, as one track: UX2a (the row), then UX2b (the footer), then UX4 (the header). They are in the backlog's "Usability study, 17 Nov" section.
 
+**Lane's answer, 18 Nov (build session):** N26 (Home's first goal in the first phone screen) checks that the first goal's row starts in the first screen, its status and number visible, rather than its title, since the row leads with them. The row stays as above; no budget changed.
+
 The questions as asked, kept for the record. The recommended answer is first.
 
 1. **A goal row on a phone: what comes first?**

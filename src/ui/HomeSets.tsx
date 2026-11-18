@@ -127,7 +127,7 @@ export function YourTeam() {
         : <p className="hint">{set.needs.length ? 'Nothing that isn’t yours needs attention.' : 'Nothing in it needs attention.'}</p>}
       {set.teams
         ? <MovedTeamsTable teams={set.teams} scope="team" goalsWord="Its goals in your teams" />
-        : k > 0 && <ul className="tree alist">{set.rows.slice(0, 4).map((a) => <li key={a.goal.id}><GoalRow g={a.goal} place="watching-needs" /></li>)}</ul>}
+        : k > 0 && <ul className="tree alist">{set.rows.slice(0, 4).map((a) => <li key={a.goal.id}><GoalRow g={a.goal} place="watching-needs" sayOwner /></li>)}</ul>}
     </section>
   );
 }

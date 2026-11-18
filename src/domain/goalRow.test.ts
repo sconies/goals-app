@@ -19,6 +19,17 @@ const row = (id: string, place: RowPlace = 'watching-needs', extra: Partial<RowF
 };
 
 describe('the goal row: one set of slots in every list', () => {
+  it('Home offers Check in only on the viewer’s own goals, and says whose a goal is on a lead’s list (review of #593)', () => {
+    const s = { ...s0, checkIns: s0.checkIns.filter((c) => c.goalId !== 'devsat-toil') };
+    const g = s.goals.find((x) => x.id === 'devsat-toil')!;
+    const owner = s.people.find((p) => p.id === g.ownerId)!;
+    const other = s.people.find((p) => p.id !== g.ownerId)!.id;
+    expect(row('devsat-toil', 'home-mine', { viewerId: g.ownerId }, s).action).toBe('Check in');
+    expect(row('devsat-toil', 'home-mine', { viewerId: other }, s).action).toBeNull();
+    expect(row('lead-ci-time', 'watching-needs', { viewerId: other === s.goals.find((x) => x.id === 'lead-ci-time')!.ownerId ? 'amara' : other, sayOwner: true }).reason).toMatch(/^\S.*\. Blocked on/);
+    expect(row('devsat-toil', 'home-mine', { viewerId: g.ownerId, sayOwner: true }, s).reason ?? '').not.toContain(owner.name + '.');
+  });
+
   it('on track with a forecast miss: status On track, and the reason is "Getting worse: On track today, but…" with the warning mark', () => {
     const p = row('cost-requests');
     expect(p.status).toBe('on');
@@ -63,7 +74,7 @@ describe('the goal row: one set of slots in every list', () => {
 
   it('no check-in yet: "No value yet", and Home has the Check in button while one is due', () => {
     const s = { ...s0, checkIns: s0.checkIns.filter((c) => c.goalId !== 'devsat-toil') };
-    const p = row('devsat-toil', 'home-mine', {}, s);
+    const p = row('devsat-toil', 'home-mine', { viewerId: s.goals.find((x) => x.id === 'devsat-toil')!.ownerId }, s);
     // In week 45 a goal never checked in has gone quiet; the value still says there is no number.
     expect(p.status).toBe('stale');
     expect(p.value).toBe('No value yet');

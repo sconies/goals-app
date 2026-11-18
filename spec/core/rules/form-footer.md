@@ -24,6 +24,8 @@ Every focused task (a check-in, the table check-in, New goal, Change a goal, set
 
 The footer is core, with no switch: every form uses it.
 
+**Built in Faro, and not yet (18 Nov).** Built: the footer on the check-in, the table check-in, New goal, Change a goal, set-up, a review's set-up, the wrap-up, the metric, baseline and verify forms; "Close" until something is typed (`closeWords`); the check-in's step labels (`checkInNext`) and its last step's line (`checkInPostSays`); "Post N check-ins" (`postCheckIns`). Not yet in Faro, so a rebuild should build them from the words above: the error summary (`fixSummary`) and the table's ready line (`tableSays`) on screen; sheets on the shared footer; Import's status line; New goal's Publish or Propose line and its resumed draft in the step line; Change a goal's reason line; "Draft kept in this browser."; and three primaries still disabled for missing input (the import's paste and changes, and Change a goal's "Fix the highlighted fields"). Faro's backlog item UX2c holds them.
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
@@ -43,7 +45,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Requirements
 
 - `FORM-FOOTER`: One form footer on every focused task: a status line above the buttons (what the primary does on the last step, or what is left to fix), Back at the left from the second step on, and one filled primary at the right labelled with a verb and an object or the next step by name (“Next: why it’s behind”, “Post check-in”, “Post 5 check-ins”), never “Continue”, “Submit”, “OK” or “Save” alone. The exit stays the header's, top right: a form that keeps drafts says “Close” until something is typed, then “Close and keep the draft”. A sheet has Cancel at the left. The footer is core: every form uses it, so it has no switch.
-- `NAV-FORMS`: A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
+- `NAV-FORMS`: A form has one way out, top right, in words: “Close” until something is typed and then “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 ## Tests that check it
 

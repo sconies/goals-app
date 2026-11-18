@@ -10,7 +10,7 @@ lead-review,watching-needs,amara,on,8.5 hours,0.1 hours behind plan,,,,,,,
 lead-review,watching-handled,amara,on,8.5 hours,0.1 hours behind plan,,,,,,,
 lead-review,checkin-queue,amara,on,8.5 hours,0.1 hours behind plan,,,Last week: Steady week.,,,,Check in
 lead-review,agenda,amara,on,8.5 hours,0.1 hours behind plan,,,,,,,
-lead-review,home-mine,amara,on,8.5 hours,0.1 hours behind plan,,,Due by Thu 5 Nov.,,,,Check in
+lead-review,home-mine,amara,on,8.5 hours,0.1 hours behind plan,,,Due by Thu 5 Nov.,,,,
 lead-review-bot,goals-list,amara,on,84%,6 pts ahead of plan,,,Ravi Shankar. Checked in 2 days ago.,,,,
 lead-review-bot,watching-needs,amara,on,84%,6 pts ahead of plan,,,,,,,
 lead-review-bot,watching-handled,amara,on,84%,6 pts ahead of plan,,,,,,,
@@ -52,7 +52,7 @@ lead-batch,watching-needs,amara,on,77%,On plan,,,,,,,
 lead-batch,watching-handled,amara,on,77%,On plan,,,,,,,
 lead-batch,checkin-queue,amara,on,77%,On plan,,,Last week: On plan; next week is the bigger batch.,,,,Check in
 lead-batch,agenda,amara,on,77%,On plan,,,,,,,
-lead-batch,home-mine,amara,on,77%,On plan,,,Due by Thu 5 Nov.,,,,Check in
+lead-batch,home-mine,amara,on,77%,On plan,,,Due by Thu 5 Nov.,,,,
 lead-rollback,goals-list,amara,on,3 of 4 stages,On schedule,,,Tunde Bakare. Checked in 2 days ago.,,,,
 lead-rollback,watching-needs,amara,on,3 of 4 stages,On schedule,,,,,,,
 lead-rollback,watching-handled,amara,on,3 of 4 stages,On schedule,,,,,,,
@@ -124,7 +124,7 @@ ci-shard-js,watching-needs,amara,on,70%,2 pts behind plan,,,,,,,
 ci-shard-js,watching-handled,amara,on,70%,2 pts behind plan,,,,,,,
 ci-shard-js,checkin-queue,amara,on,70%,2 pts behind plan,,,,,,,Check in
 ci-shard-js,agenda,amara,on,70%,2 pts behind plan,,,,,,,
-ci-shard-js,home-mine,amara,on,70%,2 pts behind plan,,,Due by Thu 5 Nov.,,,,Check in
+ci-shard-js,home-mine,amara,on,70%,2 pts behind plan,,,Due by Thu 5 Nov.,,,,
 ci-dedupe,goals-list,amara,done,95%,20 pts ahead of plan,,Met,Rhea Kapoor. Checked in 58 days ago.,,,,
 ci-dedupe,watching-needs,amara,done,95%,20 pts ahead of plan,,Met,,,,,
 ci-dedupe,watching-handled,amara,done,95%,20 pts ahead of plan,,Met,,,,,
@@ -136,13 +136,13 @@ ci-docker,watching-needs,amara,on,10 min,On plan,,,,,,,
 ci-docker,watching-handled,amara,on,10 min,On plan,,,,,,,
 ci-docker,checkin-queue,amara,on,10 min,On plan,,,,,,,Check in
 ci-docker,agenda,amara,on,10 min,On plan,,,,,,,
-ci-docker,home-mine,amara,on,10 min,On plan,,,Due by Thu 5 Nov.,,,,Check in
+ci-docker,home-mine,amara,on,10 min,On plan,,,Due by Thu 5 Nov.,,,,
 ci-docker-slim,goals-list,amara,on,70%,1 pt ahead of plan,,,Johanna Virtanen. Checked in 8 days ago.,,,,
 ci-docker-slim,watching-needs,amara,on,70%,1 pt ahead of plan,,,,,,,
 ci-docker-slim,watching-handled,amara,on,70%,1 pt ahead of plan,,,,,,,
 ci-docker-slim,checkin-queue,amara,on,70%,1 pt ahead of plan,,,Last week: On plan. The slim images is where we said it would be.,,,,Check in
 ci-docker-slim,agenda,amara,on,70%,1 pt ahead of plan,,,,,,,
-ci-docker-slim,home-mine,amara,on,70%,1 pt ahead of plan,,,Due by Thu 5 Nov.,,,,Check in
+ci-docker-slim,home-mine,amara,on,70%,1 pt ahead of plan,,,Due by Thu 5 Nov.,,,,
 ci-docker-registry,goals-list,amara,done,4 of 4 stages,Target reached,,Met,Marcus Bell. Checked in 50 days ago.,,,,
 ci-docker-registry,watching-needs,amara,done,4 of 4 stages,Target reached,,Met,,,,,
 ci-docker-registry,watching-handled,amara,done,4 of 4 stages,Target reached,,Met,,,,,
@@ -166,7 +166,7 @@ dep-jenkins,watching-needs,amara,risk,82 jobs,24 jobs behind plan,,,"Two teams a
 dep-jenkins,watching-handled,amara,risk,82 jobs,24 jobs behind plan,,,"Two teams asked to defer their move to the Jenkins retirement until after their own launch, and we agreed.",,,,
 dep-jenkins,checkin-queue,amara,risk,82 jobs,24 jobs behind plan,,,"Last week: Two teams asked to defer their move to the Jenkins retirement until after their own launch, and we agreed.",,,,Check in
 dep-jenkins,agenda,amara,risk,82 jobs,24 jobs behind plan,,,"Two teams asked to defer their move to the Jenkins retirement until after their own launch, and we agreed.",,,,
-dep-jenkins,home-mine,amara,risk,82 jobs,24 jobs behind plan,,,"Two teams asked to defer their move to the Jenkins retirement until after their own launch, and we agreed.",,,,Check in
+dep-jenkins,home-mine,amara,risk,82 jobs,24 jobs behind plan,,,"Two teams asked to defer their move to the Jenkins retirement until after their own launch, and we agreed.",,,,
 dep-templates,goals-list,amara,on,77%,On plan,,,Olivia Martins. Checked in yesterday.,,,,
 dep-templates,watching-needs,amara,on,77%,On plan,,,,,,,
 dep-templates,watching-handled,amara,on,77%,On plan,,,,,,,
@@ -214,7 +214,7 @@ cfr-tests,watching-needs,amara,on,85%,On plan,,,,,,,
 cfr-tests,watching-handled,amara,on,85%,On plan,,,,,,,
 cfr-tests,checkin-queue,amara,on,85%,On plan,,,"Last week: Two more teams on integration test coverage this week, as planned.",,,,Check in
 cfr-tests,agenda,amara,on,85%,On plan,,,,,,,
-cfr-tests,home-mine,amara,on,85%,On plan,,,Due by Thu 5 Nov.,,,,Check in
+cfr-tests,home-mine,amara,on,85%,On plan,,,Due by Thu 5 Nov.,,,,
 cfr-contract,goals-list,amara,risk,30 pairs,5 pairs behind plan,,,Progress is real but slower than planned: each change needs more review than we expected.,,,,
 cfr-contract,watching-needs,amara,risk,30 pairs,5 pairs behind plan,,,Progress is real but slower than planned: each change needs more review than we expected.,,,,
 cfr-contract,watching-handled,amara,risk,30 pairs,5 pairs behind plan,,,Progress is real but slower than planned: each change needs more review than we expected.,,,,
@@ -292,7 +292,7 @@ mttr-aiops,watching-needs,amara,on,68%,13 pts ahead of plan,,,,,,,
 mttr-aiops,watching-handled,amara,on,68%,13 pts ahead of plan,,,,,,,
 mttr-aiops,checkin-queue,amara,on,68%,13 pts ahead of plan,,,Last week: Ahead on AI timelines: the last teams moved without needing our help.,,,,Check in
 mttr-aiops,agenda,amara,on,68%,13 pts ahead of plan,,,,,,,
-mttr-aiops,home-mine,amara,on,68%,13 pts ahead of plan,,,Due by Thu 5 Nov.,,,,Check in
+mttr-aiops,home-mine,amara,on,68%,13 pts ahead of plan,,,Due by Thu 5 Nov.,,,,
 mttr-pir,goals-list,amara,on,77%,1 pt behind plan,,,Mateo Fernández. Checked in yesterday.,,,,
 mttr-pir,watching-needs,amara,on,77%,1 pt behind plan,,,,,,,
 mttr-pir,watching-handled,amara,on,77%,1 pt behind plan,,,,,,,
@@ -346,7 +346,7 @@ slo-edge,watching-needs,amara,on,94%,1 pt ahead of plan,,,,,,,
 slo-edge,watching-handled,amara,on,94%,1 pt ahead of plan,,,,,,,
 slo-edge,checkin-queue,amara,on,94%,1 pt ahead of plan,,,,,,,Check in
 slo-edge,agenda,amara,on,94%,1 pt ahead of plan,,,,,,,
-slo-edge,home-mine,amara,on,94%,1 pt ahead of plan,,,Due by Thu 5 Nov.,,,,Check in
+slo-edge,home-mine,amara,on,94%,1 pt ahead of plan,,,Due by Thu 5 Nov.,,,,
 slo-latency,goals-list,amara,risk,111 ms,Near the 120 ms limit,,,Waiting on the cloud provider to sign off the design before the rollout can go wider.,,,,
 slo-latency,watching-needs,amara,risk,111 ms,Near the 120 ms limit,,,Waiting on the cloud provider to sign off the design before the rollout can go wider.,,,,
 slo-latency,watching-handled,amara,risk,111 ms,Near the 120 ms limit,,,Waiting on the cloud provider to sign off the design before the rollout can go wider.,,,,
@@ -382,7 +382,7 @@ cost-commit,watching-needs,amara,on,77%,1 pt ahead of plan,,,,,,,
 cost-commit,watching-handled,amara,on,77%,1 pt ahead of plan,,,,,,,
 cost-commit,checkin-queue,amara,on,77%,1 pt ahead of plan,,,,,,,Check in
 cost-commit,agenda,amara,on,77%,1 pt ahead of plan,,,,,,,
-cost-commit,home-mine,amara,on,77%,1 pt ahead of plan,,,Due by Thu 5 Nov.,,,,Check in
+cost-commit,home-mine,amara,on,77%,1 pt ahead of plan,,,Due by Thu 5 Nov.,,,,
 cost-showback,goals-list,amara,on,95%,17 pts ahead of plan,,,Amelia Hughes. Checked in 2 days ago.,,,,
 cost-showback,watching-needs,amara,on,95%,17 pts ahead of plan,,,,,,,
 cost-showback,watching-handled,amara,on,95%,17 pts ahead of plan,,,,,,,
@@ -394,7 +394,7 @@ cost-storage,watching-needs,amara,stale,63%,,as of week 40,,No check-in for 36 d
 cost-storage,watching-handled,amara,stale,63%,,as of week 40,,No check-in for 36 days; the last was week 40 (at risk).,,,,
 cost-storage,checkin-queue,amara,stale,63%,,as of week 40,,Week 40: Code review on storage lifecycle rules is the bottleneck: changes wait two or three days for a reviewer.,,,,Check in
 cost-storage,agenda,amara,stale,63%,,as of week 40,,No check-in for 36 days; the last was week 40 (at risk).,,,,
-cost-storage,home-mine,amara,stale,63%,,as of week 40,,No check-in for 36 days; the last was week 40 (at risk).,,,,Check in
+cost-storage,home-mine,amara,stale,63%,,as of week 40,,No check-in for 36 days; the last was week 40 (at risk).,,,,
 cost-logs,goals-list,amara,on,167 TB,Inside the 220 TB limit,,,Felix Wagner. Checked in 2 days ago.,,,,
 cost-logs,watching-needs,amara,on,167 TB,Inside the 220 TB limit,,,,,,,
 cost-logs,watching-handled,amara,on,167 TB,Inside the 220 TB limit,,,,,,,
@@ -454,7 +454,7 @@ ns-vuln,watching-needs,amara,risk,87%,4 pts behind plan,,,"Half of vulnerability
 ns-vuln,watching-handled,amara,risk,87%,4 pts behind plan,,,"Action: Farah, due week 48 · Report container findings separately until the fix-it week is done.",,,,
 ns-vuln,checkin-queue,amara,risk,87%,4 pts behind plan,,,"Last week: Half of vulnerability fixes is done; the rest waits on CI/CD’s release, now planned for next month.",,,,Check in
 ns-vuln,agenda,amara,risk,87%,4 pts behind plan,,,"Action: Farah, due week 48.",,,,
-ns-vuln,home-mine,amara,risk,87%,4 pts behind plan,,,"Half of vulnerability fixes is done; the rest waits on CI/CD’s release, now planned for next month.",,,,Check in
+ns-vuln,home-mine,amara,risk,87%,4 pts behind plan,,,"Half of vulnerability fixes is done; the rest waits on CI/CD’s release, now planned for next month.",,,,
 vuln-sca,goals-list,amara,on,93%,1 pt ahead of plan,,,Omar Benali. Checked in yesterday.,,,,
 vuln-sca,watching-needs,amara,on,93%,1 pt ahead of plan,,,,,,,
 vuln-sca,watching-handled,amara,on,93%,1 pt ahead of plan,,,,,,,
@@ -544,7 +544,7 @@ ai-default,watching-needs,amara,on,92%,11 pts ahead of plan,,,,,,,
 ai-default,watching-handled,amara,on,92%,11 pts ahead of plan,,,,,,,
 ai-default,checkin-queue,amara,on,92%,11 pts ahead of plan,,,Last week: Another team moved over to the default setting this week.,,,,Check in
 ai-default,agenda,amara,on,92%,11 pts ahead of plan,,,,,,,
-ai-default,home-mine,amara,on,92%,11 pts ahead of plan,,,Due by Thu 5 Nov.,,,,Check in
+ai-default,home-mine,amara,on,92%,11 pts ahead of plan,,,Due by Thu 5 Nov.,,,,
 ai-approval,goals-list,amara,done,3 of 3 stages,Target reached,,Met late,Yasmin El-Amin. Checked in 85 days ago.,,,,
 ai-approval,watching-needs,amara,done,3 of 3 stages,Target reached,,Met late,,,,,
 ai-approval,watching-handled,amara,done,3 of 3 stages,Target reached,,Met late,,,,,
@@ -598,13 +598,13 @@ env-provision,watching-needs,amara,on,17 min,1 min ahead of plan,,,,,,,
 env-provision,watching-handled,amara,on,17 min,1 min ahead of plan,,,,,,,
 env-provision,checkin-queue,amara,on,17 min,1 min ahead of plan,,,Last week: On plan; next week is the bigger batch.,,,,Check in
 env-provision,agenda,amara,on,17 min,1 min ahead of plan,,,,,,,
-env-provision,home-mine,amara,on,17 min,1 min ahead of plan,,,Due by Thu 5 Nov.,,,,Check in
+env-provision,home-mine,amara,on,17 min,1 min ahead of plan,,,Due by Thu 5 Nov.,,,,
 env-gpu,goals-list,amara,none,No value yet,,,,Astrid Nilsson. No check-in yet.,,,,
 env-gpu,watching-needs,amara,none,No value yet,,,,,,,,
 env-gpu,watching-handled,amara,none,No value yet,,,,,,,,
 env-gpu,checkin-queue,amara,none,No value yet,,,,,,,,Check in
 env-gpu,agenda,amara,none,No value yet,,,,,,,,
-env-gpu,home-mine,amara,none,No value yet,,,,Due by Thu 5 Nov.,,,,Check in
+env-gpu,home-mine,amara,none,No value yet,,,,Due by Thu 5 Nov.,,,,
 env-portal,goals-list,amara,on,74%,2 pts ahead of plan,,,Julia Novak. Checked in 2 days ago.,,,,
 env-portal,watching-needs,amara,on,74%,2 pts ahead of plan,,,,,,,
 env-portal,watching-handled,amara,on,74%,2 pts ahead of plan,,,,,,,
@@ -622,7 +622,7 @@ env-search,watching-needs,amara,stale,64%,,as of week 39,,No check-in for 43 day
 env-search,watching-handled,amara,stale,64%,,as of week 39,,No check-in for 43 days; the last was week 39 (at risk).,,,,
 env-search,checkin-queue,amara,stale,64%,,as of week 39,,Week 39: Code review on portal search is the bottleneck: changes wait two or three days for a reviewer.,,,,Check in
 env-search,agenda,amara,stale,64%,,as of week 39,,No check-in for 43 days; the last was week 39 (at risk).,,,,
-env-search,home-mine,amara,stale,64%,,as of week 39,,No check-in for 43 days; the last was week 39 (at risk).,,,,Check in
+env-search,home-mine,amara,stale,64%,,as of week 39,,No check-in for 43 days; the last was week 39 (at risk).,,,,
 env-tickets,goals-list,amara,on,3%,Inside the 10% limit,,,Camille Laurent. Checked in 2 days ago.,,,,
 env-tickets,watching-needs,amara,on,3%,Inside the 10% limit,,,,,,,
 env-tickets,watching-handled,amara,on,3%,Inside the 10% limit,,,,,,,
@@ -730,7 +730,7 @@ iam-groups,watching-needs,amara,on,84%,On plan,,,,,,,
 iam-groups,watching-handled,amara,on,84%,On plan,,,,,,,
 iam-groups,checkin-queue,amara,on,84%,On plan,,,Last week: Steady week.,,,,Check in
 iam-groups,agenda,amara,on,84%,On plan,,,,,,,
-iam-groups,home-mine,amara,on,84%,On plan,,,Due by Thu 5 Nov.,,,,Check in
+iam-groups,home-mine,amara,on,84%,On plan,,,Due by Thu 5 Nov.,,,,
 ml-serving,goals-list,amara,on,76%,9 pts ahead of plan,,,Sakura Ito. Checked in yesterday.,,,,
 ml-serving,watching-needs,amara,on,76%,9 pts ahead of plan,,,,,,,
 ml-serving,watching-handled,amara,on,76%,9 pts ahead of plan,,,,,,,
@@ -754,4 +754,4 @@ ci-cost,watching-needs,amara,none,No value yet,,,,,,,,
 ci-cost,watching-handled,amara,none,No value yet,,,,,,,,
 ci-cost,checkin-queue,amara,none,No value yet,,,,,,,,Check in
 ci-cost,agenda,amara,none,No value yet,,,,,,,,
-ci-cost,home-mine,amara,none,No value yet,,,,Due by Thu 5 Nov.,,,,Check in
+ci-cost,home-mine,amara,none,No value yet,,,,Due by Thu 5 Nov.,,,,

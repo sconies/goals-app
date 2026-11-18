@@ -36,7 +36,7 @@ module.exports = {
             text: home?.innerText ?? '',
             hrefs: [...(home?.querySelectorAll('a[href]') ?? [])].map((a) => a.getAttribute('href').replace(/^\/demo/, '')),
             // U2's measure: the first of your goals that needs attention, its title ending 8px above the fold.
-            // The first goal's row starts in the first screen: its status and its number, which the shared row leads with (GOAL-ROW; Lane, 17 Nov).
+            // The first goal's row starts in the first screen: its status and its number, which the shared row leads with (GOAL-ROW; Lane's answer, 18 Nov).
             firstGoal: (() => { const r = home?.querySelector('.home-mine .alist .grow'); const v = r?.querySelector('.grow-num'), st = r?.querySelector('.grow-status'); return v && st ? Math.max(v.getBoundingClientRect().bottom, st.getBoundingClientRect().bottom) : null; })(),
             // Every ask's waiting line (the part before " · "), cut on a phone (review of #369, medium 4).
             cutMeta: [...(home?.querySelectorAll('.needs-you .need-meta') ?? [])].map((e) => {

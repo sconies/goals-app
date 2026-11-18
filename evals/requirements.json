@@ -803,7 +803,7 @@
     {
       "id": "NAV-FORMS",
       "area": "Navigation",
-      "text": "A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.",
+      "text": "A form has one way out, top right, in words: “Close” until something is typed and then “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.",
       "use": "copy"
     },
     {

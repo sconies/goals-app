@@ -669,7 +669,9 @@ Every focused task (a check-in, the table check-in, New goal, Change a goal, set
 6. **Placement:** sticky at the bottom of the window on focused tasks, except below 600 px of height, where it sits in the page; the width of the form's column; on a phone the primary on the right and Back on the left, and when both don't fit the primary takes the full width with Back above it.
 7. **Sheets** (Watch, Add a next step, Respond) use the same footer with Cancel at the left, because a sheet has no header exit. That is the one place a footer has Cancel.
 
-The footer is core, with no switch: every form uses it.`,
+The footer is core, with no switch: every form uses it.
+
+**Built in Faro, and not yet (18 Nov).** Built: the footer on the check-in, the table check-in, New goal, Change a goal, set-up, a review's set-up, the wrap-up, the metric, baseline and verify forms; "Close" until something is typed (\`closeWords\`); the check-in's step labels (\`checkInNext\`) and its last step's line (\`checkInPostSays\`); "Post N check-ins" (\`postCheckIns\`). Not yet in Faro, so a rebuild should build them from the words above: the error summary (\`fixSummary\`) and the table's ready line (\`tableSays\`) on screen; sheets on the shared footer; Import's status line; New goal's Publish or Propose line and its resumed draft in the step line; Change a goal's reason line; "Draft kept in this browser."; and three primaries still disabled for missing input (the import's paste and changes, and Change a goal's "Fix the highlighted fields"). Faro's backlog item UX2c holds them.`,
     examples: [
       { given: 'A check-in that keeps drafts, before anything is typed, then after.', then: 'Close / Close and keep the draft', run: () => [closeWords(true, false), closeWords(true, true)].join(' / ') },
       { given: 'A check-in behind plan, on its number’s step, with an account still to give.', then: 'Next: why it’s behind', run: () => checkInNext('account', { why: true, reason: 'behind', milestone: false }) },

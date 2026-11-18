@@ -38,6 +38,8 @@ export interface RowFacts {
   tell?: string | null;
   /** Lists of other people's goals name the owner in the reason; a list of your own doesn't. */
   showOwner?: boolean;
+  /** Say whose goal it is first in the reason, on a goal that isn't the viewer's (a lead's lists on Home). */
+  sayOwner?: boolean;
   /** The check-in queue: a draft is kept, or this week's check-in is already posted (and the day it was). */
   queue?: { draft?: boolean; done?: boolean; postedDay?: string };
 }
@@ -117,7 +119,8 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
   switch (place) {
     case 'home-mine':
       if (top) { useFlag(top); useAsk(); } else reason = due ? due.detail : `${fresh()}.`;
-      if (due) action = 'Check in';
+      // Only the owner checks in, so only the owner's row offers it (review of #593).
+      if (due && goal.ownerId === f.viewerId) action = 'Check in';
       break;
     case 'watching-needs':
       if (top) { useFlag(top); useAsk(); }
@@ -157,6 +160,8 @@ export function rowParts(goal: Goal, att: GoalAttention, place: RowPlace, f: Row
       break;
   }
 
+  // Whose it is, first, where the place asks and the goal isn't the viewer's: "Yasmin El-Amin. {reason}".
+  if (f.sayOwner && owner && goal.ownerId !== f.viewerId && reason && !(reason as string).startsWith(owner)) reason = `${owner}. ${reason}`;
   return {
     status: st.status, statusWord: LABEL[st.status],
     value: nowText(goal, a),

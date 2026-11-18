@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-form-footer',
+    date: '2026-11-18',
+    title: 'Every form ends the same way',
+    points: [
+      'The main button at the foot of a form now says what it does: “Next: why it’s behind” names the next question, “Post check-in” posts, “Post 5 check-ins” posts the table.',
+      'Back is on the left, from the second step. The line above the buttons says what posting does, or what is left to fix.',
+      'The way out stays at the top right. On a form that keeps drafts it says “Close” until you type something, then “Close and keep the draft”.',
+      'The table check-in no longer has a Cancel at its foot: Close at the top does the same.',
+    ],
+    articles: ['getting-around'],
+  },
+  {
     id: 'one-goal-row',
     date: '2026-11-17',
     title: 'Every list of goals reads the same way',

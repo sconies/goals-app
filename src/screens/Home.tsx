@@ -223,7 +223,7 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
     <ul className="tree alist">
       {list.map((a) => (
         <li key={a.goal.id}>
-          <GoalRow g={a.goal} place="home-mine" showOwner={a.goal.ownerId !== app.viewer.id}
+          <GoalRow g={a.goal} place="home-mine" sayOwner
             act={a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path') || !!checkInHere?.(a.goal)) ? 'Check in' : undefined} />
         </li>
       ))}

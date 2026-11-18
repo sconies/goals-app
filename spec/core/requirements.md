@@ -1246,7 +1246,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 
 ### NAV-FORMS
 
-A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
+A form has one way out, top right, in words: “Close” until something is typed and then “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Copy:** build it as Faro does.
 - **Rule:** [One form footer](rules/form-footer.md)
