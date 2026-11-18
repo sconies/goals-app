@@ -321,7 +321,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
         {/* The resumed draft is said in the step line (patterns spec 3.4.3); starting afresh stays one quiet link away. */}
         {restored && !asking && step === 0 && (
-          <p className="small restored-link"><button type="button" className="linkish" onClick={() => setAsking(true)}>Start a new goal instead</button></p>
+          <p className="small restored-link"><button type="button" className="linkish tap" onClick={() => setAsking(true)}>Start a new goal instead</button></p>
         )}
         {asking && (
           <div className="restored small" role="alertdialog" aria-label="Discard the draft">

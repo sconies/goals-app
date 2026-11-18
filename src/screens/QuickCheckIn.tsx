@@ -162,7 +162,7 @@ export function QuickCheckIn() {
     ? (toConfirm.length ? 'Confirm the numbers from their sources, or type your own.' : 'Type at least one number.')
     : filled.length > ready.length || (ready.length > 0 && toConfirm.length > 0)
       // The ready count first (patterns spec 3.2): "5 ready. 2 need a reason before they can post."; else what each needs.
-      ? (filled.length - ready.length === needReasons && !toConfirm.length ? tableSays(ready.length, needReasons)
+      ? (ready.length && filled.length - ready.length === needReasons && !toConfirm.length ? tableSays(ready.length, needReasons)
         : ready.length ? `${ready.length} ready. Not posted until the rest are: ${notReady}.` : notReady.charAt(0).toUpperCase() + notReady.slice(1) + '.')
       : ready.length && !tried ? tableSays(ready.length, 0) : '';
   // Opening the first row that isn't ready is the status line's link (3.3.4).

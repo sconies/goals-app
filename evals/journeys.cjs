@@ -2719,10 +2719,10 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   await h.fill(p.getByRole('textbox').first(), 'Half-written goal');
   await p.goto(url('/goals?scope=all'));
   await p.goto(url('/goals/new'));
-  await see(p, 'Picked up the goal you hadn’t published.', 'New goal reopens the old draft without saying so');
-  await h.click(p.getByRole('button', { name: 'Start a new one' }));
+  await see(p, 'Draft from today', 'New goal reopens the old draft without saying so in its step line');
+  await h.click(p.getByRole('button', { name: 'Start a new goal instead' }));
   await h.click(p.getByRole('button', { name: 'Discard it' }));
-  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start a new one kept the old draft');
+  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start a new goal instead kept the old draft');
   await p.context().close();
 }, ['entry', 'progress', 'errors']);
 
@@ -5939,7 +5939,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   const kept = await p.getByLabel(/^Target$/).inputValue();
   await p.reload();
-  await see(p, 'Picked up the goal you hadn’t published.', 'a reload does not say the draft was picked up');
+  await see(p, 'Draft from today', 'a reload does not say the draft was picked up in its step line');
   h.set('finish', kept === '80' && (await p.getByLabel(/^Baseline$/).inputValue()) === '10' && /\/goals\/new\/measure(\?|$)/.test(p.url()), 'Back or a reload lost the step or its numbers');
   // Close and keep the draft; New goal picks it up at the same step.
   await p.getByRole('button', { name: 'Close and keep the draft' }).click();

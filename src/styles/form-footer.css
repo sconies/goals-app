@@ -21,3 +21,7 @@
   }
   .form-foot .foot-row.has-back > .btn.ghost.foot-back:hover { color: var(--fg); background: none; }
 }
+
+/* New goal: starting afresh from a resumed draft is one quiet link, a 44px target (3.4.3). */
+.restored-link { margin: 0; }
+.restored-link .linkish { min-height: 44px; display: inline-flex; align-items: center; }
