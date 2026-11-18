@@ -2,6 +2,7 @@ import { guardBreaches } from '../domain/guards';
 import { breachWords } from '../domain/guardWords';
 import { useEffect, useRef, useState } from 'react';
 import { correctReasonAsk, correctReasonOk, MAX_CORRECT_REASON } from '../domain/correctReason';
+import { flushSync } from 'react-dom';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
@@ -470,16 +471,15 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   // Last time's words, copied in by "Something changed", are changed or said to be still true: never posted by Post alone.
   const storyOk = !e.codes.includes('story-unchanged');
   // A press that can't go on says why under each field and moves focus to the first one to fix (WCAG 3.3.1, 3.3.2):
-  // after the render that marks them, so the field read out is the one just marked.
+  // once the render that marks them is drawn, so the field read out is the one just marked.
   const formRef = useRef<HTMLFormElement>(null);
+  // Drawn at once (flushSync), so focus and the scroll it brings land within the press, never after it.
   const refuse = () => {
-    setTried(true);
-    setTimeout(() => {
-      const bad = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], .level-alert');
-      if (!bad) return;
-      const target = bad.matches('input, textarea, button, select, [tabindex]') ? bad : bad.querySelector<HTMLElement>('input, textarea, button');
-      (target ?? bad).focus();
-    }, 0);
+    flushSync(() => setTried(true));
+    const bad = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], .level-alert');
+    if (!bad) return;
+    const target = bad.matches('input, textarea, button, select, [tabindex]') ? bad : bad.querySelector<HTMLElement>('input, textarea, button');
+    (target ?? bad).focus();
   };
   const primary = () => {
     if (step === 'measure') {

@@ -8901,6 +8901,11 @@ async function platformChecks() {
       if (route === '/check-in/ci-docker') {
         const exit = f.locator('.focus-top').first().locator('button').filter({ hasText: /^Close/ }).first();
         const before = (await exit.innerText()).trim();
+        // Pressed with nothing typed: focus moves to the field in error, marked aria-invalid (3.3.2).
+        await f.locator('.focus-foot button[type=submit]').click();
+        await f.waitForTimeout(200);
+        const focused = await f.evaluate(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+        if (!focused) footProblems.push('a check-in pressed with nothing typed leaves focus off the field in error (no aria-invalid field focused)');
         await f.getByLabel('This week’s value').fill('1');
         await f.waitForTimeout(300);
         const after = (await exit.innerText()).trim();
@@ -8910,7 +8915,7 @@ async function platformChecks() {
     await c20.close();
   }
   lap('P20');
-  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in’s exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
+  if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
   await finishChecks(add);
   if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
