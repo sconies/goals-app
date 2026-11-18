@@ -26108,6 +26108,15 @@ var CORE_ARTICLES = [
 				list: ["Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on."]
 			},
 			{
+				heading: "The top of a page",
+				list: [
+					"Every page starts with its title at the left edge. Above it, a goal or a metric shows its status; under it, one line says what’s in scope, or who owns it and where it sits. At most one filled button sits at the right of the title; on a phone the buttons go under the line, so the title has its own line.",
+					"Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page. On a phone the top bar shows the workspace until the page’s title scrolls out of sight, then the page’s name.",
+					"On a phone, a list’s one action (Add a metric, Add a person, Send feedback) sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place once you scroll down.",
+					"A form shows what you’re doing at the top left, such as “Week 46 check-in · 2 of 7”, and its one way out at the top right."
+				]
+			},
+			{
 				heading: "Going back",
 				module: "reviews",
 				list: ["Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead."]
@@ -26172,7 +26181,8 @@ var CORE_ARTICLES = [
 			"NAV-WHERE",
 			"NAV-BACK",
 			"NAV-FORMS",
-			"FORM-FOOTER"
+			"FORM-FOOTER",
+			"PAGE-HEADER"
 		],
 		keywords: [
 			"back",
@@ -26718,6 +26728,19 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "one-page-header",
+		date: "2026-11-18",
+		title: "Every page starts the same way",
+		points: [
+			"A page’s title sits at the left, with one line under it and at most one main button beside it.",
+			"Find, Demo and your picture stay in the sidebar on a computer and in the top bar on a phone, on every page, a goal’s included.",
+			"On a phone the title gets a line of its own, and the top bar names the page only once its title has scrolled away.",
+			"On a phone, a list’s one action sits at the end of its search bar, and a goal’s one-line summary takes the top bar’s place as you scroll.",
+			"A check-in, New goal and every other focused task show their name at the left and their one way out at the right."
+		],
+		articles: ["getting-around"]
+	},
 	{
 		id: "one-form-footer",
 		date: "2026-11-18",
@@ -28526,6 +28549,7 @@ var RULE_PAGES = [
 var MORE_RULE_PAGES = [
 	["goal-row", "One goal row"],
 	["form-footer", "One form footer"],
+	["page-header", "One page header"],
 	["field-table", "The field table"],
 	["import-levels", "Kinds, levels and near misses"],
 	["import-preview", "What an import read, and leaving rows out"],

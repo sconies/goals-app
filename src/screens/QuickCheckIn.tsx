@@ -24,7 +24,7 @@ import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
 import { postCheckIns, tableSays } from '../domain/formFooter';
-import { FormClose } from '../ui/FormClose';
+import { PageHeader, TaskHeader } from '../ui/PageHeader';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
 function Select({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
@@ -171,14 +171,8 @@ export function QuickCheckIn() {
   return (
     <div className="page narrow quick">
       {/* A form: one way out, top right, in words (navigation spec 2.5). The numbers typed are kept as a draft. */}
-      <div className="focus-top quick-top">
-        <span className="small strong">Week {app.week} check-in</span>
-        <FormClose keeps dirty={Object.values(rows).some((r) => r.value.trim() || r.why.trim() || r.path.trim() || r.cause)} onClose={() => nav('/check-in')} />
-      </div>
-      <div className="page-head">
-        <h1 className="title-xl">Type all your numbers in one table</h1>
-        <span className="hint">Week {app.week}, {weekDates(app.cycle, app.week)}. Leave a row empty to skip it. A row that’s off plan asks why.</span>
-      </div>
+      <TaskHeader className="quick-top" name={`Week ${app.week} check-in`} close={{ keeps: true, dirty: Object.values(rows).some((r) => r.value.trim() || r.why.trim() || r.path.trim() || r.cause), onClose: () => nav('/check-in') }} />
+      <PageHeader title="Type all your numbers in one table" line={`Week ${app.week}, ${weekDates(app.cycle, app.week)}. Leave a row empty to skip it. A row that’s off plan asks why.`} />
       {!goals.length && <Empty title="No number goals to update"><Link className="btn" to="/check-in">Use the normal check-in</Link></Empty>}
       {goals.length > 0 && (
         <form ref={formRef} className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>

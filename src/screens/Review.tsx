@@ -22,12 +22,13 @@ import { GoalRow } from '../ui/goalRows';
 import { Place } from '../core/app';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import { BackLink } from '../ui/BackLink';
 import { Pick } from '../ui/Pick';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
 import { ASK_STATUS, DECIDED, lower } from '../domain/vocabulary';
 import { FormFooter } from '../ui/FormFooter';
+import { PageHeader } from '../ui/PageHeader';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
@@ -65,13 +66,7 @@ export function Reviews() {
   const others = sessions.filter((s) => !s.review.people.includes(app.viewer.id));
   return (
     <div className="page narrow reviews-list" data-part="Reviews">
-      <div className="page-head row between">
-        <span className="stack" style={{ gap: 2 }}>
-          <h1 className="title-xl">Reviews</h1>
-          <span className="hint">Walk a set of goals together on a cadence. Anyone can set one up.</span>
-        </span>
-        <Link className="btn" to="/reviews/new">Set up a review</Link>
-      </div>
+      <PageHeader title="Reviews" line="Walk a set of goals together on a cadence. Anyone can set one up." actions={<Link className="btn" to="/reviews/new">Set up a review</Link>} />
       {!sessions.length && <Empty title="No reviews yet"><span className="muted">A review walks a set of goals, worst and stalest first, and keeps what was said.</span><Link className="btn primary" to="/reviews/new">Set up the first review</Link></Empty>}
       {mine.length > 0 && <section className="block" data-part="You’re in"><h2 className="block-title">You’re in</h2><div className="alist">{mine.map((s) => <ReviewLine key={s.review.id} s={s} />)}</div></section>}
       {others.length > 0 && <section className="block" data-part="Other reviews"><h2 className="block-title">Other reviews</h2><div className="alist">{others.map((s) => <ReviewLine key={s.review.id} s={s} />)}</div></section>}
@@ -380,10 +375,7 @@ export function ReviewEdit() {
   const problem = !r.name.trim() ? 'Give the review a name.' : !covered.length ? 'Pick at least one goal, tree or level.' : 'Add at least one person.';
   return (
     <div className="focus review-edit">
-      <div className="focus-top">
-        <h1 className="focus-title">{existing ? 'Change review' : 'Set up a review'}</h1>
-        <FormClose keeps={false} dirty={dirty} onClose={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} />
-      </div>
+      <TaskHeader title={existing ? 'Change review' : 'Set up a review'} close={{ keeps: false, dirty, onClose: () => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); } }} />
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. Close to throw these changes away.</p>}
         <label className="field"><span className="field-label">Name</span>

@@ -54,7 +54,6 @@ import { Icon } from '../ui/Icon';
 import { GoalBack } from '../ui/BackLink';
 import { CountNumber } from '../ui/Count';
 import { MenuButton } from '../ui/MenuButton';
-import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
 import { effectOn, landedMoment, storyOn, storyPace } from '../app/appearance';
@@ -338,7 +337,6 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   const app = useApp();
   const owner = app.person(goal.ownerId);
   const team = app.team(goal.teamId);
-  const me = useShellTop();
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   // When it was last updated: the latest check-in's date, beside its week.
@@ -353,7 +351,6 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
       <header className={'goal-bar' + (c.on ? ' compact' : '') + (hit ? ' hit' : '') + (goal.stoppedAt ? ' stopped' : '')} data-part="Summary bar" data-tone={goal.stoppedAt ? 'stopped' : status} style={c.on ? { position: 'fixed', top: c.top, left: c.left, width: c.width } : undefined} aria-label="This goal">
         <div className="bar-1">
           <h1 className="bar-title">{goal.title}</h1>
-          {me && <span className="bar-me">{me}</span>}
         </div>
         <div className="bar-who">
           <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" /><span>{owner?.name ?? 'No owner'}{team ? `, ${team.name}` : ''}</span>
@@ -420,20 +417,26 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = slot.current;
     if (!el) return;
-    const above = () => {
+    // What stays at the top of the screen above the bar: the phone's top bar and a review's bar. `withTop` false leaves
+    // the phone's top bar out: once the bar is compact it takes the top bar's place (Lane, 18 Nov; N2, N9), and the top
+    // bar slides away (html.goal-compact .mtop) without moving the page under it.
+    const above = (withTop: boolean) => {
       let y = 0;
-      for (const e of document.querySelectorAll<HTMLElement>('.mtop, .goal-page > .reviewbar')) {
+      for (const e of document.querySelectorAll<HTMLElement>(withTop ? '.mtop, .goal-page > .reviewbar' : '.goal-page > .reviewbar')) {
         if (!e.getClientRects().length) continue;
         const pos = getComputedStyle(e).position;
-        if (pos === 'sticky' || pos === 'fixed') y = Math.max(y, Math.round(e.getBoundingClientRect().bottom));
+        // The top bar sticks at the very top, so its bottom is its height; measured that way, sliding it out of view
+        // (a transform) doesn't change it, and the bar never turns back and forth as it hides (review M1).
+        if (pos === 'sticky' || pos === 'fixed') y = Math.max(y, e.classList.contains('mtop') ? e.offsetHeight : Math.round(e.getBoundingClientRect().bottom));
       }
       return y;
     };
     let full = el.offsetHeight;
     const check = () => {
-      const t = above();
       const r = el.getBoundingClientRect();
-      const on = r.bottom < t + 4;
+      // The top bar's height still decides when the bar turns compact, even while it is slid out of view.
+      const on = r.bottom < above(true) + 4;
+      const t = on ? above(false) : above(true);
       setS((p) => {
         if (!p.on) full = el.offsetHeight;
         const next = { on, top: t, left: Math.round(r.left), width: Math.round(r.width), height: full };
@@ -447,6 +450,12 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
     window.addEventListener('resize', onScroll);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
   }, [slot]);
+  useEffect(() => {
+    // On <html>, not the shell's own element, so a re-render of the shell never drops it.
+    const root = document.documentElement;
+    root.classList.toggle('goal-compact', s.on);
+    return () => root.classList.remove('goal-compact');
+  }, [s.on]);
   return s;
 }
 

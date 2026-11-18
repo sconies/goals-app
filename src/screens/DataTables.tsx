@@ -37,6 +37,7 @@ import { PickOne } from '../ui/Pick';
 import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
 import { historyStep, type ListChange } from '../domain/find';
 import { LABEL as STATUS_WORD } from '../domain/vocabulary';
+import { PageHeader } from '../ui/PageHeader';
 
 type Tab = DataTable;
 const TABS: [Tab, string][] = TABLE_ORDER.map((t) => [t, TABLES[t].label]);
@@ -293,12 +294,9 @@ export function DataTables() {
 
   return (
     <div className={'page wide data-page' + (total ? ' has-edits' : '')}>
-      <div className="page-head">
-        <h1 className="title-xl">Data</h1>
-        <span className="hint">{canEdit
+      <PageHeader title="Data" line={<span className="hint">{canEdit
           ? 'Every goal, check-in, plan and person. Type into any cell that isn’t greyed out, then review your changes and save them together; they’re checked with the same rules as everywhere else and logged.'
-          : `Every goal, check-in, plan and person, to look through. Admins can change them here: ${admins.join(', ') || 'no one yet'}.`}</span>
-      </div>
+          : `Every goal, check-in, plan and person, to look through. Admins can change them here: ${admins.join(', ') || 'no one yet'}.`}</span>} />
       <div className="seg tabs one-row" role="tablist" aria-label="Table">
         {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setLimit(PAGE); }}>{l}<span className="tabcount">{tables[k].rows.length}</span>{editCount(k) > 0 && <><span className="tab-dot" aria-hidden="true" /><span className="sr">, {editCount(k)} changed</span></>}</button>)}
       </div>

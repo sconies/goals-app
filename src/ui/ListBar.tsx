@@ -52,9 +52,10 @@ export function SortMenu({ options, value, onSort }: { options: [string, string]
   return <MenuButton label="Sort" display={`Sort: ${label}`} items={options.map(([k, l]) => ({ label: l, current: k === value, onClick: () => onSort(k) }))} />;
 }
 
-/** The bar itself: the search, then whatever the page puts beside it (filters, sort, extras). */
-export function ListBar({ children, search }: { search: ReactNode; children?: ReactNode }) {
-  return <div className="list-bar"><div className="list-bar-row">{search}{children}</div></div>;
+/** The bar itself: the search, then whatever the page puts beside it (filters, sort, extras). `action`: the page's one
+    action, shown at the bar's end only on a phone, where the header leaves it out (PAGE-HEADER; patterns spec 2, F15). */
+export function ListBar({ children, search, action }: { search: ReactNode; children?: ReactNode; action?: ReactNode }) {
+  return <div className="list-bar"><div className="list-bar-row">{search}{children}{action ? <div className="list-bar-action">{action}</div> : null}</div></div>;
 }
 
 /** Rule 2's line, read out when it changes. */

@@ -32,7 +32,7 @@ import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErro
 import { WeekPick } from '../ui/WeekPick';
 import { datesOf, defaultTo, weekSays } from '../domain/weeks';
 import { rangeSays, spanSays } from '../domain/weekChoices';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Place, useFilled, useModules, type MeasurePick } from '../core/app';
@@ -312,11 +312,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
 
   return (
     <div className="focus goal-form" ref={top}>
-      <div className="focus-top wiz-top">
-        <span className="small strong">New goal</span>
-        <Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} draft={restored ? draftWords : null} />
-        <FormClose keeps dirty={touched} onClose={() => nav('/goals')} />
-      </div>
+      <TaskHeader className="wiz-top" name="New goal" steps={<Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} draft={restored ? draftWords : null} />} close={{ keeps: true, dirty: touched, onClose: () => nav('/goals') }} />
       {firstBad != null && <Navigate replace to={atStep(firstBad)} />}
       <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
         {/* The resumed draft is said in the step line (patterns spec 3.4.3); starting afresh stays one quiet link away. */}

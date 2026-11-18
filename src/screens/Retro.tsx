@@ -15,7 +15,8 @@ import { assessPosted, goalStatus } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
 import { Chip, Empty, LevelTag, ProgressRing } from '../ui/bits';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
+import { PageHeader } from '../ui/PageHeader';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
 
@@ -45,11 +46,7 @@ export function WrapUp() {
 
   return (
     <div className="page narrow">
-      <div className="page-head">
-        <span className="eyebrow">{periodNow(app.cycle, app.today)}</span>
-        <h1 className="title-xl">Wrap up the {w}</h1>
-        <span className="hint">Each owner says how their goals landed and what they learned. Then next {w}’s goals start with the ones that carry on.</span>
-      </div>
+      <PageHeader above={<span className="eyebrow">{periodNow(app.cycle, app.today)}</span>} title={`Wrap up the ${w}`} line={`Each owner says how their goals landed and what they learned. Then next ${w}’s goals start with the ones that carry on.`} />
       {!open && (
         <div className="calm">{cycleState(app.cycle, app.today) === 'closed'
           ? `The wrap-up closed on ${dayWithYear(cycleDates(app.cycle).wrapUpCloses)}. ${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}.`
@@ -157,11 +154,7 @@ function RetroForm({ goal }: { goal: Goal }) {
   };
   return (
     <div className="focus">
-      <div className="focus-top">
-        <span className="small strong">Wrap up</span>
-        <span className="hint">{mineLeft.length && !before ? `${mineLeft.length} more after this` : ''}</span>
-        <FormClose keeps={false} dirty={dirty} onClose={() => nav('/retro')} />
-      </div>
+      <TaskHeader name={mineLeft.length && !before ? `Wrap up · ${mineLeft.length} more after this` : 'Wrap up'} close={{ keeps: false, dirty, onClose: () => nav('/retro') }} />
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
           <h1 className="qtitle big">{goal.title}</h1>

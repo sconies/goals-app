@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../../app/state';
-import { FormClose } from '../../ui/FormClose';
+import { TaskHeader } from '../../ui/PageHeader';
 import { WarnMark } from '../../ui/bits';
 import { FormFooter } from '../../ui/FormFooter';
 import { PickOne } from '../../ui/Pick';
@@ -59,7 +59,7 @@ export function AddBaseline() {
   if (!canEditMetric(app.viewer, m)) {
     return (
       <div className="focus metric-form">
-        <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+        <TaskHeader name="Add a baseline" close={{ keeps: false, onClose: back }} />
         <div className="focus-body"><h1 className="qtitle big">Add a baseline</h1><p>Only {app.person(m.ownerId)?.name ?? 'its owner'} or an admin can set this metric’s baselines.</p></div>
       </div>
     );
@@ -78,7 +78,7 @@ export function AddBaseline() {
   };
   return (
     <div className="focus metric-form">
-      <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+      <TaskHeader name="Add a baseline" close={{ keeps: false, onClose: back }} />
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="qtitle big">{company && !had ? 'Add a baseline for a team' : 'Add a baseline'}</h1>
@@ -176,7 +176,7 @@ export function TakeBaselines() {
   const back = () => void nav('/metrics');
   return (
     <div className="focus metric-form metric-take">
-      <div className="focus-top"><span /><FormClose keeps={false} onClose={back} /></div>
+      <TaskHeader name="Take this quarter’s baselines" close={{ keeps: false, onClose: back }} />
       <div className="focus-body stack" style={{ gap: 'var(--s4)' }}>
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="qtitle big">Take this quarter’s baselines</h1>

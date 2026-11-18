@@ -14,6 +14,7 @@ import { summarise } from '../domain/summary';
 import type { Goal } from '../domain/types';
 import { StatusWord } from '../ui/bits';
 import { STATUS } from '../domain/vocabulary';
+import { PageHeader } from '../ui/PageHeader';
 
 /** Where a form opened from here goes back to when it's closed: the queue, not Home. */
 export const FROM_QUEUE = { from: 'queue' } as const;
@@ -25,12 +26,9 @@ export function CheckInQueue() {
   const days = daysToReview(app.cycle, app.week, app.today);
   const day = WEEKDAY[app.cycle.reviewDay] ?? '';
   const head = (
-    <div className="page-head ciq-head">
-      <h1 className="title-xl">Check-in</h1>
-      {app.week >= 1 && app.week <= app.cycle.weeks && (
+    <PageHeader className="ciq-head" title="Check-in" line={app.week >= 1 && app.week <= app.cycle.weeks ? (
         <p className="hint ciq-when">Week {app.week}, {weekDates(app.cycle, app.week)}. {days < 0 ? `Check-ins were due by ${day}.` : `Check-ins are due by ${day}${days === 1 ? ', tomorrow' : days === 0 ? ', today' : ''}.`}</p>
-      )}
-    </div>
+      ) : null} />
   );
   // Nothing of yours to check in on (an address typed by hand: the menu has no Check-in for someone who owns no goal).
   if (!owns) return (
@@ -131,10 +129,7 @@ function NoRhythmList() {
   const live = [...l.waiting, ...l.thisWeek];
   return (
     <div className="page checkin-queue" data-part="Check-in">
-      <div className="page-head ciq-head">
-        <h1 className="title-xl">Check in on a goal</h1>
-        <p className="hint ciq-when">Week {app.week}. Check in when there’s news; nothing is due.</p>
-      </div>
+      <PageHeader className="ciq-head" title="Check in on a goal" line={<p className="hint ciq-when">Week {app.week}. Check in when there’s news; nothing is due.</p>} />
       {!live.length && <p className="ciq-empty">You don’t own any goals this year.</p>}
       {l.waiting.length > 0 && (
         <section className="block ciq-block" aria-label="No check-in this week" data-part="No check-in this week">

@@ -13,7 +13,7 @@
    Every change goes through the shared rule (statusPatch), is recorded as the person using the app, and says who made
    it. The list's rules are in inboxList.ts; the data, loaded once for Workspace, in inboxData.ts. Connect Claude
    (src/markup/Connect.tsx) opens from the top. */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { NEWS } from '../help/newsIndex';
@@ -59,7 +59,7 @@ const DONE: Record<MarkupStatus, string> = { new: 'Marked new again', 'in-hand':
 const ITEMS = { thing: 'item', things: 'items' };
 const short = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
 
-export default function Inbox({ data, narrow, inPage = false }: { data: InboxData; narrow: boolean; /** On the Feedback page, whose heading names it: no heading of its own. */ inPage?: boolean }) {
+export default function Inbox({ data, narrow, inPage = false, action }: { data: InboxData; narrow: boolean; /** On the Feedback page, whose heading names it: no heading of its own. */ inPage?: boolean; /** The page's one action, at the list bar's end on a phone (ListBar). */ action?: ReactNode }) {
   const app = useApp();
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
@@ -227,7 +227,7 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
           </div>
           {/* The list bar (FS2): the search; Kind inline on a computer; Page and From in Filters. */}
           <div className="ibx-filters" role="search" aria-label="Find in the inbox">
-            <ListBar search={<ListSearch value={filter.q} label="Find feedback" placeholder="Find by what was said, who or which page" onSearch={(q, change) => setF({ q }, change)} />}>
+            <ListBar action={action} search={<ListSearch value={filter.q} label="Find feedback" placeholder="Find by what was said, who or which page" onSearch={(q, change) => setF({ q }, change)} />}>
               {!narrow && (
                 <label className="field"><span className="sr">Kind</span>
                   <select className="input" value={filter.kind} onChange={(e) => setF({ kind: e.target.value as InboxFilter['kind'] })}>

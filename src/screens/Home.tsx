@@ -35,6 +35,7 @@ import { Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { HomeNews } from '../ui/HelpLinks';
+import { PageHeader } from '../ui/PageHeader';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -352,10 +353,7 @@ export function Home() {
   const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened, putOff: later, reviews: reviewsOn(on), watching: watchingOn(on), wrapUp: wrapUpOn(on) }));
   return (
     <div className="page home" data-part="Home">
-      <div className="page-head">
-        <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small home-where">{app.ws.name} · {placeLine(app.cycle, app.today)}</span>
-      </div>
+      <PageHeader title={`${greeting(app.today)}, ${first}`} line={<span className="muted small home-where">{app.ws.name} · {placeLine(app.cycle, app.today)}</span>} />
       <GettingStarted />
       <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">

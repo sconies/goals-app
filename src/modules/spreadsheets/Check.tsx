@@ -31,6 +31,7 @@ import { Reading, TooManyChanges, useReadingDue } from './Large';
 import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
 import { CheckClose } from './CheckClose';
 import './import.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 
 const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
@@ -114,7 +115,7 @@ export function Check() {
     return (
       <div className="page narrow import-check">
         <CheckClose />
-        <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
+        <PageHeader title="Check this import" line="Nothing has been saved." />
         <p className="small">{st.name} · {readLine(read, 0, lineOpts)}</p>
         <div className="level-block level-check" role="group" aria-labelledby="other-ws">
           <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
@@ -135,7 +136,7 @@ export function Check() {
         <div className="page narrow import-check">
           {picker}
           <CheckClose />
-          <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
+          <PageHeader title="Check this import" line="Nothing has been saved." />
           <p className="hint tone-off" role="alert">Faro couldn’t check {st.name}: {run.error}. Split it and import each part.</p>
           <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={choose}>Choose another file</button></div>
         </div>
@@ -190,10 +191,7 @@ export function Check() {
     <div className="page narrow import-check">
       {picker}
       <CheckClose />
-      <div className="page-head">
-        <h1 className="title-xl">Check this import</h1>
-        <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
-      </div>
+      <PageHeader title="Check this import" line={<span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>} />
 
       <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples, lineOpts), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
       {st.carried > 0 && <p className="small">Your {n(st.carried, 'answer')} still {st.carried === 1 ? 'applies' : 'apply'}.</p>}

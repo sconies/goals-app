@@ -170,7 +170,7 @@
   .change .linkish.tiny { padding-block: 14px; margin-block: -14px; }
   .change-run summary { padding-block: 12px; margin-block: -12px; }
 }
-.activity-page .page-head > span { text-wrap: pretty; }
+.activity-page .page-head .ph-line > span { text-wrap: pretty; }
 /* Filters with a count: the count is a pill and the button doesn't change width ([WA] 13). */
 .activity-page .filterbar-row > .btn[aria-haspopup] { min-width: 104px; gap: 6px; justify-content: center; }
 .activity-page .filterbar-row > .btn .tabcount { min-width: 18px; height: 18px; padding: 0 6px; line-height: 18px; text-align: center; }

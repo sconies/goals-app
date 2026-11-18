@@ -1,0 +1,54 @@
+/* One page header (PAGE-HEADER; docs/design/patterns/spec.md 2.1–2.4). Loaded last, after the old per-page heads.
+   A list or detail page: what sits above, the title at the content's left edge with its actions at the right of its
+   first line, then the line under it. Below 700px it stacks, and the title has the full width (rule 3). */
+.page-head.page-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "above above" "title actions" "line line" "more more"; column-gap: var(--s4); row-gap: 0; align-items: start; }
+.page-header > .ph-above { grid-area: above; margin-bottom: 4px; min-width: 0; }
+.page-header > .ph-title { grid-area: title; margin: 0; min-width: 0; overflow-wrap: break-word; text-wrap: pretty; }
+.page-header > .ph-actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--s2); }
+.page-header > .ph-line { grid-area: line; margin-top: 4px; min-width: 0; }
+.page-header > .ph-more { grid-area: more; margin-top: 4px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+@container app (max-width: 699px) {
+  .page-head.page-header { grid-template-columns: minmax(0, 1fr); grid-template-areas: "above" "title" "line" "actions" "more"; }
+  .page-header > .ph-actions { justify-content: flex-start; margin-top: var(--s3); }
+  /* A list page's one action goes to the end of its list bar, and the header keeps the title and its line (F15). */
+  .page-header.ph-list > .ph-actions { display: none; }
+}
+.list-bar-action { display: none; }
+@container app (max-width: 699px) {
+  .list-bar-action { display: flex; margin-left: auto; }
+}
+
+/* A focused task: its name and where you are at the left, the one exit at the right. When both don't fit (a phone),
+   the exit keeps the right of the first line and the name goes under it (2.4): the row runs right to left, the exit
+   first, so the name is what wraps. The DOM order (name, then exit) is what's read and tabbed. */
+.focus-top.task-head:not(.wiz-top) { flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start; row-gap: 4px; }
+.focus-top.task-head:not(.wiz-top) > .task-exit { order: -1; margin-left: auto; flex: 0 0 auto; gap: var(--s2); }
+.focus-top.task-head:not(.wiz-top) > .task-name { margin-right: auto; min-width: 0; }
+.focus-top.task-head > .task-exit .form-close { margin-left: 0; }
+/* New goal's header keeps its own grid (wizard.css): the exit sits 16px past the step bar, as before. */
+.focus-top.wiz-top > .task-exit { margin-left: var(--s2); }
+
+/* A goal's page on a phone: once its summary bar is compact it takes the top bar's place (Lane, 18 Nov; N2, N9). The
+   top bar slides up out of view rather than leaving the page's flow, so nothing under it moves. */
+html.goal-compact .mtop { transform: translateY(-100%); visibility: hidden; }
+
+/* New goal's step line runs under the exit, not in a column beside it: with "Draft from Tuesday" on a phone it was a thin
+   column of single words. The exit keeps the step bar's row, 16px past it (F3). */
+.goal-form .wiz-top > .steps { grid-column: 1 / -1; }
+.goal-form .wiz-top > .steps > .steps-bar { grid-column: 1 / 3; }
+.goal-form .wiz-top > .steps > span { grid-column: 2 / -1; }
+.goal-form .wiz-top > .task-exit { grid-row: 1; grid-column: 3; position: relative; }
+
+/* Metrics on a phone: the count line with the stage menu at its right (F15). */
+.metric-count-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.metric-count-row > .count-line { margin: 0; min-width: 0; }
+.metric-count-row > .view-menu { flex: none; margin-block: -12px; }
+
+
+/* A goal's page on a phone: its section links are one row you swipe, as Settings' are, not two, so the reason starts
+   inside the first two screens (Lane, 18 Nov; N9). Every link stays on the page, in the same order. */
+@container app (max-width: 699px) {
+  .goal-page .goal-links { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--s4)); padding-inline: var(--s4); scroll-padding-inline: var(--s4); }
+  .goal-page .goal-links::-webkit-scrollbar { display: none; }
+  .goal-page .goal-links > .goal-link { flex: none; }
+}

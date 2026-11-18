@@ -20,7 +20,7 @@ import { ProfileSheet } from './ProfileSheet';
 import { RailLabel } from './Label';
 import { PageHelp } from './HelpLinks';
 import { useUnreadNews } from '../help/seen';
-import { isGoalTop, ShellTopContext } from './shellTop';
+import { pageKind, phoneTitleShown, topBarSays } from '../domain/pageHeader';
 import { MOODS } from '../markup/model';
 import { WorkspaceSwitcher, WorkspaceSwitchProvider } from './WorkspaceSwitch';
 import { Find, FIND_KEY, isFindKey } from './Find';
@@ -250,8 +250,10 @@ function ShellBody({ children }: { children: ReactNode }) {
   const [wide, setWide] = useState(() => typeof window === 'undefined' || window.innerWidth > 1100);
   useEffect(() => { const f = () => setWide(window.innerWidth > 1100); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
   const rail = icons || !wide;
-  // On a goal's own page, on a phone, its summary bar takes the header's place; the header's controls go with it.
-  const goalTop = isGoalTop(pathname, search);
+  // The phone's top bar names the page only once its title has scrolled away (PAGE-HEADER rule 8): until then it shows
+  // the workspace, so the name isn't said twice on one screen. Find, Demo and you stay here on every page (rule 2).
+  const titleInView = useTitleInView(pathname + search);
+  const barSays = topBarSays(pageKind(pathname, search), title.split(' · ')[0] ?? '', app.ws.name, titleInView && phoneTitleShown(pathname));
   const topControls = (
     <>
       <button type="button" className="btn find-btn" onClick={() => setFinding(true)}><Icon name="search" size={18} /><span>Find</span></button>
@@ -281,16 +283,15 @@ function ShellBody({ children }: { children: ReactNode }) {
     );
   };
   return (
-    <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '') + (goalTop ? ' goal-top' : '')}>
+    <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '')}>
       <a className="skip" href="#main">Skip to content</a>
       <div className="mtop" data-part="Header">
         {/* Faro's F, not the workspace's initial (Lane, 9 Nov): the workspace is named beside it. */}
         <FaroMark size={30} />
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
-          <strong className="ellipsis">{title.split(' · ')[0]}</strong>
-          <WorkspaceSwitcher variant="top" />
+          {barSays === app.ws.name ? <WorkspaceSwitcher variant="top" /> : <strong className="ellipsis">{barSays}</strong>}
         </span>
-        {!goalTop && topControls}
+        {topControls}
       </div>
       <div className="shell">
         <nav className="side" aria-label="Main" data-part="Sidebar" ref={sideRef}>
@@ -331,7 +332,7 @@ function ShellBody({ children }: { children: ReactNode }) {
           {app.saveNote && <div className="local-banner save-note" role="alert">{app.saveNote}</div>}
           {app.opening
             ? <div className="page narrow ws-opening" aria-busy="true"><p className="muted" role="status">Opening {app.opening.name}…</p></div>
-            : <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>}
+            : children}
           <PageHelp />
         </main>
       </div>
@@ -387,4 +388,32 @@ function ShellBody({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Whether the page's h1 is in view under the phone's top bar. Watched afresh as the page draws (a screen's h1 can arrive
+ * after the route does); a page with no h1 shown (Goals on a phone keeps its own for screen readers only) counts as out of view.
+ */
+function useTitleInView(key: string): boolean {
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    const main = document.getElementById('main');
+    if (!main || typeof IntersectionObserver === 'undefined') return;
+    let io: IntersectionObserver | null = null;
+    let h: Element | null = null;
+    const watch = () => {
+      const next = main.querySelector('h1');
+      if (next === h) return;
+      h = next;
+      io?.disconnect();
+      if (!h) { setInView(false); return; }
+      io = new IntersectionObserver(([e]) => setInView(!!e && e.isIntersecting && e.boundingClientRect.height > 4), { rootMargin: '-56px 0px 0px 0px' });
+      io.observe(h);
+    };
+    watch();
+    const mo = new MutationObserver(watch);
+    mo.observe(main, { childList: true, subtree: true });
+    return () => { io?.disconnect(); mo.disconnect(); };
+  }, [key]);
+  return inView;
 }

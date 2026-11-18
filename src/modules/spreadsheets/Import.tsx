@@ -10,7 +10,7 @@ import { saveAndSay } from '../../app/files';
 import { fieldTable, isFillIn, requiredLine, specOf, type FillKind } from '../../domain/columns';
 import { workbook } from '../../domain/export';
 import { importCounts, importName, pastImports } from '../../domain/removal';
-import { FormClose } from '../../ui/FormClose';
+import { TaskHeader } from '../../ui/PageHeader';
 import { MenuButton } from '../../ui/MenuButton';
 import { whenText } from '../../ui/ChangeItem';
 import { saveTemplate } from './template';
@@ -19,6 +19,7 @@ import { exportOn } from '../../core/records';
 import { chooseFile, choosePaste } from './Check';
 import { importStore } from './importStore';
 import './import.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 /** The fill-in headers of a sheet, tab-separated: what "Copy the Goals headers" puts on the clipboard. */
 const headersOf = (kind: FillKind) => fieldTable(kind).filter(isFillIn).map((c) => c.header).filter((h) => h !== 'Week N').join('\t');
@@ -67,15 +68,10 @@ export function Import() {
     <div className="page narrow import-page">
       {/* A form (navigation spec 2.5): one way out, top right, in words; focus mode hides the tab bar, so without it a phone
           has none. Nothing is kept, so pasted rows are asked about first. */}
-      <div className="focus-top quick-top">
-        <span className="small strong">Import</span>
-        <FormClose keeps={false} dirty={pasting && !!pasted.trim()} onClose={() => nav('/data')} />
-      </div>
-      <div className="page-head">
-        <h1 className="title-xl">Import</h1>
-        <span className="hint">Add or change goals, plans, check-ins and people from a spreadsheet. You see every change before anything is saved, and one Undo takes a whole import back.</span>
+      <TaskHeader className="quick-top" name="Import" close={{ keeps: false, dirty: pasting && !!pasted.trim(), onClose: () => nav('/data') }} />
+      <PageHeader title="Import" line="Add or change goals, plans, check-ins and people from a spreadsheet. You see every change before anything is saved, and one Undo takes a whole import back.">
         {!app.viewer.admin && <span className="hint">You can add and change your own goals and their check-ins. Rows for other people’s goals are fine if you leave them as they are. {adminsWho(admins)} can change anyone’s, and add people.</span>}
-      </div>
+      </PageHeader>
 
       {lost && <p className="hint" role="status">Choose the file again: nothing was saved.</p>}
       {stopped && <p className="hint" role="status">Stopped. Nothing was saved.</p>}

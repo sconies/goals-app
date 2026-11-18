@@ -8,6 +8,7 @@ import { addNote, notesMarkdown, readNotes, REPORT_TEMPLATE, startSession, TASKS
 import { saveAndSay } from '../app/files';
 import { personaOf } from '../ui/Demo';
 import { useResearch } from '../ui/ResearchBar';
+import { PageHeader } from '../ui/PageHeader';
 
 export function Research() {
   const app = useApp();
@@ -36,10 +37,7 @@ export function Research() {
   };
   return (
     <div className="page narrow research">
-      <div className="page-head">
-        <h1 className="title-xl">Research this app</h1>
-        <span className="hint">For people and AI agents trying it out. Use it as you would, say what you think as you go, and try to break it.</span>
-      </div>
+      <PageHeader title="Research this app" line="For people and AI agents trying it out. Use it as you would, say what you think as you go, and try to break it." />
 
       <section className="block">
         <h2 className="block-title">What it is</h2>

@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (191): build it as Faro does.
+- **Copy** (192): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -1240,7 +1240,7 @@ Every page names itself in the browser's title (“{name} · {workspace} · Faro
 One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
+- **Rule:** [One page header](rules/page-header.md), [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
 - **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** U70
 
@@ -1249,7 +1249,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close” until something is typed and then “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [One form footer](rules/form-footer.md)
+- **Rule:** [One form footer](rules/form-footer.md), [One page header](rules/page-header.md)
 - **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** U72, U136
 
@@ -1261,6 +1261,15 @@ One form footer on every focused task: a status line above the buttons (what the
 - **Rule:** [One form footer](rules/form-footer.md)
 - **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** P20
+
+### PAGE-HEADER
+
+One page header, in three kinds. A list page (Goals, Check-in, Reviews, People, Metrics, Activity, Help) and a detail page (a goal, a person, a team, a metric) have the title at the content's left edge, with nothing to its left: above it a detail page's status line, under it one line (what's in scope; who and where), and at the right of its first line at most one filled button (a detail page adds one plain standing button, then More). Below 700px it stacks, and the title has a full-width line of its own. A focused task's header has the task's name and where you are at the left (“Week 46 check-in · 2 of 7”) and its one exit at the right; when both don't fit, the exit keeps the first line. Find, Demo and your avatar are the shell's, never a page's, and the phone's top bar names the page only once its title has scrolled away. The header is core: every page uses it, so it has no switch.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [One page header](rules/page-header.md)
+- **Help:** “Getting around” (`getting-around`), screens `NotFound`
+- **Journeys and checks:** P21
 
 ### RAIL-SWITCH
 

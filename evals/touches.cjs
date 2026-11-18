@@ -50,6 +50,8 @@ const RULES = [
   [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'U77', 'U141', 'U78', 'U79', 'U80', 'F4', 'F14', 'N2', 'N9', 'N6', 'N15']],
   // One form footer (UX2b): the focused tasks' footers and exits.
   [/^src\/screens\/(CheckInFlow|GoalWizard|GoalEdit|Onboarding|QuickCheckIn|Review|Retro)\.tsx|^src\/domain\/formFooter\.ts|^src\/ui\/(FormFooter|FormClose|FixSummary)\.tsx|^src\/styles\/form-footer\.css|^src\/app\/drafts\.ts|^src\/modules\/(metrics\/(Metrics|VerifyForm|BaselineForms)|spreadsheets\/(Import|Check|CheckClose|Changes))\.tsx/, ['P20', 'U72']],
+  // One page header (PAGE-HEADER, UX4): its rule, components and CSS, the shell's top bar and every page that draws one.
+  [/^src\/domain\/pageHeader\.ts$|^src\/ui\/(PageHeader|Shell)\.tsx$|^src\/styles\/page-header\.css$|^src\/screens\/(Home|People|Review|CheckInQueue|Activity|Help|Settings|Workspace|Feedback|Research|StartNext|DataTables|GoalScreen)\.tsx$|^src\/modules\/(metrics\/Metrics|spreadsheets\/(Large|Check|Imported|PastImports))\.tsx$/, ['P21', 'N9', 'U72']],
   // One goal row (GOAL-ROW, UX2a): its rule, component and CSS score the row's check, its journey and the lists' journeys.
   [/^src\/domain\/goalRow\.ts$|^src\/ui\/goalRows\.tsx$|^src\/styles\/goal-row\.css$|^src\/screens\/(CheckInQueue|Watching)\.tsx$/, ['P11', 'U186', 'U71', 'F1', 'F4', 'N1']],
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],
