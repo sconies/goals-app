@@ -26,6 +26,7 @@ export const RULE_PAGES: [string, string, string][] = [
 export const MORE_RULE_PAGES: [string, string][] = [
   ['goal-row', 'One goal row'],
   ['form-footer', 'One form footer'],
+  ['page-header', 'One page header'],
   ['field-table', 'The field table'],
   ['import-levels', 'Kinds, levels and near misses'],
   ['import-preview', 'What an import read, and leaving rows out'],

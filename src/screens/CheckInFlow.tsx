@@ -27,7 +27,8 @@ import { PickOne } from '../ui/Pick';
 import { MetricChart } from '../ui/charts';
 import { RangeChart } from '../ui/rangeChart';
 import { Icon } from '../ui/Icon';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
+import { taskLine } from '../domain/pageHeader';
 import { CheckBlock, MustFixBlock, MustFixLine } from '../ui/Levels';
 import { draftFor } from '../domain/goal';
 import { useMark } from '../telemetry/react';
@@ -137,15 +138,11 @@ function Flow({ goalId }: { goalId?: string }) {
     <>
     {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { walked(goal.id); setNoData(false); next(); }} />}
     <div className="focus ci">
-      <div className="focus-top">
-        {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
-        {/* Which week it's for, from the first screen: corrections and late check-ins are where weeks get mixed up (U8). */}
-        <span className="small strong ci-week">{fixing ? 'Correct a check-in · ' : ''}Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
-        <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
-          {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <FormClose keeps dirty={drafting && !justPosted} onClose={() => nav(closeTo)} />
-        </span>
-      </div>
+      {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
+      {/* Which week it's for, from the first screen: corrections and late check-ins are where weeks get mixed up (U8). */}
+      <TaskHeader nameClass="ci-week" name={taskLine(`${fixing ? 'Correct a check-in · ' : ''}Week ${app.week} check-in`, index + 1, queue.length)}
+        actions={drafting && !justPosted ? <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button> : null}
+        close={{ keeps: true, dirty: drafting && !justPosted, onClose: () => nav(closeTo) }} />
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} fixing={fixing} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (

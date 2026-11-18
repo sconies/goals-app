@@ -12,6 +12,7 @@ import { useModules } from '../core/app';
 import { aiAccessOn } from '../app/reads';
 import { LeaveWorkspaceSheet } from '../ui/RemoveSheets';
 import { adminsLine, workspaceName } from '../domain/workspaceAttention';
+import { PageHeader } from '../ui/PageHeader';
 
 export function Settings() {
   const app = useApp();
@@ -23,10 +24,7 @@ export function Settings() {
   const ws = workspaceName(app.ws, app.mode).name;
   return (
     <div className="page narrow settings-page">
-      <div className="page-head">
-        <h1 className="title-xl">Settings</h1>
-        <span className="hint">Your own choices. Nobody else sees them.</span>
-      </div>
+      <PageHeader title="Settings" line="Your own choices. Nobody else sees them." />
       <SectionLinks sections={settingsSections(aiAccessOn(on))} />
 
       <section className="block settings-block" aria-labelledby="set-you">

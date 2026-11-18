@@ -33,7 +33,7 @@ import { blankGoal as blankDraft, type GoalDraft } from '../domain/goal';
 import { goalChecks, goalMustFix, unanswered, type GoalAnswers, type GoalCheck } from '../domain/goalEntry';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import { focusQuestion } from '../ui/questionInView';
 import type { Mark } from '../help/flows';
 import { telemetry } from '../telemetry';
@@ -492,11 +492,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   return (
     <div className={'focus focus-onboard' + (step === 'people' || step === 'goals' ? ' focus-roomy' : '')}>
-      <div className="focus-top">
-        <span className="small strong">Set up a workspace</span>
-        <Steps at={idx + 1} of={SETUP_STEPS.length} label={SETUP_STEP_NAMES[step]} />
-        <FormClose keeps dirty={touched} onClose={close} />
-      </div>
+      <TaskHeader name="Set up a workspace" steps={<Steps at={idx + 1} of={SETUP_STEPS.length} label={SETUP_STEP_NAMES[step]} />} close={{ keeps: true, dirty: touched, onClose: close }} />
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
         {restored && (
           <p className="hint" role="status">

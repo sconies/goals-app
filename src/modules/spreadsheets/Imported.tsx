@@ -10,6 +10,7 @@ import { UndoImport, UndoneLine } from '../../ui/UndoImport';
 import { useImport } from './importStore';
 import { baseName, rowsSheets } from './rowsFile';
 import './import.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 
@@ -21,7 +22,7 @@ export function Imported() {
   if (!entry) {
     return (
       <div className="page narrow import-check">
-        <div className="page-head"><h1 className="title-xl">Imported</h1></div>
+        <PageHeader title="Imported" />
         <p>There’s no import with that ID. <Link className="linkish" to="/data/imports">See past imports</Link></p>
       </div>
     );
@@ -36,7 +37,7 @@ export function Imported() {
   const mayUndo = !undone && canUndoImport(app.snapshot, entry, app.viewer);
   return (
     <div className="page narrow import-check imported-page">
-      <div className="page-head"><h1 className="title-xl">Imported</h1></div>
+      <PageHeader title="Imported" />
       <section className="import-done stack" aria-label="What was saved">
         <p className="strong">Saved {n(saved, 'row')} from {importName(entry)}.</p>
         <p>{counts.charAt(0).toUpperCase() + counts.slice(1)}.</p>

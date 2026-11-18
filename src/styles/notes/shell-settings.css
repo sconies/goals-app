@@ -195,7 +195,7 @@
 @container app (max-width: 1100px) and (min-width: 761px) { .side .find-nav { width: 48px; border-color: transparent; background: transparent; cursor: pointer; } .side .find-nav .find-key { display: none; } }
 @container app (min-width: 1101px) { .app.nav-icons .side .find-nav { width: 48px; border-color: transparent; background: transparent; cursor: pointer; } .app.nav-icons .side .find-nav .find-key { display: none; } }
 .find-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; }
-.mtop .find-btn, .goal-page .bar-me .find-btn { border: 0; background: transparent; padding: 0 6px; gap: 4px; }
+.mtop .find-btn { border: 0; background: transparent; padding: 0 6px; gap: 4px; }
 .sheet.find-sheet { width: min(640px, 100%); padding: 0; display: flex; flex-direction: column; }
 .find-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-2); background: var(--surface); color: var(--muted); }
 .find-input { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: 1.0625rem; outline: none; }

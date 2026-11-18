@@ -1,0 +1,21 @@
+/* One page header (PAGE-HEADER; docs/design/patterns/spec.md 2.1–2.4). Loaded last, after the old per-page heads.
+   A list or detail page: what sits above, the title at the content's left edge with its actions at the right of its
+   first line, then the line under it. Below 700px it stacks, and the title has the full width (rule 3). */
+.page-head.page-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "above above" "title actions" "line line" "more more"; column-gap: var(--s4); row-gap: 0; align-items: start; }
+.page-header > .ph-above { grid-area: above; margin-bottom: 4px; min-width: 0; }
+.page-header > .ph-title { grid-area: title; margin: 0; min-width: 0; overflow-wrap: break-word; text-wrap: pretty; }
+.page-header > .ph-actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--s2); }
+.page-header > .ph-line { grid-area: line; margin-top: 4px; min-width: 0; }
+.page-header > .ph-more { grid-area: more; margin-top: 4px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+@container app (max-width: 699px) {
+  .page-head.page-header { grid-template-columns: minmax(0, 1fr); grid-template-areas: "above" "title" "line" "actions" "more"; }
+  .page-header > .ph-actions { justify-content: flex-start; margin-top: var(--s3); }
+}
+
+/* A focused task: its name and where you are at the left, the one exit at the right. When both don't fit (a phone),
+   the exit keeps the right of the first line and the name goes under it (2.4): the row runs right to left, the exit
+   first, so the name is what wraps. The DOM order (name, then exit) is what's read and tabbed. */
+.focus-top.task-head:not(.wiz-top) { flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start; row-gap: 4px; }
+.focus-top.task-head:not(.wiz-top) > .task-exit { order: -1; margin-left: auto; flex: 0 0 auto; gap: var(--s2); }
+.focus-top.task-head:not(.wiz-top) > .task-name { margin-right: auto; min-width: 0; }
+.focus-top.task-head > .task-exit .form-close { margin-left: 0; }

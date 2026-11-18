@@ -8806,7 +8806,7 @@ async function platformChecks() {
     await r.goto(url('/data')); await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'grace')); await r.reload(); await r.waitForTimeout(400);
     const sw = await r.evaluate(() => document.querySelector('.filter-search .input')?.getBoundingClientRect().width ?? 0);
     if (sw < 280) finish.push(`360px Data search is ${Math.round(sw)}px wide`);
-    // A goal's title has a full-width line of its own on a phone: Find, Demo and you sit above it (usability study F03, 17 Nov).
+    // A goal's title has a full-width line of its own on a phone: Find, Demo and you are in the shell's top bar (F03; PAGE-HEADER rule 2, UX4).
     await r.goto(url('/goals/ns-lead')); await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea')); await r.reload();
     await r.locator('h1.bar-title').waitFor({ timeout: 15000 }).catch(() => {}); await r.waitForTimeout(300);
     const tt = await r.evaluate(() => { const t = document.querySelector('h1.bar-title')?.getBoundingClientRect(), row = document.querySelector('.goal-bar .bar-1')?.getBoundingClientRect(), me = document.querySelector('.goal-bar .bar-me')?.getBoundingClientRect(); return t && row ? { share: Math.round(t.width / row.width * 100), beside: !!me && me.bottom > t.top + 1 && me.top < t.bottom - 1 } : null; });
@@ -8916,6 +8916,60 @@ async function platformChecks() {
   }
   lap('P20');
   if (want('P20')) add('P20', ['FORM-FOOTER'], 'One form footer: on every focused task one filled button, in the footer, saying what happens; a check-in pressed empty focuses the field in error; its exit says Close until something is typed', !footProblems.length, footProblems.join(' | '));
+  // P21: one page header (PAGE-HEADER; docs/design/patterns/spec.md 2.2, 2.5). On list and detail pages: at 360px no control
+  // shares a line with the h1 and none of the shell's utilities (Find, Demo, you) is inside the page; at most one filled
+  // button in a header; at 1090 and 1363px a header's actions sit on the title's first line, never wrapped under it alone;
+  // and the phone's top bar names the page only once the title has scrolled away. A focused task's header has the task's
+  // name at the left and its one exit at the right, the exit on the first line.
+  const headProblems = [];
+  if (want('P21')) {
+    const pages = ['/', '/check-in', ...(built('reviews') ? ['/reviews'] : []), '/people', '/people/rhea', '/teams/cicd', ...(built('metrics') ? ['/metrics'] : []), '/activity', '/help', '/goals/lead-mq'];
+    for (const width of [360, 1090, 1363]) {
+      const c21 = await browser.newContext({ viewport: { width, height: 800 } });
+      const f = await c21.newPage();
+      await f.goto(url('/'));
+      await f.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+      for (const route of pages) {
+        await f.goto(url(route));
+        await f.locator('#main h1').first().waitFor({ timeout: 10000 }).catch(() => {});
+        await f.waitForTimeout(250);
+        const m = await f.evaluate(() => {
+          const h = [...document.querySelectorAll('#main h1')].find((e) => e.getBoundingClientRect().height > 4);
+          if (!h) return { none: true };
+          const hb = h.getBoundingClientRect();
+          const head = h.closest('.page-header, .goal-bar') || h.parentElement;
+          const beside = [...head.querySelectorAll('a.btn, button')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && !h.contains(e) && r.top < hb.top + 24 && r.bottom > hb.top; }).map((e) => (e.textContent || '').trim().slice(0, 24));
+          const utils = [...document.querySelectorAll('#main .find-btn, #main .profilebtn, #main .demo-entry')].filter((e) => e.getClientRects().length).length;
+          const filled = [...head.querySelectorAll('.btn.primary')].filter((e) => e.getClientRects().length).length;
+          const acts = head.querySelector(':scope > .ph-actions');
+          const under = !!acts && acts.getBoundingClientRect().top >= hb.bottom - 2 && getComputedStyle(head).gridTemplateColumns.split(' ').length > 1;
+          return { beside, utils, filled, under, bar: document.querySelector('.mtop strong')?.textContent?.trim() ?? null };
+        });
+        if (m.none) { headProblems.push(`${route} at ${width}px: no title`); continue; }
+        if (width === 360 && m.beside.length) headProblems.push(`${route} at 360px: ${m.beside.join(', ')} shares a line with the title`);
+        if (m.utils) headProblems.push(`${route} at ${width}px: ${m.utils} of Find, Demo or you inside the page`);
+        if (m.filled > 1) headProblems.push(`${route} at ${width}px: ${m.filled} filled buttons in the header`);
+        if (width > 360 && m.under) headProblems.push(`${route} at ${width}px: the header's actions wrapped under the title`);
+        if (width === 360 && route === '/people') {
+          if (m.bar) headProblems.push(`the phone's top bar names the page (“${m.bar}”) while its title is in view`);
+          await f.mouse.wheel(0, 1200); await f.waitForTimeout(400);
+          const after = await f.evaluate(() => document.querySelector('.mtop strong')?.textContent?.trim() ?? null);
+          if (after !== 'People') headProblems.push(`the phone's top bar says “${after}”, not People, once the title has scrolled away`);
+        }
+      }
+      if (width === 360) {
+        await f.goto(url('/check-in?start=1'));
+        await f.getByLabel('This week’s value').fill('12').catch(() => {});
+        await f.waitForTimeout(300);
+        const t = await f.evaluate(() => { const n = document.querySelector('.task-head .task-name'), x = document.querySelector('.task-head .form-close'); if (!n || !x) return null; const a = n.getBoundingClientRect(), b = x.getBoundingClientRect(); return { exitFirst: b.top <= a.top + 2, right: Math.round(window.innerWidth - b.right), over: document.scrollingElement.scrollWidth - window.innerWidth }; });
+        if (!t) headProblems.push('a check-in has no task header with its name and exit');
+        else if (!t.exitFirst || t.right > 24 || t.over > 0) headProblems.push(`a check-in's task header at 360px: exit first ${t.exitFirst}, ${t.right}px from the right, ${t.over}px sideways`);
+      }
+      await c21.close();
+    }
+  }
+  lap('P21');
+  if (want('P21')) add('P21', ['PAGE-HEADER'], 'One page header: the title has its own line on a phone and nothing of the shell’s inside the page; one filled button; actions on the title’s line on a computer; the phone’s top bar names the page once the title has gone; a task’s exit keeps the first line', !headProblems.length, headProblems.slice(0, 8).join(' | '));
   await finishChecks(add);
   if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));

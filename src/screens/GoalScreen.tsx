@@ -54,7 +54,6 @@ import { Icon } from '../ui/Icon';
 import { GoalBack } from '../ui/BackLink';
 import { CountNumber } from '../ui/Count';
 import { MenuButton } from '../ui/MenuButton';
-import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
 import { effectOn, landedMoment, storyOn, storyPace } from '../app/appearance';
@@ -337,7 +336,6 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   const app = useApp();
   const owner = app.person(goal.ownerId);
   const team = app.team(goal.teamId);
-  const me = useShellTop();
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   // When it was last updated: the latest check-in's date, beside its week.
@@ -352,7 +350,6 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
       <header className={'goal-bar' + (c.on ? ' compact' : '') + (hit ? ' hit' : '') + (goal.stoppedAt ? ' stopped' : '')} data-part="Summary bar" data-tone={goal.stoppedAt ? 'stopped' : status} style={c.on ? { position: 'fixed', top: c.top, left: c.left, width: c.width } : undefined} aria-label="This goal">
         <div className="bar-1">
           <h1 className="bar-title">{goal.title}</h1>
-          {me && <span className="bar-me">{me}</span>}
         </div>
         <div className="bar-who">
           <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" /><span>{owner?.name ?? 'No owner'}{team ? `, ${team.name}` : ''}</span>

@@ -60,7 +60,7 @@ The scenarios were checked against deliberately broken rules (a different on-tra
 ## Where things are
 
 ```
-src/domain/     the rules: plans, status, check-ins, attention, review, change log, progress, import, and one goal row for every list (`goalRow.ts`) (pure, tested)
+src/domain/     the rules: plans, status, check-ins, attention, review, change log, progress, import, one goal row for every list (`goalRow.ts`), one form footer (`formFooter.ts`) and one page header (`pageHeader.ts`) (pure, tested)
 src/data/       demo data, the store contract, the browser and Supabase stores
 src/app/        app state (workspaces, profiles, saves that log) and drafts
 src/screens/    Home (per profile), Check-in, Review, Goals, Goal page, Goal setup, Activity, Workspace

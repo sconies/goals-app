@@ -18,6 +18,7 @@ import { ChangeItem } from '../ui/ChangeItem';
 import { historyStep, nearMiss, type ListChange } from '../domain/find';
 import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
 import { Pick, PickOne } from '../ui/Pick';
+import { PageHeader } from '../ui/PageHeader';
 
 function dayLabel(iso: string, today: Date) {
   const d = new Date(iso);
@@ -87,10 +88,7 @@ export function Activity() {
   const filterCount = chips.filter((c) => c.key !== 'q' && c.key !== 'kind' && c.key !== 'when').length;
   return (
     <div className="page narrow activity-page">
-      <div className="page-head">
-        <h1 className="title-xl">Activity</h1>
-        <span className="small muted">Every saved change, who made it and when. Drafts aren’t logged.</span>
-      </div>
+      <PageHeader title="Activity" line={<span className="small muted">Every saved change, who made it and when. Drafts aren’t logged.</span>} />
       {watching != null && (
         <p className="row" style={{ gap: 'var(--s2)' }}>
           <span className="small strong">Showing: {scopeText}</span>

@@ -813,6 +813,12 @@
       "use": "copy"
     },
     {
+      "id": "PAGE-HEADER",
+      "area": "Navigation",
+      "text": "One page header, in three kinds. A list page (Goals, Check-in, Reviews, People, Metrics, Activity, Help) and a detail page (a goal, a person, a team, a metric) have the title at the content's left edge, with nothing to its left: above it a detail page's status line, under it one line (what's in scope; who and where), and at the right of its first line at most one filled button (a detail page adds one plain standing button, then More). Below 700px it stacks, and the title has a full-width line of its own. A focused task's header has the task's name and where you are at the left (“Week 46 check-in · 2 of 7”) and its one exit at the right; when both don't fit, the exit keeps the first line. Find, Demo and your avatar are the shell's, never a page's, and the phone's top bar names the page only once its title has scrolled away. The header is core: every page uses it, so it has no switch.",
+      "use": "copy"
+    },
+    {
       "id": "FIND-ANYWHERE",
       "area": "Finding",
       "text": "Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.",

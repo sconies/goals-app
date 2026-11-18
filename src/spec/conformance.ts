@@ -22,6 +22,7 @@ import { allGoalsNow } from '../ports/goals';
 import { parseQuery } from '../domain/query';
 import { STATUS_ORDER } from '../domain/vocabulary';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
+import { pageKind, topBarSays } from '../domain/pageHeader';
 import { planChanges, type ChangeSet } from '../domain/changeset';
 import { blankGoal, type GoalDraft } from '../domain/goal';
 import { goalChecks } from '../domain/goalEntry';
@@ -276,6 +277,23 @@ export function goalRowRowsOf(w: ConformanceWorkspace): string[][] {
       const p = rowParts(g, att, place, { checkIns: s.checkIns, people: s.people, asks: s.requests ?? [], cycle: w.cycle, today: moment, week, viewerId: ROW_VIEWER });
       return [g.id, place, ROW_VIEWER, p.status, p.value, p.gap?.text ?? '', p.asOf ?? '', p.result?.text ?? '', p.reason ?? '', p.reasonIsFlag ? '1' : '', p.context ?? '', p.contextIsFlag ? '1' : '', p.action ?? ''];
     });
+  });
+}
+
+/* ---------- one page header (PAGE-HEADER) ---------- */
+
+export const PAGE_HEADER_HEADER = ['address', 'kind', 'page', 'top_bar_title_in_view', 'top_bar_title_gone'];
+
+/** For each address navigation.csv answers: its kind of page, its name, and what the phone's top bar says with the
+    title in view and once it has scrolled away ("the workspace" stands for the workspace's name). */
+export function pageHeaderRowsOf(w: ConformanceWorkspace, c: ScreenCases['navigation'] = navigationCases()): string[][] {
+  const s = asOf(w, new Date(w.builtFor));
+  const names: PlaceNames = { goal: (id) => s.goals.find((x) => x.id === id)?.title ?? null, review: (id) => s.reviews.find((x) => x.id === id)?.name ?? null, view: () => null, article: () => null, person: (id) => s.people.find((x) => x.id === id)?.name ?? null, team: (id) => s.teams.find((x) => x.id === id)?.name ?? null };
+  return c.addresses.map((address) => {
+    const [path = '/', q = ''] = address.split('?');
+    const kind = pageKind(path, q);
+    const page = pageName(path, q, names).split(' · ')[0] ?? '';
+    return [address, kind, page, topBarSays(kind, page, 'the workspace', true) ?? '', topBarSays(kind, page, 'the workspace', false) ?? ''];
   });
 }
 
@@ -695,7 +713,7 @@ export function conformanceFiles(w: ConformanceWorkspace, cases: ScreenCases = s
   if (w.edge) return edgeFiles(w);
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'goal-row.csv': toCsv(GOAL_ROW_HEADER, goalRowRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w, cases.find)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'goal-row.csv': toCsv(GOAL_ROW_HEADER, goalRowRowsOf(w)), 'page-header.csv': toCsv(PAGE_HEADER_HEADER, pageHeaderRowsOf(w, cases.navigation)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w, cases.navigation)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w, cases.readback.cases)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w, cases.home)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

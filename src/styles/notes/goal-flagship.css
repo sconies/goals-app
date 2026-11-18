@@ -48,7 +48,6 @@
 .goal-page .sc-sub { font-size: 0.8125rem; line-height: 1.125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .goal-page .bar-actions { grid-area: act; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--s2); }
 .goal-page .bar-actions .bar-menu > summary { padding-inline: 10px; }
-.goal-page .bar-me { display: none; }
 .goal-page .asked-line { flex-basis: 100%; }
 
 /* Once scrolled away: one line at the top, a solid panel with a rule under it and a soft shadow, so it never blends
@@ -103,8 +102,6 @@
 
 /* ---------- on a phone the bar is the page's header ---------- */
 @container app (max-width: 760px) {
-  .app.goal-top .mtop { display: none; }
-  .app.goal-top .page.goal-page { padding-top: var(--s3); }
   .goal-page .goal-bar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "one" "who" "two" "card" "note" "act"; padding-top: var(--s2); row-gap: 4px; }
   .goal-page .scorecard { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); margin-top: 4px; padding-top: var(--s2); }
   .goal-page .sc-value { font-size: 1rem; line-height: 1.375rem; }
@@ -119,9 +116,6 @@
      study F03, 17 Nov: beside them a short title broke over two or three lines). */
   .goal-page .bar-1 { flex-wrap: wrap; row-gap: 0; }
   .goal-page .bar-1 > .bar-title { flex: 1 1 100%; }
-  .goal-page .bar-me { display: flex; align-items: center; justify-content: flex-end; gap: 4px; order: -1; flex: 1 1 100%; margin: -6px 0 0; }
-  .goal-page .bar-me .profilebtn { min-width: 44px; min-height: 44px; border: 0; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-  .goal-page .bar-me .demo-entry.compact { min-height: 44px; padding: 0 8px; align-items: center; }
   .goal-page .bar-actions { justify-content: flex-start; margin-top: 6px; }
   /* On a phone the "…" menu opens from the summary bar's left edge, just under it (anchored to the button's right edge
      it ran off the screen). The bar's slot is the positioned box it hangs from. */
@@ -301,7 +295,6 @@
 }
 
 /* ---------- print: the bar prints as the page's head ---------- */
-@media print { .goal-page .goal-bar.compact { position: static !important; } .goal-page .bar-actions, .goal-page .bar-me { display: none !important; } }
 
 /* The goal links in an answer's hint are 44px targets on a touch screen, as they were in the sheet. */
 @media (pointer: coarse) { .goal-page .respond-form .hint a { display: inline-flex; align-items: center; min-height: 44px; } }

@@ -42,6 +42,7 @@ import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
 import { rhythmAbout, rhythmChoiceOf, rhythmFact, rhythmLine, rhythmReadBack, rhythmReadBackLines, rhythmToast, type RhythmChoice } from '../domain/rhythm';
 import { WEEKDAY } from '../domain/progress';
+import { PageHeader } from '../ui/PageHeader';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
 const NARROW = 720;
@@ -106,12 +107,10 @@ export function WorkspaceHome({ section }: { section?: string }) {
   return (
     <WsCtx.Provider value={ctx}>
       <div className={'page workspace ws-' + id + (narrow ? ' ws-narrow' : '')} ref={ref}>
-        <div className="page-head wsp-head">
-          {sub && <Link className="backlink" to="/workspace"><Icon name="chevron-left" /><span className="ellipsis">Workspace</span></Link>}
-          <h1 className="title-xl">{sub ? here?.label ?? 'Workspace' : 'Workspace'}</h1>
-          {/* One line: whose workspace, and your part in it (WR2). Nothing else. */}
-          {!sub && <span className="hint ws-role-line" data-role={app.viewer.admin ? 'admin' : 'member'}>{ws.name} · you’re {app.viewer.admin ? 'an admin' : 'a member'} here</span>}
-        </div>
+        {/* One line: whose workspace, and your part in it (WR2). Nothing else. */}
+        <PageHeader className="wsp-head" above={sub ? <Link className="backlink" to="/workspace"><Icon name="chevron-left" /><span className="ellipsis">Workspace</span></Link> : null}
+          title={sub ? here?.label ?? 'Workspace' : 'Workspace'}
+          line={!sub ? <span className="hint ws-role-line" data-role={app.viewer.admin ? 'admin' : 'member'}>{ws.name} · you’re {app.viewer.admin ? 'an admin' : 'a member'} here</span> : null} />
         {narrow ? <div className="ws-body">{body}</div> : (
           <div className="ws-layout">
             <nav className="ws-menu" aria-label="Workspace sections"><SectionLinks current={id} /></nav>

@@ -16,6 +16,7 @@ import { importStore } from './importStore';
 import { leftRowsOf } from './rowsFile';
 import { CheckClose } from './CheckClose';
 import './import.css';
+import { PageHeader } from '../../ui/PageHeader';
 
 type Show = 'all' | ChangeShow;
 const SHOW_OF = (x: Item): Show => showOf(x.kind);
@@ -74,10 +75,7 @@ export function Changes() {
   return (
     <div className="page narrow import-check">
       <CheckClose />
-      <div className="page-head">
-        <h1 className="title-xl">The changes</h1>
-        <span className="hint">{saving ? 'Saving…' : 'Nothing has been saved.'}</span>
-      </div>
+      <PageHeader title="The changes" line={<span className="hint">{saving ? 'Saving…' : 'Nothing has been saved.'}</span>} />
       <ListBar search={<ListSearch value={q} onSearch={(t) => set('q', t)} label="Find a goal, a person or a key" placeholder="Find a goal, a person or a key" />}>
         <span className="seg import-shows" role="group" aria-label="Show">
           {(['all', 'added', 'changed', 'stopped'] as Show[]).map((k) => (

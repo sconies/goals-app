@@ -23,7 +23,7 @@ import { WeekPick } from '../ui/WeekPick';
 import { defaultTo } from '../domain/weeks';
 import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
-import { FormClose } from '../ui/FormClose';
+import { TaskHeader } from '../ui/PageHeader';
 import { Place, type MeasurePick } from '../core/app';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
@@ -183,9 +183,7 @@ function EditSheet({ goal }: { goal: Goal }) {
 
   return (
     <div className="focus goal-form goal-edit">
-      <div className="focus-top">
-        <FormClose keeps dirty={touched} onClose={back} />
-      </div>
+      <TaskHeader name="Change a goal" close={{ keeps: true, dirty: touched, onClose: back }} />
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <h1 className="qtitle big">Change {goal.title}</h1>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}

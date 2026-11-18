@@ -34,6 +34,7 @@ import { useWidth } from '../ui/useWidth';
 import { PickOne } from '../ui/Pick';
 import { CountLine, FilterLine, ListBar, ListSearch, NoneFound } from '../ui/ListBar';
 import type { FilterPart } from '../domain/find';
+import { PageHeader } from '../ui/PageHeader';
 
 const PEOPLE = { thing: 'person', things: 'people' };
 const TEAMS = { thing: 'team', things: 'teams' };
@@ -52,13 +53,7 @@ function PlaceHead({ tab, action }: { tab: 'people' | 'teams'; action?: ReactNod
   const app = useApp();
   return (
     <>
-      <div className="page-head row between people-head">
-        <div className="stack" style={{ gap: 4 }}>
-          <h1 className="title-xl">People</h1>
-          <span className="hint">Everyone in {wsName(app.ws)}, and the teams they are in.</span>
-        </div>
-        {action}
-      </div>
+      <PageHeader className="people-head" title="People" line={`Everyone in ${wsName(app.ws)}, and the teams they are in.`} actions={action} />
       <nav className="people-tabs" aria-label="People and teams">
         <Link to="/people" aria-current={tab === 'people' ? 'page' : undefined}>People · {app.snapshot.people.length}</Link>
         <Link to="/teams" aria-current={tab === 'teams' ? 'page' : undefined}>Teams · {app.snapshot.teams.length}</Link>
@@ -254,16 +249,10 @@ export function PersonPage() {
   return (
     <div className="page narrow person-page">
       <BackLink to="/people" label="People" />
-      <div className="page-head row between person-head">
-        <div className="row person-who">
-          <Avatar p={p} size="lg" />
-          <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-            <h1 className="title-xl">{left && !p.name.endsWith(leftName('')) ? leftName(p.name) : p.name}</h1>
-            {left ? <span className="hint">Left {wsName(app.ws)} on {dateOf(p.leftAt!)}. Their history stays.</span> : p.role ? <span className="hint">{p.role}</span> : null}
-          </span>
-        </div>
-        {see && !left && <Link className="btn primary" to={`/goals?owner=${encodeURIComponent(p.id)}`}>{see}</Link>}
-      </div>
+      {/* The picture sits above the name, so the name keeps the content's left edge (PAGE-HEADER rule 1). */}
+      <PageHeader className="person-head" above={<Avatar p={p} size="lg" />} title={left && !p.name.endsWith(leftName('')) ? leftName(p.name) : p.name}
+        line={left ? `Left ${wsName(app.ws)} on ${dateOf(p.leftAt!)}. Their history stays.` : p.role || null}
+        actions={see && !left ? <Link className="btn primary" to={`/goals?owner=${encodeURIComponent(p.id)}`}>{see}</Link> : null} />
       {!left && (
         <dl className="facts person-facts">
           <dt>Team</dt>
@@ -380,13 +369,8 @@ export function TeamPage() {
   return (
     <div className="page narrow person-page team-page">
       <BackLink to="/teams" label="Teams" />
-      <div className="page-head row between person-head">
-        <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-          <h1 className="title-xl">{t.name}</h1>
-          <span className="hint">{s.lead ? <>Led by <Link to={`/people/${encodeURIComponent(s.lead.id)}`}>{s.lead.name}</Link></> : 'No lead'} · {plural(s.people.length, 'person', 'people')} · {plural(s.goals.length, 'goal', 'goals')} this year</span>
-        </span>
-        {s.goals.length > 0 && <Link className="btn primary" to={`/goals?team=${encodeURIComponent(t.id)}`}>{s.goals.length === 1 ? 'See its goal' : `See its ${s.goals.length} goals`}</Link>}
-      </div>
+      <PageHeader className="person-head" title={t.name} line={<span className="hint">{s.lead ? <>Led by <Link to={`/people/${encodeURIComponent(s.lead.id)}`}>{s.lead.name}</Link></> : 'No lead'} · {plural(s.people.length, 'person', 'people')} · {plural(s.goals.length, 'goal', 'goals')} this year</span>}
+        actions={s.goals.length > 0 ? <Link className="btn primary" to={`/goals?team=${encodeURIComponent(t.id)}`}>{s.goals.length === 1 ? 'See its goal' : `See its ${s.goals.length} goals`}</Link> : null} />
       {(t.objective || admin) && (
         <section className="stack team-purpose" style={{ gap: 4 }} aria-labelledby="team-purpose">
           <h2 className="label" id="team-purpose">What it is here to do</h2>

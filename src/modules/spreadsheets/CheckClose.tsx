@@ -2,7 +2,7 @@
    focus mode hides the tab bar, so without this a phone has none. Nothing is saved, so it says "Close without saving",
    asks first once an answer or a reason was given, forgets the file and goes back to Import. */
 import { useNavigate } from 'react-router';
-import { FormClose } from '../../ui/FormClose';
+import { TaskHeader } from '../../ui/PageHeader';
 import { importStore, useImport } from './importStore';
 
 export function CheckClose() {
@@ -10,9 +10,6 @@ export function CheckClose() {
   const st = useImport();
   const typed = Object.keys(st.answers).length > 0 || !!st.reason.trim();
   return (
-    <div className="focus-top quick-top">
-      <span className="small strong">Import</span>
-      <FormClose keeps={false} dirty={typed} onClose={() => { importStore.reset(); nav('/data/import'); }} />
-    </div>
+    <TaskHeader className="quick-top" name="Import" close={{ keeps: false, dirty: typed, onClose: () => { importStore.reset(); nav('/data/import'); } }} />
   );
 }

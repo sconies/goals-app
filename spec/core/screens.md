@@ -189,7 +189,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/quick-check-in` (`QuickCheckIn`): If you own several number goals, type this week’s numbers for all of them on one screen. Help: “Typing all your numbers in one table” (`check-in-table`).
 
-- **Named parts:** “Type all your numbers in one table”
+- **Named parts:** none written as plain text
 - **Main action:** Post every row of the table that is ready, at once, and land on the check-in’s confirmation.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `bulk_change`, `post_check_in`
@@ -230,7 +230,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/research` (`Research`): The demo is a full copy of the app with one example organisation, Platform Engineering (about 100 people), kept in your browser, that you can change and reset freely. Help: “The demo” (`demo`).
 
-- **Named parts:** “Research this app”, “What it is”, “Not built yet, on purpose: access control”, “How to do it”, “Start”, “Tasks”, “Your report”, “Not built yet, on purpose (region)”
+- **Named parts:** “What it is”, “Not built yet, on purpose: access control”, “How to do it”, “Start”, “Tasks”, “Your report”, “Not built yet, on purpose (region)”
 - **Main action:** Start the research session.
 - **Primary buttons in its markup:** “Start the session”
 - **AI tools:** none, on purpose: Research sessions in the demo, for the people building the app.
@@ -537,7 +537,7 @@ None: nothing to type or choose here.
 
 - `/activity` (`Activity`): Activity lists every saved change: who made it, when, and each field’s before and after. Help: “The activity log” (`activity`).
 
-- **Named parts:** “Activity”
+- **Named parts:** none written as plain text
 - **Main action:** Read what changed, filtered to what you need.
 - **Primary buttons in its markup:** “Show the changes”
 - **AI tools:** `get_activity`, `undo_import`
@@ -580,7 +580,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/data` (`DataTables`): Every person, goal, check-in, plan and ask as a table you can search, sort, filter, arrange and export, and the home of spreadsheets in and out. Help: “Data” (`data`).
 
-- **Named parts:** “Data”
+- **Named parts:** none written as plain text
 - **Main action:** Correct records in a table, every change checked and shown before it’s saved.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `bulk_change`, `list_requests`, `list_views`, `save_table_view`, `delete_view`, `pin_view`
@@ -767,7 +767,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/teams` (`TeamsList`): The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams. Help: “Teams” (`teams`).
 - `/teams/:teamId` (`TeamPage`): The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams. Help: “Teams” (`teams`).
 
-- **Named parts:** “People”, “For admins”, “What it is here to do”, “Goals”, “People and teams (region)”, “Pages (region)”
+- **Named parts:** “For admins”, “What it is here to do”, “Goals”, “People and teams (region)”, “Pages (region)”
 - **Main action:** Find a person or a team and go to their goals; for admins, Add a person on People and Add a team on Teams.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `create_token`, `find_goals`
@@ -871,7 +871,7 @@ None: nothing to type or choose here.
 
 - `/settings` (`Settings`): About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace. Help: “Settings” (`settings`).
 
-- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”, “On this page (region)”
+- **Named parts:** “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”, “On this page (region)”
 - **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_tokens`, `revoke_token`, `get_help`
@@ -905,7 +905,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/help/:id` (`HelpArticle`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 - `/whats-new` (`WhatsNew`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 
-- **Named parts:** “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
+- **Named parts:** “Search results”, “Related”, “Search results (region)”
 - **Main action:** Find an answer: search, or open an article.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_help`, `whats_new`
@@ -973,7 +973,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/feedback` (`Feedback`)
 
-- **Named parts:** “Feedback”
+- **Named parts:** none written as plain text
 - **Main action:** Handle the open markup or feedback (in hand, fixed or won’t fix) and go on to the next.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_markups`, `get_markup`, `update_markup`, `list_feedback`, `get_feedback`, `update_feedback`, `review_inbox`, `send_feedback`
@@ -1007,7 +1007,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/reviews/:reviewId/edit` (`ReviewEdit`)
 - `/reviews/:reviewId/summary` (`ReviewSummary`)
 
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
+- **Named parts:** “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
 - **Parts by name** (`data-part`): “Reviews”, “You’re in”, “Other reviews”, “What was said”, “Review”, “Last time”, “Still to review”, “Nothing flagged”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”

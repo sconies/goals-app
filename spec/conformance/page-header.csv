@@ -1,0 +1,26 @@
+address,kind,page,top_bar_title_in_view,top_bar_title_gone
+/,list,Home,the workspace,Home
+/check-in,list,Check-in,the workspace,Check-in
+/check-in/lead-mq,task,Check in: Merge queue live for every monorepo,,
+/quick-check-in,task,"Check-in, all in one table",,
+/goals,list,Goals,the workspace,Goals
+/goals?scope=mine,list,Goals,the workspace,Goals
+/watching,list,Goals,the workspace,Goals
+/goals/new,task,New goal,,
+/goals/lead-mq,detail,Merge queue live for every monorepo,the workspace,Merge queue live for every monorepo
+/goals/lead-mq/edit,task,Change Merge queue live for every monorepo,,
+/goals/lead-mq?review=weekly,detail,Merge queue live for every monorepo,the workspace,Merge queue live for every monorepo
+/goals/nowhere,detail,Goal not found,the workspace,Goal not found
+/reviews/weekly,detail,Platform leadership weekly,the workspace,Platform leadership weekly
+/people/rhea,detail,Rhea Kapoor,the workspace,Rhea Kapoor
+/teams/cicd,detail,CI/CD,the workspace,CI/CD
+/activity,list,Activity,the workspace,Activity
+/data,list,Data,the workspace,Data
+/workspace/people,list,Workspace,the workspace,Workspace
+/settings,list,Settings,the workspace,Settings
+/help/check-in,detail,Help,the workspace,Help
+/whats-new,list,What’s new,the workspace,What’s new
+/retro,list,Wrap up,the workspace,Wrap up
+/retro/x,task,Goal not found,,
+/research,list,Research,the workspace,Research
+/nowhere,list,Page not found,the workspace,Page not found
