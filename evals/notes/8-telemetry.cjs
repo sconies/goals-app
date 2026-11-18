@@ -175,9 +175,15 @@ module.exports = {
     // ---------- Stale code after a deploy (review F16): reload once, then the Map; never a reload loop ----------
     for (const gone of [1, Infinity]) {
       const c = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      // A deploy takes the file away for the page that was open, not for one request: Vite's preload asks for it (a
+      // modulepreload link) before import() does, and refusing only the first request let the import fetch it, so the
+      // Map drew with no reload at all. So "gone once" refuses it for every request of the first page load, and the
+      // reload (the second document) gets the new build; "gone for good" refuses it on every load.
       let refused = 0;
+      let documents = 0;
+      c.on('request', (r) => { if (r.isNavigationRequest() && r.resourceType() === 'document') documents++; });
       await c.route(/\/assets\/GoalMap-[^/]+\.js(\?.*)?$/, (route) => {
-        if (refused < gone) { refused++; return route.fulfill({ status: 404, contentType: 'text/plain', body: 'gone' }); }
+        if (documents <= gone) { refused++; return route.fulfill({ status: 404, contentType: 'text/plain', body: 'gone' }); }
         return route.continue();
       });
       const p = await c.newPage();
@@ -188,7 +194,7 @@ module.exports = {
         await p.goto(url('/goals?scope=all&view=map'));
         if (gone === 1) {
           await p.locator('.react-flow, .goal-map, [data-map]').first().waitFor({ timeout: 10000 });
-          fail(loads === 2, `[STALE-RELOAD] the Map's file gone once: expected one reload then the Map, saw ${loads} page loads`);
+          fail(loads === 2, `[STALE-RELOAD] the Map's file gone once: expected one reload then the Map, saw ${loads} page loads (${refused} requests refused)`);
           fail(/view=map/.test(p.url()), `[STALE-RELOAD] the reload left the address: ${p.url()}`);
           fail(!(await p.getByText('Something went wrong').count()), '[STALE-RELOAD] "Something went wrong" after the reload that fixed it');
         } else {

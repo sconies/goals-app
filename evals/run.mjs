@@ -153,11 +153,25 @@ function startHang() {
   return () => { sockets.forEach((s) => s.destroy()); server.close(); };
 }
 
-/** One journeys.cjs process; resolves with its exit code. log: a file for its output, or inherit the terminal. */
-function journeysProc(env, log) {
+/** One journeys.cjs process; resolves with its exit code. log: a file for its output, or inherit the terminal.
+    tee: also print each journey's and check's result line as it lands, under that label. A quick run used to print
+    nothing between its scenarios and its end, so a slow run on CI (#593: 20 minutes) read as a hang. */
+function journeysProc(env, log, tee) {
   const fd = log ? fs.openSync(log, 'w') : null;
   return new Promise((resolve) => {
-    const p = spawn('node', ['evals/journeys.cjs'], { cwd: root, stdio: log ? ['ignore', fd, fd] : 'inherit', env: { ...process.env, ...env } });
+    const p = spawn('node', ['evals/journeys.cjs'], { cwd: root, stdio: log ? ['ignore', tee ? 'pipe' : fd, tee ? 'pipe' : fd] : 'inherit', env: { ...process.env, ...env } });
+    if (log && tee) {
+      let rest = '';
+      const started = Date.now();
+      const take = (chunk) => {
+        fs.writeSync(fd, chunk);
+        const lines = (rest + chunk.toString('utf8')).split('\n');
+        rest = lines.pop();
+        for (const l of lines) if (/^(PASS|FAIL) (U\d+|P5) |^ {2}… /.test(l)) console.log(`  [${tee} ${Math.round((Date.now() - started) / 1000)}s] ${l.trim().slice(0, 160)}`);
+      };
+      p.stdout.on('data', take);
+      p.stderr.on('data', (chunk) => fs.writeSync(fd, chunk));
+    }
     p.on('close', (code) => { if (fd !== null) fs.closeSync(fd); resolve(code); });
   });
 }
@@ -342,7 +356,7 @@ if (quick) {
   const phoneCpu = process.env.PHONE_CPU ?? '4';
   const slowed = Number(phoneCpu) > 1;
   const env = { BASE: `http://localhost:${PORT}`, PHONE_CPU: phoneCpu, ...(quick.down ? { DOWN: `http://localhost:${PORT + 1}` } : {}) };
-  const half = (h, i) => (!h.journeys.length && !h.checks.length ? null : journeysProc({ ...env, ONLY: h.journeys.join(','), CHECKS: h.checks.join(','), FINISH: '', OUT_FILE: `quick-${i + 1}.json` }, path.join(out, `quick-${i + 1}.log`)));
+  const half = (h, i) => (!h.journeys.length && !h.checks.length ? null : journeysProc({ ...env, ONLY: h.journeys.join(','), CHECKS: h.checks.join(','), FINISH: '', OUT_FILE: `quick-${i + 1}.json`, EVALS_PROGRESS: '1' }, path.join(out, `quick-${i + 1}.log`), `part ${i + 1}`));
   await Promise.all([
     new Promise((resolve) => { const p = spawn('npx', ['vitest', 'run', '--config', 'evals/vitest.config.ts', '--reporter=default', '--reporter=json', '--outputFile=evals/out/scenarios.json'], { cwd: root, stdio: ['ignore', fs.openSync(path.join(out, 'scenarios.log'), 'w'), 'inherit'] }); p.on('close', resolve); }),
     ...(slowed ? [(async () => { for (const [i, h] of halves.entries()) await half(h, i); })()] : halves.map(half)),

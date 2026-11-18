@@ -21,7 +21,10 @@ module.exports = {
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
     const path = (p) => new URL(p.url()).pathname.replace(/^\/demo/, '');
     const h1 = (p) => p.locator('main h1').first().innerText().catch(() => '');
-    const dot = (p, sel) => p.locator(sel).evaluate((e) => !!e && e.getClientRects().length > 0 && e.getBoundingClientRect().width >= 5).catch(() => false);
+    // Whether the unread dot shows. evaluateAll reads what is there now: locator.evaluate waited up to its 30 s default for
+    // a dot to appear, so each check that it had gone (twice a size) cost 30 s, three minutes of this check's four and a half.
+    // Where it should show, the page is waited for first; where it should have gone, the page has drawn already.
+    const dot = (p, sel) => p.locator(sel).evaluateAll((es) => es.some((e) => e.getClientRects().length > 0 && e.getBoundingClientRect().width >= 5)).catch(() => false);
 
     for (const [w, h, touch] of SIZES) {
       // ---------- [WHATS-NEW] a fresh browser: the dot and the Home line, then What's new clears them for good ----------
@@ -29,6 +32,7 @@ module.exports = {
         const [c, p] = await open(w, h, 'rhea', '/', touch);
         await p.locator('.home-hero').waitFor();
         const where = w < 761 ? '.tabbar .tabicon .help-dot' : '.side .help-nav .help-dot';
+        await p.locator(where).first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
         fail(await dot(p, where), `[WHATS-NEW] ${w}: no unread dot (${where})`);
         const line = p.locator('.home-news:visible');
         fail(await line.isVisible() && (await line.innerText()).includes(LATEST), `[WHATS-NEW] ${w}: Home has no line “New: ${LATEST}”`);
@@ -58,7 +62,7 @@ module.exports = {
         fail(entries.length > 10 && entries.every((d, i) => !i || d <= entries[i - 1]), `[WHATS-NEW] ${w}: ${entries.length} entries, newest first ${entries.every((d, i) => !i || d <= entries[i - 1])}`);
         await p.waitForTimeout(200);
         fail(!(await dot(p, where)), `[WHATS-NEW] ${w}: the dot is still there on What’s new`);
-        await p.reload(); await p.waitForTimeout(300);
+        await p.reload(); await p.locator('.news h2').first().waitFor(); await p.waitForTimeout(300);
         fail(!(await dot(p, where)), `[WHATS-NEW] ${w}: the dot came back after a reload`);
         await p.goto(url('/')); await p.locator('.home-hero').waitFor();
         fail(!(await p.locator('.home-news').count()), `[WHATS-NEW] ${w}: Home still says what’s new after it was seen`);
