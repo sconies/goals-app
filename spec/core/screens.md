@@ -1827,7 +1827,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Name” | text | always |
+| “Name Give the layout a name first.” | text | always |
 
 **States**
 

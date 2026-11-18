@@ -1,6 +1,7 @@
 /* Data's columns: which a table shows and in what order, their widths (kept in this browser), moving and sizing them
    from the headings, and saving the whole arrangement as a named layout. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { FieldError } from '../ui/GoalFields';
 import { useApp } from '../app/state';
 import { GOAL_DERIVED_COLUMNS } from '../domain/export';
 import type { SavedView } from '../domain/types';
@@ -181,6 +182,8 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
   const app = useApp();
   const mine = views.filter((v) => v.personId === app.viewer.id);
   const [name, setName] = useState(active && active.personId === app.viewer.id ? active.name : '');
+  const [noName, setNoName] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const same = mine.find((v) => v.name.trim().toLowerCase() === name.trim().toLowerCase());
   const save = async () => {
@@ -197,10 +200,13 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
   const bits = [`${n} columns`, set ? `${set} ${set === 1 ? 'width' : 'widths'} set` : '', layout.filters.length ? `${layout.filters.length} ${layout.filters.length === 1 ? 'filter' : 'filters'}` : '', layout.q ? `the search “${layout.q}”` : '', layout.sort ? `sorted by ${layout.sort.col}` : ''].filter(Boolean);
   return (
     <Sheet open onClose={onClose} title={`Save this ${TABLES[tab].label.toLowerCase()} layout`}>
-      <form className="stack save-table-view" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
+      <form className="stack save-table-view" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); if (!name.trim()) { setNoName(true); nameRef.current?.focus(); return; } void save(); }}>
         <span className="hint">Keeps the columns, their order and widths, and the search, filters and sort ({bits.join(', ')}). It opens from Saved layouts, on any computer you use.</span>
         <label className="field"><span className="field-label">Name</span>
-          <input className="input" autoFocus value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="e.g. Owners and gaps" />
+          {/* Pressed with no name: said here and focused (patterns spec 3.3.1), never a disabled button. */}
+          {noName && <FieldError id="layout-name-err">Give the layout a name first.</FieldError>}
+          <input ref={nameRef} className={'input' + (noName ? ' invalid' : '')} autoFocus value={name} maxLength={80} onChange={(e) => { setName(e.target.value); setNoName(false); }} placeholder="e.g. Owners and gaps"
+            aria-invalid={noName || undefined} aria-describedby={noName ? 'layout-name-err' : undefined} />
         </label>
         {same && <span className="hint">You already have a saved layout called “{same.name}”: this saves over it.</span>}
         {mine.length > 0 && (
@@ -214,7 +220,7 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
         )}
         <FormFooter sheet>
           <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn primary" disabled={!name.trim() || busy}>{same ? 'Save over it' : 'Save layout'}</button>
+          <button type="submit" className="btn primary" disabled={busy}>{same ? 'Save over it' : 'Save layout'}</button>
         </FormFooter>
       </form>
     </Sheet>

@@ -3,6 +3,7 @@
    levels (domain/problemLevels): Must fix, then Check, each a word with the warning mark. A Check is a question asked once for
    its group, and one answer covers every row in it (backlog IM2); IM3 rewrites this screen as the preview of the import
    spec, 2.3. */
+import { focusEl } from './FixSummary';
 import { useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import { ReasonWords } from './IssueGroup';
@@ -38,7 +39,14 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
   const total = cs.items.length;
   // Only a missing reason stands in the way: Save stays pressable and says what's missing.
   const onlyReason = !cs.commit && !errors.length && cs.needsReason && total > 0;
-  const save = () => { if (onlyReason) { setTried(true); why.current?.focus(); } else onApply(); };
+  // Never a disabled primary (patterns spec 3.3.1): pressed with something left, the status line turns to what's left
+  // and focus moves to it: the reason, else the first row in error or question.
+  const save = () => {
+    if (cs.commit) { onApply(); return; }
+    setTried(true);
+    if (onlyReason) { why.current?.focus(); return; }
+    requestAnimationFrame(() => focusEl(document.querySelector<HTMLElement>('.change-review .preview-hint')));
+  };
   return (
     <div className="change-review">
       <section className="block">
@@ -119,10 +127,10 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
         </section>
       )}
 
-      {!cs.commit && total > 0 && <p className={'hint preview-hint' + (tried && onlyReason ? ' tone-off' : '')} role="status">{errors.length ? 'Fix the rows above to save.' : checks.length ? `Answer ${checks.length === 1 ? 'the question' : `${checks.length} questions`} above to save.` : cs.needsReason ? (cs.items.every((x) => !x.needsReason || x.kind === 'replaces check-in') ? 'Say why you are correcting it to save.' : 'Say why the plans are changing to save.') : cs.needsConfirm ? 'Confirm the plan changes above to save.' : ''}</p>}
+      {!cs.commit && (total > 0 || tried) && <p className={'hint preview-hint' + (tried ? ' tone-off' : '')} role="status" tabIndex={-1}>{!total ? 'Nothing to save: nothing in this file changes anything.' : errors.length ? 'Fix the rows above to save.' : checks.length ? `Answer ${checks.length === 1 ? 'the question' : `${checks.length} questions`} above to save.` : cs.needsReason ? (cs.items.every((x) => !x.needsReason || x.kind === 'replaces check-in') ? 'Say why you are correcting it to save.' : 'Say why the plans are changing to save.') : cs.needsConfirm ? 'Confirm the plan changes above to save.' : ''}</p>}
       <div className="foot-row import-foot">
         <button type="button" className="btn big-btn preview-again" onClick={onAgain}>{againLabel}</button>
-        <button type="button" className="btn primary big-btn" disabled={(!cs.commit && !onlyReason) || busy} aria-disabled={onlyReason || undefined} onClick={save}>{busy ? 'Saving…' : total ? `Save ${total} ${total === 1 ? 'change' : 'changes'}` : 'Nothing to save'}</button>
+        <button type="button" className="btn primary big-btn" disabled={busy} onClick={save}>{busy ? 'Saving…' : total ? `Save ${total} ${total === 1 ? 'change' : 'changes'}` : 'Nothing to save'}</button>
       </div>
     </div>
   );
