@@ -776,7 +776,7 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, 'Deploy lead time', 'the check step shows the outcome from the file');
   await h.checkpoint('check');
-  await h.click(p.getByRole('button', { name: 'Create Platform Engineering' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Platform Engineering is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no way on after creating');
   await p.goto(url('/'));
@@ -867,7 +867,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await p.getByRole('button', { name: /^(Next: people|Back to Check)$/ }).first().click();
   if (!/\/check/.test(p.url())) await p.goto(live('/workspace/new/check'));
   await p.waitForURL(/\/workspace\/new\/check/);
-  await h.click(p.getByRole('button', { name: 'Create Growth' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Growth is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
   await h.checkpoint('ready');
@@ -970,7 +970,7 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   await h.click(p.getByRole('button', { name: 'Next: goals' }));
   await h.click(p.getByRole('radio', { name: /^Later/ }));
   await h.click(p.getByRole('button', { name: 'Next: check' }));
-  await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await p.waitForURL(/\/ready/);
   const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
   await p.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
@@ -1091,7 +1091,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, '10 min today → 6 min, lower is better', 'Check doesn’t show the start value');
   await see(p, 'Everyone, every goal, on Thursdays', 'Check doesn’t describe the weekly review');
   await h.checkpoint('check');
-  await h.click(p.getByRole('button', { name: 'Create Voss Test Workspace' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Voss Test Workspace is ready');
   await see(p, 'Faro doesn’t send any email', 'Ready doesn’t say the invite is a link to send');
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
@@ -1187,7 +1187,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await h.click(p.getByRole('radio', { name: 'Count them from this week' }));
   h.set('attention', await asked.isVisible(), 'Check doesn’t show the stages it moved');
   await h.checkpoint('check');
-  await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Field Operations is ready');
   await see(p, 'The first check-ins are due before', 'Ready doesn’t say when the first check-ins are due');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
@@ -1269,7 +1269,7 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   const answers = await fix.locator('.import-answer').allInnerTexts();
   h.set('errors', answers.join(' | ') === 'Add Nia Okoro | Give it to someone here', 'the owner nobody typed is answered with: ' + (answers.join(' | ') || 'nothing'));
   // Create waits for the answer, and says why; nothing is saved.
-  await h.click(p.getByRole('button', { name: 'Create Depot Network' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   h.set('one-action', await p.getByRole('alert').filter({ hasText: 'depots.csv' }).isVisible(), 'Create with a question open does not say why it waits');
   if (await p.evaluate(() => localStorage.getItem('goals-live-workspace'))) fail('a workspace was saved before Create Depot Network');
   await h.click(fix.getByRole('radio', { name: 'Add Nia Okoro' }));
@@ -1287,7 +1287,7 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   h.set('attention', await stages.waitFor({ timeout: 5000 }).then(() => true, () => false), 'the stage question is not answered “Count them from this week”');
   await h.checkpoint('answered');
   (await designProblems(p)).forEach((x) => fail('set-up’s preview breaks a design rule: ' + x));
-  await h.click(p.getByRole('button', { name: 'Create Depot Network' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await p.waitForURL(/\/ready/);
   const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
   const s = await h.snapshot(wsId);
@@ -4425,7 +4425,7 @@ journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a wo
   await h.click(p.getByRole('button', { name: 'Next: check' }));
   await see(p, `${left === 1 ? '1 goal has' : `${left} goals have`} no owner yet. You can choose them now, or from Home afterwards.`, 'Check does not say how many goals have no owner');
   h.set('progress', /Grace/.test(firstOwner) && left === 2 && /Step 4 of 4/.test(await p.locator('.steps').innerText()), `a goal’s owner started as “${firstOwner}”, ${left} left with no owner, progress “${await p.locator('.steps').innerText()}”`);
-  await h.click(p.getByRole('button', { name: 'Create Field Operations' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await p.waitForURL(/\/ready/);
   await p.goto(url('/'));
   const block = p.getByRole('region', { name: 'Getting started' }).or(p.locator('section.getting-started'));

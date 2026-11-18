@@ -19,7 +19,7 @@ describe('the form footer and its one exit', () => {
     expect(checkInNext('account', { why: true, reason: 'behind', milestone: true })).toBe('Next: why it’s late');
     expect(checkInNext('account', { why: false, milestone: false })).toBe('Next: what changes');
     expect(checkInNext('carry', { why: true, milestone: false })).toBe('Next: what you said last time');
-    expect(checkInNext(null, { why: false, milestone: false })).toBe('Next');
+    expect(checkInNext(null, { why: false, milestone: false })).toBe('Next: the rest of the check-in');
   });
   it('the last step says what posting does', () => {
     expect(checkInPostSays(46, 3)).toBe('Goes on record for week 46. The 3 people watching see it on Home.');

@@ -482,7 +482,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: rowsOf.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const wsName = d.name.trim() || 'workspace';
-  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? `Create ${wsName}` : nextLabel(SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase());
+  const label = busy ? 'Creating…' : fromCheck ? 'Back to Check' : step === 'check' ? 'Create workspace' : nextLabel(SETUP_STEP_NAMES[SETUP_STEPS[idx + 1]!].toLowerCase());
   // Set up from inside a workspace, you are one line until you change it (2.3).
   const known = !!viewer && !meOpen && !meErr.name && !meErr.email && !meErr.team;
   const fileGoals = d.fileTables?.goals?.length ?? 0;

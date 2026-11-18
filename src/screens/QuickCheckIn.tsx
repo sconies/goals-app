@@ -173,7 +173,7 @@ export function QuickCheckIn() {
       {/* A form: one way out, top right, in words (navigation spec 2.5). The numbers typed are kept as a draft. */}
       <div className="focus-top quick-top">
         <span className="small strong">Week {app.week} check-in</span>
-        <FormClose keeps dirty={Object.values(rows).some((r) => r.value.trim())} onClose={() => nav('/check-in')} />
+        <FormClose keeps dirty={Object.values(rows).some((r) => r.value.trim() || r.why.trim() || r.path.trim() || r.cause)} onClose={() => nav('/check-in')} />
       </div>
       <div className="page-head">
         <h1 className="title-xl">Type all your numbers in one table</h1>

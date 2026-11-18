@@ -23,7 +23,8 @@ export const nextLabel = (step: string): string => `Next: ${step}`;
 export function checkInNext(next: 'carry' | 'account' | null, account: { why: boolean; reason?: 'ahead' | 'behind' | null; milestone: boolean }): string {
   if (next === 'carry') return nextLabel('what you said last time');
   if (next === 'account') return nextLabel(!account.why ? 'what changes' : account.reason === 'ahead' ? 'why it’s ahead' : account.milestone ? 'why it’s late' : 'why it’s behind');
-  return 'Next';
+  // Before the number says which question comes next: never a bare "Next" (review of #593).
+  return nextLabel('the rest of the check-in');
 }
 
 /** The check-in's status line on its last step: on record for the week, and who sees it. */

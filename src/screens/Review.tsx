@@ -424,7 +424,7 @@ export function ReviewEdit() {
             keep={(id) => !!existing && id === existing.createdBy && app.viewer.id !== existing.createdBy && !app.viewer.admin} />
         </section>
         <FormFooter statusTone={tried && !ok ? 'off' : undefined}
-          status={tried && !ok ? <span role="alert">{problem}</span> : `${goalsN(covered.length)}, ${r.people.length === 1 ? '1 person' : `${r.people.length} people`}.`}>
+          status={tried && !ok ? problem : `${goalsN(covered.length)}, ${r.people.length === 1 ? '1 person' : `${r.people.length} people`}.`}>
           <button className="btn primary big-btn" type="submit" disabled={busy}>{existing ? 'Save review' : 'Create review'}</button>
         </FormFooter>
       </form>

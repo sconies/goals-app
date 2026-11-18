@@ -73,7 +73,7 @@ Records go through the goals store; a few small things a person chose or was doi
 | `src/ui/Splash.tsx` | That the opening splash has been shown (this tab) | This browser |
 | `src/ui/WorkspaceSwitch.tsx` | Nothing of its own: looks for unsent drafts before switching | Server, with the drafts |
 
-79 uses in 25 files. The time is a port too: every record’s stamp comes from the `Clock` the app is given (`src/app/state.tsx`), never the browser’s own; the server never trusts a client’s now.
+78 uses in 25 files. The time is a port too: every record’s stamp comes from the `Clock` the app is given (`src/app/state.tsx`), never the browser’s own; the server never trusts a client’s now.
 
 ## Exit criteria
 

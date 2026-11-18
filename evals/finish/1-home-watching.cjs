@@ -98,8 +98,8 @@ module.exports = {
         await q.waitForSelector('.home-watch .tree .grow-why', { timeout: 10000 });
         const why = await q.$eval('.home-watch .tree .grow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
         check(why.clamp === '2' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
-        // GOAL-ROW: a row's title keeps the reason's own words, even when the owner's name goes first ("Yasmin El-Amin.
-        // Blocked on …"): the title is the reason without the name, and the line on screen ends with it, word for word.
+        // GOAL-ROW: a row’s title keeps the reason’s own words, even when the owner’s name goes first (“Yasmin El-Amin.
+        // Blocked on …”): the title is the reason without the name, and the line on screen ends with it, word for word.
         const titles = await q.$$eval('.page.home .grow-why[title]', (els) => els.map((e) => ({ text: (e.textContent || '').replace(/\s+/g, ' ').trim(), title: (e.getAttribute('title') || '').replace(/\s+/g, ' ').trim() })));
         const lost = titles.filter((t) => !t.title || !t.text.endsWith(t.title));
         check(!lost.length, `[Home] 1: at ${w} a reason’s title lost its own words (“${lost[0]?.title}” for “${lost[0]?.text}”)`);
