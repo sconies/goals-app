@@ -1,6 +1,6 @@
 # Faro
 
-Faro is an internal goals (OKR) tool for people who own and lead goals, built from the prototype and the build spec. A faro is a lighthouse: the logo's F is a dark stem with an amber beam and a teal bar (`src/ui/Brand.tsx`, `public/favicon.svg`). The repository and package keep the name `goals-app`.
+Faro is a goals (OKR) tool built as a model for an internal team to copy. The live demo, https://goals-app-puce-five.vercel.app/demo, needs no sign-in. The spec and the rebuild kit are in `spec/`, `llms.txt` and `spec/rebuild/`; a team porting it starts at [docs/handoff.md](docs/handoff.md). A faro is a lighthouse: the logo's F is a dark stem with an amber beam and a teal bar (`src/ui/Brand.tsx`, `public/favicon.svg`). The repository and package keep the name `goals-app`.
 
 **People, roles and the demo.**
 
