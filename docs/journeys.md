@@ -1,3 +1,5 @@
+> **Superseded.** This page describes the early model of four profiles and a "Viewing as" bar, which the app no longer has: everyone is a person in a workspace, and what they see comes from what they own, lead, watch or are asked about. The current journeys are in [spec/core/journeys.md](../spec/core/journeys.md), generated from the evals. Kept for its ease-test reasoning.
+
 # User journeys
 
 Four profiles use the tool. Each has its own home and its own next thing to do:
