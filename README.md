@@ -1,11 +1,11 @@
 # Faro
 
-Faro is an internal goals (OKR) tool for team leads, built slice by slice from the prototype and the build spec. A faro is a lighthouse: the logo's F is a dark stem with an amber beam and a teal bar (`src/ui/Brand.tsx`, `public/favicon.svg`). The repository and package keep the name `goals-app`.
+Faro is a goals (OKR) tool built as a model for an internal team to copy. The live demo, https://goals-app-puce-five.vercel.app/demo, needs no sign-in. The spec and the rebuild kit are in `spec/`, `llms.txt` and `spec/rebuild/`; a team porting it starts at [docs/handoff.md](docs/handoff.md). A faro is a lighthouse: the logo's F is a dark stem with an amber beam and a teal bar (`src/ui/Brand.tsx`, `public/favicon.svg`). The repository and package keep the name `goals-app`.
 
-**Slice 2: profiles, journeys and the change log.**
+**People, roles and the demo.**
 
-- **Four profiles:** team lead, sponsor, goals coach and contributor. Each has its own home and its own next thing to do.
-- **Ten user journeys:** the top five score 10/10 on the ease test, on both phone and desktop. See [docs/journeys.md](docs/journeys.md).
+- **Everyone is a person in a workspace.** Some people are admins (they add people, teams and features and sort out the workspace); everyone else is a member. There are no fixed profiles. What a person sees comes from what they own, lead, watch or are asked about, and from who runs a review: Home leads with their own check-ins, then what needs them, then their team and the goals they watch.
+- **User journeys:** the core journeys score 10/10 on the ease test, on both phone and desktop. They are generated from the evals in [spec/core/journeys.md](spec/core/journeys.md).
 - **Change log:** every save (goal, plan, check-in, note, decision, workspace) records who, when, and each field's before and after. Drafts are kept as you type but never logged.
 - **The habit (core, no switch):** the on-time run, which forgives one late or missed week after four on time; the check-in's receipt; a target reached or back on track, said once. The rules are in `src/domain/progress.ts` and `habit.ts`; `get_my_work` and `post_check_in` give the same words.
 - **Guardrails (core, no switch):** a goal can name up to five goals kept in a range that guard it; a guard past its limit makes it at risk, two weeks running off track, and the check-in and the goal's page say which guard and by how much (`src/domain/guards.ts`).
@@ -18,14 +18,14 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-Pick a role in the **Viewing as** bar at the top; each role opens its own home. Use the name beside it, or the avatar, to pick a specific person. Good places to start:
+Open the demo at `/demo` (http://localhost:5173/demo, or https://goals-app-puce-five.vercel.app/demo). It needs no sign-in. Open **Demo** (the sidebar on a computer, the header on a phone) and choose a person under **See it as**; anyone else is found by name, job title or team under **Everyone else**. The same panel has walkthroughs (**Show me how**), **Start over**, **Present without the controls** and **Leave the demo**. Good places to start:
 
-- **Maya Chen** (team lead): owns the headline goal, with a check-in due.
-- **Elena Ruiz** (sponsor): has a review queue waiting.
-- **Priya Nair** (goals coach): can load your own data.
-- **Tom Reid** (contributor): follows his team's goals.
+- **Grace Achterberg** (admin): sets up and looks after the workspace, with its people, teams and features.
+- **Amara Nwosu** (leader, the division's VP): sees what needs a leader, from the north stars down.
+- **Rhea Kapoor** (owner): runs CI/CD and owns the lead time north star, with a check-in due.
+- **Oskar** (member): watches goals and follows what others do; the view of someone who is not an admin.
 
-**Workspace → Reset the example** starts the example again.
+**Demo → Start over** (admins only) starts the example again.
 
 Add `?today=2026-10-30` to the URL to pin the clock.
 
@@ -62,8 +62,8 @@ The scenarios were checked against deliberately broken rules (a different on-tra
 ```
 src/domain/     the rules: plans, status, check-ins, attention, review, change log, progress, import, one goal row for every list (`goalRow.ts`), one form footer (`formFooter.ts`) and one page header (`pageHeader.ts`) (pure, tested)
 src/data/       demo data, the store contract, the browser and Supabase stores
-src/app/        app state (workspaces, profiles, saves that log) and drafts
-src/screens/    Home (per profile), Check-in, Review, Goals, Goal page, Goal setup, Activity, Workspace
+src/app/        app state (workspaces, people, saves that log) and drafts
+src/screens/    Home, Check-in, Review, Goals, Goal page, Goal setup, Activity, Workspace
 src/modules/    feature modules, one folder each: Spreadsheets (Excel and CSV export, and import with every change shown first), the Metric library (each number goals are measured by, defined once, with where it sits under another metric, a confidence and how it could be gamed; Draft, Defined or Verified, from its structured definition and a verification by someone other than its owner, with baselines per team, shown wherever the number is used, a review agenda included, and a verifier's Home saying how many are theirs to verify; adding one shows any similar metric first; a goal checks in monthly or quarterly when its metric refreshes that often, and a leaver's metrics go to their lead to confirm; its Metrics sheet loads back through the import, so a whole register goes in in one step) Reviews (walking a set of goals together on a cadence; its screens and rules are still in the core until FT3), and five more switches whose screens are still the core's: Watching (following goals you don't own), AI access (letting Claude or another AI tool act here through MCP, as one person; its tokens are made under Workspace → AI access), the Wrap-up (how each goal landed at the year's end), the Goal map (Goals' map layout) and Feedback (sending feedback and the builders' inbox); and Fields (a workspace's own fields on goals, such as a stage: Workspace → Fields, a Fields block on each goal's page, a filter per list field on Goals and in saved views (`?f.<field id>=Build`), a column per field on Data and every Goals sheet, which loads back and asks once about a value a list doesn't hold, and its AI tools, find_goals' `fields` among them)
 src/ui/         shell, status chips (shape + word), progress ring, charts
 docs/           the user journeys and the ease test
