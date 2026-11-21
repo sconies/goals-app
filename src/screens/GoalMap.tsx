@@ -54,7 +54,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
       )}
       {/* A parent shows the worst status of everything under it, as a shape and its words (the List's roll-up). */}
       {under && <span className={'map-under tone-' + under.worst} title={`${FEEDER_SCOPE.tree} (${under.total})`}><StatusShape k={under.worst} /><span>Under it: {under.text}</span></span>}
-      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${!isEveryday(null, goal.level) ? ` · ${levelName(null, goal.level)}` : ''}`}</span>
+      <span className="map-meta">{critical && !context && <><span className="map-critical">Critical path</span> · </>}{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${!isEveryday(null, goal.level) ? ` · ${levelName(null, goal.level)}` : ''}`}</span>
       {children > 0 && (
         <button type="button" className="map-toggle nodrag" aria-expanded={hidden === 0} aria-label={hidden ? `Show the ${hidden} ${hidden === 1 ? 'goal' : 'goals'} feeding ${goal.title}` : `Hide the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
           {hidden ? <><Icon name="plus" size={12} />{hidden}</> : <Icon name="minus" size={12} />}
@@ -436,7 +436,7 @@ function MapPanel({ goal, onClose, critical, focus, height, coached, sheet }: { 
       <h2 className="block-title" ref={title} tabIndex={-1}>{goal.title}</h2>
       <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
       <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>
-      {critical && <span className="small tone-off strong">On the critical path</span>}
+      {critical && <span className="small strong">On the critical path</span>}
       <span className="small">{s.story.where}</span>
       <StoryLines s={s} />
       {feeds.length > 0 && <span className="hint">{feeds.length} {feeds.length === 1 ? 'goal feeds' : 'goals feed'} it.</span>}

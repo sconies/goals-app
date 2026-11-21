@@ -2,7 +2,7 @@
    (the metric library's), opened by the sidebar's Find, the phone's Find button, or Ctrl K (Cmd K on a Mac). It asks the
    Search port (rule 8, findAll) and never filters the workspace itself. A sheet in the middle on a computer, the whole
    screen on a phone. Rows are links; Enter opens the first, or the one the arrow keys reached; Escape closes. */
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router';
 import { recentsOf, remember, usePrefs, useSearch } from '../app/search';
@@ -40,6 +40,15 @@ export function Find({ onClose, inline = false }: { onClose: () => void; inline?
   const finders = useMemo(() => Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f])), [screens]);
   const kindOf = (kind: string) => CORE[kind] ?? (finders[kind] ? { ...finders[kind].things, group: cap(finders[kind].things.things), open: finders[kind].open, all: `/${finders[kind].things.things}?q=` } : null);
   const id = useId();
+  // Closing gives focus back to whatever had it when Find opened (its button, or where Ctrl K was pressed), as the Demo
+  // panel does, unless choosing a result has already moved it on (WCAG 2.4.3; design review A1).
+  const opener = useRef<Element | null>(typeof document === 'undefined' ? null : document.activeElement);
+  useLayoutEffect(() => () => {
+    const el = opener.current;
+    if (inline || !(el instanceof HTMLElement) || el === document.body) return;
+    const lost = () => !document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected;
+    requestAnimationFrame(() => { if (el.isConnected && lost()) el.focus(); });
+  }, [inline]);
   const [q, setQ] = useState('');
   const [groups, setGroups] = useState<FoundGroup[] | null>(null);
   const [failed, setFailed] = useState(false);

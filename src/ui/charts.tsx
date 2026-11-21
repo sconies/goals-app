@@ -211,10 +211,14 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
   const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}, ${up ? 'higher' : 'lower'} is better`;
   // The trend if nothing changes. On a share it stops where it would reach 100% (or 0%); a stub too short to read is left out.
   // The range: a band widening from the latest number to the low and high ends at the due week.
+  // In neutral ink with its two edges drawn, and named at its end ("likely 9–11"), so it reads as "somewhere in here",
+  // never as a status: status colours mean a status (design review H2).
   const band = (() => {
     if (!last || !projection || Math.abs(projection.high - projection.low) < 1e-9) return null;
-    const end = projection.week;
-    return line([[X(last.week), Y(last.value)], [X(end), Y(clampV(projection.high))], [X(end), Y(clampV(projection.low))]]);
+    const end = projection.week, a: [number, number] = [X(last.week), Y(last.value)];
+    const hiPt: [number, number] = [X(end), Y(clampV(projection.high))], loPt: [number, number] = [X(end), Y(clampV(projection.low))];
+    const [l, h] = [fixed(clampV(Math.min(projection.low, projection.high)), goal.decimals ?? 0), fixed(clampV(Math.max(projection.low, projection.high)), goal.decimals ?? 0)];
+    return { points: line([a, hiPt, loPt]), edges: [line([a, hiPt]), line([a, loPt])], text: l === h ? `likely ${l}` : `likely ${l}–${h}`, x: hiPt[0], top: Math.min(hiPt[1], loPt[1]) };
   })();
   const sc = useScrub(weeks, x0, (px) => x0 + ((px - f.padL) * (weeks - x0)) / (W - f.padL - f.padR), scrub, week);
   const atPoint = sc.at != null ? allSeries.find((p) => p.week === sc.at) : undefined;
@@ -248,7 +252,9 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
         <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(plan.target)} y2={Y(plan.target)} />
         {originalPlan && <polyline className="c-orig" points={line(planPts(originalPlan))} />}
         <polyline className="c-plan" points={line(planPts(plan))} />
-        {band && <polygon className="c-band" points={band} />}
+        {band && <polygon className="c-band" points={band.points} />}
+        {band && band.edges.map((e, i) => <polyline key={i} className="c-band-edge" points={e} />)}
+        {band && !marks?.end && <text className="c-note c-band-label" x={band.x - 4} y={Math.max(f.padT + 8, band.top - 6)} textAnchor="end">{band.text}</text>}
         {fc && <polyline className="c-fc" points={line(fc)} />}
         {last && ptg && (
           <>
@@ -262,7 +268,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
         {/* With the end marked, the target's label moves to the left, clear of the brackets at the right. */}
         <TargetLabel f={f} y={Y(plan.target)} left={plan.target < plan.start || !!marks?.end}>Target {fmt(plan.target, goal)}</TargetLabel>
         <Better up={up} x={f.padL} />
-        {marks && last && <Marks marks={marks} f={f} X={X} Y={Y} clampV={clampV} target={{ y: Y(plan.target), left: plan.target < plan.start || !!marks.end, text: `Target ${fmt(plan.target, goal)}` }} />}
+        {marks && last && <Marks marks={band && marks.end ? { ...marks, end: { ...marks.end, likelyText: band.text } } : marks} f={f} X={X} Y={Y} clampV={clampV} target={{ y: Y(plan.target), left: plan.target < plan.start || !!marks.end, text: `Target ${fmt(plan.target, goal)}` }} />}
         {sc.at != null && (
           <g className="c-scrub" aria-hidden="true">
             <line x1={X(sc.at)} x2={X(sc.at)} y1={f.padT - 6} y2={H - f.padB} />

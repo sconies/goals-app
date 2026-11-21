@@ -1039,7 +1039,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Set up a review” | link | always |
 | “Set up the first review” | primary | `!sessions.length` |
 | “All reviews” | link | always |
-| “Continue review · … left / Start review · …” | primary | `inIt` and `!done` and `first` |
+| “Continue review · … left… / Start review · …” | primary | `inIt` and `!done` and `first` |
 | “Finish review” | primary | `inIt` and `!done` and `!first` and `healthyLeft.length > 0` |
 | “Edit review setup” | link | `canChange` |
 | “Print or save as PDF” | link | always |

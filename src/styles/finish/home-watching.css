@@ -105,8 +105,9 @@
   .home-hero > .ring svg { width: 100%; height: 100%; }
   .home-hero > .ring circle { stroke-width: 8; }
   .home-hero > .ring .ring-text { font-size: 0.6875rem; letter-spacing: -0.02em; }
-  /* The phone's 40px ring sits beside the title that says what it counts ("2 check-ins to do"): no room for the word. */
-  .home-hero > .ring .ring-counts { display: none; }
+  /* The phone's 40px ring keeps its word, under it (design review H1: a bare "0/17" said nothing). */
+  .home-hero > .ring .ring-counts { font-size: 0.6875rem; }
+  .home-hero > .ring:has(> .ring-counts) { margin-bottom: 1rem; }
   .home-hero > .ring .ring-text svg { width: 14px; height: 14px; }
   .home-hero .hero-body > .row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
   .home-hero .hero-body > .row > .btn { width: 100%; min-height: 44px; justify-content: center; }
@@ -254,8 +255,9 @@
 .home-news-foot { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
 @media (pointer: coarse) { .home-counts .dash-count { min-height: 44px; } }
 /* The warning mark in the lead's eyebrow ("Not held yet", a late ask): the eyebrow's own size, never the SVG's default. */
-.home-hero .eyebrow { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.home-hero .eyebrow > svg { flex: none; width: 14px; height: 14px; }
+.home-hero .eyebrow { display: block; }
+/* The mark flows with its words, so a wrapped eyebrow never leaves it alone on a line (design review H5). */
+.home-hero .eyebrow > svg { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; }
 
 /* HM3 (docs/design/home/spec.md rule 4): Your team, and a set drawn as teams, worst first. Hairline-divided rows, status
    as shape and word, no names of people; on a phone each team is a stacked row. */

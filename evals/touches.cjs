@@ -57,6 +57,8 @@ const RULES = [
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalFilters|GoalHistory)\.tsx|^src\/ui\/HealthLine\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6', 'N10']],
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
+  // The design review's highs (21 Nov, DR1–DR5, DR10): its check, and the screens and parts it looks at.
+  [/^evals\/finish\/26-design-review\.cjs$|^src\/screens\/(Home|Review|GoalMap)\.tsx$|^src\/domain\/home\.ts$|^src\/ui\/(charts|Find)\.tsx$/, ['F26']],
   [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1', 'N25']],
   [/^src\/screens\/Inspect\.tsx|^evals\/notes\/13-review-speak\.cjs$/, ['N25']],
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.

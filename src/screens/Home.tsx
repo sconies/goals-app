@@ -237,7 +237,7 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
  * (HM7). A review cell is left out when the lead is about that review, and the row is absent when there is nothing:
  * Home never says "None you’re in". Your goals' counts are in "Your goals", once.
  */
-function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) {
+function ThisWeek({ d, leadAbout, leadLate }: { d: Dashboard; leadAbout: string | null; leadLate: boolean }) {
   const missed = d.missed.filter((m) => m.id !== leadAbout);
   // The first review not already in the lead or missed: with two on one day, the lead takes one and the cell the other.
   const left = d.upcoming.filter((r) => r.id !== leadAbout && !d.missed.some((m) => m.id === r.id));
@@ -252,7 +252,8 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
         // A session past its date and not held comes first: the next one mustn't hide it (re-review, 8 Nov, backlog T).
         <Link className="dash-cell dash-review dash-missed" to={`/reviews/${missed[0].id}`}>
           {/* On a phone a lone cell puts label and name on one line: the short label leaves the name its room (Lane, 13 Nov). */}
-          <span className="dash-label"><WarnMark /><span className="dash-label-long">Not held yet · {dayText(missed[0].date)}{missed.length > 1 ? ` · ${missed.length} reviews` : ''}</span><span className="dash-label-short">Not held yet</span></span>
+          {/* With the lead already about a late review, this one is "Also late", so Home says "Not held yet" once (design review H5). */}
+          <span className="dash-label"><WarnMark /><span className="dash-label-long">{leadLate ? 'Also late' : 'Not held yet'} · {dayText(missed[0].date)}{missed.length > 1 ? ` · ${missed.length} reviews` : ''}</span><span className="dash-label-short">{leadLate ? 'Also late' : 'Not held yet'}</span></span>
           <span className="dash-value" title={`${missed[0].name}, ${dayText(missed[0].date)}, ${pastText(missed[0].daysPast)}`}>{missed[0].name}</span>
           <span className="dash-sub">{pastText(missed[0].daysPast)}</span>
         </Link>
@@ -355,7 +356,7 @@ export function Home() {
     <div className="page home" data-part="Home">
       <PageHeader title={`${greeting(app.today)}, ${first}`} line={<span className="muted small home-where">{app.ws.name} · {placeLine(app.cycle, app.today)}</span>} />
       <GettingStarted />
-      <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
+      <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} leadLate={plan.lead?.kind === 'review' && plan.lead.warn} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
         <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} />{/* Changed since (part 8, rule 5), loaded with the sets after the first download; it also keeps the day Home was last opened (`home-seen`). */}<Suspense fallback={null}><HomeSet set="changed" /></Suspense><WorkspaceLine /></aside>

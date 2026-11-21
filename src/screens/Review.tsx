@@ -243,7 +243,7 @@ export function ReviewHome() {
           <h1 className="title-xl">{review.name}</h1>
           <span className="muted review-line">{line}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
-            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
+            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{/* The button names what it counts beside the ring's whole review (design review H1): "to discuss" when the walk is the flagged goals. */}{s.done ? `Continue review · ${goalsN(remaining.length)} left${walk.length < s.total ? ' to discuss' : ''}` : `Start review · ${goalsN(walk.length)}${walk.length < s.total ? ' to discuss' : ''}`}</button>}
             {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => setConfirming('finish')}>Finish review</button>}
             {!inIt && <p className="hint review-join">{joinLine(review, (id) => app.person(id)?.name ?? null)}</p>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}

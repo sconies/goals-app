@@ -28,6 +28,7 @@ This app must not look like a default AI-generated interface. These rules are en
 - **Results** (Completed, Completed late, Did not meet) are words in the status colour, set in small capitals, with no capsule.
 
 - **A status is not a control.** It takes no clicks and looks like none: no hover, no pointer, no hidden handler (deep dive, 15 Nov: the goal page's status once hid an Easter egg, so it seemed to do nothing). Where a status should lead somewhere, the link is its own words beside it.
+- **Status colours mean a status, and only that** (design review, 21 Nov). What isn't a status is in ink: a chart's projection and its range, a goal's outline on the map's critical path (its red is on the edges, and the node says Critical path). Every status mark is at least 3:1 against the surface and off track's wash, in both themes (checked by P6).
 - **Status shapes mean a status, and only that.** A flag that isn't a status (a worsening trend, a missed date, no recovery plan) uses the warning mark. Every shape on screen has its status word beside it, checked by P3 and P4.
 
 ## Every screen size
