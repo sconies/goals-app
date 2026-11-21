@@ -1,5 +1,7 @@
 # Build reviewer handover
 
+**21 Nov: a fresh reviewer has started** for the design-review fix track. Main is `da24b119` (#600, the design review, docs only). One build track fixes the highs in `docs/reviews/2026-11-design-review.md`: H1 (ring label and count), H2 (projection range and red line), H3 (risk and stale marks under 3:1, plus a P6 check), H4 (the map's red critical-path outline), H5 (Home's two late reviews; name the review in the button), A1 (closing Find loses focus). Planning will send the build session's ID. Highs and mediums go to the build session; lows stay here; one report to planning when the track is done.
+
 The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` branch. Read its sections from "The reviewer of 18 November, afternoon" on.
 
 **18 Nov, about 21:45 UTC: reviewer session_012kbr8zrx4banyBEWNKXLZj stopped.** Its context was 223k, and UX4 had no ready time (CLAUDE.md's prompt-cache habit).
