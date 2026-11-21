@@ -9,6 +9,7 @@ Review only: no code was changed. Faro's own rules come first (`docs/design-rule
 1. **Design critique** (hierarchy, consistency, usability, screen by screen). The `design:design-critique` skill isn't installed in this session (the Skill tool answered "Unknown skill"), so this pass followed that skill's usual checklist by hand.
 2. **Charts**, with the `dataviz` skill. Its colour validator was run on Faro's own tokens (`src/styles.css`); its palette was not used.
 3. **Copy.** The `design:ux-copy` skill isn't installed either, so this pass checked button labels, empty states, flags, asks and refusals by hand against plain British English and `spec/core/vocabulary.md`. To do that, the text and button labels of every screen were taken from the page.
+4. **Accessibility** (added by Lane, 21 Nov). The `design:accessibility-review` skill isn't installed either, so this pass was done by hand with Playwright, on the same screens and people at desktop and phone. Faro's evals already run axe-core and contrast checks, so it looked at what those miss: keyboard order and focus, screen-reader names and announcements, touch targets, meaning carried by colour alone, motion, and zoom to 200%. A WCAG 2.1 AA failure ranks high.
 
 **Ranking.** High: it breaks one of Faro's own rules or misleads someone reading a number. Medium: it slows people down or is inconsistent across screens. Low: polish. Value and effort use the backlog's scale (S under a day, M a release, L more than one).
 
@@ -180,6 +181,51 @@ Review only: no code was changed. Faro's own rules come first (`docs/design-rule
 - **Verbs:** see M5 (Respond, Answer … request), L1 ("Done?") and L2 ("Defined").
 - **Asks and flags:** the asks quote the asker's own words and say who asked, where and when ("Daniel asked in Developer Productivity fortnightly on 20 Oct"). That is a pattern worth keeping.
 - **Refusals:** none were met on these screens as these people. (The module-off sentences are covered by the core journeys and weren't re-checked here.)
+
+---
+
+## Accessibility (by hand; the accessibility-review skill wasn't installed)
+
+How it was checked: tabbing through Home (Amara), a goal's page and the check-in (Rhea), up to 40 stops each, with each focused element's name and focus ring recorded; the Demo panel and Find opened and closed from the keyboard; the accessibility tree of Home and a goal's page; an empty check-in submitted; every control measured on eight phone screens; the pages at 720×450 CSS pixels (1440×900 at 200% zoom) and with reduced motion.
+
+### High
+
+**A1. Closing Find loses keyboard focus**
+- **Screen, person:** Every screen (Rhea), desktop. The same shell is used on a phone.
+- **Seen:** Open Find from its button (or with Ctrl K), then press Escape. Focus lands on the page's `body`, not on the Find button. A keyboard or screen-reader user is sent back to the top of the page and has to tab through the sidebar again. The Demo panel gets this right: Escape returns focus to the DEMO button.
+- **Why it matters:** This happens every time someone uses Find, which is the shell's main way to get around.
+- **Rule:** WCAG 2.1 2.4.3 Focus Order (level A, so also an AA failure).
+- **Fix:** When Find closes, return focus to whatever had it before it opened, as the Demo panel does.
+- **Value / effort:** H / S.
+
+### Medium
+
+**A2. Find's input shows no focus ring.** When Find opens, its input has focus, but there's no ring or border change, only the caret (outline none, no box-shadow). Every other input shows Faro's teal focus ring, the check-in's included. *Rule:* WCAG 2.4.7 Focus Visible. In a dialog with one field the caret is arguably enough, so this is ranked medium rather than high. *Fix:* use the same focus ring as other inputs. S.
+
+**A3. Some touch targets on a phone are under 44px** (Faro's rule: "on touch screens, every control is at least 44px to hit"). This is not a WCAG 2.1 AA failure: target size is AAA in 2.1. The measurements:
+- the workspace button in the phone's top bar, 108×24, on every screen;
+- the map's "+3" buttons ("Show the 3 goals feeding …"), 38×24;
+- the map's "Critical path" key, 110×26;
+- on the check-in, the goal titles in the list are links only 22px tall.
+
+The Features switches are fine: their labels give a 358×127 target. *Fix:* pad these to 44px. Add the phone top bar, the map and the check-in list to the design check's touch-size scan (it missed these). S.
+
+### Low
+
+**A4. A status word without its shape.** On a check-in step, the line under the goal's title says "No check-in yet" with no shape. *Rule:* status is a shape plus a word, always together. *Fix:* add the `StatusShape`. S.
+
+**Already decided:** the goal rows' whole-row links read out everything in the row as one long name ("Off track 38 hours 9 hours behind plan Lead time for changes North star Waiting on …"). This is already in the backlog as UX2a's leftover, "a whole-row link's accessible name".
+
+### What works for accessibility
+
+- There is a skip link, and the sidebar's tab order is sensible.
+- **The Demo panel** is a named modal. Focus moves into it, and Escape returns focus to the DEMO button.
+- **The rings and charts are named in words.** The ring is read as "6 of 7 check-ins done this week". The chart is read as "Pipeline queue wait (p90): latest 8 min in week 44, plan for week 44 5 min, target 3 min, lower is better", and it can be stepped through week by week with the arrow keys, with a polite live readout.
+- **The status counts are links named in full:** "2 off track: show them".
+- **Check-in errors** are announced (`role="alert"`, "Must fix · Type this week's number."). The field gets `aria-invalid` and `aria-describedby` pointing to the error and the hint, and focus moves to the field.
+- **Motion:** every animation and transition is turned off under reduced motion.
+- **Zoom to 200%:** pages switch to the phone layout with no sideways scrolling. The sticky bars take 140px of a 450px-high window.
+- **Colour alone:** no meaning was found that rests on colour alone. Status is always a shape plus a word. On the chart, the plan, actual and target lines differ in form. The map's critical-path edges are also thicker. (H4 is about colour carrying the wrong meaning, which is a different problem.)
 
 ---
 

@@ -54,7 +54,7 @@ Added 18 Nov: one line for each item not yet built, with its state. The full tex
 | DR7 | Status on the chart: a caption row with the status shape and word above the plot; the plan labelled where it ends (review M2, M3) | S | Proposed, not approved (design review, 21 Nov) |
 | DR8 | One verb for each kind of ask everywhere (Answer a question; Decide or help), and "Mark done" for "Done?" (review M5, L1) | S | Proposed, not approved (design review, 21 Nov) |
 | DR9 | Phone: ask cards and map nodes wrap instead of cutting the key words off; the top bar names the workspace (review M6) | S | Proposed, not approved (design review, 21 Nov) |
-| DR10 | The map's controls: Sort hidden on the map, Group and Troubled trees folded into Views, Readable first on a phone (review M7) | S–M | Proposed, not approved (design review, 21 Nov) |
+| DR10 | Find gives focus back to what opened it when it closes (WCAG 2.4.3), and its input shows the focus ring (design review A1, A2) | S | Proposed, not approved (design review, 21 Nov) |
 
 ## Bugs found by the drill (15 Nov)
 
