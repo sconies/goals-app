@@ -45,6 +45,16 @@ Added 18 Nov: one line for each item not yet built, with its state. The full tex
 | Rebuild follow-ups | A shared row-check function, a browser–server API shape, a schema file per module, scoped files, a guard test per module | M | deferred (planning, 15 Nov) |
 | Ideas | Team streaks with a grace week; positive-only spotlights; a quarter story from the wrap-up | S–M each | idea |
 | R1–R4 | Release 4a sign-in and access, company single sign-on, time zones, release 4b scale | n/a | spec only (written in 8r) |
+| DR1 | The progress ring: its word under or beside the ring, not spilling out of it; its count matches the headline and the button (review H1; U16) | S | Proposed, not approved (design review, 21 Nov) |
+| DR2 | The chart's projection: the range in neutral ink with edges and a "likely 9–11" label; the projection line neutral, not always off-track red (review H2) | S | Proposed, not approved (design review, 21 Nov) |
+| DR3 | Light-mode marks for at risk and no recent update to 3:1 on white (now 2.33 and 1.85), with a contrast check for marks in P6 (review H3) | S | Proposed, not approved (design review, 21 Nov) |
+| DR4 | The map's critical path: shown on the edges and as words on the node, not as an off-track red outline (review H4, L8) | S–M | Proposed, not approved (design review, 21 Nov) |
+| DR5 | Amara's Home: the hero's button names its review; the strip doesn't repeat a second "Not held yet" (review H5) | S | Proposed, not approved (design review, 21 Nov) |
+| DR6 | The limit chart: values on its axis, a key, the projection note only when drawn, the limit label clear of the line (review M1) | S | Proposed, not approved (design review, 21 Nov) |
+| DR7 | Status on the chart: a caption row with the status shape and word above the plot; the plan labelled where it ends (review M2, M3) | S | Proposed, not approved (design review, 21 Nov) |
+| DR8 | One verb for each kind of ask everywhere (Answer a question; Decide or help), and "Mark done" for "Done?" (review M5, L1) | S | Proposed, not approved (design review, 21 Nov) |
+| DR9 | Phone: ask cards and map nodes wrap instead of cutting the key words off; the top bar names the workspace (review M6) | S | Proposed, not approved (design review, 21 Nov) |
+| DR10 | The map's controls: Sort hidden on the map, Group and Troubled trees folded into Views, Readable first on a phone (review M7) | S–M | Proposed, not approved (design review, 21 Nov) |
 
 ## Bugs found by the drill (15 Nov)
 
