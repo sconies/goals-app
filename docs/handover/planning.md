@@ -1,68 +1,68 @@
-# Planning: handover (Wednesday 18 November, ~23:20 UTC)
+# Planning: handover (Saturday 21 November, ~23:20 UTC)
 
-Planning was session_012kbr8yQaHGoDsesfVZhHry. It handed over at about 720k tokens, too late (the rule is 300k). Main is at 1478535 (#597). **The shared-patterns track is finished and building is paused.**
+The last planning session was session_012kbr8yQaHGoDsesfVZhHry. Main is at da24b119 (#600).
 
 ## Where it stands
 
-The handoff plan, MQ2, the drill bugs and the MQ2 follow-ups were all done by 16 Nov. Since then, Lane picked these, from the 17 Nov usability study (`docs/reviews/2026-11-17-usability-study.md`; planning's verdicts are in the backlog's "Usability study, 17 Nov" section):
+Building was paused on 16 November. On 21 November Lane approved one track: **the design review's highs**.
 
-- **UX1, five quick fixes: done.** #586 (the review cadence wraps at 360 px; Settings' anchors), #588 (the agenda counts say what they count; a goal's title gets its own line on a phone), #589 (a quiet link to the one-table check-in at the top of the queue).
-- **Design pass: done.** #585, `docs/design/patterns/spec.md`, with Lane's answers recorded there.
-- **UX2a, one goal row (GOAL-ROW): done.** #591.
-- **UX2b, one form footer (FORM-FOOTER): done.** #593. It also fixed two eval-harness bugs: N8 now models a deploy; N7 no longer waits out 30 s timeouts.
-- **UX2c, the rest of the form footer: done.** #596 (it also stops P3's fade-in contrast flake).
-- **UX4, one page header (PAGE-HEADER): done.** #597. Lane's 18 Nov answers:
-  - F15: on a phone, a list page's one action goes to the end of its list bar.
-  - N2/N9: the compact sticky line takes the top bar's place.
-  - N9's last 24 px were recovered by putting the section links on one row you swipe, with nothing hidden and no limit raised.
+**Running now:**
 
-Also done on 17–18 Nov:
-- **#587:** CLAUDE.md's prompt-cache habits (Lane, from inevolin/claude-code-usage-analysis).
-- **#592:** a backlog tidy, with an Open list at the top, 26 finished rows moved to Done, and `scripts/backlog-page.mjs`.
-- **Explorer page:** https://claude.ai/artifact/1Fv3HvpARQGXmb9UGsJ2Zr
-
-After UX4 and UX2c, building pauses again and Faro is handed over (planning's advice to Lane on 17 Nov).
-
-## Open sessions
-
-| Role | Session | State |
+| Session | ID | What it does |
 |---|---|---|
-| Backlog chat (Sonnet) | session_012kbr922AUWjVwhm6E6S6Vh | Lane's standing chat about the backlog. It adds ideas and sends small docs PRs for planning to merge. |
+| Faro build: design review highs | session_012kbr8yjEw62z5jD8TFEt5Z | Fixes every finding ranked high in `docs/reviews/2026-11-design-review.md` (backlog rows DR1–DR10). Opens draft PRs; doesn't merge. |
+| Faro build reviewer (design highs) | session_012kbr8yqE6nwKTBHaSguqmr | Reviews the build's PRs. Sends highs and mediums to the build; keeps lows in `docs/handover/reviewer.md` on `build-reviews`. |
 
-No build or reviewer is running. The reviewer's log and note are on `build-reviews` (docs/handover/reviewer.md). Start a fresh reviewer from that note when building resumes.
+Both report to planning once, when the track is done. Merging each PR is Lane's call.
 
-## Decided by Lane, 17–18 Nov
+The highs to fix:
+- the progress ring's word spills out of the ring, is dropped on a phone, and its count disagrees with the headline;
+- the projection range is nearly invisible, and its line is always red;
+- the at-risk and no-recent-update marks are too faint on white (below 3:1);
+- the goal map's critical path outlines goals in off-track red when they aren't off track;
+- closing Find doesn't return focus to its button (WCAG 2.4.3).
 
-- The usability study: build UX1. Then a design pass for one goal row, one header and one form footer, built after UX1 as one track (UX2a, UX2b, UX4).
-- The patterns' answers (spec §4–§6):
-  - on a phone, status, value and gap come first, then the name;
-  - "Getting worse" stays;
-  - a detail page has a primary, one standing button and More;
-  - a form's exit stays at the top right;
-  - a form says "Close" until something is typed;
-  - N26 checks where the first goal row starts.
-- UX4: F15 and N2/N9 as above. A WIP push is allowed, but Lane must say so in that session.
-- Merges: this track's PRs merge once CI is green and the reviewer has no high or medium. Planning merges them.
-- The prompt-cache habits in CLAUDE.md.
-- The backlog tidy, the explorer page and the backlog chat.
+**Done on 20–21 November:**
+- **#598 and #599 (README):** Faro's README now opens with what it is for:
+  - the problem it solves;
+  - the weekly loop;
+  - the ideas behind it;
+  - who sees what;
+  - the core and the modules;
+  - the demo;
+  - the model to copy.
 
-## Waiting for Lane
+  Profiles, the old demo people and the language about slices are gone.
+- **#600 (design review):** a report covering critique, charts (the dataviz skill), copy and accessibility, plus ten proposed backlog rows. The critique, UX copy and accessibility skills weren't installed in that session, so those three passes were done by hand.
 
-- The GitHub About description: "Faro: a goals (OKR) tool built as a model for an internal team to copy, with its spec, rebuild kit and a demo that needs no sign-in."
-- PR CI caps by the number of checks, not by time, so a heavy PR (about 23 min locally) can still hit the 30-minute job limit. Planning recommends capping by estimated minutes. Not yet in the backlog.
+## The internal port
 
-## Watch
+Lane is porting Faro to an internal platform. Its details stay out of this public repository. Planning gave Lane:
+- a brief for bringing the port's descriptions in line with this README;
+- a README for the internal repository.
 
-- Under parallel load these checks miss their budgets and pass alone: N18, P3, P4, F6, N12, F1. Act only if one fails on main's full run.
+Both are with Lane.
 
-## Habits learned
+**Vercel in the public kit** appears only in the demo links and in the file name `server/vercel.ts` (in `docs/handoff.md` and `spec/rebuild/adapters.md`). Leave the public kit as it is.
 
-- Check your own context with get_session every few hours. This session didn't, and ran to 720k.
-- A build session refuses actions approved only by planning's relay, such as a WIP push. Ask Lane to tell that session directly.
-- Archive finished sessions by name or by a Faro parent, never "everything else". Planning archived 28 non-Faro sessions by mistake on 16 Nov and restored them.
-- Mechanical CI work (rebuilding api/mcp.js, reading logs) goes to a Sonnet session or subagent.
+**Open lows** (fixed only when a change touches the same lines):
+- #582: Help's search reads hidden sections.
+- #582: R-names' code pointer doesn't list `workspaceNameProblem`.
+
+**Watch:** N18, P3, P4 and F6 have each failed under load and passed alone. Act if one fails on main's full run (the rolling issue "Full evals failing on main").
+
+## Habits
+
+- Keep context small:
+  - no PR subscriptions;
+  - no CI relaying;
+  - builds report once;
+  - hand over at about 300k tokens. The last planning session ran far past this; don't.
 - Ask Lane in one batch of multiple-choice questions, the recommended answer first.
+- Merging to main is Lane's call. A PR with a migration needs his OK on the SQL.
+- Select sessions by Faro title or parent when closing them, never "everything else".
+- A bug that breaks main is fixed at once.
 
 ## Prompt for the next planning session
 
-"You are Faro's planning session. Read CLAUDE.md, docs/handover/planning.md and the Open list at the top of docs/backlog.md. Get your session ID with get_session, run list_sessions, and send_message the open sessions in planning.md's table: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Read reports with ReadNotifications. Building is paused. Ask Lane in one batch what comes next. Fix anything that breaks main at once. Put Lane's ideas in the backlog (or let the backlog chat do it) and build only what he picks. Check your own context with get_session every few hours, and hand over at about 300k tokens by rewriting docs/handover/planning.md."
+"You are Faro's planning session. Read CLAUDE.md, docs/handover/planning.md and the headings of docs/backlog.md. Get your session ID with get_session and run list_sessions. Then send your ID to the build session (session_012kbr8yjEw62z5jD8TFEt5Z) and its reviewer (session_012kbr8yqE6nwKTBHaSguqmr), so their reports reach you. Read reports with ReadNotifications. When the design-highs track reports, give Lane its PRs to merge. Fix anything that breaks main at once. Put Lane's ideas in the backlog, and build only what he picks. Stay quiet otherwise. Hand over at about 300k tokens by rewriting docs/handover/planning.md."
