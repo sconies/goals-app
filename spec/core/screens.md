@@ -86,7 +86,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open the review, Continue the review, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them” | primary | always |
+| “the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open {review}, Continue {review}, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them” | primary | always |
 | “the quiet line’s buttons, as [Home](rules/home.md) words them: Check in early; See the goals and Set up a goal” | link | `quiet.buttons.length > 0` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)” | link | always |

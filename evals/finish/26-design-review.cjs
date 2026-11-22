@@ -82,10 +82,11 @@ module.exports = {
       const m = await p.evaluate(() => {
         const band = document.querySelector('.goal-chart .c-band'), fc = document.querySelector('.goal-chart .c-fc');
         const words = [...document.querySelectorAll('.goal-chart svg text')].map((t) => t.textContent);
+        const key = document.querySelector('.goal-chart .chart-key, .chart-key')?.textContent || '';
         return {
           band: band && { fill: getComputedStyle(band).fill, op: parseFloat(getComputedStyle(band).fillOpacity) },
           edges: document.querySelectorAll('.goal-chart .c-band-edge').length,
-          fc: fc && getComputedStyle(fc).stroke, words,
+          fc: fc && getComputedStyle(fc).stroke, words, key,
         };
       });
       fail(!!m.band, `H2 ${scheme}: Pipeline queue wait’s chart draws no range`);
@@ -93,7 +94,9 @@ module.exports = {
         fail(rgbOf(m.band.fill) !== off, `H2 ${scheme}: the range is filled in off track’s red`);
         fail(m.band.op >= 0.15, `H2 ${scheme}: the range is filled at ${m.band.op}, too faint to see (at least 0.15)`);
         fail(m.edges === 2, `H2 ${scheme}: the range has ${m.edges} edges drawn, not its top and bottom`);
-        fail(m.words.some((t) => /^likely [\d.,]+–[\d.,]+/.test(t || '')), `H2 ${scheme}: the range isn’t labelled “likely {low}–{high}” (${m.words.filter((t) => /likely/.test(t)).join(' | ') || 'no likely'})`);
+        // Named in the key, in the goal's units, and not on the plot, where it ran into the other labels (#603's review).
+        fail(/Projection, likely [\d.,]+–[\d.,]+ ?\S+/.test(m.key), `H2 ${scheme}: the key doesn’t name the range “Projection, likely {low}–{high} {unit}”: “${m.key}”`);
+        fail(!m.words.some((t) => /^likely [\d.,]+–/.test(t || '')), `H2 ${scheme}: the range’s words are drawn on the plot, where they run into its other labels`);
       }
       fail(!m.fc || rgbOf(m.fc) !== off, `H2 ${scheme}: the projection line is off track’s red whatever the goal’s status`);
       await c.close();
@@ -106,7 +109,9 @@ module.exports = {
       const off = rgbOf(await token(p, '--off-mark'));
       const nodes = await p.$$eval('.map-node.critical', (els) => els.map((e) => {
         const cs = getComputedStyle(e);
-        return { tone: e.dataset.tone, text: e.textContent, colours: ['Top', 'Right', 'Bottom', 'Left'].map((k) => cs['border' + k + 'Color']), styles: ['Top', 'Right', 'Bottom', 'Left'].map((k) => cs['border' + k + 'Style']), shadow: cs.boxShadow };
+        const box = (q) => { const b = e.querySelector(q)?.getBoundingClientRect(); return b && { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+        const meta = e.querySelector('.map-meta');
+        return { tone: e.dataset.tone, text: e.textContent, word: box('.map-critical'), status: box('.map-status'), title: box('.map-title'), cut: !!meta && meta.scrollWidth > meta.clientWidth + 1, colours: ['Top', 'Right', 'Bottom', 'Left'].map((k) => cs['border' + k + 'Color']), styles: ['Top', 'Right', 'Bottom', 'Left'].map((k) => cs['border' + k + 'Style']), shadow: cs.boxShadow };
       }));
       fail(nodes.length > 0, 'H4: Amara’s map shows no goal on the critical path');
       for (const x of nodes) {
@@ -114,6 +119,8 @@ module.exports = {
         fail(!red, `H4: a ${x.tone} goal on the critical path is outlined in off track’s red`);
         fail(x.styles.every((s) => s === 'solid'), `H4: a ${x.tone} goal on the critical path has a ${x.styles.join('/')} outline, not solid`);
         fail(/Critical path/.test(x.text), `H4: a ${x.tone} goal on the critical path doesn’t say so in words`);
+        fail(!hit(x.word, x.status) && !hit(x.word, x.title), `H4: a ${x.tone} goal’s “Critical path” runs into its status or title`);
+        fail(!x.cut, `H4: a ${x.tone} goal on the critical path has its owner and level cut off`);
       }
       const edges = await p.$$eval('.react-flow__edge.critical .react-flow__edge-path', (els) => els.map((e) => getComputedStyle(e).stroke));
       fail(edges.length > 0 && edges.every((s) => rgbOf(s) === off), 'H4: the critical path’s edges are no longer drawn in red');
@@ -146,6 +153,22 @@ module.exports = {
       await p.waitForTimeout(250);
       const after = await p.evaluate(() => document.activeElement?.getAttribute('href') ?? document.activeElement?.tagName.toLowerCase());
       fail(after === before, `A1: closing Find opened with the key put focus on ${after}, not the link that had it (${before})`);
+      await c.close();
+    }
+    // Choosing a result, on a phone: focus is the new page's, never sent back to the Find button (#603's review).
+    {
+      const [c, p] = await open(390, 844, 'rhea', '/', true);
+      await p.locator('[data-part="Home"]').waitFor({ timeout: 8000 }).catch(() => {});
+      await p.locator('button.find-nav:visible, button.find-btn:visible').first().click();
+      await p.locator('.find-input').fill('pipeline');
+      await p.waitForTimeout(600);
+      const from = p.url();
+      await p.keyboard.press('Enter');
+      await p.waitForURL((u) => u.toString() !== from, { timeout: 5000 }).catch(() => {});
+      await p.waitForTimeout(2000);
+      const on = await p.evaluate(() => document.activeElement?.matches('button.find-nav, button.find-btn') ?? false);
+      fail(p.url() !== from, 'A1 phone: choosing a result in Find opened nothing');
+      fail(!on, 'A1 phone: after choosing a result, focus went back to the Find button on the new page');
       await c.close();
     }
     return fails;

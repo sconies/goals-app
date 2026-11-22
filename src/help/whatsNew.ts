@@ -31,7 +31,7 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-21',
     title: 'Red means off track, and only that',
     points: [
-      'A goal’s projection is a grey dashed line inside a grey range, named at its end (“likely 9–11”), whatever the goal’s status. Red stays for the words that say a miss.',
+      'A goal’s projection is a grey dashed line inside a grey range, which the key names (“Projection, likely 9–11 min”), whatever the goal’s status. Red stays for the words that say a miss.',
       'On the map, a goal on the critical path has a dark outline and says Critical path; its red is on the lines beneath it.',
       'The marks for at risk and no recent update are darker in light mode, so the half circle and the dashed ring can be made out.',
       'Home’s ring says what it counts under the ring, on a phone too, and a late review’s button names the review it opens.',

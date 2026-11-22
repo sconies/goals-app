@@ -5092,7 +5092,7 @@ journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches R
   if (await p.locator('.dash-review').count()) fail('Home still shows a review cell');
   // An ask's own words may say "review" ("…to the finance review"); Home itself names no review, session or walk.
   const homeSays = await p.locator('[data-part="Home"]').innerText();
-  const named = homeSays.match(/Review today|Review tomorrow|Review on |Not held yet|Open the review|Continue the review|to discuss|in Platform leadership weekly|in Quarterly business review|next session|today’s session/);
+  const named = homeSays.match(/Review today|Review tomorrow|Review on |Not held yet|Also late|Open the review|Continue the review|to discuss|in Platform leadership weekly|in Quarterly business review|next session|today’s session/);
   if (named) fail(`Home still names a review: “${named[0]}”`);
   // A review's address says it is off, and who can switch it on.
   await p.goto(url('/reviews'));
@@ -5145,7 +5145,7 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await h.checkpoint('off');
   await p.goto(url('/'));
   await p.locator('.page.home').waitFor();
-  h.set('attention', !(await p.locator('.dash-review').count()) && !/Not held yet|Review today|Open the review/.test(await p.locator('[data-part="Home"]').innerText()), 'Home with Reviews off still names a review');
+  h.set('attention', !(await p.locator('.dash-review').count()) && !/Not held yet|Review today|Also late/.test(await p.locator('[data-part="Home"]').innerText()) && !(await p.locator('[data-part="Home"] a[href*="/reviews/"]').count()), 'Home with Reviews off still names a review or links to one');
   // Back on: switching on acts at once.
   await p.goto(url('/workspace/features'));
   await box.scrollIntoViewIfNeeded();
@@ -8680,6 +8680,10 @@ async function platformChecks() {
       // Status is a shape plus a word, and the shape is the word's: every Goals layout, at both widths.
       (await shapeMismatches(r)).forEach((x) => design.push(`${device} ${route}: ${x}`));
     }
+    // The marks' 3:1 in dark mode too (design-rules.md says both themes; #603's review).
+    await r.emulateMedia({ colorScheme: 'dark' });
+    await r.goto(url('/'));
+    (await designProblems(r)).filter((x) => /a status mark needs/.test(x)).forEach((x) => design.push(`${device} / dark: ${x}`));
     await c4.close();
   }
   lap('P6');

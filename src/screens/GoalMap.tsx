@@ -41,6 +41,8 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
   return (
     <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '') + (found ? ' found' : '') + (proposed ? ' proposed' : '')} data-tone={proposed ? undefined : status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
+      {/* In the node's top corner, opposite its status: the meta line keeps its owner and level (#603's review). */}
+      {critical && !context && <span className="map-critical">Critical path</span>}
       {proposed ? <span className="proposed-word map-status">{PROPOSED}</span>
         : <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>}
       <span className="map-title" title={goal.title}>{goal.title}<TitleTell goal={goal} /></span>
@@ -54,7 +56,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
       )}
       {/* A parent shows the worst status of everything under it, as a shape and its words (the List's roll-up). */}
       {under && <span className={'map-under tone-' + under.worst} title={`${FEEDER_SCOPE.tree} (${under.total})`}><StatusShape k={under.worst} /><span>Under it: {under.text}</span></span>}
-      <span className="map-meta">{critical && !context && <><span className="map-critical">Critical path</span> · </>}{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${!isEveryday(null, goal.level) ? ` · ${levelName(null, goal.level)}` : ''}`}</span>
+      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${!isEveryday(null, goal.level) ? ` · ${levelName(null, goal.level)}` : ''}`}</span>
       {children > 0 && (
         <button type="button" className="map-toggle nodrag" aria-expanded={hidden === 0} aria-label={hidden ? `Show the ${hidden} ${hidden === 1 ? 'goal' : 'goals'} feeding ${goal.title}` : `Hide the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
           {hidden ? <><Icon name="plus" size={12} />{hidden}</> : <Icon name="minus" size={12} />}

@@ -178,7 +178,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (371 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (372 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -478,6 +478,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-part="Fields"]` | the “Fields” part | [U174](../modules/tags/journeys/U174.md) |
 | `[data-part="Goals you watch"]` | the “Goals you watch” part | [U124](journeys/U124.md) |
 | `[data-part="Home"]` | Home | [U103](../modules/reviews/journeys/U103.md), [U101](journeys/U101.md), [U155](../modules/reviews/journeys/U155.md), [U185](journeys/U185.md) |
+| `[data-part="Home"] a[href*="/reviews/"]` | the a in the “Home” part | [U104](../modules/reviews/journeys/U104.md) |
 | `[data-part="In each goal’s check-in"]` | the “In each goal’s check-in” part | [U161](../modules/metrics/journeys/U161.md) |
 | `[data-part="Last time"]` | the “Last time” part | [U148](journeys/U148.md) |
 | `[data-part="Metrics to verify"]` | the “Metrics to verify” part | [U185](journeys/U185.md) |
