@@ -210,11 +210,12 @@ function reviewLead(f: HomeFacts, x: HomeSession): Lead {
   const past = x.date < f.today;
   const allIn = f.checkIns.total > 0 && f.checkIns.done >= f.checkIns.total;
   const eyebrow = past ? `Not held yet · ${x.name} was on ${longDay(x.date)}` : `${x.name} is today${allIn ? ` · your ${f.checkIns.total} ${plural(f.checkIns.total, 'check-in')} ${f.checkIns.total === 1 ? 'is' : 'are'} in` : ''}`;
-  const title = x.discuss ? `${x.discuss} ${plural(x.discuss, 'goal')} to discuss` : `${x.healthy} with nothing flagged to mark reviewed`;
+  // The ring counts the whole review, so a title about part of it names the whole too (design review H1).
+  const title = x.discuss ? `${x.discuss} ${plural(x.discuss, 'goal')} to discuss${x.total > x.discuss ? `, of ${x.total} in the review` : ''}` : `${x.healthy} with nothing flagged to mark reviewed`;
   const line = past
     ? `Hold it now, or it closes when next week starts${x.nextDate ? ` and these carry to ${longDay(x.nextDate)}` : ''}.`
     : x.discuss && x.healthy ? `${x.healthy} more ${x.healthy === 1 ? 'has' : 'have'} nothing flagged: mark them together at the end.` : 'Worst and stalest first, one at a time.';
-  const action = x.started && x.nextGoal ? { label: `Continue: ${x.nextGoal.title}`, to: `/goals/${x.nextGoal.id}?review=${x.id}` } : { label: x.done ? 'Continue the review' : 'Open the review', to: `/reviews/${x.id}` };
+  const action = x.started && x.nextGoal ? { label: `Continue: ${x.nextGoal.title}`, to: `/goals/${x.nextGoal.id}?review=${x.id}` } : { label: x.done ? `Continue ${x.name}` : `Open ${x.name}`, to: `/reviews/${x.id}` };
   return { kind: 'review', eyebrow, warn: past, title, line, action, also: null, ring: { done: x.done, total: x.total, counts: 'reviewed' }, about: x.id };
 }
 

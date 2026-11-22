@@ -672,7 +672,7 @@ The fourteen per-area fit-and-finish reports hold: every page, sheet and form me
 
 - **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F1, F2, F3, F4, F5, F6, F7, F8
+- **Journeys and checks:** F1, F2, F3, F4, F5, F6, F7, F8, F26
 
 ### OLD-ADDRESSES
 
@@ -1062,7 +1062,7 @@ The app follows docs/design-rules.md on every screen: no coloured edge stripes o
 
 - **Copy:** build it as Faro does.
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** F11, P6, P17, P19
+- **Journeys and checks:** F11, F26, P6, P17, P19
 
 ### SHAPE-MATCHES-WORD
 

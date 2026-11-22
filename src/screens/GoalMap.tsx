@@ -41,6 +41,8 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
   return (
     <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '') + (found ? ' found' : '') + (proposed ? ' proposed' : '')} data-tone={proposed ? undefined : status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
+      {/* In the node's top corner, opposite its status: the meta line keeps its owner and level (#603's review). */}
+      {critical && !context && <span className="map-critical">Critical path</span>}
       {proposed ? <span className="proposed-word map-status">{PROPOSED}</span>
         : <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>}
       <span className="map-title" title={goal.title}>{goal.title}<TitleTell goal={goal} /></span>
@@ -436,7 +438,7 @@ function MapPanel({ goal, onClose, critical, focus, height, coached, sheet }: { 
       <h2 className="block-title" ref={title} tabIndex={-1}>{goal.title}</h2>
       <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
       <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>
-      {critical && <span className="small tone-off strong">On the critical path</span>}
+      {critical && <span className="small strong">On the critical path</span>}
       <span className="small">{s.story.where}</span>
       <StoryLines s={s} />
       {feeds.length > 0 && <span className="hint">{feeds.length} {feeds.length === 1 ? 'goal feeds' : 'goals feed'} it.</span>}

@@ -19,11 +19,11 @@ Home is where you start each day. It answers one question first: what is asked o
 
 #### How to use it
 
-- The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.
+- The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet, and its button names the review: Open Security monthly). Its ring says what it counts, under it: check-ins, reviewed or wrapped. A review’s ring counts the whole review, so when only some of its goals are to discuss the title names both (5 goals to discuss, of 17 in the review). Another late review in This week says Also late.
 
 #### How to use it
 
-- The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or when you left one half done (Pick up where you left off); and the wrap-up at the end of the year, once your check-ins are in. Its ring says what it counts: check-ins or wrapped.
+- The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or when you left one half done (Pick up where you left off); and the wrap-up at the end of the year, once your check-ins are in. Its ring says what it counts, under it: check-ins or wrapped.
 
 #### How to use it
 
@@ -731,7 +731,7 @@ Routes: `/goals?view=map`. Screens: `GoalMap`. Requirements: `GOAL-MAP`.
 
 - Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.
 - Choose Map and the goals appear as soon as it is drawn; only a wait you would notice (over about a third of a second) says “Drawing the map…”.
-- It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.
+- It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold and red beneath them. A goal on it has a solid dark outline and says Critical path under its title, whatever its status. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.
 - Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.
 - On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.
 - Group and Sort can’t be changed on the Map, which is always the trees.
@@ -777,7 +777,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 - Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.
 - If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.
 - Why: the owner’s reason from their latest check-in (one an admin loaded is said as theirs, by name), its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.
-- The chart: the plan as a broad pale band that steps each week to the number the plan table gives for it, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.
+- The chart: the plan as a broad pale band that steps each week to the number the plan table gives for it, the actual as a solid dark line on it, the app’s projection as a dashed grey line inside a shaded grey range, which the key names in the goal’s units (“Projection, likely 9–11 min”), grey whatever the goal’s status, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.
 
 #### In order, on a computer and a phone
 

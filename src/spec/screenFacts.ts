@@ -103,7 +103,7 @@ function wordsOf(node: ts.Node): string {
  * when it shows: `expr`)”, so the expression at least says where the words come from.
  */
 export const WORKED_OUT: Record<string, string> = {
-  'src/screens/Home.tsx|lead.action.label': 'the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open the review, Continue the review, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them',
+  'src/screens/Home.tsx|lead.action.label': 'the lead’s action, as [Home’s lead](rules/home.md) words it: Start check-in, Pick up where you left off, Start the wrap-up, Open {review}, Continue {review}, Continue: {goal}, Respond, Answer, Check in, Mark done, Open it or See them',
   'src/screens/Home.tsx|ASK_BUTTON[w.kind]': 'the ask’s button: Answer (a question), Respond (a decision), Check in (an update asked for) or Mark done (a next step)',
   'src/screens/Home.tsx|r.action': 'the Getting started row’s action: Start check-in, Choose owners, Add people, Copy the link (which copies the invite link), New goal, See the goals or Find goals to watch',
   'src/screens/CheckInFlow.tsx|label': 'Posting… while it saves; on the number step, the label a module’s part there gives, if any; Post check-in on the last step once its number is valid; otherwise Continue',

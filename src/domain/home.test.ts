@@ -55,7 +55,7 @@ describe('Home rule 2: the lead', () => {
   });
   it('Rhea, Tue 10 Nov, all 7 in: the review leads', () => {
     const l = homeLead(facts({ today: '2026-11-10', sessions: [session({})] }, { total: 7, done: 7 }));
-    expect([l?.kind, l?.eyebrow, l?.title, l?.action.to, l?.about]).toEqual(['review', 'Developer Productivity fortnightly is today · your 7 check-ins are in', '14 goals to discuss', '/reviews/dp', 'dp']);
+    expect([l?.kind, l?.eyebrow, l?.title, l?.action.to, l?.about]).toEqual(['review', 'Developer Productivity fortnightly is today · your 7 check-ins are in', '14 goals to discuss, of 35 in the review', '/reviews/dp', 'dp']);
   });
   it('Rhea, Wed 11 Nov, 5 to do, the session not held: the check-in comes first (rank 30 before 50)', () => {
     expect(homeLead(facts({ today: '2026-11-11', sessions: [session({})] }, { total: 7, done: 2, due: due(5) }))?.kind).toBe('check-in');

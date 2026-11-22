@@ -9,9 +9,9 @@
   --primary: #183638; --primary-fg: #FFFFFF;
   --accent: #21968E; --accent-fg: #0C1D1F; --accent-soft: #E2F1EF; --accent-wash: #F2F8F7; --accent-line: #A9D5D0; --accent-text: #136F78;
   --on-fg: #0E6B50; --on-bg: #E3F4EE; --on-line: #7CC8AC; --on-mark: #1F8A68;
-  --risk-fg: #93450A; --risk-bg: #FDF1E3; --risk-line: #EDB677; --risk-mark: #E59A3E;
+  --risk-fg: #93450A; --risk-bg: #FDF1E3; --risk-line: #EDB677; --risk-mark: #B86E14;
   --off-fg: #B42318; --off-bg: #FDECEB; --off-line: #F0A39C; --off-mark: #C8372B; --off-wash: #FFF6F5;
-  --stale-fg: #475467; --stale-bg: #F2F4F7; --stale-line: #D0D5DD; --stale-mark: #B8BFCA;
+  --stale-fg: #475467; --stale-bg: #F2F4F7; --stale-line: #D0D5DD; --stale-mark: #7D8796;
   --done-fg: #2C5A5C; --done-bg: #E6EEED; --done-mark: #4A7A7C;
   --chrome: #183638; --chrome-2: #22474A; --chrome-fg: #FFFFFF; --chrome-muted: #B9CACB;
   --brand-ink: #183638;
@@ -269,10 +269,13 @@ select.input { padding-right: 28px; }
 .check-said { margin: 0; color: var(--fg-2); }
 .level-actions .btn { min-height: 44px; white-space: normal; text-align: left; }
 .foot-says { margin: var(--s2) 0 0; }
-/* What the ring counts, under the number and inside the ring (deep review U16). A finished ring is its tick alone. */
-.ring:has(> .ring-counts) { flex-direction: column; }
-.ring-counts { position: relative; font-weight: 500; font-size: 0.625rem; line-height: 1; margin-top: 1px; color: var(--muted); }
+/* What the ring counts (deep review U16). A finished ring is its tick alone. */
+/* Under the ring, not inside it: inside a 64px ring the word was cut at both edges (design review H1). The ring keeps its
+   own box (the circle), and the word sits in the room its margin keeps below. */
+.ring:has(> .ring-counts) { margin-bottom: 1.25rem; }
+.ring-counts { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; white-space: nowrap; font-weight: 500; font-size: var(--t-xs, 0.75rem); line-height: 1; color: var(--muted); }
 .ring.complete .ring-counts { display: none; }
+.ring.complete:has(> .ring-counts) { margin-bottom: 0; }
 .ring.complete .ring-text { color: var(--on-mark); animation: pop .3s ease-out both; }
 
 /* attention: list rows, not cards */
@@ -436,7 +439,7 @@ svg.chart { display: block; overflow: visible; }
 .c-better-t { fill: var(--muted); font-size: 0.75rem; }
 .c-plan-faint { stroke: var(--faint); fill: none; stroke-width: 1.5; stroke-dasharray: 3 3; }
 .c-orig { stroke: var(--faint); fill: none; stroke-width: 2; stroke-dasharray: 2 4; }
-.c-fc { stroke: var(--off-mark); fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+.c-fc { stroke: var(--fg-2); fill: none; stroke-width: 2; stroke-dasharray: 6 4; } /* neutral ink, whatever the status (design review H2) */
 .c-ptg { stroke: var(--on-mark); fill: none; stroke-width: 2.5; stroke-dasharray: 8 4; }
 .c-ptg-dot { fill: var(--surface); stroke: var(--on-mark); stroke-width: 2.5; }
 .c-target { stroke: var(--on-mark); stroke-width: 1.5; stroke-dasharray: 2 3; }
@@ -449,7 +452,7 @@ svg.chart { display: block; overflow: visible; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 8px; font-size: 0.75rem; color: var(--fg-2); }
 .legend i { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; vertical-align: middle; margin-right: 6px; }
 .l-act { border-color: var(--fg) !important; } .chart-key i.l-plan { border-top: 0; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 30%, transparent); } .l-orig { border-color: var(--faint) !important; border-top-style: dotted !important; }
-.l-fc { border-color: var(--off-mark) !important; border-top-style: dashed !important; } .l-ptg { border-color: var(--on-mark) !important; border-top-style: dashed !important; }
+.l-fc { border-color: var(--fg-2) !important; border-top-style: dashed !important; } .l-ptg { border-color: var(--on-mark) !important; border-top-style: dashed !important; }
 
 /* ---------- sheet, menus, toasts ---------- */
 .sheet-wrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 72px 16px 16px; background: rgba(16, 24, 40, .32); animation: fade .15s ease-out both; }
@@ -940,7 +943,6 @@ main:has(> .page-wait) > .page-help { display: none; }
 .map-panel { flex: 0 0 320px; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); max-height: min(72vh, 760px); overflow: auto; }
 .map-node { position: relative; width: 240px; min-height: 96px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 1px 2px rgba(16, 24, 40, .08); font-family: inherit; cursor: pointer; }
 .map-node[data-tone="off"] { background: var(--off-wash); } .map-node[data-tone="stale"] { border-style: dashed; }
-.map-node.critical { box-shadow: 0 0 0 2px var(--off-mark); }
 .map-node.selected { outline: 3px solid var(--accent); outline-offset: 2px; }
 .map-status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 650; }
 .map-status svg { width: 11px; height: 11px; }

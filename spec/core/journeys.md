@@ -123,6 +123,7 @@ Per-area checks from the fit-and-finish reports.
 | F16 | New goal fits a phone: first field and Continue on the first screen, no step over two screens, 44 px controls (F16) | `NEW-GOAL-STEPS` `GOAL-CREATE` | `evals/finish/11-new-goal-phone.cjs` |
 | F20 | With no set check-in rhythm, no screen says what is due, late, quiet or on time, at either width | `RHYTHM-OPTIONAL` `FIT-AND-FINISH` | `evals/finish/20-no-rhythm.cjs` |
 | F25 | Home’s numbers agree: every count on Home that is a link opens Goals with that number in its count line | `HOME-OWNER` `HOME-MANAGER` | `evals/finish/25-home-numbers.cjs` |
+| F26 | The design review’s highs: the ring’s word under it and its count named beside it, a neutral projection range, the critical path in words not red, the late review named once, and Find giving focus back | `DESIGN-RULES` `FIT-AND-FINISH-AREAS` | `evals/finish/26-design-review.cjs` |
 | N12 | Held at company size: 15,000 people, 1,500 teams and 30,000 goals; no select of everything, pickers within 200 ms, list bars within 300 ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
 | N18 | Size: 1,000, 5,000 and 30,000 rows are checked within 3, 8 and 20 seconds, the page never stops for more than 200 ms, and the preview has fewer than 3,000 elements | `IMPORT-LARGE` | `evals/finish/19-import-large.cjs` |
 | P19 | The import’s preview keeps the design rules: Must fix and Check are words with the warning mark, a full outline and no stripe, plain counts, no capsules, no emoji | `IMPORT-PREVIEW` `DESIGN-RULES` | `evals/finish/18-import-design.cjs` |
@@ -177,7 +178,7 @@ Some journeys set data up without a step, in ways only Faro has (drill 11: U10, 
 
 ## The parts the journeys name
 
-Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (371 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
+Each part of a page a journey finds by Faro’s CSS rather than by its words or role: the selector, the words the journey pages use for it, and the journeys that use it (372 parts). A rebuild needn’t use Faro’s classes; it needs each part to be there, and its journeys runner to find it by whatever the rebuild calls it. Named regions and `data-part` names on each screen are in [the screens](screens.md).
 
 | Selector | In words | Journeys |
 |---|---|---|
@@ -287,7 +288,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `.hero a.btn.primary[href*="/check-in?start=1"]` | the main button in the hero | [U27](journeys/U27.md) |
 | `.hgrid` | the History grid | [U19](../modules/spreadsheets/journeys/U19.md), [U23](journeys/U23.md), [U38](journeys/U38.md) |
 | `.home-counts a` | the link in the status counts (each a shape, a number and a word, linking to those goals) | [U123](journeys/U123.md) |
-| `.home-hero` | Home’s lead | [U2](journeys/U2.md), [U49](../modules/reviews/journeys/U49.md), [U122](journeys/U122.md), [U71](journeys/U71.md), [U57](journeys/U57.md) |
+| `.home-hero` | Home’s lead | [U2](journeys/U2.md), [U49](../modules/reviews/journeys/U49.md), [U122](journeys/U122.md), [U36](../modules/reviews/journeys/U36.md), [U71](journeys/U71.md), [U57](journeys/U57.md) |
 | `.home-main [data-part]` | each named part in the home main | [U49](../modules/reviews/journeys/U49.md) |
 | `.home-mine .alist .grow` | the grow in the alist in the “Your goals” block on Home | [U2](journeys/U2.md) |
 | `.home-mine .alist .grow .grow-status svg` | the svg in the grow status in the grow in the alist in the “Your goals” block on Home | [U2](journeys/U2.md) |
@@ -477,6 +478,7 @@ Each part of a page a journey finds by Faro’s CSS rather than by its words or 
 | `[data-part="Fields"]` | the “Fields” part | [U174](../modules/tags/journeys/U174.md) |
 | `[data-part="Goals you watch"]` | the “Goals you watch” part | [U124](journeys/U124.md) |
 | `[data-part="Home"]` | Home | [U103](../modules/reviews/journeys/U103.md), [U101](journeys/U101.md), [U155](../modules/reviews/journeys/U155.md), [U185](journeys/U185.md) |
+| `[data-part="Home"] a[href*="/reviews/"]` | the a in the “Home” part | [U104](../modules/reviews/journeys/U104.md) |
 | `[data-part="In each goal’s check-in"]` | the “In each goal’s check-in” part | [U161](../modules/metrics/journeys/U161.md) |
 | `[data-part="Last time"]` | the “Last time” part | [U148](journeys/U148.md) |
 | `[data-part="Metrics to verify"]` | the “Metrics to verify” part | [U185](journeys/U185.md) |

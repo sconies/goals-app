@@ -40,6 +40,15 @@ export function Find({ onClose, inline = false }: { onClose: () => void; inline?
   const finders = useMemo(() => Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f])), [screens]);
   const kindOf = (kind: string) => CORE[kind] ?? (finders[kind] ? { ...finders[kind].things, group: cap(finders[kind].things.things), open: finders[kind].open, all: `/${finders[kind].things.things}?q=` } : null);
   const id = useId();
+  // Closing without choosing (Escape, or a click outside) gives focus back to whatever had it when Find opened: its
+  // button, or where Ctrl K was pressed, as the Demo panel does (WCAG 2.4.3; design review A1). Taken at the first
+  // render, before the field's autofocus. Choosing a result leaves focus to the page it opens.
+  const opener = useRef<Element | null>(typeof document === 'undefined' ? null : document.activeElement);
+  const dismiss = () => {
+    onClose();
+    const el = opener.current;
+    if (!inline && el instanceof HTMLElement && el !== document.body) requestAnimationFrame(() => { if (el.isConnected) el.focus(); });
+  };
   const [q, setQ] = useState('');
   const [groups, setGroups] = useState<FoundGroup[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -87,12 +96,11 @@ export function Find({ onClose, inline = false }: { onClose: () => void; inline?
     })
     : lately.map((r) => ({ key: `${r.kind}:${r.id}`, to: CORE[r.kind]!.open(r.id), row: r, kind: r.kind }));
 
-  // Focus stays in the sheet; Escape closes and gives focus back to what opened it.
+  // Focus stays in the sheet; Escape closes and gives focus back to what opened it (dismiss).
   useEffect(() => {
     if (inline) return;
-    const prev = document.activeElement as HTMLElement | null;
     const key = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); dismiss(); return; }
       if (e.key !== 'Tab') return;
       const els = [...(ref.current?.querySelectorAll<HTMLElement>('input, button, a[href]') ?? [])];
       if (!els.length) return;
@@ -101,7 +109,7 @@ export function Find({ onClose, inline = false }: { onClose: () => void; inline?
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', key);
-    return () => { document.removeEventListener('keydown', key); prev?.focus?.(); };
+    return () => document.removeEventListener('keydown', key);
   }, [onClose, inline]);
 
   const open = (o: Option) => {
@@ -145,7 +153,7 @@ export function Find({ onClose, inline = false }: { onClose: () => void; inline?
             aria-activedescendant={options.length ? optId(at) : undefined}
             onChange={(e) => setQ(e.target.value)} onKeyDown={key}
           />
-          {!inline && <button type="button" className="linkish find-close" onClick={onClose}>Close</button>}
+          {!inline && <button type="button" className="linkish find-close" onClick={dismiss}>Close</button>}
         </div>
         <div className="find-body">
           {failed ? (
@@ -179,7 +187,7 @@ export function Find({ onClose, inline = false }: { onClose: () => void; inline?
   );
   if (inline) return <div className="find-inline" ref={ref}>{inner}</div>;
   return createPortal(
-    <div className="sheet-wrap find-wrap" onClick={onClose}>
+    <div className="sheet-wrap find-wrap" onClick={dismiss}>
       <div className="sheet find-sheet" role="dialog" aria-modal="true" aria-label="Find" ref={ref} onClick={(e) => e.stopPropagation()}>
         {inner}
       </div>

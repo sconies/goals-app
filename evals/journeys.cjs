@@ -930,6 +930,15 @@ async function designProblems(r) {
       for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
     }
     if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(document.body.innerText)) out.push('text: a glyph used as an icon');
+    // Status marks are graphics people must make out: 3:1 on the surface and on off track's wash (WCAG 1.4.11; design
+    // review H3, where at risk measured 2.33 and no recent update 1.85 on white), in whichever theme the page is in.
+    const rgb = (v) => { const t = document.createElement('i'); t.style.color = `var(${v})`; document.body.appendChild(t); const m = getComputedStyle(t).color.match(/[\d.]+/g).map(Number); t.remove(); return m; };
+    const lum = ([r, g, b]) => [r, g, b].map((x) => { x /= 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }).reduce((s, x, i) => s + x * [0.2126, 0.7152, 0.0722][i], 0);
+    const ratio = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    for (const mark of ['--on-mark', '--risk-mark', '--off-mark', '--stale-mark', '--done-mark']) for (const ground of ['--surface', '--off-wash']) {
+      const k = ratio(mark, ground);
+      if (k < 3) out.push(`${mark} on ${ground}: ${k.toFixed(2)}:1, under the 3:1 a status mark needs`);
+    }
     return [...new Set(out)];
   });
 }
@@ -2868,7 +2877,7 @@ journey('U36', ['PATH-TO-GREEN', 'ATTENTION', 'REVIEW-RUN', 'ONE-ASK'], 'An owne
   const home = await p.locator('main').innerText();
   h.set('attention', !/approve the extra CI runner budget/.test(home), 'Rhea’s withdrawn request is still on Amara’s Home');
   const discuss = Number((home.match(/(\d+) goals? to discuss/) || [])[1]);
-  await h.click(p.getByRole('link', { name: /Open the review|Continue/ }));
+  await h.click(p.locator('.home-hero').getByRole('link', { name: /^Open |^Continue/ }));
   await see(p, `Start review · ${discuss} goal`, 'Home and the review disagree on how many goals need discussion');
   h.set('finish', discuss > 0, 'no agenda count on Home');
   await h.checkpoint('review');
@@ -5083,7 +5092,7 @@ journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches R
   if (await p.locator('.dash-review').count()) fail('Home still shows a review cell');
   // An ask's own words may say "review" ("…to the finance review"); Home itself names no review, session or walk.
   const homeSays = await p.locator('[data-part="Home"]').innerText();
-  const named = homeSays.match(/Review today|Review tomorrow|Review on |Not held yet|Open the review|Continue the review|to discuss|in Platform leadership weekly|in Quarterly business review|next session|today’s session/);
+  const named = homeSays.match(/Review today|Review tomorrow|Review on |Not held yet|Also late|Open the review|Continue the review|to discuss|in Platform leadership weekly|in Quarterly business review|next session|today’s session/);
   if (named) fail(`Home still names a review: “${named[0]}”`);
   // A review's address says it is off, and who can switch it on.
   await p.goto(url('/reviews'));
@@ -5136,7 +5145,7 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await h.checkpoint('off');
   await p.goto(url('/'));
   await p.locator('.page.home').waitFor();
-  h.set('attention', !(await p.locator('.dash-review').count()) && !/Not held yet|Review today|Open the review/.test(await p.locator('[data-part="Home"]').innerText()), 'Home with Reviews off still names a review');
+  h.set('attention', !(await p.locator('.dash-review').count()) && !/Not held yet|Review today|Also late/.test(await p.locator('[data-part="Home"]').innerText()) && !(await p.locator('[data-part="Home"] a[href*="/reviews/"]').count()), 'Home with Reviews off still names a review or links to one');
   // Back on: switching on acts at once.
   await p.goto(url('/workspace/features'));
   await box.scrollIntoViewIfNeeded();
@@ -8671,6 +8680,10 @@ async function platformChecks() {
       // Status is a shape plus a word, and the shape is the word's: every Goals layout, at both widths.
       (await shapeMismatches(r)).forEach((x) => design.push(`${device} ${route}: ${x}`));
     }
+    // The marks' 3:1 in dark mode too (design-rules.md says both themes; #603's review).
+    await r.emulateMedia({ colorScheme: 'dark' });
+    await r.goto(url('/'));
+    (await designProblems(r)).filter((x) => /a status mark needs/.test(x)).forEach((x) => design.push(`${device} / dark: ${x}`));
     await c4.close();
   }
   lap('P6');
