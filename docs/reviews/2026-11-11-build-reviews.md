@@ -3148,3 +3148,13 @@ Checked against patterns spec section 2 and Lane's 18 Nov answers on F15 and N2/
   - The "likely" label has no units beside a target that has them.
 - **Low:** at 360 the ring's word sits 4–6px into the gutter (no clip, no scroll).
 - Light marks measured: risk #B86E14 3.98 / 3.74 (surface / off-wash), stale #7D8796 3.63 / 3.42.
+
+**#603 cleared at eacfb1f2** (re-checked by a walker; F26 and P6 pass). All six findings are closed:
+- The range is named in the key, in units, and nothing is drawn on the plot.
+- Find gives focus back only on dismiss, and keeps it on the new page after a choice, at both widths.
+- "Critical path" sits in the node's corner and overlaps nothing; no meta line is cut.
+- P6 runs the mark check in dark mode too.
+- screenFacts and U104/U103 use the new words.
+- The range is labelled in units.
+
+**For planning (left alone by #603):** the chart's own labels collide on about 18 goals at 1440 and 22 at 390. "Target N%" runs into "Higher is better" (lead-cache, cfr-tests, slo-edge, vuln-autofix, ns-devsat). The end mark's "likely N · gap" runs into "N pts behind plan" or "On plan" (net-mtls, cfr-tests, lead-review-rota, mttr-runbooks and others). On ci-docker at 1440 it runs into "Now" and "Wk 53". Proposed as a backlog item.
