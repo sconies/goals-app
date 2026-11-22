@@ -37,6 +37,9 @@
    outline read as a status shape (design review H4). Its red is on the edges. */
 .map-node { padding: 12px; }
 .map-node.critical, .map-node.critical[data-tone="stale"] { border: 2px solid var(--fg); padding: 11px; box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
+/* The status line is as wide as its words; on a critical node it leaves the corner to "Critical path". */
+.map-node .map-status { align-self: flex-start; }
+.map-node.critical .map-status { max-width: calc(100% - 96px); }
 .map-critical { position: absolute; top: 11px; right: 12px; font-size: 0.75rem; line-height: 1rem; font-variant-caps: all-small-caps; letter-spacing: .04em; font-weight: 600; color: var(--fg); }
 .map-node.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Words keep their own figures; only numbers are tabular (Map 23). */
