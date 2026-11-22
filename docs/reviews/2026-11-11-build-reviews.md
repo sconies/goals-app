@@ -3135,3 +3135,16 @@ Checked against patterns spec section 2 and Lane's 18 Nov answers on F15 and N2/
   - **M3:** `phoneTitleShown` makes the CSV and the app say Goals for /goals and /watching.
   - `/metrics/baselines` is a list. The other lows stay open. Build and planning told.
 - **When #597 merges:** compare the merge with 2c4876d.
+
+## The reviewer of 21 November: design-review highs (#603)
+
+**#603 at e63596f7** (DR1–DR5, DR10: review H1–H5, A1, A2). Typecheck, npm test, F26 and P6 pass here. No budget raised. Has What's new, the Help guide, `npm run spec` output and F26.
+- **High, sent to the build:** the chart's "likely X–Y" label overlaps "N pts behind plan" / "On plan" on 6 goals at 1440 (lead-review-rota garbled) and 14 at 390, and the axis labels on ci-docker. F26 only checks lead-ci-time.
+- **Mediums, sent:**
+  - On a phone, choosing a Find result sends focus back to the Find button. Find's unmount restore runs before the page sets its focus.
+  - The map's one-line meta now cuts the owner off on 16 of 21 critical nodes.
+  - The design rule says the marks are checked "in both themes (checked by P6)", but P6 runs in light only.
+  - `screenFacts.ts` / `screens.md` still say "Open the review", and U104's regex has weakened as a result.
+  - The "likely" label has no units beside a target that has them.
+- **Low:** at 360 the ring's word sits 4–6px into the gutter (no clip, no scroll).
+- Light marks measured: risk #B86E14 3.98 / 3.74 (surface / off-wash), stale #7D8796 3.63 / 3.42.
